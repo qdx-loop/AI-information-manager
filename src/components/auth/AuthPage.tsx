@@ -137,6 +137,16 @@ export default function AuthPage() {
           </Form.Item>
 
           {/* 云端同步选项 */}
+          {cloudUrl.trim() && cloudKey.trim() ? (
+            // 已保存云端配置：直接显示复选框
+            <Form.Item style={{ marginBottom: 12 }}>
+              <Checkbox checked={cloudSync} onChange={(e) => setCloudSync(e.target.checked)}>
+                <CloudOutlined style={{ marginRight: 4 }} />
+                云端同步（{cloudUrl.trim().replace(/^https?:\/\//, '').split('.')[0]}）
+              </Checkbox>
+            </Form.Item>
+          ) : null}
+
           <Collapse
             ghost
             size="small"
@@ -147,7 +157,7 @@ export default function AuthPage() {
                 label: (
                   <span style={{ fontSize: 13 }}>
                     <CloudOutlined style={{ marginRight: 4 }} />
-                    云端同步登录
+                    {cloudUrl.trim() && cloudKey.trim() ? '修改云端配置' : '云端同步登录'}
                   </span>
                 ),
                 children: (
@@ -156,8 +166,32 @@ export default function AuthPage() {
                       type="info"
                       showIcon
                       style={{ marginBottom: 8, fontSize: 12 }}
-                      message="填入 Supabase 连接信息，从云端数据库登录并同步数据"
+                      message="填入 Supabase 连接信息，从云端数据库登录并同步数据。保存后下次只需勾选「云端同步」即可。"
                     />
+                    {/* 同步码快速输入 */}
+                    <Form.Item label="同步码（快捷填入）" style={{ marginBottom: 8 }}>
+                      <Input.Search
+                        placeholder="粘贴从其他设备复制的同步码"
+                        enterButton="填入"
+                        size="middle"
+                        onSearch={(val) => {
+                          try {
+                            const decoded = atob(val.trim())
+                            const parts = decoded.split('|')
+                            if (parts.length === 2) {
+                              setCloudUrl(parts[0])
+                              setCloudKey(parts[1])
+                              setCloudSync(true)
+                              message.success('已填入云端配置')
+                            } else {
+                              message.error('同步码格式错误')
+                            }
+                          } catch {
+                            message.error('同步码无效')
+                          }
+                        }}
+                      />
+                    </Form.Item>
                     <Form.Item label="Supabase URL" style={{ marginBottom: 8 }}>
                       <Input
                         prefix={<DatabaseOutlined />}

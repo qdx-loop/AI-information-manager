@@ -25,6 +25,7 @@ import {
   UploadOutlined,
   CloudOutlined,
   SyncOutlined,
+  CopyOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useAuthStore } from '@/store/authStore'
@@ -276,6 +277,32 @@ function StorageTab() {
           />
         </Form.Item>
       </Form>
+
+      {settings.cloud.url && settings.cloud.anonKey && (
+        <Card size="small" title="跨设备同步码" style={{ marginTop: 8 }}>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+            在其他设备的登录页粘贴此同步码，可自动填入云端配置，无需手动输入 URL 和 Key。
+          </Text>
+          <Input.Group compact>
+            <Input
+              readOnly
+              style={{ width: 'calc(100% - 80px)' }}
+              value={btoa(`${settings.cloud.url}|${settings.cloud.anonKey}`)}
+            />
+            <Button
+              style={{ width: 80 }}
+              icon={<CopyOutlined />}
+              onClick={() => {
+                const code = btoa(`${settings.cloud.url}|${settings.cloud.anonKey}`)
+                navigator.clipboard.writeText(code)
+                message.success('同步码已复制')
+              }}
+            >
+              复制
+            </Button>
+          </Input.Group>
+        </Card>
+      )}
 
       <Card size="small" title="建表 SQL（复制到 Supabase SQL Editor 执行）" style={{ marginTop: 8 }}>
         <pre style={{ fontSize: 11, maxHeight: 200, overflow: 'auto', margin: 0 }}>
