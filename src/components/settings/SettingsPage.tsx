@@ -281,19 +281,31 @@ function StorageTab() {
       {settings.cloud.url && settings.cloud.anonKey && (
         <Card size="small" title="跨设备同步码" style={{ marginTop: 8 }}>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-            在其他设备的登录页粘贴此同步码，可自动填入云端配置，无需手动输入 URL 和 Key。
+            在其他设备的登录页粘贴此同步码，可自动填入云端和 AI 配置，无需手动输入。
           </Text>
           <Input.Group compact>
             <Input
               readOnly
               style={{ width: 'calc(100% - 80px)' }}
-              value={btoa(`${settings.cloud.url}|${settings.cloud.anonKey}`)}
+              value={btoa([
+                settings.cloud.url,
+                settings.cloud.anonKey,
+                settings.ai.baseUrl || '',
+                settings.ai.apiKey || '',
+                settings.ai.model || '',
+              ].join('|'))}
             />
             <Button
               style={{ width: 80 }}
               icon={<CopyOutlined />}
               onClick={() => {
-                const code = btoa(`${settings.cloud.url}|${settings.cloud.anonKey}`)
+                const code = btoa([
+                  settings.cloud.url,
+                  settings.cloud.anonKey,
+                  settings.ai.baseUrl || '',
+                  settings.ai.apiKey || '',
+                  settings.ai.model || '',
+                ].join('|'))
                 navigator.clipboard.writeText(code)
                 message.success('同步码已复制')
               }}

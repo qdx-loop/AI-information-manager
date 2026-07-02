@@ -11,6 +11,7 @@ export default function AuthPage() {
   const navigate = useNavigate()
   const { login, register, account } = useAuthStore()
   const { settings, setCloud, setStorageMode } = useAppStore()
+  const { setAI } = useAppStore()
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [loading, setLoading] = useState(false)
   const [remember, setRemember] = useState(false)
@@ -179,10 +180,22 @@ export default function AuthPage() {
                             const decoded = atob(val.trim())
                             const parts = decoded.split('|')
                             if (parts.length === 2) {
+                              // 旧格式：仅云端配置
                               setCloudUrl(parts[0])
                               setCloudKey(parts[1])
                               setCloudSync(true)
                               message.success('已填入云端配置')
+                            } else if (parts.length === 5) {
+                              // 新格式：云端 + AI 配置
+                              setCloudUrl(parts[0])
+                              setCloudKey(parts[1])
+                              setCloudSync(true)
+                              if (parts[2] || parts[3] || parts[4]) {
+                                setAI({ baseUrl: parts[2], apiKey: parts[3], model: parts[4] })
+                                message.success('已填入云端和 AI 配置')
+                              } else {
+                                message.success('已填入云端配置')
+                              }
                             } else {
                               message.error('同步码格式错误')
                             }
