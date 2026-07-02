@@ -176,9 +176,15 @@ export function parseItemAction(args: unknown, fields: FieldDef[]): ItemAction |
     for (const f of fields) {
       const v = coerced[f.key]
       if (v === undefined) continue
-      if (f.type === 'number') coerced[f.key] = v === '' ? null : Number(v)
-      else if (f.type === 'rating') coerced[f.key] = v === '' ? 0 : Number(v)
-      else if (f.type === 'checkbox') coerced[f.key] = v === true || v === 'true' || v === '是' || v === 1
+      if (f.type === 'number') {
+        const n = v === '' || v === null ? NaN : Number(v)
+        coerced[f.key] = Number.isNaN(n) ? null : n
+      }
+      else if (f.type === 'rating') {
+        const n = v === '' || v === null ? NaN : Number(v)
+        coerced[f.key] = Number.isNaN(n) ? 0 : n
+      }
+      else if (f.type === 'checkbox') coerced[f.key] = v === true || v === 'true' || v === '是' || v === 1 || v === '1'
       else if (f.type === 'date') coerced[f.key] = typeof v === 'string' ? v : String(v)
       else coerced[f.key] = v === null ? null : String(v)
     }

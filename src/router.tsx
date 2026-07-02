@@ -23,6 +23,20 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// 登录页守卫：loading 时显示 Spin，已登录则跳转主页
+function PublicOnly({ children }: { children: React.ReactNode }) {
+  const { account, loading } = useAuthStore()
+  if (loading) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Spin size="large" />
+      </div>
+    )
+  }
+  if (account) return <Navigate to="/" replace />
+  return <>{children}</>
+}
+
 export default function Router() {
   const init = useAuthStore((s) => s.init)
   useEffect(() => {
@@ -38,7 +52,7 @@ export default function Router() {
       }
     >
       <Routes>
-        <Route path="/login" element={<AuthPage />} />
+        <Route path="/login" element={<PublicOnly><AuthPage /></PublicOnly>} />
         <Route
           path="/"
           element={

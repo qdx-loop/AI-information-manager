@@ -85,18 +85,32 @@ export class LocalDataProvider implements DataProvider {
   }
 
   async deleteLibrary(id: string): Promise<void> {
+    const now = Date.now()
     await db.transaction('rw', db.libraries, db.items, async () => {
-      await db.libraries.update(id, { deletedAt: Date.now() })
+      await db.libraries.update(id, { deletedAt: now })
+      // 只级联删除尚未被单独删除的条目，保留已回收条目的原始 deletedAt
       const items = await db.items.where('libraryId').equals(id).toArray()
-      await Promise.all(items.map((it) => db.items.update(it.id, { deletedAt: Date.now() })))
+      await Promise.all(
+        items
+          .filter((it) => it.deletedAt === null)
+          .map((it) => db.items.update(it.id, { deletedAt: now })),
+      )
     })
   }
 
   async restoreLibrary(id: string): Promise<void> {
     await db.transaction('rw', db.libraries, db.items, async () => {
+      const lib = await db.libraries.get(id)
+      const libDeletedAt = lib?.deletedAt
       await db.libraries.update(id, { deletedAt: null })
+      if (libDeletedAt === null || libDeletedAt === undefined) return
+      // 只恢复随库一起被级联删除的条目（deletedAt 与库相同），不恢复用户单独删除的
       const items = await db.items.where('libraryId').equals(id).toArray()
-      await Promise.all(items.map((it) => db.items.update(it.id, { deletedAt: null })))
+      await Promise.all(
+        items
+          .filter((it) => it.deletedAt === libDeletedAt)
+          .map((it) => db.items.update(it.id, { deletedAt: null })),
+      )
     })
   }
 
@@ -110,9 +124,7 @@ export class LocalDataProvider implements DataProvider {
 
   async reorderLibraries(_accountId: string, orderedIds: string[]): Promise<void> {
     await db.transaction('rw', db.libraries, async () => {
-      orderedIds.forEach((id, idx) => {
-        void db.libraries.update(id, { sortOrder: idx })
-      })
+      await Promise.all(orderedIds.map((id, idx) => db.libraries.update(id, { sortOrder: idx })))
     })
   }
 
@@ -181,9 +193,7 @@ export class LocalDataProvider implements DataProvider {
 
   async reorderItems(_libraryId: string, orderedIds: string[]): Promise<void> {
     await db.transaction('rw', db.items, async () => {
-      orderedIds.forEach((id, idx) => {
-        void db.items.update(id, { sortOrder: idx })
-      })
+      await Promise.all(orderedIds.map((id, idx) => db.items.update(id, { sortOrder: idx })))
     })
   }
 

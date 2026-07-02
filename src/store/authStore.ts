@@ -31,38 +31,31 @@ interface AuthState {
   setAccount: (a: Account | null) => void
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   account: null,
   loading: true,
 
   async init() {
     const id = readStoredId()
-    console.log('[authStore.init] 开始恢复登录态, readStoredId:', id, '存储:', {
-      localStorage: localStorage.getItem(SESSION_KEY),
-      sessionStorage: sessionStorage.getItem(SESSION_KEY),
-    })
     if (!id) {
-      console.log('[authStore.init] 无存储的 ID，跳过恢复')
       set({ loading: false })
       return
     }
     try {
       const provider = getProvider()
       const accounts = await provider.listAccounts()
-      console.log('[authStore.init] listAccounts 返回:', accounts.length, '个账户, IDs:', accounts.map(a => a.id))
+      // 若登录/注册已在 init 完成前设置了 account，则不覆盖
+      if (get().account) {
+        set({ loading: false })
+        return
+      }
       const acc = accounts.find((a) => a.id === id) ?? null
       if (!acc) {
-        console.log('[authStore.init] 未找到匹配账户，清除存储的 ID')
         clearStoredId()
-      } else {
-        console.log('[authStore.init] 成功恢复账户:', acc.username)
       }
       set({ account: acc, loading: false })
-    } catch (e) {
-      console.error('[authStore.init] 恢复登录态失败:', e, '存储状态:', {
-        localStorage: localStorage.getItem(SESSION_KEY),
-        sessionStorage: sessionStorage.getItem(SESSION_KEY),
-      })
+    } catch {
+      clearStoredId()
       set({ loading: false })
     }
   },
@@ -70,15 +63,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   async register(username, password, remember = false) {
     const acc = await getProvider().registerAccount(username, password)
     writeStoredId(acc.id, remember)
-    console.log('[authStore.register] 登录态已写入, remember:', remember, 'id:', acc.id, '存储:', { localStorage: localStorage.getItem(SESSION_KEY), sessionStorage: sessionStorage.getItem(SESSION_KEY) })
-    set({ account: acc })
+    set({ account: acc, loading: false })
   },
 
   async login(username, password, remember = false) {
     const acc = await getProvider().loginAccount(username, password)
     writeStoredId(acc.id, remember)
-    console.log('[authStore.login] 登录态已写入, remember:', remember, 'id:', acc.id, '存储:', { localStorage: localStorage.getItem(SESSION_KEY), sessionStorage: sessionStorage.getItem(SESSION_KEY) })
-    set({ account: acc })
+    set({ account: acc, loading: false })
   },
 
   logout() {

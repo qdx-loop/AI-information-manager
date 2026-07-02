@@ -23,10 +23,13 @@ import {
   DatabaseOutlined,
   DownloadOutlined,
   UploadOutlined,
+  CloudOutlined,
+  SyncOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
+import { useLibraryStore } from '@/store/libraryStore'
 import { getProvider } from '@/db/providerFactory'
 import { exportBackup, importBackup } from '@/db/backup'
 import { SYSTEM_PROMPT } from '@/ai/contextBuilder'
@@ -161,6 +164,49 @@ function AccountTab() {
 function StorageTab() {
   const { message, modal } = App.useApp()
   const { settings, setStorageMode, setCloud } = useAppStore()
+  const { account } = useAuthStore()
+  const [syncing, setSyncing] = useState(false)
+
+  const handleSync = (direction: 'push' | 'pull') => {
+    if (!account) {
+      message.warning('请先登录')
+      return
+    }
+    if (!settings.cloud.url || !settings.cloud.anonKey) {
+      message.warning('请先填写云端连接信息')
+      return
+    }
+    modal.confirm({
+      title: direction === 'push' ? '上传本地数据到云端？' : '从云端拉取数据到本地？',
+      content:
+        direction === 'push'
+          ? '将当前账户的本地数据上传到云端数据库，覆盖云端同 ID 的记录。'
+          : '从云端拉取当前账户的数据到本地，覆盖本地同 ID 的记录。',
+      okText: direction === 'push' ? '上传' : '拉取',
+      onOk: async () => {
+        setSyncing(true)
+        try {
+          const { pushLocalToCloud, pullCloudToLocal } = await import('@/db/providerFactory')
+          if (direction === 'push') {
+            message.loading({ content: '正在上传…', key: 'sync', duration: 0 })
+            await pushLocalToCloud(account.id, settings.cloud)
+            message.success({ content: '本地数据已上传到云端', key: 'sync' })
+          } else {
+            message.loading({ content: '正在拉取…', key: 'sync', duration: 0 })
+            await pullCloudToLocal(account.id, settings.cloud)
+            message.success({ content: '云端数据已拉取到本地，正在刷新…', key: 'sync' })
+            // 刷新 libraryStore 数据
+            await useLibraryStore.getState().loadLibraries()
+            await useLibraryStore.getState().refreshCurrent()
+          }
+        } catch (e) {
+          message.error({ content: '同步失败：' + (e as Error).message, key: 'sync' })
+        } finally {
+          setSyncing(false)
+        }
+      },
+    })
+  }
 
   const handleToggle = (checked: boolean) => {
     const mode = checked ? 'cloud' : 'local'
@@ -269,6 +315,42 @@ create index on items(library_id);
 create index on items(account_id);`}
         </pre>
       </Card>
+
+      {(settings.cloud.url && settings.cloud.anonKey) ? (
+        <Card
+          size="small"
+          title="数据同步"
+          style={{ marginTop: 16 }}
+        >
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              <CloudOutlined /> 当前模式：{settings.storageMode === 'cloud' ? '云端' : '本地'}
+              {account ? `　|　账户：${account.username}` : ''}
+            </Text>
+            <Space>
+              <Button
+                icon={<UploadOutlined />}
+                loading={syncing}
+                onClick={() => handleSync('push')}
+                disabled={!account}
+              >
+                上传到云端
+              </Button>
+              <Button
+                icon={<DownloadOutlined />}
+                loading={syncing}
+                onClick={() => handleSync('pull')}
+                disabled={!account}
+              >
+                从云端拉取
+              </Button>
+            </Space>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              <SyncOutlined /> 上传：本地 → 云端（覆盖同 ID 记录）；拉取：云端 → 本地（覆盖同 ID 记录）
+            </Text>
+          </Space>
+        </Card>
+      ) : null}
     </div>
   )
 }

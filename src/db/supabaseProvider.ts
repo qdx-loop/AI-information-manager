@@ -230,13 +230,31 @@ export class SupabaseDataProvider implements DataProvider {
 
   async deleteLibrary(id: string): Promise<void> {
     const now = Date.now()
-    await this.client.from('libraries').update({ deleted_at: now }).eq('id', id)
-    await this.client.from('items').update({ deleted_at: now }).eq('library_id', id)
+    const { error: e1 } = await this.client.from('libraries').update({ deleted_at: now }).eq('id', id)
+    if (e1) throw new Error(e1.message)
+    // 只级联删除尚未被单独删除的条目
+    const { error: e2 } = await this.client
+      .from('items')
+      .update({ deleted_at: now })
+      .eq('library_id', id)
+      .is('deleted_at', null)
+    if (e2) throw new Error(e2.message)
   }
 
   async restoreLibrary(id: string): Promise<void> {
-    await this.client.from('libraries').update({ deleted_at: null }).eq('id', id)
-    await this.client.from('items').update({ deleted_at: null }).eq('library_id', id)
+    // 先获取库的 deletedAt，用于判断哪些条目是随库一起被级联删除的
+    const { data: libData } = await this.client.from('libraries').select('deleted_at').eq('id', id).maybeSingle()
+    const libDeletedAt = (libData as LibraryRow | null)?.deleted_at ?? null
+    const { error: e1 } = await this.client.from('libraries').update({ deleted_at: null }).eq('id', id)
+    if (e1) throw new Error(e1.message)
+    if (libDeletedAt === null) return
+    // 只恢复随库一起被级联删除的条目
+    const { error: e2 } = await this.client
+      .from('items')
+      .update({ deleted_at: null })
+      .eq('library_id', id)
+      .eq('deleted_at', libDeletedAt)
+    if (e2) throw new Error(e2.message)
   }
 
   async purgeLibrary(id: string): Promise<void> {

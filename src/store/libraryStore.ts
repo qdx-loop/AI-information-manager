@@ -62,11 +62,18 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       return
     }
     set({ currentLibraryId: id, loading: true })
-    const [fields, items] = await Promise.all([
-      getProvider().getTemplate(id),
-      getProvider().listItems(id),
-    ])
-    set({ fields, items, loading: false })
+    try {
+      const [fields, items] = await Promise.all([
+        getProvider().getTemplate(id),
+        getProvider().listItems(id),
+      ])
+      // 竞态保护：若期间又切换了库，丢弃本次结果
+      if (get().currentLibraryId !== id) return
+      set({ fields, items, loading: false })
+    } catch (e) {
+      set({ loading: false })
+      throw e
+    }
   },
 
   async refreshCurrent() {
@@ -81,7 +88,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   async createLibrary(name, category = '默认') {
     const acc = useAuthStore.getState().account!
-    const order = get().libraries.length
+    const order = get().libraries.reduce((m, l) => Math.max(m, l.sortOrder), -1) + 1
     const lib: Library = {
       id: newId(),
       accountId: acc.id,
@@ -142,7 +149,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   async createItem(fieldsValues) {
     const acc = useAuthStore.getState().account!
     const libId = get().currentLibraryId!
-    const order = get().items.length
+    const order = get().items.reduce((m, i) => Math.max(m, i.sortOrder), -1) + 1
     const item: Item = {
       id: newId(),
       libraryId: libId,
@@ -172,11 +179,13 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   async restoreItem(id) {
     await getProvider().restoreItem(id)
     await get().loadTrash()
+    await get().refreshCurrent()
   },
 
   async purgeItem(id) {
     await getProvider().purgeItem(id)
     await get().loadTrash()
+    await get().refreshCurrent()
   },
 
   async pinItem(id, pinned) {
@@ -187,6 +196,13 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   async reorderItems(orderedIds) {
     const libId = get().currentLibraryId!
     await getProvider().reorderItems(libId, orderedIds)
+    // 更新本地 items 的 sortOrder
+    set({
+      items: get().items.map((i) => {
+        const idx = orderedIds.indexOf(i.id)
+        return idx >= 0 ? { ...i, sortOrder: idx } : i
+      }),
+    })
   },
 
   async loadTrash() {

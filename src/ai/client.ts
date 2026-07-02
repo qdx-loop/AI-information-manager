@@ -92,7 +92,7 @@ export async function chat({
               function: { name: '', arguments: '' },
             }
             if (tc.id) existing.id = tc.id
-            if (tc.function?.name) existing.function.name += tc.function.name
+            if (tc.function?.name) existing.function.name = tc.function.name
             if (tc.function?.arguments) existing.function.arguments += tc.function.arguments
             toolCallMap.set(idx, existing)
           }

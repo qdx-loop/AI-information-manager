@@ -98,8 +98,11 @@ export default function AIPanel() {
   // 收集上下文数据
   async function gatherContext(): Promise<LibraryContext[]> {
     const acc = account!
-    if (scope === 'current' && currentLibraryId) {
-      return [{ library: libraries.find((l) => l.id === currentLibraryId)!, fields, items }]
+    if (scope === 'current') {
+      if (!currentLibraryId) return []
+      const lib = libraries.find((l) => l.id === currentLibraryId)
+      if (!lib) return []
+      return [{ library: lib, fields, items }]
     }
     // 全部库
     const allLibs = await getProvider().listLibraries(acc.id)
@@ -128,6 +131,7 @@ export default function AIPanel() {
 
     try {
       const contexts = await gatherContext()
+      lastContextsRef.current = contexts
       const contextText = buildContext(scope, contexts, currentLibraryId)
 
       // 组装 OpenAI 消息：system + context + 记忆 + 历史 + 当前
@@ -148,14 +152,18 @@ export default function AIPanel() {
 
       // 多轮：可能 AI 连续调用工具，需循环处理
       await runConversation(chatMessages, contexts)
-      void assistantMsg
     } catch (e) {
       setMessages((m) =>
-        m.map((msg, i) =>
-          i === m.length - 1
-            ? { ...msg, content: `⚠️ ${(e as Error).message}`, pending: false }
-            : msg,
-        ),
+        m.map((msg, i) => {
+          if (i !== m.length - 1) return msg
+          // 保留已流式生成的内容，仅在内容为空时显示错误
+          const errContent = `⚠️ ${(e as Error).message}`
+          return {
+            ...msg,
+            content: msg.content ? msg.content + '\n\n' + errContent : errContent,
+            pending: false,
+          }
+        }),
       )
     } finally {
       setLoading(false)
@@ -387,6 +395,14 @@ export default function AIPanel() {
       const nextAssistant: UIMessage = { role: 'assistant', content: '', pending: true }
       setMessages((m) => [...m, nextAssistant])
     }
+    // 达到 5 轮上限后，清理最后一条 pending 消息
+    setMessages((m) =>
+      m.map((msg, i) =>
+        i === m.length - 1 && msg.pending
+          ? { ...msg, pending: false, content: msg.content || '（已达到工具调用最大轮数）' }
+          : msg,
+      ),
+    )
   }
 
   async function locateAndFocus(itemId: string, contexts: LibraryContext[]) {
@@ -421,13 +437,16 @@ export default function AIPanel() {
       }
     }
     if (action.action === 'create') {
+      // 获取目标库当前最大 sortOrder
+      const existingItems = await getProvider().listItems(action.libraryId)
+      const order = existingItems.reduce((m, i) => Math.max(m, i.sortOrder), -1) + 1
       const item: Item = {
-        id: crypto.randomUUID(),
+        id: newId(),
         libraryId: action.libraryId,
         accountId: acc.id,
         fields: (action.fields ?? {}) as Item['fields'],
         pinned: false,
-        sortOrder: 9999,
+        sortOrder: order,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         deletedAt: null,
@@ -692,12 +711,8 @@ export default function AIPanel() {
     })
   }
 
-  // 缓存最近一次上下文供 renderContent 用
+  // 缓存最近一次上下文供 renderContent 用（在 handleSend 中更新）
   const lastContextsRef = useRef<LibraryContext[] | null>(null)
-  useEffect(() => {
-    // 在发送时已 gatherContext；这里仅作为渲染兜底，简单复用 libraries/fields/items
-    lastContextsRef.current = [{ library: libraries[0] ?? ({} as Library), fields, items }]
-  }, [libraries, fields, items])
 
   if (!aiConfigured) {
     return (

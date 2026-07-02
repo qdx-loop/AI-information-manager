@@ -222,7 +222,16 @@ export default function Sidebar({ onOpenAI }: { onOpenAI: () => void }) {
         style={{ borderInlineEnd: 'none' }}
       />
 
-      <div style={{ position: 'absolute', bottom: 0, width: '100%', padding: 12, borderTop: '1px solid #f0f0f0' }}>
+      <div
+        style={{
+          position: 'sticky',
+          bottom: 0,
+          width: '100%',
+          padding: 12,
+          borderTop: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+          background: isDark ? '#141414' : '#fff',
+        }}
+      >
         <Button icon={<RobotOutlined />} block onClick={onOpenAI} style={{ marginBottom: 8 }}>
           {collapsed ? '' : 'AI 助手'}
         </Button>
@@ -232,6 +241,15 @@ export default function Sidebar({ onOpenAI }: { onOpenAI: () => void }) {
           type="text"
           onClick={() => {
             logout()
+            // 重置 libraryStore，防止下个账户看到上一个账户的数据
+            useLibraryStore.setState({
+              libraries: [],
+              currentLibraryId: null,
+              fields: [],
+              items: [],
+              trash: [],
+              focusItemId: null,
+            })
             navigate('/login')
           }}
         >

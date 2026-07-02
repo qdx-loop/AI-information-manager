@@ -16,15 +16,23 @@ export default function TrashBin() {
   }, [loadTrash])
 
   const handleRestore = async (entry: TrashEntry) => {
-    if (entry.kind === 'library') await restoreLibrary(entry.record.id)
-    else await restoreItem(entry.record.id)
-    message.success('已恢复')
+    try {
+      if (entry.kind === 'library') await restoreLibrary(entry.record.id)
+      else await restoreItem(entry.record.id)
+      message.success('已恢复')
+    } catch (e) {
+      message.error('恢复失败：' + (e as Error).message)
+    }
   }
 
   const handlePurge = async (entry: TrashEntry) => {
-    if (entry.kind === 'library') await purgeLibrary(entry.record.id)
-    else await purgeItem(entry.record.id)
-    message.success('已永久删除')
+    try {
+      if (entry.kind === 'library') await purgeLibrary(entry.record.id)
+      else await purgeItem(entry.record.id)
+      message.success('已永久删除')
+    } catch (e) {
+      message.error('删除失败：' + (e as Error).message)
+    }
   }
 
   const columns: ColumnsType<TrashEntry> = [
