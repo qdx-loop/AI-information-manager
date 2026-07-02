@@ -55,7 +55,6 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
             name={f.key}
             label={f.label}
             rules={f.required ? [{ required: true, message: `请填写${f.label}` }] : []}
-            valuePropName={f.type === 'checkbox' ? 'checked' : 'value'}
           >
             <FieldRenderer field={f} value={null} onChange={() => {}} />
           </Form.Item>
