@@ -312,7 +312,13 @@ create table items (
 );
 create index on libraries(account_id);
 create index on items(library_id);
-create index on items(account_id);`}
+create index on items(account_id);
+
+-- 禁用 RLS（本应用使用应用层认证，不依赖 Supabase Auth）
+alter table accounts disable row level security;
+alter table libraries disable row level security;
+alter table fields disable row level security;
+alter table items disable row level security;`}
         </pre>
       </Card>
 
