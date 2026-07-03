@@ -12,7 +12,10 @@ export interface DataProvider {
   // —— 账户 ——
   registerAccount(username: string, password: string): Promise<Account>
   loginAccount(username: string, password: string): Promise<Account>
+  // 列表查询：仅返回非敏感字段（id/username/createdAt），passwordHash/salt 为空字符串
   listAccounts(): Promise<Account[]>
+  // 按 id 查询单个账户的完整信息（含 passwordHash/salt），用于登录态恢复、云端拉取等场景
+  getAccountById(accountId: string): Promise<Account | null>
   updatePassword(accountId: string, newPassword: string): Promise<void>
   deleteAccount(accountId: string): Promise<void>
 

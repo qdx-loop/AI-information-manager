@@ -38,8 +38,16 @@ export class LocalDataProvider implements DataProvider {
   }
 
   async listAccounts(): Promise<Account[]> {
+    // 安全：仅返回非敏感字段（本地数据虽在浏览器内，但保持与云端实现一致的安全契约）
     const accounts = await db.accounts.toArray()
-    return accounts.sort((a, b) => a.createdAt - b.createdAt)
+    return accounts
+      .map((a) => ({ id: a.id, username: a.username, passwordHash: '', salt: '', createdAt: a.createdAt }))
+      .sort((a, b) => a.createdAt - b.createdAt)
+  }
+
+  async getAccountById(accountId: string): Promise<Account | null> {
+    const acc = await db.accounts.get(accountId)
+    return acc ?? null
   }
 
   async updatePassword(accountId: string, newPassword: string): Promise<void> {

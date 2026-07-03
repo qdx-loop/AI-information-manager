@@ -282,8 +282,14 @@ function StorageTab() {
       {settings.cloud.url && settings.cloud.anonKey && (
         <Card size="small" title="跨设备同步码" style={{ marginTop: 8 }}>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-            在其他设备的登录页粘贴此同步码，可自动填入云端和 AI 配置。同步码已加密，他人拿到也无法直接看到配置内容。
+            在其他设备的登录页粘贴此同步码，可自动填入云端和 AI 配置。
           </Text>
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 8, fontSize: 12 }}
+            message="同步码含数据库访问凭证，请像密码一样保管，不要公开分享或提交到代码仓库。"
+          />
           <Input.Group compact>
             <Input
               readOnly

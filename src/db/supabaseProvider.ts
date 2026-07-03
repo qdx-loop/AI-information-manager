@@ -164,15 +164,37 @@ export class SupabaseDataProvider implements DataProvider {
   }
 
   async listAccounts(): Promise<Account[]> {
-    const { data, error } = await this.client.from('accounts').select('*').order('created_at')
+    // 安全：仅 select 非敏感字段，passwordHash/salt 不传输到客户端
+    const { data, error } = await this.client
+      .from('accounts')
+      .select('id, username, created_at')
+      .order('created_at')
     if (error) throw new Error(error.message)
     return (data as AccountRow[]).map((r) => ({
+      id: r.id,
+      username: r.username,
+      passwordHash: '',
+      salt: '',
+      createdAt: r.created_at,
+    }))
+  }
+
+  async getAccountById(accountId: string): Promise<Account | null> {
+    const { data, error } = await this.client
+      .from('accounts')
+      .select('*')
+      .eq('id', accountId)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    if (!data) return null
+    const r = data as AccountRow
+    return {
       id: r.id,
       username: r.username,
       passwordHash: r.password_hash,
       salt: r.salt,
       createdAt: r.created_at,
-    }))
+    }
   }
 
   async updatePassword(accountId: string, newPassword: string): Promise<void> {

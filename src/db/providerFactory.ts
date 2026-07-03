@@ -81,6 +81,7 @@ export async function migrateLocalToCloud(settings: Settings): Promise<void> {
 // 从云端切回本地：先拉取云端全部数据到本地 Dexie，再切换 provider
 export async function migrateCloudToLocal(): Promise<void> {
   if (current) {
+    // 安全：listAccounts 只返回 id/username，不拉取密码哈希
     const accounts = await current.listAccounts()
     for (const acc of accounts) {
       try {
@@ -106,9 +107,8 @@ export async function pullCloudToLocal(
     provider = getProvider()
   }
 
-  // 拉取账户信息并写入本地
-  const accounts = await provider.listAccounts()
-  const acc = accounts.find((a) => a.id === accountId)
+  // 安全：按 id 查询单个账户完整数据（含 hash/salt，写入本地以支持离线登录验证）
+  const acc = await provider.getAccountById(accountId)
   if (acc) {
     await db.accounts.put(acc)
   }

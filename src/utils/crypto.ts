@@ -52,5 +52,16 @@ export async function verifyPassword(
   expectedHash: string,
 ): Promise<boolean> {
   const actual = await hashPassword(password, saltHex)
-  return actual === expectedHash
+  // 安全：常量时间比较，防止理论上的时序攻击
+  return timingSafeEqualHex(actual, expectedHash)
+}
+
+// 常量时间字符串比较（仅适用于等长十六进制字符串）
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return diff === 0
 }

@@ -43,13 +43,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     try {
       const provider = getProvider()
-      const accounts = await provider.listAccounts()
+      // 安全：按 id 查询单个账户，避免拉取所有账户的密码哈希
+      const acc = await provider.getAccountById(id)
       // 若登录/注册已在 init 完成前设置了 account，则不覆盖
       if (get().account) {
         set({ loading: false })
         return
       }
-      const acc = accounts.find((a) => a.id === id) ?? null
       if (!acc) {
         clearStoredId()
       }
