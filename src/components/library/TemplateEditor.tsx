@@ -108,7 +108,8 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
       open={open}
       onCancel={onCancel}
       onOk={handleSave}
-      width={720}
+      width="90%"
+      style={{ maxWidth: 720 }}
       afterOpenChange={(o) => o && handleOpen()}
     >
       <Space style={{ marginBottom: 12 }}>
@@ -155,6 +156,7 @@ function FieldRow({
     transition,
     display: 'flex',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
     padding: '8px 12px',
     background: '#fafafa',
@@ -169,7 +171,7 @@ function FieldRow({
       <Input
         value={field.label}
         onChange={(e) => onChange({ label: e.target.value })}
-        style={{ width: 140 }}
+        style={{ width: 140, flex: 1, minWidth: 100 }}
         placeholder="字段名"
         autoFocus
       />
@@ -177,7 +179,7 @@ function FieldRow({
         value={field.type}
         onChange={(v) => onChange({ type: v })}
         options={FIELD_TYPES}
-        style={{ width: 140 }}
+        style={{ width: 140, flexShrink: 0 }}
       />
       {field.type === 'select' && (
         <Select

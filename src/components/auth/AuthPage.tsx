@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Card, Form, Input, Button, Tabs, Checkbox, App, Collapse, Alert } from 'antd'
-import { UserOutlined, LockOutlined, CloudOutlined, DatabaseOutlined } from '@ant-design/icons'
+import { UserOutlined, LockOutlined, CloudOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { useNavigate } from 'react-router-dom'
 import { initFromSettings, pullCloudToLocal } from '@/db/providerFactory'
+import { decodeSyncCode } from '@/utils/syncCode'
 
 export default function AuthPage() {
   const { message } = App.useApp()
@@ -91,7 +92,7 @@ export default function AuthPage() {
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       }}
     >
-      <Card style={{ width: 380, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+      <Card style={{ width: '100%', maxWidth: 380, margin: '0 12px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
         <h2 style={{ textAlign: 'center', marginBottom: 24 }}>信息管理</h2>
         <Tabs
           activeKey={mode}
@@ -158,7 +159,7 @@ export default function AuthPage() {
                 label: (
                   <span style={{ fontSize: 13 }}>
                     <CloudOutlined style={{ marginRight: 4 }} />
-                    {cloudUrl.trim() && cloudKey.trim() ? '修改云端配置' : '云端同步登录'}
+                    云端同步登录
                   </span>
                 ),
                 children: (
@@ -167,64 +168,31 @@ export default function AuthPage() {
                       type="info"
                       showIcon
                       style={{ marginBottom: 8, fontSize: 12 }}
-                      message="填入 Supabase 连接信息，从云端数据库登录并同步数据。保存后下次只需勾选「云端同步」即可。"
+                      message="粘贴从其他设备获取的同步码，自动填入云端和 AI 配置。"
                     />
-                    {/* 同步码快速输入 */}
-                    <Form.Item label="同步码（快捷填入）" style={{ marginBottom: 8 }}>
+                    <Form.Item label="同步码" style={{ marginBottom: 8 }}>
                       <Input.Search
-                        placeholder="粘贴从其他设备复制的同步码"
+                        placeholder="粘贴同步码"
                         enterButton="填入"
                         size="middle"
                         onSearch={(val) => {
-                          try {
-                            const decoded = atob(val.trim())
-                            const parts = decoded.split('|')
-                            if (parts.length === 2) {
-                              // 旧格式：仅云端配置
-                              setCloudUrl(parts[0])
-                              setCloudKey(parts[1])
-                              setCloudSync(true)
-                              message.success('已填入云端配置')
-                            } else if (parts.length === 5) {
-                              // 新格式：云端 + AI 配置
-                              setCloudUrl(parts[0])
-                              setCloudKey(parts[1])
-                              setCloudSync(true)
-                              if (parts[2] || parts[3] || parts[4]) {
-                                setAI({ baseUrl: parts[2], apiKey: parts[3], model: parts[4] })
-                                message.success('已填入云端和 AI 配置')
-                              } else {
-                                message.success('已填入云端配置')
-                              }
+                          const decoded = decodeSyncCode(val)
+                          if (decoded) {
+                            setCloudUrl(decoded.cloudUrl)
+                            setCloudKey(decoded.cloudKey)
+                            setCloudSync(true)
+                            if (decoded.aiBaseUrl || decoded.aiApiKey || decoded.aiModel) {
+                              setAI({ baseUrl: decoded.aiBaseUrl, apiKey: decoded.aiApiKey, model: decoded.aiModel })
+                              message.success('已填入云端和 AI 配置')
                             } else {
-                              message.error('同步码格式错误')
+                              message.success('已填入云端配置')
                             }
-                          } catch {
-                            message.error('同步码无效')
+                          } else {
+                            message.error('同步码无效或已损坏')
                           }
                         }}
                       />
                     </Form.Item>
-                    <Form.Item label="Supabase URL" style={{ marginBottom: 8 }}>
-                      <Input
-                        prefix={<DatabaseOutlined />}
-                        placeholder="https://xxxx.supabase.co"
-                        value={cloudUrl}
-                        onChange={(e) => setCloudUrl(e.target.value)}
-                        size="middle"
-                      />
-                    </Form.Item>
-                    <Form.Item label="anon key" style={{ marginBottom: 8 }}>
-                      <Input.Password
-                        placeholder="eyJhbGci..."
-                        value={cloudKey}
-                        onChange={(e) => setCloudKey(e.target.value)}
-                        size="middle"
-                      />
-                    </Form.Item>
-                    <Checkbox checked={cloudSync} onChange={(e) => setCloudSync(e.target.checked)}>
-                      启用云端同步
-                    </Checkbox>
                   </>
                 ),
               },

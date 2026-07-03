@@ -45,7 +45,8 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
         onCancel()
       }}
       onOk={handleOk}
-      width={560}
+      width="90%"
+      style={{ maxWidth: 560 }}
       destroyOnHidden
     >
       <Form form={form} layout="vertical">

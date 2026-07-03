@@ -18,8 +18,6 @@ import {
   SearchOutlined,
   SettingOutlined,
   ImportOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
 } from '@ant-design/icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import LibraryTable from './LibraryTable'
@@ -190,18 +188,18 @@ export default function LibraryView() {
         style={{ marginBottom: 12 }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <Space>
+          <Space wrap>
             <Title level={4} style={{ margin: 0 }}>
               {lib?.name ?? '管理库'}
             </Title>
             {lib && <Tag color="blue">{lib.category}</Tag>}
             <Text type="secondary">共 {items.length} 条</Text>
           </Space>
-          <Space wrap>
-            <Button icon={<PlusOutlined />} type="primary" onClick={handleNew}>新建条目</Button>
-            <Button icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>字段模板</Button>
+          <Space wrap size="small">
+            <Button icon={<PlusOutlined />} type="primary" onClick={handleNew}>新建</Button>
+            <Button icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>模板</Button>
             <Button icon={<ImportOutlined />} onClick={handleClone} disabled={fields.length === 0}>
-              复用模板
+              复用
             </Button>
             <ImportExport fields={fields} items={items} onImport={handleImport} />
           </Space>
@@ -209,21 +207,21 @@ export default function LibraryView() {
       </Card>
 
       <Card styles={{ body: { padding: 12 } }}>
-        <Space wrap style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
           <Input
             prefix={<SearchOutlined />}
-            placeholder="关键词搜索"
+            placeholder="搜索"
             allowClear
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            style={{ width: 220 }}
+            style={{ width: '100%', marginBottom: 4 }}
           />
           <Select
             placeholder="筛选字段"
             value={filterField || undefined}
             onChange={(v) => setFilterField(v ?? '')}
             allowClear
-            style={{ width: 140 }}
+            style={{ flex: 1, minWidth: 120 }}
             options={visibleFields.map((f) => ({ label: f.label, value: f.key }))}
           />
           {filterField && (
@@ -232,15 +230,15 @@ export default function LibraryView() {
               allowClear
               value={filterValue}
               onChange={(e) => setFilterValue(e.target.value)}
-              style={{ width: 160 }}
+              style={{ flex: 1, minWidth: 120 }}
             />
           )}
           <Select
-            placeholder="排序字段"
+            placeholder="排序"
             value={sortField || undefined}
             onChange={(v) => setSortField(v ?? '')}
             allowClear
-            style={{ width: 140 }}
+            style={{ flex: 1, minWidth: 120 }}
             options={visibleFields.map((f) => ({ label: f.label, value: f.key }))}
           />
           {sortField && (
@@ -251,12 +249,10 @@ export default function LibraryView() {
               onChange={setSortDesc}
             />
           )}
-          <Button icon={<ArrowUpOutlined />} onClick={() => setSortDesc(false)} type="text" />
-          <Button icon={<ArrowDownOutlined />} onClick={() => setSortDesc(true)} type="text" />
           <Button type="link" onClick={() => { setKeyword(''); setFilterField(''); setFilterValue(''); setSortField('') }}>
             清除
           </Button>
-        </Space>
+        </div>
 
         {processed.length === 0 ? (
           <Empty description={items.length === 0 ? '暂无条目，点击「新建条目」开始' : '无匹配结果'}>

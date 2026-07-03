@@ -3,6 +3,7 @@ import type { Library, FieldDef, Item, TrashEntry } from '@/types'
 import { getProvider } from '@/db/providerFactory'
 import { useAuthStore } from './authStore'
 import { newId } from '@/utils/id'
+import { scheduleAutoSync } from '@/utils/autoSync'
 
 interface LibraryState {
   libraries: Library[]
@@ -99,40 +100,47 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
     await getProvider().createLibrary(lib)
     await get().loadLibraries()
+    scheduleAutoSync()
     return lib.id
   },
 
   async renameLibrary(id, name) {
     await getProvider().renameLibrary(id, name)
     await get().loadLibraries()
+    scheduleAutoSync()
   },
 
   async setLibraryCategory(id, category) {
     await getProvider().setLibraryCategory(id, category)
     await get().loadLibraries()
+    scheduleAutoSync()
   },
 
   async deleteLibrary(id) {
     await getProvider().deleteLibrary(id)
     if (get().currentLibraryId === id) set({ currentLibraryId: null, fields: [], items: [] })
     await get().loadLibraries()
+    scheduleAutoSync()
   },
 
   async restoreLibrary(id) {
     await getProvider().restoreLibrary(id)
     await get().loadLibraries()
     await get().loadTrash()
+    scheduleAutoSync()
   },
 
   async purgeLibrary(id) {
     await getProvider().purgeLibrary(id)
     await get().loadTrash()
+    scheduleAutoSync()
   },
 
   async reorderLibraries(orderedIds) {
     const acc = useAuthStore.getState().account!
     await getProvider().reorderLibraries(acc.id, orderedIds)
     await get().loadLibraries()
+    scheduleAutoSync()
   },
 
   async saveTemplate(libraryId, fields) {
@@ -140,10 +148,12 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     if (get().currentLibraryId === libraryId) {
       set({ fields: await getProvider().getTemplate(libraryId) })
     }
+    scheduleAutoSync()
   },
 
   async cloneTemplate(srcId, dstId) {
     await getProvider().cloneTemplate(srcId, dstId)
+    scheduleAutoSync()
   },
 
   async createItem(fieldsValues) {
@@ -163,46 +173,52 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
     await getProvider().createItem(item)
     set({ items: [...get().items, item] })
+    scheduleAutoSync()
     return item
   },
 
   async updateItem(item) {
     await getProvider().updateItem(item)
     set({ items: get().items.map((i) => (i.id === item.id ? { ...item, updatedAt: Date.now() } : i)) })
+    scheduleAutoSync()
   },
 
   async deleteItem(id) {
     await getProvider().deleteItem(id)
     set({ items: get().items.filter((i) => i.id !== id) })
+    scheduleAutoSync()
   },
 
   async restoreItem(id) {
     await getProvider().restoreItem(id)
     await get().loadTrash()
     await get().refreshCurrent()
+    scheduleAutoSync()
   },
 
   async purgeItem(id) {
     await getProvider().purgeItem(id)
     await get().loadTrash()
     await get().refreshCurrent()
+    scheduleAutoSync()
   },
 
   async pinItem(id, pinned) {
     await getProvider().pinItem(id, pinned)
     set({ items: get().items.map((i) => (i.id === id ? { ...i, pinned } : i)) })
+    scheduleAutoSync()
   },
 
   async reorderItems(orderedIds) {
     const libId = get().currentLibraryId!
     await getProvider().reorderItems(libId, orderedIds)
-    // 更新本地 items 的 sortOrder
     set({
       items: get().items.map((i) => {
         const idx = orderedIds.indexOf(i.id)
         return idx >= 0 ? { ...i, sortOrder: idx } : i
       }),
     })
+    scheduleAutoSync()
   },
 
   async loadTrash() {

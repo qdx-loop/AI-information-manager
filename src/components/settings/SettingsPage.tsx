@@ -31,6 +31,7 @@ import dayjs from 'dayjs'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { useLibraryStore } from '@/store/libraryStore'
+import { encodeSyncCode } from '@/utils/syncCode'
 import { getProvider } from '@/db/providerFactory'
 import { exportBackup, importBackup } from '@/db/backup'
 import { SYSTEM_PROMPT } from '@/ai/contextBuilder'
@@ -281,31 +282,31 @@ function StorageTab() {
       {settings.cloud.url && settings.cloud.anonKey && (
         <Card size="small" title="跨设备同步码" style={{ marginTop: 8 }}>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-            在其他设备的登录页粘贴此同步码，可自动填入云端和 AI 配置，无需手动输入。
+            在其他设备的登录页粘贴此同步码，可自动填入云端和 AI 配置。同步码已加密，他人拿到也无法直接看到配置内容。
           </Text>
           <Input.Group compact>
             <Input
               readOnly
               style={{ width: 'calc(100% - 80px)' }}
-              value={btoa([
-                settings.cloud.url,
-                settings.cloud.anonKey,
-                settings.ai.baseUrl || '',
-                settings.ai.apiKey || '',
-                settings.ai.model || '',
-              ].join('|'))}
+              value={encodeSyncCode({
+                cloudUrl: settings.cloud.url,
+                cloudKey: settings.cloud.anonKey,
+                aiBaseUrl: settings.ai.baseUrl,
+                aiApiKey: settings.ai.apiKey,
+                aiModel: settings.ai.model,
+              })}
             />
             <Button
               style={{ width: 80 }}
               icon={<CopyOutlined />}
               onClick={() => {
-                const code = btoa([
-                  settings.cloud.url,
-                  settings.cloud.anonKey,
-                  settings.ai.baseUrl || '',
-                  settings.ai.apiKey || '',
-                  settings.ai.model || '',
-                ].join('|'))
+                const code = encodeSyncCode({
+                  cloudUrl: settings.cloud.url,
+                  cloudKey: settings.cloud.anonKey,
+                  aiBaseUrl: settings.ai.baseUrl,
+                  aiApiKey: settings.ai.apiKey,
+                  aiModel: settings.ai.model,
+                })
                 navigator.clipboard.writeText(code)
                 message.success('同步码已复制')
               }}
