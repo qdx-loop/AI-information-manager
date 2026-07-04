@@ -699,7 +699,7 @@ export default function AIPanel() {
               <Tag
                 color="blue"
                 style={{ cursor: 'pointer', margin: '0 2px' }}
-                onClick={() => void locateAndFocus(itemId, contexts)}
+                onClick={() => locateAndFocus(itemId, contexts).catch((e) => message.error('定位条目失败：' + (e as Error).message))}
               >
                 {summary.slice(0, 12) || itemId.slice(0, 6)}
               </Tag>

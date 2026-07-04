@@ -50,9 +50,9 @@ export default function LibraryView() {
 
   useEffect(() => {
     if (id && id !== currentLibraryId) {
-      void selectLibrary(id)
+      selectLibrary(id).catch((e) => message.error('加载管理库失败：' + (e as Error).message))
     }
-  }, [id, currentLibraryId, selectLibrary])
+  }, [id, currentLibraryId, selectLibrary, message])
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<Item | null>(null)

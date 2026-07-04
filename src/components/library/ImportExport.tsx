@@ -46,6 +46,12 @@ export default function ImportExport({ fields, items, onImport }: Props) {
   }
 
   const handleFile = async (file: File) => {
+    // 限制文件大小为 10MB，防止超大文件卡死浏览器
+    const MAX_SIZE = 10 * 1024 * 1024
+    if (file.size > MAX_SIZE) {
+      message.error('文件过大（超过 10MB），请拆分后再导入')
+      return false
+    }
     try {
       const isCsv = file.name.toLowerCase().endsWith('.csv')
       const rows = isCsv ? await parseCSV(file) : await parseExcel(file)

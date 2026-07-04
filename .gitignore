@@ -7,3 +7,7 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 *.log
+
+# 构建中间产物
+*.tsbuildinfo
+vite.config.d.ts

@@ -40,7 +40,8 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
 export default function Router() {
   const init = useAuthStore((s) => s.init)
   useEffect(() => {
-    void init()
+    // init() 内部已有 try/catch，此处 catch 仅作兜底防御
+    init().catch((e) => console.error('[auth] init 未捕获:', e))
   }, [init])
 
   return (

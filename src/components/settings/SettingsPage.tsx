@@ -32,6 +32,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { useLibraryStore } from '@/store/libraryStore'
 import { encodeSyncCode } from '@/utils/syncCode'
+import { verifyPassword } from '@/utils/crypto'
 import { getProvider } from '@/db/providerFactory'
 import { exportBackup, importBackup } from '@/db/backup'
 import { SYSTEM_PROMPT } from '@/ai/contextBuilder'
@@ -61,25 +62,54 @@ function AccountTab() {
   const { account, logout } = useAuthStore()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [pwdOpen, setPwdOpen] = useState(false)
+  const [oldPwd, setOldPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
+  const [pwdLoading, setPwdLoading] = useState(false)
 
   const load = async () => {
     setAccounts(await getProvider().listAccounts())
   }
   useEffect(() => {
-    void load()
+    load().catch((e) => message.error('加载账户列表失败：' + (e as Error).message))
   }, [])
 
   const handleChangePwd = async () => {
     if (!account) return
-    if (newPwd.length < 6) {
-      message.warning('密码至少 6 位')
+    if (!oldPwd) {
+      message.warning('请输入旧密码')
       return
     }
-    await getProvider().updatePassword(account.id, newPwd)
-    message.success('密码已修改')
-    setNewPwd('')
-    setPwdOpen(false)
+    if (newPwd.length < 6) {
+      message.warning('新密码至少 6 位')
+      return
+    }
+    if (oldPwd === newPwd) {
+      message.warning('新密码不能与旧密码相同')
+      return
+    }
+    setPwdLoading(true)
+    try {
+      // 重新拉取账户完整信息（含 passwordHash/salt），避免使用过期数据
+      const full = await getProvider().getAccountById(account.id)
+      if (!full || !full.passwordHash || !full.salt) {
+        message.error('无法验证旧密码：账户信息不完整')
+        return
+      }
+      const ok = await verifyPassword(oldPwd, full.salt, full.passwordHash)
+      if (!ok) {
+        message.error('旧密码不正确')
+        return
+      }
+      await getProvider().updatePassword(account.id, newPwd)
+      message.success('密码已修改')
+      setOldPwd('')
+      setNewPwd('')
+      setPwdOpen(false)
+    } catch (e) {
+      message.error('修改失败：' + (e as Error).message)
+    } finally {
+      setPwdLoading(false)
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -88,7 +118,7 @@ function AccountTab() {
     if (id === account?.id) {
       logout()
     }
-    void load()
+    load().catch((e) => message.error('刷新账户列表失败：' + (e as Error).message))
   }
 
   const columns: ColumnsType<Account> = [
@@ -146,16 +176,22 @@ function AccountTab() {
       {pwdOpen && (
         <Card size="small" title="修改密码" style={{ marginTop: 16, maxWidth: 400 }}>
           <Input.Password
+            placeholder="旧密码"
+            value={oldPwd}
+            onChange={(e) => setOldPwd(e.target.value)}
+            style={{ marginBottom: 8 }}
+          />
+          <Input.Password
             placeholder="新密码（至少 6 位）"
             value={newPwd}
             onChange={(e) => setNewPwd(e.target.value)}
             style={{ marginBottom: 8 }}
           />
           <Space>
-            <Button type="primary" onClick={handleChangePwd}>
+            <Button type="primary" onClick={handleChangePwd} loading={pwdLoading}>
               确认修改
             </Button>
-            <Button onClick={() => { setPwdOpen(false); setNewPwd('') }}>取消</Button>
+            <Button onClick={() => { setPwdOpen(false); setOldPwd(''); setNewPwd('') }}>取消</Button>
           </Space>
         </Card>
       )}

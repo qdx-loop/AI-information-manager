@@ -88,7 +88,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   async createLibrary(name, category = '默认') {
-    const acc = useAuthStore.getState().account!
+    const acc = useAuthStore.getState().account
+    if (!acc) throw new Error('未登录，无法创建管理库')
     const order = get().libraries.reduce((m, l) => Math.max(m, l.sortOrder), -1) + 1
     const lib: Library = {
       id: newId(),
@@ -137,7 +138,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   async reorderLibraries(orderedIds) {
-    const acc = useAuthStore.getState().account!
+    const acc = useAuthStore.getState().account
+    if (!acc) throw new Error('未登录，无法重排管理库')
     await getProvider().reorderLibraries(acc.id, orderedIds)
     await get().loadLibraries()
     scheduleAutoSync()
@@ -157,8 +159,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   async createItem(fieldsValues) {
-    const acc = useAuthStore.getState().account!
-    const libId = get().currentLibraryId!
+    const acc = useAuthStore.getState().account
+    if (!acc) throw new Error('未登录，无法创建条目')
+    const libId = get().currentLibraryId
+    if (!libId) throw new Error('未选择管理库，无法创建条目')
     const order = get().items.reduce((m, i) => Math.max(m, i.sortOrder), -1) + 1
     const item: Item = {
       id: newId(),
@@ -210,7 +214,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   async reorderItems(orderedIds) {
-    const libId = get().currentLibraryId!
+    const libId = get().currentLibraryId
+    if (!libId) throw new Error('未选择管理库，无法重排条目')
     await getProvider().reorderItems(libId, orderedIds)
     set({
       items: get().items.map((i) => {
