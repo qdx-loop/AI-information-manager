@@ -271,7 +271,10 @@ function StorageTab() {
             message.success('已切换到本地模式')
           }
           setStorageMode(mode)
-          setTimeout(() => window.location.reload(), 800)
+          // 刷新 libraryStore 数据，避免 window.location.reload() 整页刷新
+          await useLibraryStore.getState().loadLibraries()
+          // 切换存储模式后清空当前库选中状态（数据源已变，旧 fields/items 无意义）
+          useLibraryStore.setState({ currentLibraryId: null, fields: [], items: [], trash: [], focusItemId: null })
         } catch (e) {
           message.error({ content: '切换失败：' + (e as Error).message, key: 'migrate' })
         }

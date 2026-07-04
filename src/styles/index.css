@@ -10,3 +10,12 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 }
+
+/* LibraryTable 焦点行高亮和置顶行样式 */
+.focus-row td {
+  background: #fff7e6 !important;
+  box-shadow: inset 3px 0 0 #fa8c16;
+}
+.pinned-row td {
+  background: #fffbe6;
+}

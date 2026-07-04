@@ -93,10 +93,6 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
           },
         })}
       />
-      <style>{`
-        .focus-row td { background: #fff7e6 !important; box-shadow: inset 3px 0 0 #fa8c16; }
-        .pinned-row td { background: #fffbe6; }
-      `}</style>
     </div>
   )
 }

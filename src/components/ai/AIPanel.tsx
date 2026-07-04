@@ -42,15 +42,16 @@ interface UIMessage {
   undo?: UndoInfo
 }
 
-// 等待用户确认的 Promise resolver
-let confirmResolver: ((action: ItemAction | null) => void) | null = null
-let libConfirmResolver: ((confirmed: boolean) => void) | null = null
+// 等待用户确认的 Promise resolver（用 ref 存储，避免多实例状态冲突）
+// 注：当前 AIPanel 只有一个实例，但 ref 比模块级 let 更符合 React 模式
 
 export default function AIPanel() {
   const navigate = useNavigate()
   const { message } = App.useApp()
   const { settings, setAI } = useAppStore()
   const { account } = useAuthStore()
+  const confirmResolverRef = useRef<((action: ItemAction | null) => void) | null>(null)
+  const libConfirmResolverRef = useRef<((confirmed: boolean) => void) | null>(null)
   const {
     libraries,
     currentLibraryId,
@@ -258,7 +259,7 @@ export default function AIPanel() {
 
           // 弹窗等待用户确认
           const confirmed = await new Promise<ItemAction | null>((resolve) => {
-            confirmResolver = resolve
+            confirmResolverRef.current = resolve
             setPendingAction({
               action,
               library: libCtx?.library,
@@ -324,7 +325,7 @@ export default function AIPanel() {
             : undefined
 
           const confirmed = await new Promise<boolean>((resolve) => {
-            libConfirmResolver = resolve
+            libConfirmResolverRef.current = resolve
             setPendingLibAction({ libAction, tplAction: null, library: lib, fields: [] })
           })
           setPendingLibAction(null)
@@ -361,7 +362,7 @@ export default function AIPanel() {
           const libFields = libCtx?.fields ?? []
 
           const confirmed = await new Promise<boolean>((resolve) => {
-            libConfirmResolver = resolve
+            libConfirmResolverRef.current = resolve
             setPendingLibAction({ libAction: null, tplAction, library: libCtx?.library, fields: libFields })
           })
           setPendingLibAction(null)
@@ -637,21 +638,21 @@ export default function AIPanel() {
 
   const handleConfirmAction = async () => {
     if (!pendingAction) return
-    confirmResolver?.(pendingAction.action)
-    confirmResolver = null
+    confirmResolverRef.current?.(pendingAction.action)
+    confirmResolverRef.current = null
   }
   const handleCancelAction = () => {
-    confirmResolver?.(null)
-    confirmResolver = null
+    confirmResolverRef.current?.(null)
+    confirmResolverRef.current = null
     setPendingAction(null)
   }
   const handleConfirmLibAction = async () => {
-    libConfirmResolver?.(true)
-    libConfirmResolver = null
+    libConfirmResolverRef.current?.(true)
+    libConfirmResolverRef.current = null
   }
   const handleCancelLibAction = () => {
-    libConfirmResolver?.(false)
-    libConfirmResolver = null
+    libConfirmResolverRef.current?.(false)
+    libConfirmResolverRef.current = null
     setPendingLibAction(null)
   }
 
