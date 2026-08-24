@@ -41,7 +41,7 @@ export default function TrashBin() {
       dataIndex: 'kind',
       width: 90,
       render: (k: string) =>
-        k === 'library' ? <Tag color="purple">管理库</Tag> : <Tag color="blue">条目</Tag>,
+        k === 'library' ? <Tag color="orange">管理库</Tag> : <Tag color="green">条目</Tag>,
     },
     {
       title: '名称/摘要',

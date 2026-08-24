@@ -25,7 +25,7 @@ export default function EmptyHome() {
     <div style={{ padding: 24, height: '100%' }}>
       <Card>
         <Result
-          icon={<AppstoreAddOutlined style={{ color: '#1677ff' }} />}
+          icon={<AppstoreAddOutlined style={{ color: '#0D9488' }} />}
           title={`你好，${account?.username ?? ''}`}
           subTitle={
             libraries.length === 0

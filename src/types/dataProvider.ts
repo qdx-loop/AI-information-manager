@@ -51,7 +51,17 @@ export interface DataProvider {
   exportAll(accountId: string): Promise<BackupBlob>
   importAll(accountId: string, blob: BackupBlob): Promise<void>
 
-  // —— 云端同步（仅 cloud 实现有意义；local 直接 no-op）——
+}
+
+/**
+ * 可选云端同步接口。DataProvider 可以选择实现此接口。
+ * LocalDataProvider 无需关心。
+ */
+export interface ICloudSync {
   syncFromCloud(accountId: string): Promise<void>
   syncToCloud(accountId: string): Promise<void>
+}
+
+export function isCloudSync(provider: DataProvider): provider is DataProvider & ICloudSync {
+  return 'syncFromCloud' in provider
 }

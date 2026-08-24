@@ -7,71 +7,99 @@ export interface LibraryContext {
   items: Item[]
 }
 
-const MAX_ITEMS_PER_LIB = 200
-const MAX_FIELD_VALUE_LEN = 500
+const PREVIEW_ROWS_PER_LIB = 15 // 预览模式：每个库最多直接展示的条数
+const MAX_FIELD_VALUE_LEN = 200
 
-// 将管理库数据序列化为 AI 上下文（结构化文本）
+function schemaLine(fields: FieldDef[]): string {
+  const visible = fields.filter((f) => f.visible)
+  return (
+    visible
+      .map((f) => `${f.label}(${f.key}:${f.type}${f.type === 'select' ? ':' + f.options.join('/') : ''})`)
+      .join(', ') || '(无字段)'
+  )
+}
+
+function rowText(fields: FieldDef[], it: Item): string {
+  const visible = fields.filter((f) => f.visible)
+  const vals = visible
+    .map((f) => {
+      const v = it.fields[f.key]
+      const s = v === null || v === undefined ? '' : String(v)
+      return `${s.length > MAX_FIELD_VALUE_LEN ? s.slice(0, MAX_FIELD_VALUE_LEN) + '…' : s}`
+    })
+    .join(' | ')
+  return `[id=${it.id}] ${vals}`
+}
+
+/**
+ * 构建注入提示词的数据上下文（预览式）：
+ * - 全部管理库的总览（名称/ID/分类/字段/条目数）
+ * - 目标库的前 N 条数据预览
+ * 更大数据量交给 AI 调用 search_items / stat_items / list_libraries 检索，
+ * 避免“每次对话塞入全部数据”导致的慢、贵、答不准问题。
+ */
 export function buildContext(
   scope: AIScope,
   contexts: LibraryContext[],
   currentLibraryId: string | null,
 ): string {
-  const selected =
-    scope === 'all'
-      ? contexts
-      : contexts.filter((c) => c.library.id === currentLibraryId)
-
-  if (selected.length === 0) {
-    return '当前没有可访问的管理库数据。'
+  if (contexts.length === 0) {
+    return '当前没有任何管理库数据。用户尚未创建管理库。'
   }
 
-  const blocks = selected.map((c) => {
-    const visibleFields = c.fields.filter((f) => f.visible)
-    const schema = visibleFields
-      .map((f) => {
-        const extra =
-          f.type === 'select' ? `（可选值: ${f.options.join('/')})` : ''
-        return `- ${f.label} (${f.key}, 类型: ${f.type}${f.required ? ', 必填' : ''})${extra}`
-      })
-      .join('\n')
+  const overview = contexts
+    .map((c) => {
+      const live = c.items.filter((i) => !i.deletedAt)
+      return `- ${c.library.name} (id=${c.library.id}, 分类=${c.library.category || '无'}, 共${live.length}条)\n  字段: ${schemaLine(c.fields)}`
+    })
+    .join('\n')
 
-    const truncated = c.items.slice(0, MAX_ITEMS_PER_LIB)
-    const rows = truncated
-      .map((it, idx) => {
-        const vals = visibleFields
-          .map((f) => {
-            const v = it.fields[f.key]
-            const s = v === null || v === undefined ? '' : String(v)
-            return `${f.label}=${s.length > MAX_FIELD_VALUE_LEN ? s.slice(0, MAX_FIELD_VALUE_LEN) + '…' : s}`
-          })
-          .join(', ')
-        return `  [${idx + 1}] id=${it.id} ${vals}`
-      })
-      .join('\n')
+  const selected =
+    scope === 'all' ? contexts : contexts.filter((c) => c.library.id === currentLibraryId)
 
-    const note =
-      c.items.length > MAX_ITEMS_PER_LIB
-        ? `\n（注：该库共 ${c.items.length} 条，仅展示最近 ${MAX_ITEMS_PER_LIB} 条）`
-        : ''
+  const previews = (selected.length > 0 ? selected : [contexts[0]])
+    .map((c) => {
+      const live = c.items.filter((i) => !i.deletedAt)
+      const rows = live.slice(0, PREVIEW_ROWS_PER_LIB).map((it, idx) => `  ${idx + 1}. ${rowText(c.fields, it)}`)
+      const note =
+        live.length > PREVIEW_ROWS_PER_LIB
+          ? `\n  …(共 ${live.length} 条，仅预览前 ${PREVIEW_ROWS_PER_LIB} 条；更多请调用 search_items 或 stat_items)`
+          : ''
+      return `### 管理库「${c.library.name}」(id=${c.library.id}) 数据预览:\n${rows.join('\n') || '  (空库)'}${note}`
+    })
+    .join('\n\n')
 
-    return `## 管理库: ${c.library.name} (id=${c.library.id}, 分类: ${c.library.category})
-字段模板:
-${schema || '  (无字段)'}
-条目数据 (共 ${c.items.length} 条):
-${rows || '  (无条目)'}${note}`
-  })
-
-  return blocks.join('\n\n')
+  return `## 管理库总览（共 ${contexts.length} 个）\n${overview}\n\n${previews}`
 }
 
-export const SYSTEM_PROMPT = `你是一个信息管理应用的 AI 助手。你可以基于用户的管理库数据回答问题、检索、统计、分析，并具备完整的管理能力。
+export const SYSTEM_PROMPT = `你是「信息管理助手」，一个具备完整数据操作能力的智能体（Agent）。用户通过自然语言让你查询、统计、整理、增删改他们的管理库数据。
 
-规则：
-1. 回答时引用条目请在括号中附带其 id，例如「张三 (id=abc123)」。
-2. 当用户要求新增/修改/删除条目时，必须调用 execute_item_action 工具，系统会弹出确认窗由用户确认后执行。
-3. 检索或统计结果中，如需帮用户定位某条目，调用 locate_item 工具。
-4. 不要编造不存在的数据；如信息不足请说明。
-5. 用中文回答。
-6. 你拥有长期记忆能力。系统会在每次对话时把你之前保存的记忆提供给你。当用户表达了值得记住的偏好、习惯、常用操作或重要信息时，请调用 save_memory 工具将其保存，以便在未来的对话中使用。记忆应简洁、条目化，避免冗余。
-7. 你可以管理管理库：新建、重命名、删除、修改分类。调用 execute_library_action 工具，经用户确认后执行。
-8. 你可以管理字段模板：新增字段、修改字段、删除字段。调用 execute_template_action 工具，经用户确认后执行。例如用户说「加一个性别字段，下拉选择，选项男和女」，你应调用 execute_template_action 并传入 action=addField, label=性别, type=select, options=["男","女"]。`
+# 工作方式
+1. 先思考需要什么信息，再行动：不确定有哪些库、字段结构或数据位置时，先调用 list_libraries / search_items / stat_items 查清，不要凭猜测回答。
+2. 回答检索、统计类问题时优先使用工具获取准确结果，禁止编造数据；引用条目时附带 id，例如「张三 (id=abc123)」。
+3. 复杂任务（涉及多步写入）先用一小段话向用户列出你的执行计划，然后逐步执行。
+4. 所有写操作（新增/修改/删除条目、建库、改模板）都会弹出确认窗由用户把关，你只负责发起。
+
+# 可用能力
+- search_items：关键词搜索条目
+- stat_items：计数 / 分组统计 / 数值求和平均
+- list_libraries：查看全部管理库结构与数量
+- execute_item_action：条目增删改
+- locate_item：在界面中定位高亮某条目
+- execute_library_action：新建/重命名/删除/改分类管理库
+- execute_template_action：增删改字段模板
+- save_memory：维护你的长期记忆（add 新增 / update 按编号修改 / remove 按编号删除）
+- create_chart：把统计结果绘制成图表展示给用户（柱状/折线/饼图等），用户可下载图片。统计、对比、占比类问题回答时优先配一张图表
+
+# 附件处理
+用户消息可能携带附件：
+- Excel/CSV 表格：内容以「[附件 Excel/CSV 表格]」文本块提供。可按用户要求分析数据、生成图表，或把数据录入到指定管理库（录入前先确认字段能对上模板）。
+- 图片：仅当所接入模型具备视觉能力时可见；若你无法理解图片，请如实告知用户当前模型不支持看图。
+
+# 记忆
+系统会在对话开始时提供你此前保存的记忆（带编号）。当用户表达值得长期记住的偏好、习惯或信息时，调用 save_memory(op=add)。发现记忆过时或重复时，主动用 update/remove 清理。
+
+# 规则
+- 用中文回答，简洁专业。
+- 字段 key 请使用字段模板括号中的英文名，不要用中文显示名。
+`

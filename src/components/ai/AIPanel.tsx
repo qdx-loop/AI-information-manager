@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Input,
   Button,
-  Space,
   Select,
   Typography,
   Spin,
@@ -11,8 +10,9 @@ import {
   Tooltip,
   Collapse,
   App,
+  Upload,
 } from 'antd'
-import { SendOutlined, RobotOutlined, UserOutlined, ReloadOutlined, UndoOutlined } from '@ant-design/icons'
+import { SendOutlined, RobotOutlined, UserOutlined, ReloadOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, BarChartOutlined, PictureOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
@@ -20,7 +20,26 @@ import { useLibraryStore } from '@/store/libraryStore'
 import { getProvider } from '@/db/providerFactory'
 import { chat } from '@/ai/client'
 import { buildContext, SYSTEM_PROMPT, type LibraryContext } from '@/ai/contextBuilder'
-import { ALL_TOOLS, parseItemAction, parseLibraryAction, parseTemplateAction, type ItemAction, type LibraryAction, type TemplateAction } from '@/ai/tools'
+import {
+  ALL_TOOLS,
+  parseItemAction,
+  parseLibraryAction,
+  parseTemplateAction,
+  type ItemAction,
+  type LibraryAction,
+  type TemplateAction,
+} from '@/ai/tools'
+import {
+  importLegacyMemory,
+  memoryPrompt,
+  addMemory,
+  updateMemoryByIdxOrText,
+  removeMemoryByIdxOrText,
+  replaceAllMemory,
+} from '@/ai/memory'
+import { processAttachment, type Attachment } from '@/ai/attachments'
+import type { ContentPart } from '@/ai/types'
+import ChartModal, { type ChartPayload } from './ChartModal'
 import type { ChatMessage } from '@/ai/types'
 import type { Library, FieldDef, Item, FieldType } from '@/types'
 import { newId } from '@/utils/id'
@@ -39,8 +58,12 @@ interface UIMessage {
   content: string
   pending?: boolean
   thinking?: string
+  steps?: string[] // agent 执行步骤（工具调用轨迹）
   undo?: UndoInfo
 }
+
+// 工具调用轮数上限：放宽以覆盖批量录入、多步整理等长任务
+const MAX_ROUNDS = 50
 
 // 等待用户确认的 Promise resolver（用 ref 存储，避免多实例状态冲突）
 // 注：当前 AIPanel 只有一个实例，但 ref 比模块级 let 更符合 React 模式
@@ -85,6 +108,9 @@ export default function AIPanel() {
   } | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [parsingFile, setParsingFile] = useState(false)
+  const [chartPayload, setChartPayload] = useState<ChartPayload | null>(null)
 
   const aiConfigured = !!(settings.ai.baseUrl && settings.ai.apiKey && settings.ai.model)
 
@@ -95,6 +121,12 @@ export default function AIPanel() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
+
+  // 旧版纯文本记忆自动迁移为结构化记忆（幂等）
+  useEffect(() => {
+    if (account) importLegacyMemory(account.id, settings.ai.memory)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account?.id])
 
   // 收集上下文数据
   async function gatherContext(): Promise<LibraryContext[]> {
@@ -122,8 +154,17 @@ export default function AIPanel() {
     if (!input.trim() || loading) return
     if (!aiConfigured) return
     const userText = input.trim()
+
+    // 附件处理：表格摘要并入文本；图片走多模态内容段
+    const tables = attachments.filter((a) => a.kind === 'table' && a.summary)
+    const images = attachments.filter((a) => a.kind === 'image' && a.dataUrl)
+    let fullText = userText
+    if (tables.length > 0) fullText += '\n\n' + tables.map((t) => t.summary).join('\n\n')
+    if (images.length > 0) fullText += `\n\n（本条消息附有 ${images.length} 张图片，请结合图片内容回答）`
+    setAttachments([])
+
     setInput('')
-    const userMsg: UIMessage = { role: 'user', content: userText }
+    const userMsg: UIMessage = { role: 'user', content: fullText }
     const assistantMsg: UIMessage = { role: 'assistant', content: '', pending: true }
     setMessages((m) => [...m, userMsg, assistantMsg])
 
@@ -135,20 +176,31 @@ export default function AIPanel() {
       lastContextsRef.current = contexts
       const contextText = buildContext(scope, contexts, currentLibraryId)
 
-      // 组装 OpenAI 消息：system + context + 记忆 + 历史 + 当前
+      // 组装对话消息：system + 上下文预览 + 记忆 + 历史 + 当前
       const history: ChatMessage[] = messages.map((m) => ({
         role: m.role,
         content: m.content,
       }))
       const systemPrompt = settings.ai.customPrompt || SYSTEM_PROMPT
+      const memoryText = account ? memoryPrompt(account.id) : null
       const chatMessages: ChatMessage[] = [
         { role: 'system', content: systemPrompt },
-        { role: 'system', content: `当前管理库数据上下文：\n${contextText}` },
-        ...(settings.ai.memory
-          ? [{ role: 'system' as const, content: `以下是你的长期记忆（用户偏好与重要信息，请在回答时参考）：\n${settings.ai.memory}` }]
-          : []),
+        { role: 'system', content: `当前管理库数据上下文（预览）：\n${contextText}` },
+        ...(memoryText ? [{ role: 'system' as const, content: memoryText }] : []),
         ...history,
-        { role: 'user', content: userText },
+        {
+          role: 'user' as const,
+          content:
+            images.length > 0
+              ? ([
+                  { type: 'text', text: fullText },
+                  ...images.map((img) => ({
+                    type: 'image_url' as const,
+                    image_url: { url: img.dataUrl as string },
+                  })),
+                ] as ContentPart[])
+              : fullText,
+        },
       ]
 
       // 多轮：可能 AI 连续调用工具，需循环处理
@@ -172,13 +224,42 @@ export default function AIPanel() {
     }
   }
 
+  // 向最近一条 assistant 消息追加执行步骤（agent 进度展示）
+  // 从后往前找最新一条非 pending 的 assistant 消息，避免多轮对话时挂到历史消息上
+  const pushStep = useCallback((label: string) => {
+    setMessages((m) => {
+      for (let i = m.length - 1; i >= 0; i--) {
+        const msg = m[i]
+        if (msg.role === 'assistant' && !msg.pending) {
+          return [...m.slice(0, i), { ...msg, steps: [...(msg.steps ?? []), label] }, ...m.slice(i + 1)]
+        }
+      }
+      return m
+    })
+  }, [])
+
+  // 拉取全部管理库最新数据（供检索/统计工具使用，保证写操作后数据新鲜）
+  async function fetchAllContexts(): Promise<LibraryContext[]> {
+    const acc = account!
+    const allLibs = await getProvider().listLibraries(acc.id)
+    const result: LibraryContext[] = []
+    for (const lib of allLibs) {
+      const [f, its] = await Promise.all([
+        getProvider().getTemplate(lib.id),
+        getProvider().listItems(lib.id),
+      ])
+      result.push({ library: lib, fields: f, items: its.filter((i) => !i.deletedAt) })
+    }
+    return result
+  }
+
   async function runConversation(
     chatMessages: ChatMessage[],
     contexts: LibraryContext[],
   ) {
     let rounds = 0
     let currentMessages = [...chatMessages]
-    while (rounds < 5) {
+    while (rounds < MAX_ROUNDS) {
       rounds++
       const reply = await chat({
         baseUrl: settings.ai.baseUrl,
@@ -233,6 +314,7 @@ export default function AIPanel() {
           const itemId = (args as { itemId?: string }).itemId
           if (itemId) {
             await locateAndFocus(itemId, contexts)
+            pushStep('🎯 定位并高亮条目')
           }
           currentMessages.push({
             role: 'tool',
@@ -275,12 +357,14 @@ export default function AIPanel() {
               tool_call_id: tc.id,
               content: '用户取消了该操作。',
             })
+            pushStep(`✏️ ${action.action} 条目 → 用户取消`)
             continue
           }
 
           // 执行操作
           try {
             const { result, undo } = await executeAction(confirmed)
+            pushStep(`✏️ ${confirmed.action} 条目（已确认）`)
             currentMessages.push({
               role: 'tool',
               tool_call_id: tc.id,
@@ -288,15 +372,15 @@ export default function AIPanel() {
             })
             // 将 undo 信息附加到最近一条 assistant 消息
             if (undo) {
+              // 反向找最新一条非 pending 的 assistant 消息附加撤回按钮，避免挂到历史消息上
               setMessages((m) => {
-                let attached = false
-                return m.map((msg) => {
-                  if (!attached && msg.role === 'assistant' && !msg.pending) {
-                    attached = true
-                    return { ...msg, undo }
+                for (let i = m.length - 1; i >= 0; i--) {
+                  const msg = m[i]
+                  if (msg.role === 'assistant' && !msg.pending) {
+                    return [...m.slice(0, i), { ...msg, undo }, ...m.slice(i + 1)]
                   }
-                  return msg
-                })
+                }
+                return m
               })
             }
           } catch (e) {
@@ -307,13 +391,198 @@ export default function AIPanel() {
             })
           }
         } else if (tc.function.name === 'save_memory') {
-          const memContent = (args as { content?: string }).content ?? ''
-          setAI({ memory: memContent })
+          // 结构化记忆：add / update / remove / replaceAll
+          const op = (args as { op?: string }).op ?? 'replaceAll'
+          const texts = Array.isArray((args as { texts?: unknown }).texts)
+            ? ((args as { texts: string[] }).texts as string[])
+            : []
+          let result = ''
+          if (account) {
+            if (op === 'add') {
+              const n = addMemory(account.id, texts)
+              pushStep(`🧠 记忆新增 ${n} 条`)
+              result = n > 0 ? `已新增 ${n} 条记忆。` : '没有新增（内容为空或与已有记忆重复）。'
+            } else if (op === 'update') {
+              // texts 形如 [编号或原文, 新内容]
+              const idxOrText = String(texts[0] ?? '')
+              const newText = String(texts[1] ?? '')
+              const ok = updateMemoryByIdxOrText(account.id, idxOrText, newText)
+              result = ok ? '记忆已更新。' : '未找到要更新的记忆条目。'
+              pushStep(`🧠 记忆更新`)
+            } else if (op === 'remove') {
+              const n = removeMemoryByIdxOrText(account.id, texts.map(String))
+              result = n > 0 ? `已删除 ${n} 条记忆。` : '未找到要删除的记忆条目。'
+              pushStep(`🧠 记忆删除 ${n} 条`)
+            } else {
+              replaceAllMemory(account.id, texts)
+              result = `记忆已整体替换，当前共 ${texts.filter(Boolean).length} 条。`
+              pushStep(`🧠 记忆整体替换`)
+            }
+          } else {
+            result = '当前未登录，无法保存记忆。'
+          }
           currentMessages.push({
             role: 'tool',
             tool_call_id: tc.id,
-            content: '记忆已保存。',
+            content: result,
           })
+        } else if (tc.function.name === 'search_items') {
+          const q = String((args as { query?: string }).query ?? '')
+          const libraryId = (args as { libraryId?: string }).libraryId
+          const fieldKey = (args as { fieldKey?: string }).fieldKey
+          const limit = Math.min(Math.max(Number((args as { limit?: number }).limit ?? 20), 1), 50)
+          try {
+            const ctxs = await fetchAllContexts()
+            const needle = q.toLowerCase()
+            if (!needle) {
+              pushStep('🔍 搜索（缺少关键词）')
+              currentMessages.push({
+                role: 'tool',
+                tool_call_id: tc.id,
+                content: '请提供搜索关键词 query。',
+              })
+            } else {
+              const hits: string[] = []
+              for (const c of ctxs) {
+                if (libraryId && c.library.id !== libraryId) continue
+                const visible = c.fields.filter((f) => f.visible && (!fieldKey || f.key === fieldKey))
+                for (const it of c.items) {
+                  const matched = visible.some((f) => {
+                    const v = it.fields[f.key]
+                    return v != null && String(v).toLowerCase().includes(needle)
+                  })
+                  if (!matched) continue
+                  const vals = visible.map((f) => `${f.label}=${it.fields[f.key] ?? ''}`).join(', ')
+                  hits.push(`「${c.library.name}」[id=${it.id}] ${vals}`)
+                  if (hits.length >= limit) break
+                }
+                if (hits.length >= limit) break
+              }
+              pushStep(`🔍 搜索「${q}」→ ${hits.length} 条`)
+              currentMessages.push({
+                role: 'tool',
+                tool_call_id: tc.id,
+                content:
+                  hits.length > 0
+                    ? `搜索到 ${hits.length} 条：\n${hits.join('\n')}`
+                    : `没有找到包含「${q}」的条目。`,
+              })
+            }
+          } catch (e) {
+            currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: `搜索失败：${(e as Error).message}` })
+          }
+        } else if (tc.function.name === 'stat_items') {
+          const { groupByField, valueField, filterText } = args as {
+            groupByField?: string
+            valueField?: string
+            filterText?: string
+          }
+          const op = ((args as { op?: string }).op ?? 'count') as 'count' | 'sum' | 'avg'
+          const libraryId = (args as { libraryId?: string }).libraryId
+          try {
+            const ctxs = await fetchAllContexts()
+            const targets = libraryId ? ctxs.filter((c) => c.library.id === libraryId) : ctxs
+            const lines: string[] = []
+            for (const c of targets) {
+              let items = c.items
+              if (filterText) {
+                const needle = filterText.toLowerCase()
+                items = items.filter((it) =>
+                  c.fields.some((f) => {
+                    const v = it.fields[f.key]
+                    return v != null && String(v).toLowerCase().includes(needle)
+                  }),
+                )
+              }
+              const head = `「${c.library.name}」（过滤后 ${items.length} 条）`
+              if (op === 'count' && groupByField) {
+                const field = c.fields.find((f) => f.key === groupByField || f.label === groupByField)
+                if (!field) {
+                  lines.push(`${head}: 找不到分组字段 ${groupByField}`)
+                  continue
+                }
+                const groups = new Map<string, number>()
+                for (const it of items) {
+                  const k = String(it.fields[field.key] ?? '(空)')
+                  groups.set(k, (groups.get(k) ?? 0) + 1)
+                }
+                lines.push(
+                  `${head} 按「${field.label}」分组计数:\n` +
+                    Array.from(groups.entries())
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([k, n]) => `  ${k}: ${n} 条`)
+                      .join('\n'),
+                )
+              } else if ((op === 'sum' || op === 'avg') && valueField) {
+                const field = c.fields.find((f) => f.key === valueField || f.label === valueField)
+                if (!field) {
+                  lines.push(`${head}: 找不到字段 ${valueField}`)
+                  continue
+                }
+                const nums = items
+                  .map((it) => Number(it.fields[field.key]))
+                  .filter((n) => Number.isFinite(n))
+                const total = nums.reduce((a, b) => a + b, 0)
+                lines.push(
+                  `${head} 「${field.label}」${op === 'sum' ? '总和' : '平均'} = ${
+                    nums.length === 0 ? '无数据' : op === 'sum' ? total : (total / nums.length).toFixed(2)
+                  }`,
+                )
+              } else {
+                lines.push(`${head}`)
+              }
+            }
+            pushStep('📊 统计分析完成')
+            currentMessages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: lines.join('\n\n') || '没有可统计的管理库。',
+            })
+          } catch (e) {
+            currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: `统计失败：${(e as Error).message}` })
+          }
+        } else if (tc.function.name === 'list_libraries') {
+          try {
+            const ctxs = await fetchAllContexts()
+            pushStep('📚 查看全部管理库')
+            currentMessages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content:
+                ctxs.length === 0
+                  ? '当前没有任何管理库。'
+                  : ctxs
+                      .map((c) => {
+                        const schema =
+                          c.fields
+                            .filter((f) => f.visible)
+                            .map((f) => `${f.label}(${f.key})`)
+                            .join(', ') || '(无字段)'
+                        return `- 「${c.library.name}」 id=${c.library.id} 分类=${c.library.category || '无'} 共${c.items.length}条\n  字段: ${schema}`
+                      })
+                      .join('\n'),
+            })
+          } catch (e) {
+            currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: `读取失败：${(e as Error).message}` })
+          }
+        } else if (tc.function.name === 'create_chart') {
+          const title = String((args as { title?: string }).title ?? '统计图')
+          const option = (args as { option?: unknown }).option
+          if (option && typeof option === 'object') {
+            setChartPayload({ title, option: option as Record<string, unknown> })
+            pushStep(`📊 生成图表「${title}」`)
+            currentMessages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: `图表「${title}」已渲染给用户（用户可下载图片）。请用文字简要说明图表结论。`,
+            })
+          } else {
+            currentMessages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: '图表配置无效：缺少 option 对象，请按格式重新生成。',
+            })
+          }
         } else if (tc.function.name === 'execute_library_action') {
           const libAction = parseLibraryAction(args)
           if (!libAction) {
@@ -332,21 +601,23 @@ export default function AIPanel() {
 
           if (!confirmed) {
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: '用户取消了该操作。' })
+            pushStep('📁 管理库操作 → 用户取消')
             continue
           }
           try {
             const { result, undo } = await executeLibAction(libAction)
+            pushStep(`📁 ${libAction.action} 管理库（已确认）`)
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
             if (undo) {
+              // 反向找最新一条非 pending 的 assistant 消息附加撤回按钮，避免挂到历史消息上
               setMessages((m) => {
-                let attached = false
-                return m.map((msg) => {
-                  if (!attached && msg.role === 'assistant' && !msg.pending) {
-                    attached = true
-                    return { ...msg, undo }
+                for (let i = m.length - 1; i >= 0; i--) {
+                  const msg = m[i]
+                  if (msg.role === 'assistant' && !msg.pending) {
+                    return [...m.slice(0, i), { ...msg, undo }, ...m.slice(i + 1)]
                   }
-                  return msg
-                })
+                }
+                return m
               })
             }
           } catch (e) {
@@ -369,21 +640,23 @@ export default function AIPanel() {
 
           if (!confirmed) {
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: '用户取消了该操作。' })
+            pushStep('📋 字段模板操作 → 用户取消')
             continue
           }
           try {
             const { result, undo } = await executeTplAction(tplAction)
+            pushStep(`📋 模板 ${tplAction.action}（已确认）`)
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
             if (undo) {
+              // 反向找最新一条非 pending 的 assistant 消息附加撤回按钮，避免挂到历史消息上
               setMessages((m) => {
-                let attached = false
-                return m.map((msg) => {
-                  if (!attached && msg.role === 'assistant' && !msg.pending) {
-                    attached = true
-                    return { ...msg, undo }
+                for (let i = m.length - 1; i >= 0; i--) {
+                  const msg = m[i]
+                  if (msg.role === 'assistant' && !msg.pending) {
+                    return [...m.slice(0, i), { ...msg, undo }, ...m.slice(i + 1)]
                   }
-                  return msg
-                })
+                }
+                return m
               })
             }
           } catch (e) {
@@ -396,11 +669,11 @@ export default function AIPanel() {
       const nextAssistant: UIMessage = { role: 'assistant', content: '', pending: true }
       setMessages((m) => [...m, nextAssistant])
     }
-    // 达到 5 轮上限后，清理最后一条 pending 消息
+    // 达到轮数上限后，清理最后一条 pending 消息
     setMessages((m) =>
       m.map((msg, i) =>
         i === m.length - 1 && msg.pending
-          ? { ...msg, pending: false, content: msg.content || '（已达到工具调用最大轮数）' }
+          ? { ...msg, pending: false, content: msg.content || `（已达到工具调用最大轮数 ${MAX_ROUNDS}，如任务未完成请继续对话）` }
           : msg,
       ),
     )
@@ -698,7 +971,7 @@ export default function AIPanel() {
           return (
             <Tooltip key={i} title={summary}>
               <Tag
-                color="blue"
+                color="green"
                 style={{ cursor: 'pointer', margin: '0 2px' }}
                 onClick={() => locateAndFocus(itemId, contexts).catch((e) => message.error('定位条目失败：' + (e as Error).message))}
               >
@@ -779,7 +1052,7 @@ export default function AIPanel() {
                   width: 28,
                   height: 28,
                   borderRadius: '50%',
-                  background: m.role === 'user' ? '#1677ff' : '#f0f0f0',
+                  background: m.role === 'user' ? '#0D9488' : '#f0f0f0',
                   color: m.role === 'user' ? '#fff' : '#666',
                   display: 'flex',
                   alignItems: 'center',
@@ -791,7 +1064,7 @@ export default function AIPanel() {
               </div>
               <div
                 style={{
-                  background: m.role === 'user' ? '#1677ff' : '#f5f5f5',
+                  background: m.role === 'user' ? '#0D9488' : '#f5f5f5',
                   color: m.role === 'user' ? '#fff' : '#333',
                   padding: '8px 12px',
                   borderRadius: 8,
@@ -820,6 +1093,28 @@ export default function AIPanel() {
                     }]}
                   />
                 )}
+                {/* Agent 执行步骤（默认折叠） */}
+                {m.steps && m.steps.length > 0 && (
+                  <Collapse
+                    size="small"
+                    style={{
+                      marginBottom: 8,
+                      background: 'transparent',
+                      border: 'none',
+                    }}
+                    items={[{
+                      key: 'steps',
+                      label: <span style={{ fontSize: 12, color: '#0D9488' }}>执行过程（{m.steps.length} 步）</span>,
+                      children: (
+                        <div style={{ fontSize: 12, color: '#888' }}>
+                          {m.steps.map((s, si) => (
+                            <div key={si} style={{ padding: '1px 0' }}>{si + 1}. {s}</div>
+                          ))}
+                        </div>
+                      ),
+                    }]}
+                  />
+                )}
                 {m.pending && !m.content ? <Spin size="small" /> : renderContent(m.content, lastContextsRef.current)}
                 {/* 撤回按钮 */}
                 {m.undo && (
@@ -840,13 +1135,50 @@ export default function AIPanel() {
       </div>
 
       <div style={{ padding: 12, borderTop: '1px solid #f0f0f0' }}>
-        <Space.Compact style={{ width: '100%' }}>
+        {attachments.length > 0 && (
+          <div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {attachments.map((a) => (
+              <Tag
+                key={a.id}
+                closable
+                closeIcon={<CloseOutlined style={{ fontSize: 10 }} />}
+                onClose={() => setAttachments((p) => p.filter((x) => x.id !== a.id))}
+                icon={a.kind === 'image' ? <PictureOutlined /> : <BarChartOutlined />}
+              >
+                {a.name}
+              </Tag>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Upload
+            accept=".xlsx,.xls,.csv,image/*"
+            showUploadList={false}
+            multiple
+            beforeUpload={(file) => {
+              void (async () => {
+                try {
+                  setParsingFile(true)
+                  const att = await processAttachment(file as File)
+                  setAttachments((prev) => [...prev, att])
+                } catch (e) {
+                  message.error((e as Error).message)
+                } finally {
+                  setParsingFile(false)
+                }
+              })()
+              return false
+            }}
+          >
+            <Button size="small" icon={<PaperClipOutlined />} loading={parsingFile} title="上传 Excel/CSV 表格或图片" />
+          </Upload>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onPressEnter={handleSend}
-            placeholder="输入问题或指令…"
+            placeholder="输入问题或指令…可上传 Excel/CSV 让 AI 帮你录入分析"
             disabled={loading}
+            style={{ flex: 1 }}
           />
           <Button
             type="primary"
@@ -855,13 +1187,15 @@ export default function AIPanel() {
             loading={loading}
             disabled={!input.trim()}
           />
-        </Space.Compact>
+        </div>
         {loading && (
           <Button size="small" type="link" onClick={handleStop} style={{ marginTop: 4 }}>
             停止生成
           </Button>
         )}
       </div>
+
+      <ChartModal payload={chartPayload} onClose={() => setChartPayload(null)} />
 
       <ConfirmActionModal
         open={!!pendingAction}

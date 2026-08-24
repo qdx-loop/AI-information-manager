@@ -42,11 +42,6 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
   const [list, setList] = useState<FieldDef[]>(fields)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-  // 同步外部 fields 变化
-  if (open && list !== fields && fields.length !== list.length) {
-    // 仅在打开瞬间同步
-  }
-
   const handleOpen = () => setList(fields)
 
   const addField = () => {

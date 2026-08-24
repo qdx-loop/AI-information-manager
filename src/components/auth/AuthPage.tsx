@@ -1,24 +1,24 @@
 import { useState, useEffect } from 'react'
-import { Card, Form, Input, Button, Tabs, Checkbox, App, Collapse, Alert } from 'antd'
-import { UserOutlined, LockOutlined, CloudOutlined } from '@ant-design/icons'
+import { Form, Input, Button, Checkbox, App } from 'antd'
+import {
+  UserOutlined,
+  LockOutlined,
+  MessageOutlined,
+  DatabaseOutlined,
+  BarChartOutlined,
+} from '@ant-design/icons'
 import { useAuthStore } from '@/store/authStore'
-import { useAppStore } from '@/store/appStore'
 import { useNavigate } from 'react-router-dom'
-import { initFromSettings, pullCloudToLocal } from '@/db/providerFactory'
-import { decodeSyncCode } from '@/utils/syncCode'
+import dayjs from 'dayjs'
+
+const BRAND = '#0D9488'
 
 export default function AuthPage() {
   const { message } = App.useApp()
   const navigate = useNavigate()
-  const { login, register, account } = useAuthStore()
-  const { settings, setCloud, setStorageMode } = useAppStore()
-  const { setAI } = useAppStore()
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const { login, account } = useAuthStore()
   const [loading, setLoading] = useState(false)
   const [remember, setRemember] = useState(false)
-  const [cloudSync, setCloudSync] = useState(false)
-  const [cloudUrl, setCloudUrl] = useState(settings.cloud.url)
-  const [cloudKey, setCloudKey] = useState(settings.cloud.anonKey)
   const [form] = Form.useForm<{ username: string; password: string }>()
 
   // 如果 init() 在跳转到 /login 后才完成恢复，自动跳回主页
@@ -27,188 +27,138 @@ export default function AuthPage() {
   }, [account, navigate])
 
   const onFinish = async (values: { username: string; password: string }) => {
-    // 云端同步模式：先验证配置
-    const prevMode = useAppStore.getState().settings.storageMode
-    const prevCloud = { ...useAppStore.getState().settings.cloud }
-    if (cloudSync) {
-      if (!cloudUrl.trim() || !cloudKey.trim()) {
-        message.warning('请填写 Supabase 连接信息')
-        return
-      }
-    }
-
     setLoading(true)
     try {
-      if (cloudSync) {
-        // 保存云端配置并切换到 cloud 模式
-        setCloud({ url: cloudUrl.trim(), anonKey: cloudKey.trim() })
-        setStorageMode('cloud')
-        const updated = useAppStore.getState().settings
-        initFromSettings(updated)
-      }
-
-      if (mode === 'login') {
-        await login(values.username, values.password, remember)
-      } else {
-        await register(values.username, values.password, remember)
-      }
-
-      // 云端模式：登录后拉取数据到本地缓存
-      if (cloudSync) {
-        const accId = useAuthStore.getState().account?.id
-        if (accId) {
-          try {
-            await pullCloudToLocal(accId)
-            message.success('登录成功，云端数据已同步')
-          } catch {
-            message.warning('登录成功，但云端数据同步失败')
-          }
-        }
-      } else {
-        message.success(mode === 'login' ? '登录成功' : '注册并登录成功')
-      }
-
+      const acc = await login(values.username, values.password, remember)
+      message.success(
+        acc.expiresAt ? `登录成功，有效期至 ${dayjs(acc.expiresAt).format('YYYY-MM-DD HH:mm')}` : '登录成功',
+      )
       navigate('/')
     } catch (e) {
       message.error((e as Error).message)
-      // 云端登录失败，回滚到之前的模式
-      if (cloudSync) {
-        setCloud(prevCloud)
-        setStorageMode(prevMode)
-        initFromSettings(useAppStore.getState().settings)
-      }
     } finally {
       setLoading(false)
     }
   }
 
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      }}
-    >
-      <Card style={{ width: '100%', maxWidth: 380, margin: '0 12px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: 24 }}>信息管理</h2>
-        <Tabs
-          activeKey={mode}
-          onChange={(k) => setMode(k as 'login' | 'register')}
-          items={[
-            { key: 'login', label: '登录' },
-            { key: 'register', label: '注册' },
-          ]}
-          centered
-        />
-        <Form
-          form={form}
-          onFinish={onFinish}
-          layout="vertical"
-          size="large"
-          validateTrigger={['onSubmit', 'onChange']}
-        >
-          <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
-            <Input
-              prefix={<UserOutlined />}
-              placeholder="用户名"
-              autoComplete="username"
-              aria-label="用户名"
-            />
-          </Form.Item>
-          <Form.Item
-            name="password"
-            rules={[
-              { required: true, message: '请输入密码' },
-              { min: 6, message: '密码至少 6 位' },
-            ]}
-          >
-            <Input.Password
-              prefix={<LockOutlined />}
-              placeholder="密码"
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              aria-label="密码"
-            />
-          </Form.Item>
-          <Form.Item style={{ marginBottom: 12 }}>
-            <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
-              记住登录状态
-            </Checkbox>
-          </Form.Item>
+  const features = [
+    { icon: <MessageOutlined />, text: '自然语言操作数据，AI 帮你录入、检索、统计' },
+    { icon: <DatabaseOutlined />, text: '自定义管理库与字段模板，想怎么管就怎么管' },
+    { icon: <BarChartOutlined />, text: '一句话生成统计图表，随时下载保存' },
+  ]
 
-          {/* 云端同步选项 */}
-          {cloudUrl.trim() && cloudKey.trim() ? (
-            // 已保存云端配置：直接显示复选框
-            <Form.Item style={{ marginBottom: 12 }}>
-              <Checkbox checked={cloudSync} onChange={(e) => setCloudSync(e.target.checked)}>
-                <CloudOutlined style={{ marginRight: 4 }} />
-                云端同步（{cloudUrl.trim().replace(/^https?:\/\//, '').split('.')[0]}）
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', background: '#F0FDFA' }}>
+      {/* 左侧品牌区（≥900px 显示） */}
+      <div className="login-brand">
+        <div style={{ maxWidth: 420 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
+            <span
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: 4,
+                background: '#fff',
+                display: 'inline-block',
+              }}
+            />
+            <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: 1 }}>信息管理</span>
+          </div>
+          <h1 style={{ fontSize: 32, lineHeight: 1.35, fontWeight: 700, margin: '0 0 16px' }}>
+            AI 智能信息管理助手
+          </h1>
+          <p style={{ fontSize: 15, opacity: 0.92, margin: '0 0 36px', lineHeight: 1.7 }}>
+            用说话的方式管理你的数据。建库、录数据、查资料、出报表，都交给 AI。
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {features.map((f, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <span
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 8,
+                    background: 'rgba(255,255,255,0.18)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 16,
+                    flexShrink: 0,
+                  }}
+                >
+                  {f.icon}
+                </span>
+                <span style={{ fontSize: 14, lineHeight: '34px', opacity: 0.95 }}>{f.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ position: 'absolute', bottom: 28, left: 64, fontSize: 12, opacity: 0.6 }}>
+          登录即代表同意合理使用本服务 · 数据由你的账号独立隔离
+        </div>
+      </div>
+
+      {/* 右侧表单区 */}
+      <div className="login-form-side">
+        <div style={{ width: '100%', maxWidth: 320, padding: '0 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 36 }}>
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: BRAND, display: 'inline-block' }} />
+            <span style={{ fontWeight: 700, fontSize: 15, color: '#134E4A' }}>信息管理</span>
+          </div>
+
+          <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px', color: '#134E4A' }}>欢迎回来</h2>
+          <p style={{ color: '#475569', fontSize: 13, margin: '0 0 28px' }}>
+            请输入管理员发放的账号密码登录
+          </p>
+
+          <Form
+            form={form}
+            onFinish={onFinish}
+            layout="vertical"
+            size="large"
+            validateTrigger={['onSubmit', 'onChange']}
+            requiredMark={false}
+          >
+            <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+              <Input
+                prefix={<UserOutlined style={{ color: '#94a3b8' }} />}
+                placeholder="用户名"
+                autoComplete="username"
+                aria-label="用户名"
+              />
+            </Form.Item>
+            <Form.Item
+              name="password"
+              rules={[
+                { required: true, message: '请输入密码' },
+                { min: 6, message: '密码至少 6 位' },
+              ]}
+            >
+              <Input.Password
+                prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
+                placeholder="密码"
+                autoComplete="current-password"
+                aria-label="密码"
+              />
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 16 }}>
+              <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
+                <span style={{ fontSize: 13, color: '#475569' }}>记住登录状态</span>
               </Checkbox>
             </Form.Item>
-          ) : null}
 
-          <Collapse
-            ghost
-            size="small"
-            style={{ marginBottom: 8, marginLeft: -8, marginRight: -8 }}
-            items={[
-              {
-                key: 'cloud',
-                label: (
-                  <span style={{ fontSize: 13 }}>
-                    <CloudOutlined style={{ marginRight: 4 }} />
-                    云端同步登录
-                  </span>
-                ),
-                children: (
-                  <>
-                    <Alert
-                      type="info"
-                      showIcon
-                      style={{ marginBottom: 8, fontSize: 12 }}
-                      message="粘贴从其他设备获取的同步码，自动填入云端和 AI 配置。"
-                    />
-                    <Form.Item label="同步码" style={{ marginBottom: 8 }}>
-                      <Input.Search
-                        placeholder="粘贴同步码"
-                        enterButton="填入"
-                        size="middle"
-                        onSearch={(val) => {
-                          const decoded = decodeSyncCode(val)
-                          if (decoded) {
-                            setCloudUrl(decoded.cloudUrl)
-                            setCloudKey(decoded.cloudKey)
-                            setCloudSync(true)
-                            if (decoded.aiBaseUrl || decoded.aiApiKey || decoded.aiModel) {
-                              setAI({ baseUrl: decoded.aiBaseUrl, apiKey: decoded.aiApiKey, model: decoded.aiModel })
-                              message.success('已填入云端和 AI 配置')
-                            } else {
-                              message.success('已填入云端配置')
-                            }
-                          } else {
-                            message.error('同步码无效或已损坏')
-                          }
-                        }}
-                      />
-                    </Form.Item>
-                  </>
-                ),
-              },
-            ]}
-          />
+            <Button type="primary" htmlType="submit" block loading={loading} style={{ fontWeight: 600 }}>
+              登 录
+            </Button>
+          </Form>
 
-          <Button type="primary" htmlType="submit" block loading={loading}>
-            {mode === 'login' ? '登录' : '注册并登录'}
-          </Button>
-        </Form>
-        <p style={{ textAlign: 'center', marginTop: 12, color: '#999', fontSize: 12 }}>
-          {mode === 'login'
-            ? '勾选「记住登录状态」可关闭浏览器后仍保持登录'
-            : '注册后自动登录并进入应用'}
-        </p>
-      </Card>
+          <p style={{ textAlign: 'center', marginTop: 28, color: '#475569', fontSize: 12, lineHeight: 1.8 }}>
+            没有账号？请联系管理员购买开通
+            <br />
+            云端同步请在登录后到「设置 → 存储」配置
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

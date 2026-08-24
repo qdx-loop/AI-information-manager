@@ -25,7 +25,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 const ACTION_COLORS: Record<string, string> = {
   create: 'green',
-  rename: 'blue',
+  rename: 'green',
   delete: 'red',
   setCategory: 'orange',
   addField: 'green',

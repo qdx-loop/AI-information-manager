@@ -269,6 +269,4 @@ export class LocalDataProvider implements DataProvider {
   }
 
   // —————— 云端同步（本地 no-op）——————
-  async syncFromCloud(): Promise<void> {}
-  async syncToCloud(): Promise<void> {}
 }

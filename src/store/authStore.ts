@@ -1,15 +1,20 @@
 import { create } from 'zustand'
-import type { Account } from '@/types'
-import { getProvider } from '@/db/providerFactory'
+import { apiLogin, apiMe, clearToken, getToken, ApiError } from '@/lib/serverApi'
 
 const SESSION_KEY = 'info-mgmt-account-id'
+
+export interface SessionAccount {
+  id: string
+  username: string
+  createdAt?: number
+  expiresAt?: number
+}
 
 // 读取登录态：优先 localStorage（记住），回退 sessionStorage（会话级）
 function readStoredId(): string | null {
   return localStorage.getItem(SESSION_KEY) ?? sessionStorage.getItem(SESSION_KEY)
 }
 
-// 写入登录态：remember=true 用 localStorage（关闭浏览器仍保持），否则 sessionStorage
 function writeStoredId(id: string, remember: boolean) {
   clearStoredId()
   if (remember) localStorage.setItem(SESSION_KEY, id)
@@ -22,59 +27,94 @@ function clearStoredId() {
 }
 
 interface AuthState {
-  account: Account | null
+  account: SessionAccount | null
   loading: boolean
+  // 被强制登出的原因（到期/停用），由界面展示一次后清除
+  logoutReason: string | null
   init: () => Promise<void>
-  register: (username: string, password: string, remember?: boolean) => Promise<void>
-  login: (username: string, password: string, remember?: boolean) => Promise<void>
-  logout: () => void
-  setAccount: (a: Account | null) => void
+  login: (username: string, password: string, remember?: boolean) => Promise<SessionAccount>
+  logout: (reason?: string) => void
+  clearLogoutReason: () => void
+  setAccount: (a: SessionAccount | null) => void
+}
+
+let watcherStarted = false
+
+function startWatcher(get: () => AuthState, set: (p: Partial<AuthState>) => void) {
+  if (watcherStarted || typeof window === 'undefined') return
+  watcherStarted = true
+
+  const kick = (reason: string) => {
+    if (!get().account) return
+    clearToken()
+    clearStoredId()
+    set({ account: null, logoutReason: reason })
+  }
+
+  const serverCheck = async () => {
+    if (!get().account || !getToken()) return
+    try {
+      const acc = await apiMe()
+      set({ account: acc })
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
+        kick(e.message)
+      }
+      // 网络抖动不登出，下次再试
+    }
+  }
+
+  // 本地每分钟检查到期；每 10 分钟向服务器核对（可被后台停用/续费实时生效）
+  setInterval(() => {
+    const acc = get().account
+    if (!acc?.expiresAt) return
+    if (Date.now() > acc.expiresAt) kick('您的账户已到期，请联系管理员续费')
+  }, 60_000)
+  setInterval(serverCheck, 10 * 60_000)
+  window.addEventListener('focus', serverCheck)
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   account: null,
   loading: true,
+  logoutReason: null,
 
   async init() {
+    startWatcher(get, set)
     const id = readStoredId()
-    if (!id) {
+    if (!id || !getToken()) {
       set({ loading: false })
       return
     }
     try {
-      const provider = getProvider()
-      // 安全：按 id 查询单个账户，避免拉取所有账户的密码哈希
-      const acc = await provider.getAccountById(id)
-      // 若登录/注册已在 init 完成前设置了 account，则不覆盖
-      if (get().account) {
-        set({ loading: false })
-        return
-      }
-      if (!acc) {
-        clearStoredId()
-      }
+      const acc = await apiMe()
       set({ account: acc, loading: false })
-    } catch {
+    } catch (e) {
       clearStoredId()
-      set({ loading: false })
+      if (!(e instanceof ApiError)) clearToken()
+      set({
+        loading: false,
+        logoutReason:
+          e instanceof ApiError && (e.status === 401 || e.status === 403) ? e.message : null,
+      })
     }
   },
 
-  async register(username, password, remember = false) {
-    const acc = await getProvider().registerAccount(username, password)
-    writeStoredId(acc.id, remember)
-    set({ account: acc, loading: false })
-  },
-
   async login(username, password, remember = false) {
-    const acc = await getProvider().loginAccount(username, password)
+    const acc = await apiLogin(username, password, remember)
     writeStoredId(acc.id, remember)
-    set({ account: acc, loading: false })
+    set({ account: acc, loading: false, logoutReason: null })
+    return acc
   },
 
-  logout() {
+  logout(reason) {
+    clearToken()
     clearStoredId()
-    set({ account: null })
+    set({ account: null, logoutReason: reason ?? null })
+  },
+
+  clearLogoutReason() {
+    set({ logoutReason: null })
   },
 
   setAccount(a) {

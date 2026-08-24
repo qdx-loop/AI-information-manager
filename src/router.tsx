@@ -1,14 +1,29 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Spin } from 'antd'
+import { Spin, App as AntdApp } from 'antd'
 import { useAuthStore } from '@/store/authStore'
 import AppShell from '@/components/layout/AppShell'
 import AuthPage from '@/components/auth/AuthPage'
+import AdminPage from '@/components/admin/AdminPage'
+import ErrorBoundary from '@/components/common/ErrorBoundary'
 
 const LibraryView = lazy(() => import('@/components/library/LibraryView'))
 const TrashBin = lazy(() => import('@/components/library/TrashBin'))
 const SettingsPage = lazy(() => import('@/components/settings/SettingsPage'))
 const EmptyHome = lazy(() => import('@/components/library/EmptyHome'))
+
+// 展示一次强制登出原因（到期/停用）
+function LogoutReasonBanner() {
+  const { message } = AntdApp.useApp()
+  const { logoutReason, clearLogoutReason } = useAuthStore()
+  useEffect(() => {
+    if (logoutReason) {
+      message.warning({ content: logoutReason, duration: 6 })
+      clearLogoutReason()
+    }
+  }, [logoutReason, message, clearLogoutReason])
+  return null
+}
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { account, loading } = useAuthStore()
@@ -52,8 +67,11 @@ export default function Router() {
         </div>
       }
     >
+      <ErrorBoundary>
+      <LogoutReasonBanner />
       <Routes>
         <Route path="/login" element={<PublicOnly><AuthPage /></PublicOnly>} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route
           path="/"
           element={
@@ -69,6 +87,7 @@ export default function Router() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ErrorBoundary>
     </Suspense>
   )
 }

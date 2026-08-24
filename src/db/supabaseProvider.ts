@@ -448,19 +448,10 @@ export class SupabaseDataProvider implements DataProvider {
     if (blob.fields.length) {
       await this.client.from('fields').insert(blob.fields.map(fieldToRow))
     }
-    if (blob.items.length) {
-      await this.client
-        .from('items')
-        .insert(blob.items.map((i) => itemToRow({ ...i, accountId })))
-    }
-  }
-
-  // —————— 云端同步：上传本地数据到云端 ——————
-  async syncToCloud(accountId: string): Promise<void> {
-    // 此方法在从本地切换到云端时由 factory 层调用，把本地 Dexie 数据上传
-    // 实现见 initStorage 中调用
-    void accountId
-  }
-
-  async syncFromCloud(_accountId: string): Promise<void> {}
+   if (blob.items.length) {
+     await this.client
+       .from('items')
+       .insert(blob.items.map((i) => itemToRow({ ...i, accountId })))
+   }
+ }
 }

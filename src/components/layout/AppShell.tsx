@@ -32,10 +32,10 @@ export default function AppShell() {
           width={260}
           styles={{ body: { padding: 0 } }}
         >
-          <SidebarContent onOpenAI={() => { setAiOpen(true); setSidebarOpen(false) }} />
+          <SidebarContent onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }} />
         </Drawer>
       ) : (
-        <Sidebar onOpenAI={() => setAiOpen(true)} />
+        <Sidebar onOpenPanel={() => setAiOpen(true)} />
       )}
       <Layout>
         <Header

@@ -192,7 +192,7 @@ export default function LibraryView() {
             <Title level={4} style={{ margin: 0 }}>
               {lib?.name ?? '管理库'}
             </Title>
-            {lib && <Tag color="blue">{lib.category}</Tag>}
+            {lib && <Tag color="green">{lib.category}</Tag>}
             <Text type="secondary">共 {items.length} 条</Text>
           </Space>
           <Space wrap size="small">

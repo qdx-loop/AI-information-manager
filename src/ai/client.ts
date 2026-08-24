@@ -18,7 +18,7 @@ interface ChoiceMessage {
   tool_calls?: ToolCall[]
 }
 
-// OpenAI 兼容 chat completions 流式调用
+// 通用 chat/completions 流式调用（业界标准格式）
 export async function chat({
   baseUrl,
   apiKey,
@@ -78,7 +78,7 @@ export async function chat({
           content += delta.content
           onText?.(delta.content)
         }
-        // 捕获思考过程（DeepSeek 等模型使用 reasoning_content 字段）
+        // 捕获思考过程（部分推理模型使用 reasoning_content 字段）
         if (typeof delta.reasoning_content === 'string' && delta.reasoning_content) {
           reasoningContent += delta.reasoning_content
           onReasoning?.(delta.reasoning_content)

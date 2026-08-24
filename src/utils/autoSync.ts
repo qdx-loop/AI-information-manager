@@ -1,84 +1,95 @@
-// 自动同步管理器：修改后3分钟无操作自动同步云端，退出时强制同步
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
-import { pushLocalToCloud } from '@/db/providerFactory'
+import { pushLocalToCloud } from '@/db/syncService'
 
 const SYNC_DELAY = 3 * 60 * 1000 // 3分钟
 const RETRY_DELAY = 30 * 1000 // 重试间隔30秒
-const MAX_RETRIES = 3 // 最多重试3次
+const MAX_RETRIES = 3
 
-let syncTimer: ReturnType<typeof setTimeout> | null = null
-let retryTimer: ReturnType<typeof setTimeout> | null = null
-let isSyncing = false
+class AutoSyncManager {
+  private syncTimer: ReturnType<typeof setTimeout> | null = null
+  private retryTimer: ReturnType<typeof setTimeout> | null = null
+  private isSyncing = false
+  private hooksInstalled = false
 
-// 触发防抖同步：每次数据修改时调用，3分钟后无新修改才执行
-export function scheduleAutoSync() {
-  // 仅云端模式生效
-  const { settings } = useAppStore.getState()
-  if (settings.storageMode !== 'cloud') return
-  if (!settings.cloud.url || !settings.cloud.anonKey) return
+  private canSync(): boolean {
+    const { settings } = useAppStore.getState()
+    if (settings.storageMode !== 'cloud') return false
+    if (!settings.cloud.url || !settings.cloud.anonKey) return false
+    return !!useAuthStore.getState().account
+  }
 
-  const acc = useAuthStore.getState().account
-  if (!acc) return
+  /** 触发防抖同步：每次数据修改时调用，3分钟后无新修改才执行 */
+  schedule(): void {
+    if (!this.canSync()) return
+    this.clearTimers()
+    this.syncTimer = setTimeout(() => { void this.doSync() }, SYNC_DELAY)
+  }
 
-  // 清除之前的计时（含重试计时），重新开始
-  if (syncTimer) clearTimeout(syncTimer)
-  if (retryTimer) clearTimeout(retryTimer)
-
-  syncTimer = setTimeout(async () => {
-    await doSync()
-  }, SYNC_DELAY)
-}
-
-// 执行同步（内部），失败后自动重试
-async function doSync(retryCount = 0): Promise<void> {
-  if (isSyncing) return
-  const { settings } = useAppStore.getState()
-  const acc = useAuthStore.getState().account
-  if (!acc || settings.storageMode !== 'cloud') return
-
-  isSyncing = true
-  try {
-    await pushLocalToCloud(acc.id, {
-      url: settings.cloud.url,
-      anonKey: settings.cloud.anonKey,
-    })
-    console.log('[autoSync] 同步完成')
-  } catch (e) {
-    console.error(`[autoSync] 同步失败 (第${retryCount + 1}次):`, e)
-    // 自动重试：未达上限则延迟重试
-    if (retryCount < MAX_RETRIES - 1) {
-      retryTimer = setTimeout(() => {
-        void doSync(retryCount + 1)
-      }, RETRY_DELAY)
+  /** 立即上传（登出前、关页面前调用），不重试 */
+  async syncNow(): Promise<void> {
+    this.clearTimers()
+    if (!this.canSync()) return
+    const { settings } = useAppStore.getState()
+    const acc = useAuthStore.getState().account!
+    try {
+      await pushLocalToCloud(acc.id, {
+        url: settings.cloud.url,
+        anonKey: settings.cloud.anonKey,
+      })
+      console.log('[autoSync] 上传完成')
+    } catch (e) {
+      console.error('[autoSync] 上传失败:', e)
     }
-  } finally {
-    isSyncing = false
+  }
+
+  /**
+   * 安装全局钩子：关闭标签页 / 切到后台时尽力把数据推上云端。
+   * 浏览器不保证关闭瞬间请求一定送达（尽力而为），因此另有 3 分钟防抖兜底。
+   */
+  installGlobalHooks(): void {
+    if (this.hooksInstalled || typeof window === 'undefined') return
+    this.hooksInstalled = true
+
+    window.addEventListener('beforeunload', () => { void this.syncNow() })
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') void this.syncNow()
+    })
+  }
+
+  destroy(): void {
+    this.clearTimers()
+  }
+
+  private async doSync(retryCount = 0): Promise<void> {
+    if (this.isSyncing) return
+    if (!this.canSync()) return
+    const { settings } = useAppStore.getState()
+    const acc = useAuthStore.getState().account!
+
+    this.isSyncing = true
+    try {
+      await pushLocalToCloud(acc.id, {
+        url: settings.cloud.url,
+        anonKey: settings.cloud.anonKey,
+      })
+      console.log('[autoSync] 同步完成')
+    } catch (e) {
+      console.error(`[autoSync] 同步失败 (第${retryCount + 1}次):`, e)
+      if (retryCount < MAX_RETRIES - 1) {
+        this.retryTimer = setTimeout(() => { void this.doSync(retryCount + 1) }, RETRY_DELAY)
+      }
+    } finally {
+      this.isSyncing = false
+    }
+  }
+
+  private clearTimers(): void {
+    if (this.syncTimer) { clearTimeout(this.syncTimer); this.syncTimer = null }
+    if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null }
   }
 }
 
-// 退出时强制同步（不等3分钟），不重试（退出流程不应被阻塞）
-export async function syncNow(): Promise<void> {
-  // 取消待执行的防抖计时和重试计时
-  if (syncTimer) {
-    clearTimeout(syncTimer)
-    syncTimer = null
-  }
-  if (retryTimer) {
-    clearTimeout(retryTimer)
-    retryTimer = null
-  }
-  // 退出时直接同步，失败也不重试（避免阻塞退出流程）
-  const { settings } = useAppStore.getState()
-  const acc = useAuthStore.getState().account
-  if (!acc || settings.storageMode !== 'cloud') return
-  try {
-    await pushLocalToCloud(acc.id, {
-      url: settings.cloud.url,
-      anonKey: settings.cloud.anonKey,
-    })
-    console.log('[autoSync] 退出前同步完成')
-  } catch (e) {
-    console.error('[autoSync] 退出前同步失败:', e)
-  }
-}
+export const autoSyncManager = new AutoSyncManager()
+export const scheduleAutoSync = () => autoSyncManager.schedule()
+export const syncNow = () => autoSyncManager.syncNow()

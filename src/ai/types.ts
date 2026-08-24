@@ -8,9 +8,15 @@ export interface ToolCall {
   }
 }
 
+// 多模态消息内容段（文本 / 图片）
+export type ContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } }
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string | null
+  // 纯文本；含图片时使用 ContentPart 数组（需模型具备视觉能力）
+  content: string | null | ContentPart[]
   tool_calls?: ToolCall[]
   tool_call_id?: string
 }

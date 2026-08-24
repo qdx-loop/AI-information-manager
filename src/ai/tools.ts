@@ -1,6 +1,6 @@
 import type { FieldDef, FieldType } from '@/types'
 
-// AI 写入操作的工具定义（OpenAI function calling 格式）
+// AI 写入操作的工具定义（function calling 标准格式）
 export const ITEM_ACTION_TOOL = {
   type: 'function' as const,
   function: {
@@ -45,22 +45,105 @@ export const LOCATE_ITEM_TOOL = {
   },
 }
 
-// 保存记忆工具：AI 主动记录值得记住的信息
+// 搜索条目工具：AI 主动检索数据，而不是依赖注入的全量上下文
+export const SEARCH_ITEMS_TOOL = {
+  type: 'function' as const,
+  function: {
+    name: 'search_items',
+    description:
+      '在管理库中按关键词搜索条目（对所有字段值做包含匹配）。适合查找特定记录、筛选数据。返回匹配条目及其 id。',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '搜索关键词（对字段值做不区分大小写的包含匹配）' },
+        libraryId: { type: 'string', description: '限定搜索的管理库 ID。不传则搜索全部管理库' },
+        fieldKey: { type: 'string', description: '可选，只在该字段中搜索' },
+        limit: { type: 'number', description: '最多返回条数，默认 20，最大 50' },
+      },
+    },
+  },
+}
+
+// 统计工具：计数 / 分组统计 / 求和 / 平均
+export const STAT_ITEMS_TOOL = {
+  type: 'function' as const,
+  function: {
+    name: 'stat_items',
+    description:
+      '对管理库条目做统计分析：总条数、按某字段的分组计数、数值字段的求和/平均。比逐条阅读数据更准确高效。',
+    parameters: {
+      type: 'object',
+      properties: {
+        libraryId: { type: 'string', description: '目标管理库 ID。不传则对全部管理库分别统计' },
+        groupByField: { type: 'string', description: '分组统计的字段 key（如需按性别分组计数）' },
+        op: {
+          type: 'string',
+          enum: ['count', 'sum', 'avg'],
+          description: 'count=计数(默认), sum=求和, avg=平均（sum/avg 需提供 valueField）',
+        },
+        valueField: { type: 'string', description: 'sum/avg 的目标数值字段 key' },
+        filterText: { type: 'string', description: '可选，先按关键词过滤再统计' },
+      },
+    },
+  },
+}
+
+// 管理库总览工具
+export const LIST_LIBRARIES_TOOL = {
+  type: 'function' as const,
+  function: {
+    name: 'list_libraries',
+    description:
+      '列出全部管理库的名称、ID、分类、字段模板与条目数。当不确定数据在哪、或需要跨库操作时先调用它。',
+    parameters: { type: 'object', properties: {} },
+  },
+}
+
+// 结构化记忆工具：支持单条增删改，不再整体覆盖
 export const SAVE_MEMORY_TOOL = {
   type: 'function' as const,
   function: {
     name: 'save_memory',
     description:
-      '将信息保存到长期记忆中。保存的内容会在未来的所有对话中提供给你。适合记录用户偏好、常用操作习惯、重要备注等。传入的内容会完全替换当前记忆，请在调用时把已有记忆和新信息合并后再传入完整内容。',
+      '管理你的长期记忆（用户偏好、习惯、重要备注等），记忆在所有未来对话中可见。支持新增、修改、删除单条，避免重复记忆。',
     parameters: {
       type: 'object',
       properties: {
-        content: {
+        op: {
           type: 'string',
-          description: '完整的记忆内容（条目化、简洁），将替换之前的全部记忆',
+          enum: ['add', 'update', 'remove', 'replaceAll'],
+          description: 'add=新增, update=按编号修改, remove=按编号删除, replaceAll=整体替换（慎用）',
+        },
+        texts: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'add/replaceAll 时为记忆内容列表；update 时传 [编号, 新内容]；remove 时传要删除的编号字符串',
         },
       },
-      required: ['content'],
+      required: ['op'],
+    },
+  },
+}
+
+// 图表生成工具：AI 构建图表配置（本质是让 AI 写声明式配置代码），前端渲染并可下载
+export const CREATE_CHART_TOOL = {
+  type: 'function' as const,
+  function: {
+    name: 'create_chart',
+    description:
+      '根据数据生成统计图表（柱状图、折线图、饼图、散点图等），渲染给用户查看，用户可以下载为图片。适合展示统计、对比、趋势类结果。调用前先用统计工具拿到准确数据。',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: '图表标题（同时用作下载文件名）' },
+        option: {
+          type: 'object',
+          description:
+            '图表配置对象。常见写法：柱状/折线 {"xAxis":{"type":"category","data":["一月","二月"]},"yAxis":{"type":"value"},"series":[{"type":"bar","data":[100,200]}]}；饼图 {"series":[{"type":"pie","data":[{"name":"男","value":10},{"name":"女","value":8}]}]}。可加 legend、color 等美化字段。不要包含 tooltip 以外的交互项。',
+          additionalProperties: true,
+        },
+      },
+      required: ['title', 'option'],
     },
   },
 }
@@ -133,6 +216,10 @@ export const ALL_TOOLS = [
   SAVE_MEMORY_TOOL,
   LIBRARY_ACTION_TOOL,
   TEMPLATE_ACTION_TOOL,
+  SEARCH_ITEMS_TOOL,
+  STAT_ITEMS_TOOL,
+  LIST_LIBRARIES_TOOL,
+  CREATE_CHART_TOOL,
 ]
 
 export interface ItemAction {

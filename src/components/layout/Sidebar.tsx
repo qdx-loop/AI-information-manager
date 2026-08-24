@@ -1,4 +1,4 @@
-import { Layout, Menu, Button, Badge, Input, App, Dropdown } from 'antd'
+import { Layout, Menu, Button, Badge, Input, App, Dropdown, Tag } from 'antd'
 import {
   AppstoreOutlined,
   DeleteOutlined,
@@ -17,6 +17,7 @@ import { useAppStore } from '@/store/appStore'
 import { useEffect, useMemo, useState } from 'react'
 import type { Library } from '@/types'
 import { syncNow } from '@/utils/autoSync'
+import dayjs from 'dayjs'
 
 const { Sider } = Layout
 
@@ -214,11 +215,11 @@ function useSidebarState() {
 function SidebarBody({
   state,
   collapsed,
-  onOpenAI,
+  onOpenPanel,
 }: {
   state: ReturnType<typeof useSidebarState>
   collapsed: boolean
-  onOpenAI: () => void
+  onOpenPanel: () => void
 }) {
   const { account, isDark, menuItems, selectedKey, handleClick, handleLogout, loggingOut } = state
   return (
@@ -230,10 +231,10 @@ function SidebarBody({
           alignItems: 'center',
           gap: 8,
           fontWeight: 600,
-          color: '#1677ff',
+          color: '#0D9488',
         }}
       >
-        <Badge color="#1677ff" />
+        <Badge color="#0D9488" />
         {!collapsed && <span>信息管理</span>}
       </div>
 
@@ -255,7 +256,32 @@ function SidebarBody({
           background: isDark ? '#141414' : '#fff',
         }}
       >
-        <Button icon={<RobotOutlined />} block onClick={onOpenAI} style={{ marginBottom: 8 }}>
+        {!collapsed && account?.expiresAt != null && (
+          <div
+            style={{
+              fontSize: 12,
+              marginBottom: 8,
+              color: '#999',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span>到期：{dayjs(account.expiresAt).format('YYYY-MM-DD')}</span>
+            {(() => {
+              const days = Math.floor((account.expiresAt! - Date.now()) / 86400000)
+              if (days <= 3) {
+                return (
+                  <Tag color={days < 0 ? 'red' : 'orange'} style={{ marginRight: 0 }}>
+                    {days < 0 ? '已到期' : `剩 ${days} 天`}
+                  </Tag>
+                )
+              }
+              return null
+            })()}
+          </div>
+        )}
+        <Button icon={<RobotOutlined />} block onClick={onOpenPanel} style={{ marginBottom: 8 }}>
           {collapsed ? '' : 'AI 助手'}
         </Button>
         <Button
@@ -272,7 +298,7 @@ function SidebarBody({
   )
 }
 
-export default function Sidebar({ onOpenAI }: { onOpenAI: () => void }) {
+export default function Sidebar({ onOpenPanel }: { onOpenPanel: () => void }) {
   const state = useSidebarState()
   const { isDark } = state
   const [collapsed, setCollapsed] = useState(false)
@@ -286,19 +312,19 @@ export default function Sidebar({ onOpenAI }: { onOpenAI: () => void }) {
       style={{ height: '100vh', overflow: 'auto' }}
       theme={isDark ? 'dark' : 'light'}
     >
-      <SidebarBody state={state} collapsed={collapsed} onOpenAI={onOpenAI} />
+      <SidebarBody state={state} collapsed={collapsed} onOpenPanel={onOpenPanel} />
     </Sider>
   )
 }
 
 // 移动端侧边栏内容（用于 Drawer 内）
-export function SidebarContent({ onOpenAI }: { onOpenAI: () => void }) {
+export function SidebarContent({ onOpenPanel }: { onOpenPanel: () => void }) {
   const state = useSidebarState()
   const { isDark } = state
 
   return (
     <div style={{ height: '100vh', overflow: 'auto', background: isDark ? '#141414' : '#fff' }}>
-      <SidebarBody state={state} collapsed={false} onOpenAI={onOpenAI} />
+      <SidebarBody state={state} collapsed={false} onOpenPanel={onOpenPanel} />
     </div>
   )
 }
