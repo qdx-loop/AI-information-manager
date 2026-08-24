@@ -11,6 +11,7 @@ import {
   Collapse,
   App,
   Upload,
+  theme as antdTheme,
 } from 'antd'
 import { SendOutlined, RobotOutlined, UserOutlined, ReloadOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, BarChartOutlined, PictureOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -71,6 +72,7 @@ const MAX_ROUNDS = 50
 export default function AIPanel() {
   const navigate = useNavigate()
   const { message } = App.useApp()
+  const { token } = antdTheme.useToken()
   const { settings, setAI } = useAppStore()
   const { account } = useAuthStore()
   const confirmResolverRef = useRef<((action: ItemAction | null) => void) | null>(null)
@@ -1006,7 +1008,7 @@ export default function AIPanel() {
       <div
         style={{
           padding: '8px 12px',
-          borderBottom: '1px solid #f0f0f0',
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -1052,8 +1054,8 @@ export default function AIPanel() {
                   width: 28,
                   height: 28,
                   borderRadius: '50%',
-                  background: m.role === 'user' ? '#0D9488' : '#f0f0f0',
-                  color: m.role === 'user' ? '#fff' : '#666',
+                  background: m.role === 'user' ? '#0D9488' : token.colorFillSecondary,
+                  color: m.role === 'user' ? '#fff' : token.colorTextSecondary,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1064,8 +1066,8 @@ export default function AIPanel() {
               </div>
               <div
                 style={{
-                  background: m.role === 'user' ? '#0D9488' : '#f5f5f5',
-                  color: m.role === 'user' ? '#fff' : '#333',
+                  background: m.role === 'user' ? '#0D9488' : token.colorFillTertiary,
+                  color: m.role === 'user' ? '#fff' : token.colorText,
                   padding: '8px 12px',
                   borderRadius: 8,
                   maxWidth: '80%',
@@ -1134,7 +1136,7 @@ export default function AIPanel() {
         )}
       </div>
 
-      <div style={{ padding: 12, borderTop: '1px solid #f0f0f0' }}>
+      <div style={{ padding: 12, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
         {attachments.length > 0 && (
           <div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {attachments.map((a) => (
