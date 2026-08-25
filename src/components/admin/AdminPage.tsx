@@ -26,6 +26,7 @@ import {
   CheckCircleOutlined,
   DeleteOutlined,
   CopyOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -237,6 +238,29 @@ export default function AdminPage() {
     const days = Math.floor((a.expiresAt - Date.now()) / 86400000)
     return days >= 0 && days <= 3
   })
+  const exportAccountsCsv = () => {
+    const esc = (v: string) => (/^[=+@\t\r]|^-[^0-9.]/.test(v) ? `'${v}` : v)
+    const head = '用户名,状态,到期时间,最近登录'
+    const rows = accounts.map((a) =>
+      [
+        a.username,
+        a.disabled ? '停用' : a.expiresAt && a.expiresAt < Date.now() ? '已到期' : '正常',
+        a.expiresAt ? dayjs(a.expiresAt).format('YYYY-MM-DD') : '',
+        a.lastLogin ? dayjs(a.lastLogin).format('YYYY-MM-DD HH:mm') : '从未',
+      ]
+        .map((c) => esc(String(c)))
+        .join(','),
+    )
+    const blob = new Blob([`\uFEFF${[head, ...rows].join('\n')}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `账号列表_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    message.success('已导出')
+  }
+
   const copyRenewScripts = () => {
     if (expiringSoon.length === 0) return
     const lines = expiringSoon.map(
@@ -353,6 +377,9 @@ export default function AdminPage() {
                   onClick={() => setCreateOpen(true)}
                 >
                   卖卡 · 生成账号
+                </Button>
+                <Button icon={<DownloadOutlined />} onClick={exportAccountsCsv} disabled={accounts.length === 0}>
+                  导出CSV
                 </Button>
                 <Button
                   danger

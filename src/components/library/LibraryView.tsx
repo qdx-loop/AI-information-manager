@@ -1,4 +1,14 @@
 import { useState, useMemo, useEffect } from 'react'
+
+// 输入防抖：大数据量下每键击全量过滤会卡顿
+function useDebounced<T>(value: T, delay = 250): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
 import { useParams } from 'react-router-dom'
 import {
   Button,
@@ -60,7 +70,8 @@ export default function LibraryView() {
   const [templateOpen, setTemplateOpen] = useState(false)
   const [cloneOpen, setCloneOpen] = useState(false)
   const [cloneTargets, setCloneTargets] = useState<string[]>([])
-  const [keyword, setKeyword] = useState('')
+  const [keywordInput, setKeywordInput] = useState('')
+  const keyword = useDebounced(keywordInput, 250)
   const [filterField, setFilterField] = useState<string>('')
   const [filterValue, setFilterValue] = useState<string>('')
   const [sortField, setSortField] = useState<string>('')
@@ -215,8 +226,8 @@ export default function LibraryView() {
             prefix={<SearchOutlined />}
             placeholder="搜索"
             allowClear
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
             style={{ width: '100%', marginBottom: 4 }}
           />
           <Select
@@ -252,7 +263,7 @@ export default function LibraryView() {
               onChange={setSortDesc}
             />
           )}
-          <Button type="link" onClick={() => { setKeyword(''); setFilterField(''); setFilterValue(''); setSortField('') }}>
+          <Button type="link" onClick={() => { setKeywordInput(''); setFilterField(''); setFilterValue(''); setSortField('') }}>
             清除
           </Button>
         </div>

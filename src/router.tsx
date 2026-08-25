@@ -6,11 +6,30 @@ import AppShell from '@/components/layout/AppShell'
 import AuthPage from '@/components/auth/AuthPage'
 import AdminPage from '@/components/admin/AdminPage'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
+import Landing from '@/components/public/Landing'
 
 const LibraryView = lazy(() => import('@/components/library/LibraryView'))
 const TrashBin = lazy(() => import('@/components/library/TrashBin'))
 const SettingsPage = lazy(() => import('@/components/settings/SettingsPage'))
 const EmptyHome = lazy(() => import('@/components/library/EmptyHome'))
+
+// 根路径分流：未登录 → 公开落地页；已登录 → 应用主界面
+function HomeGate() {
+  const { account, loading } = useAuthStore()
+  if (loading) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Spin size="large" />
+      </div>
+    )
+  }
+  if (!account) return <Landing />
+  return (
+    <Protected>
+      <AppShell />
+    </Protected>
+  )
+}
 
 // 展示一次强制登出原因（到期/停用）
 function LogoutReasonBanner() {
@@ -72,14 +91,7 @@ export default function Router() {
       <Routes>
         <Route path="/login" element={<PublicOnly><AuthPage /></PublicOnly>} />
         <Route path="/admin" element={<AdminPage />} />
-        <Route
-          path="/"
-          element={
-            <Protected>
-              <AppShell />
-            </Protected>
-          }
-        >
+        <Route path="/" element={<HomeGate />}>
           <Route index element={<EmptyHome />} />
           <Route path="library/:id" element={<LibraryView />} />
           <Route path="trash" element={<TrashBin />} />

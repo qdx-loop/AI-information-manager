@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Result, Button, Card, Typography, Alert, Input, Modal, App, Space, Steps } from 'antd'
+import { Result, Button, Card, Typography, Alert, Input, Modal, App, Space, Steps, Select } from 'antd'
 import {
   AppstoreAddOutlined,
   WarningOutlined,
@@ -11,6 +11,7 @@ import { useLibraryStore } from '@/store/libraryStore'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { createDemoLibrary } from '@/utils/demoData'
+import { LIB_TEMPLATES, applyTemplate } from '@/utils/libraryTemplates'
 
 const { Paragraph } = Typography
 
@@ -41,6 +42,7 @@ export default function EmptyHome() {
   const [namingOpen, setNamingOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [tplKey, setTplKey] = useState('blank')
   const [demoLoading, setDemoLoading] = useState(false)
 
   // 新手引导：仅对"还没有任何库且未完成引导"的账号展示
@@ -75,10 +77,14 @@ export default function EmptyHome() {
     setCreating(true)
     try {
       const id = await createLibrary(name)
+      const tpl = LIB_TEMPLATES.find((x) => x.key === tplKey)
+      if (tpl) await applyTemplate(id, tpl)
       await loadLibraries()
       await selectLibrary(id)
       navigate(`/library/${id}`)
-      message.success(`已创建「${name}」，下一步请配置字段模板`)
+      message.success(
+        tpl && tpl.fields.length > 0 ? `已创建「${name}」，字段模板已套用` : `已创建「${name}」`,
+      )
       setNamingOpen(false)
       setNewName('')
     } catch (e) {
@@ -195,8 +201,18 @@ export default function EmptyHome() {
           autoFocus
           style={{ marginTop: 8 }}
         />
+        <Select
+          value={tplKey}
+          onChange={setTplKey}
+          style={{ width: '100%', marginTop: 12 }}
+          options={LIB_TEMPLATES.map((t) => ({
+            label: `${t.name} · ${t.desc}`,
+            value: t.key,
+          }))}
+          listHeight={260}
+        />
         <Paragraph type="secondary" style={{ fontSize: 12, marginTop: 8, marginBottom: 0 }}>
-          创建后可在库内随时配置或修改字段模板。
+          选择行业模板可一键生成字段结构，之后仍可随时修改。
         </Paragraph>
       </Modal>
     </div>

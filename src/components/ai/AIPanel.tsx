@@ -96,7 +96,27 @@ export default function AIPanel() {
   } = useLibraryStore()
 
   const [scope, setScope] = useState(settings.ai.scope)
-  const [messages, setMessages] = useState<UIMessage[]>([])
+  // 对话按账号本地持久化：刷新/重开浏览器不丢（撤回器为闭包不序列化，恢复后撤回按钮自然失效）
+  const [messages, setMessages] = useState<UIMessage[]>(() => {
+    if (!account) return []
+    try {
+      const raw = localStorage.getItem(`ai-chat-${account.id}`)
+      return raw ? (JSON.parse(raw) as UIMessage[]) : []
+    } catch {
+      return []
+    }
+  })
+  useEffect(() => {
+    if (!account) return
+    try {
+      localStorage.setItem(
+        `ai-chat-${account.id}`,
+        JSON.stringify(messages.map((m) => ({ role: m.role, content: m.content, thinking: m.thinking, steps: m.steps }))),
+      )
+    } catch {
+      /* 存储异常时静默，不影响对话 */
+    }
+  }, [messages, account?.id])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState<{
@@ -990,6 +1010,13 @@ export default function AIPanel() {
 
   const handleClear = () => {
     setMessages([])
+    if (account) {
+      try {
+        localStorage.removeItem(`ai-chat-${account.id}`)
+      } catch {
+        /* 忽略 */
+      }
+    }
   }
 
   const handleUndo = useCallback(async (msgIndex: number) => {

@@ -1,0 +1,18 @@
+{
+  "name": "信息管理 · AI 智能信息管理助手",
+  "short_name": "信息管理",
+  "description": "用说话的方式管理你的数据：建库、录入、查资料、做报表",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F0FDFA",
+  "theme_color": "#0D9488",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
