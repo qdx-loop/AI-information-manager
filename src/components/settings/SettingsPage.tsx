@@ -658,10 +658,18 @@ function AITab() {
         message="接入大模型"
         description={
           usingPlatform
-            ? '当前使用平台提供的 AI 服务，无需任何配置，直接打开 AI 助手即可使用。'
-            : '推荐使用「平台提供」方式——无需注册和密钥，开箱即用。也可以填入你自己的模型服务商接口（Base URL、API Key 与模型名）。'
+            ? '已使用平台统一接入的 AI 服务，无需任何配置，直接打开 AI 助手即可使用。'
+            : '选择「平台提供」可零配置直接使用；或填入你自己的模型服务商接口（Base URL、API Key 与模型名）。'
         }
       />
+      {usingPlatform && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="平台 AI 由管理员统一接入，不保证模型质量及服务连通性；生成结果请自行核对重要信息。"
+        />
+      )}
 
       <Form layout="vertical">
         <Form.Item label="连接方式">
@@ -671,7 +679,7 @@ function AITab() {
             optionType="button"
             buttonStyle="solid"
             options={[
-              { label: platformEnabled === true ? '平台提供（推荐）' : '平台提供（未开放）', value: 'platform', disabled: platformEnabled !== true },
+              { label: platformEnabled === true ? '平台提供' : '平台提供（未开放）', value: 'platform', disabled: platformEnabled !== true },
               { label: '我自己的接口', value: 'custom' },
             ]}
           />

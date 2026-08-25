@@ -175,3 +175,12 @@ input {
 .pinned-row td {
   background: #fffbe6;
 }
+
+/* 移动端卡片列表的同款状态样式 */
+.focus-card {
+  background: #fff7e6 !important;
+  box-shadow: inset 3px 0 0 #fa8c16;
+}
+.pinned-card {
+  background: #fffbe6;
+}

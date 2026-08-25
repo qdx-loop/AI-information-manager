@@ -33,3 +33,14 @@ CREATE TABLE IF NOT EXISTS admin_audit (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit(created_at DESC);
+
+-- 基础数据埋点（买家行为漏斗：登录/建库/录入/AI 对话等）
+CREATE TABLE IF NOT EXISTS analytics_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  props TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_analytics_account_time ON analytics_events(account_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_name_time ON analytics_events(name, created_at DESC);

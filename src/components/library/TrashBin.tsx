@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Card, Table, Button, Space, Tag, Popconfirm, Empty, App } from 'antd'
+import { Card, Table, Button, Space, Tag, Popconfirm, Empty, App, Alert } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, UndoOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -85,6 +85,12 @@ export default function TrashBin() {
   return (
     <div style={{ padding: 16, height: '100%' }}>
       <Card title="回收站" styles={{ body: { padding: 0 } }}>
+        <Alert
+          type="info"
+          showIcon
+          style={{ borderRadius: 0 }}
+          message="已删除超过 30 天的内容会被系统自动彻底清除，无法再恢复。"
+        />
         {trash.length === 0 ? (
           <Empty description="回收站为空" style={{ padding: 48 }} />
         ) : (

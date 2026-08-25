@@ -235,6 +235,29 @@ export class LocalDataProvider implements DataProvider {
     return [...libEntries, ...itemEntries].sort((a, b) => b.deletedAt - a.deletedAt)
   }
 
+  /** 回收站自动清理：彻底删除软删时间超过 N 天的库（连同其模板与全部条目）和独立软删的过期条目 */
+  async purgeExpiredTrash(accountId: string, olderThanDays: number): Promise<void> {
+    const cutoff = Date.now() - olderThanDays * 86400000
+    await db.transaction('rw', db.libraries, db.fields, db.items, async () => {
+      const deadLibs = await db.libraries
+        .where('accountId')
+        .equals(accountId)
+        .and((l) => l.deletedAt !== null && l.deletedAt < cutoff)
+        .toArray()
+      for (const l of deadLibs) {
+        await db.fields.where('libraryId').equals(l.id).delete()
+        await db.items.where('libraryId').equals(l.id).delete()
+        await db.libraries.delete(l.id)
+      }
+      // 独立软删且过期的条目（含上面已删库的残留，一并兜底）
+      await db.items
+        .where('accountId')
+        .equals(accountId)
+        .and((i) => i.deletedAt !== null && i.deletedAt < cutoff)
+        .delete()
+    })
+  }
+
   // —————— 备份 / 恢复 ——————
   async exportAll(accountId: string): Promise<BackupBlob> {
     const [libraries, items] = await Promise.all([

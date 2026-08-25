@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { apiLogin, apiMe, clearToken, getToken, ApiError } from '@/lib/serverApi'
+import { track } from '@/utils/track'
 
 const SESSION_KEY = 'info-mgmt-account-id'
 
@@ -102,6 +103,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   async login(username, password, remember = false) {
     const acc = await apiLogin(username, password, remember)
+    track('login')
     writeStoredId(acc.id, remember)
     set({ account: acc, loading: false, logoutReason: null })
     return acc

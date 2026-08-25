@@ -47,6 +47,12 @@ export interface DataProvider {
   // —— 回收站 ——
   listTrash(accountId: string): Promise<TrashEntry[]>
 
+  /**
+   * 可选：彻底清除超过 N 天的软删除数据（回收站自动清理）。
+   * 未实现此方法的 Provider 会被调用方静默跳过。
+   */
+  purgeExpiredTrash?(accountId: string, olderThanDays: number): Promise<void>
+
   // —— 备份 / 恢复 ——
   exportAll(accountId: string): Promise<BackupBlob>
   importAll(accountId: string, blob: BackupBlob): Promise<void>

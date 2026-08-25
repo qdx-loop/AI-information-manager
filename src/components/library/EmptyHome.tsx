@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Result, Button, Card, Typography, Alert, Input, Modal, App } from 'antd'
-import { AppstoreAddOutlined, WarningOutlined } from '@ant-design/icons'
+import { Result, Button, Card, Typography, Alert, Input, Modal, App, Space, Steps } from 'antd'
+import {
+  AppstoreAddOutlined,
+  WarningOutlined,
+  RocketOutlined,
+  EditOutlined,
+} from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
+import { createDemoLibrary } from '@/utils/demoData'
 
 const { Paragraph } = Typography
 
@@ -22,6 +28,7 @@ function isIosSafari(): boolean {
 }
 
 const RISK_KEY = 'info-mgmt-safari-risk-dismissed'
+const onboardKey = (accountId: string) => `info-mgmt-onboarded-${accountId}`
 
 export default function EmptyHome() {
   const navigate = useNavigate()
@@ -34,6 +41,19 @@ export default function EmptyHome() {
   const [namingOpen, setNamingOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
+
+  // 新手引导：仅对"还没有任何库且未完成引导"的账号展示
+  const [onboardDone, setOnboardDone] = useState(true)
+  useEffect(() => {
+    if (account) setOnboardDone(localStorage.getItem(onboardKey(account.id)) === '1')
+    else setOnboardDone(true)
+  }, [account?.id])
+  const finishOnboarding = () => {
+    if (account) localStorage.setItem(onboardKey(account.id), '1')
+    setOnboardDone(true)
+  }
+  const showOnboarding = libraries.length === 0 && !onboardDone
 
   const safariRisk = useMemo(
     () => settings.storageMode === 'local' && isIosSafari(),
@@ -45,6 +65,7 @@ export default function EmptyHome() {
   }, [])
 
   const openNaming = () => {
+    finishOnboarding()
     setNewName('')
     setNamingOpen(true)
   }
@@ -64,6 +85,23 @@ export default function EmptyHome() {
       message.error('创建失败：' + (e as Error).message)
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleDemo = async () => {
+    if (!account) return
+    setDemoLoading(true)
+    try {
+      const id = await createDemoLibrary(account.id)
+      await loadLibraries()
+      await selectLibrary(id)
+      navigate(`/library/${id}`)
+      message.success('演示库已就绪！打开 AI 助手，试试对它说「统计每个城市的客户数」', 6)
+      finishOnboarding()
+    } catch (e) {
+      message.error('演示库创建失败：' + (e as Error).message)
+    } finally {
+      setDemoLoading(false)
     }
   }
 
@@ -90,6 +128,38 @@ export default function EmptyHome() {
             }}
           />
         )}
+
+        {showOnboarding && (
+          <Card
+            size="small"
+            title="👋 新手引导 · 三步上手"
+            extra={
+              <Button type="text" size="small" onClick={finishOnboarding}>
+                跳过
+              </Button>
+            }
+            style={{ marginBottom: 16, border: '1px solid #99F6E4' }}
+          >
+            <Steps
+              size="small"
+              current={1}
+              items={[{ title: '创建管理库' }, { title: '录入/导入数据' }, { title: '让 AI 帮你查与算' }]}
+              style={{ marginBottom: 16 }}
+            />
+            <Paragraph type="secondary" style={{ marginBottom: 12 }}>
+              不想从零开始？一键创建一个带示例数据的「客户管理」演示库，先玩明白再建自己的。
+            </Paragraph>
+            <Space wrap>
+              <Button type="primary" icon={<RocketOutlined />} loading={demoLoading} onClick={handleDemo}>
+                一键创建演示库
+              </Button>
+              <Button icon={<EditOutlined />} onClick={openNaming}>
+                从空白开始
+              </Button>
+            </Space>
+          </Card>
+        )}
+
         <Result
           icon={<AppstoreAddOutlined style={{ color: '#0D9488' }} />}
           title={`你好，${account?.username ?? ''}`}

@@ -25,6 +25,7 @@ import ItemEditor from './ItemEditor'
 import TemplateEditor from './TemplateEditor'
 import ImportExport from './ImportExport'
 import type { Item, FieldValue } from '@/types'
+import { track } from '@/utils/track'
 
 const { Title, Text } = Typography
 
@@ -131,6 +132,7 @@ export default function LibraryView() {
       message.success('已更新')
     } else {
       await createItem(values)
+      track('item_created')
       message.success('已新建')
     }
     setEditorOpen(false)
@@ -155,6 +157,7 @@ export default function LibraryView() {
     for (const r of rows) {
       await createItem(r)
     }
+    if (rows.length > 0) track('items_imported', { count: rows.length })
   }
 
   // 模板复用：把当前库模板复制到其他库

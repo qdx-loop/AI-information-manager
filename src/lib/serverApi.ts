@@ -147,3 +147,15 @@ export interface AuditEntry {
 export async function adminListAudit(): Promise<AuditEntry[]> {
   return (await adminRequest<{ logs: AuditEntry[] }>('/api/admin/audit')).logs
 }
+
+// ———— 运营概览（近 7 天） ————
+
+export interface OpsStats {
+  activeUsers7: number
+  signups7: number
+  events7: Array<{ name: string; count: number }>
+}
+
+export async function adminGetStats(): Promise<OpsStats> {
+  return adminRequest<OpsStats>('/api/admin/stats')
+}

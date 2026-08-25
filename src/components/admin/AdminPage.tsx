@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Card,
+  Segmented,
   Table,
   Button,
   Tag,
@@ -33,9 +34,11 @@ import {
   adminCreateAccount,
   adminAccountOp,
   adminListAudit,
+  adminGetStats,
   getAdminToken,
   type AdminAccountRow,
   type AuditEntry,
+  type OpsStats,
 } from '@/lib/serverApi'
 
 const { Text } = Typography
@@ -80,6 +83,8 @@ export default function AdminPage() {
   const [accounts, setAccounts] = useState<AdminAccountRow[]>([])
   const [loadingList, setLoadingList] = useState(false)
   const [logs, setLogs] = useState<AuditEntry[]>([])
+  const [stats, setStats] = useState<OpsStats | null>(null)
+  const [filterKey, setFilterKey] = useState<'all' | 'expiring' | 'expired' | 'disabled'>('all')
   const [createOpen, setCreateOpen] = useState(false)
   const [cardType, setCardType] = useState('month')
   const [customDays, setCustomDays] = useState<number | null>(null)
@@ -93,6 +98,7 @@ export default function AdminPage() {
     setLoadingList(true)
     // 审计日志独立容错：未执行迁移的旧部署没有该表时静默降级
     adminListAudit().then(setLogs).catch(() => setLogs([]))
+    adminGetStats().then(setStats).catch(() => setStats(null))
     try {
       setAccounts(await adminListAccounts())
     } catch (e) {
@@ -225,6 +231,42 @@ export default function AdminPage() {
 
   const activeCount = accounts.filter((a) => !a.disabled && a.expiresAt && a.expiresAt > Date.now()).length
 
+  // —— 到期提醒自动化：3 天内到期的账号，一键复制催续费话术 ——
+  const expiringSoon = accounts.filter((a) => {
+    if (a.disabled || !a.expiresAt) return false
+    const days = Math.floor((a.expiresAt - Date.now()) / 86400000)
+    return days >= 0 && days <= 3
+  })
+  const copyRenewScripts = () => {
+    if (expiringSoon.length === 0) return
+    const lines = expiringSoon.map(
+      (a) =>
+        `【续费提醒】您好！您的账号 ${a.username} 将于 ${dayjs(a.expiresAt).format('YYYY-MM-DD')} 到期，如需继续使用请回复本消息办理续费哦~`,
+    )
+    navigator.clipboard.writeText(lines.join('\n\n'))
+    message.success(`已复制 ${lines.length} 条续费提醒话术，去微信粘贴发送吧`)
+  }
+
+  // 表格筛选
+  const filteredAccounts = accounts.filter((a) => {
+    if (filterKey === 'all') return true
+    if (filterKey === 'disabled') return !!a.disabled
+    if (!a.expiresAt) return false
+    const days = Math.floor((a.expiresAt - Date.now()) / 86400000)
+    if (filterKey === 'expiring') return !a.disabled && days >= 0 && days <= 3
+    if (filterKey === 'expired') return !a.disabled && days < 0
+    return true
+  })
+
+  const EVENT_LABELS: Record<string, string> = {
+    login: '登录',
+    library_created: '创建管理库',
+    item_created: '录入条目',
+    items_imported: '导入条目',
+    ai_message_sent: 'AI 对话',
+    demo_created: '创建演示库',
+  }
+
   const columns: ColumnsType<AdminAccountRow> = [
     { title: '用户名', dataIndex: 'username', key: 'username', render: (v) => <Text code>{v}</Text> },
     { title: '有效期', key: 'expiry', render: (_, r) => expiryTag(r) },
@@ -326,8 +368,47 @@ export default function AdminPage() {
             </Space>
           </Card>
 
-          <Card title="账户列表" size="small">
-            <Table rowKey="id" columns={columns} dataSource={accounts} loading={loadingList} pagination={{ pageSize: 15 }} size="middle" />
+          {expiringSoon.length > 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              message={`⏰ ${expiringSoon.length} 个账号将在 3 天内到期：${expiringSoon.map((a) => a.username).join('、')}`}
+              action={
+                <Button size="small" type="primary" onClick={copyRenewScripts}>
+                  一键复制催续费话术
+                </Button>
+              }
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
+          <Card title="运营概览（近 7 天）" size="small" style={{ marginBottom: 16 }}>
+            <Space size="large" wrap align="center">
+              <Statistic title="有效用户（活跃）" value={stats?.activeUsers7 ?? 0} valueStyle={{ color: '#3f8600' }} />
+              <Statistic title="新增注册" value={stats?.signups7 ?? 0} />
+              {(stats?.events7 ?? []).slice(0, 6).map((e) => (
+                <Statistic key={e.name} title={EVENT_LABELS[e.name] ?? e.name} value={e.count} />
+              ))}
+            </Space>
+          </Card>
+
+          <Card
+            title="账户列表"
+            size="small"
+            extra={
+              <Segmented
+                value={filterKey}
+                onChange={(v) => setFilterKey(v as typeof filterKey)}
+                options={[
+                  { label: '全部', value: 'all' },
+                  { label: `3天内到期 (${expiringSoon.length})`, value: 'expiring' },
+                  { label: '已到期', value: 'expired' },
+                  { label: '已停用', value: 'disabled' },
+                ]}
+              />
+            }
+          >
+            <Table rowKey="id" columns={columns} dataSource={filteredAccounts} loading={loadingList} pagination={{ pageSize: 15 }} size="middle" />
           </Card>
 
           <Card title="操作日志（最近 200 条）" size="small">

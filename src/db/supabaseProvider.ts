@@ -420,6 +420,32 @@ export class SupabaseDataProvider implements DataProvider {
     return entries.sort((a, b) => b.deletedAt - a.deletedAt)
   }
 
+  /** 回收站自动清理：彻底删除软删时间超过 N 天的库（连同其模板与全部条目）和独立软删的过期条目 */
+  async purgeExpiredTrash(accountId: string, olderThanDays: number): Promise<void> {
+    const cutoff = Date.now() - olderThanDays * 86400000
+    // 1) 过期软删的库 → 连同其字段与全部条目彻底删除
+    const deadLibs = await this.client
+      .from('libraries')
+      .select('id')
+      .eq('account_id', accountId)
+      .not('deleted_at', 'is', null)
+      .lt('deleted_at', cutoff)
+    if (deadLibs.error) throw new Error(deadLibs.error.message)
+    const ids = ((deadLibs.data ?? []) as Array<{ id: string }>).map((r) => r.id)
+    if (ids.length) {
+      await this.client.from('items').delete().in('library_id', ids)
+      await this.client.from('fields').delete().in('library_id', ids)
+      await this.client.from('libraries').delete().in('id', ids)
+    }
+    // 2) 独立软删且过期的条目（父库仍存在）
+    await this.client
+      .from('items')
+      .delete()
+      .eq('account_id', accountId)
+      .not('deleted_at', 'is', null)
+      .lt('deleted_at', cutoff)
+  }
+
   // —————— 备份 / 恢复 ——————
   async exportAll(accountId: string): Promise<BackupBlob> {
     const [libsRes, itemsRes] = await Promise.all([

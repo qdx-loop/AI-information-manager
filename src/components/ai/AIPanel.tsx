@@ -15,6 +15,7 @@ import {
 } from 'antd'
 import { SendOutlined, RobotOutlined, UserOutlined, ReloadOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, BarChartOutlined, PictureOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
 import { useLibraryStore } from '@/store/libraryStore'
@@ -179,6 +180,7 @@ export default function AIPanel() {
     setAttachments([])
 
     setInput('')
+    track('ai_message_sent')
     const userMsg: UIMessage = { role: 'user', content: fullText }
     const assistantMsg: UIMessage = { role: 'assistant', content: '', pending: true }
     setMessages((m) => [...m, userMsg, assistantMsg])

@@ -3,6 +3,7 @@ import type { Library, FieldDef, Item, TrashEntry } from '@/types'
 import { getProvider } from '@/db/providerFactory'
 import { useAuthStore } from './authStore'
 import { newId } from '@/utils/id'
+import { track } from '@/utils/track'
 import { scheduleAutoSync } from '@/utils/autoSync'
 
 interface LibraryState {
@@ -100,6 +101,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       deletedAt: null,
     }
     await getProvider().createLibrary(lib)
+    track('library_created', { name })
     await get().loadLibraries()
     scheduleAutoSync()
     return lib.id

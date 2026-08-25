@@ -4,6 +4,7 @@ import { Outlet } from 'react-router-dom'
 import { MoonOutlined, SunOutlined, MenuOutlined } from '@ant-design/icons'
 import Sidebar, { SidebarContent } from './Sidebar'
 import { useAppStore } from '@/store/appStore'
+import { sweepTrashOncePerDay } from '@/utils/trashSweep'
 
 // AI 面板懒加载：xlsx/papaparse/react-markdown 等重依赖只在首次打开抽屉时下载，
 // 显著缩小首屏主包（红队报告 P10）
@@ -23,6 +24,11 @@ export default function AppShell() {
     const handler = () => setIsMobile(window.innerWidth <= 768)
     window.addEventListener('resize', handler)
     return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  // 回收站自动清理：每天首次进入主界面时扫除一次（软删超 30 天彻底删除）
+  useEffect(() => {
+    void sweepTrashOncePerDay()
   }, [])
 
   return (
