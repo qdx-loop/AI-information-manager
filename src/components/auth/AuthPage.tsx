@@ -155,7 +155,13 @@ export default function AuthPage() {
           <p style={{ textAlign: 'center', marginTop: 28, color: '#475569', fontSize: 12, lineHeight: 1.8 }}>
             没有账号？请联系管理员购买开通
             <br />
-            <a href="#/" onClick={(e) => { e.preventDefault(); window.location.hash = '#/' }}>
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault()
+                navigate('/')
+              }}
+            >
               ← 返回官网首页
             </a>
             <br />

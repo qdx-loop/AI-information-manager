@@ -184,3 +184,53 @@ input {
 .pinned-card {
   background: #fffbe6;
 }
+
+/* ———— 公开落地页（Landing）专用 ———— */
+.lp-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  color: #0f766e;
+  font-size: 13px;
+}
+.lp-nav-link {
+  color: #334155;
+  font-size: 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+.lp-nav-link:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+@keyframes lp-dot-blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+.lp-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0d9488;
+  display: inline-block;
+  animation: lp-dot-blink 1.2s infinite;
+}
+.lp-bar {
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, #14b8a6, #0d9488);
+  width: 26px;
+}
