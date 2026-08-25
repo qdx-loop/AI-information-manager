@@ -23,7 +23,7 @@ export const SITE = {
     '手动录入或导入 Excel，之后全部交给 AI',
   ],
   prices: [
-    { name: '体验卡', days: '3 天', price: '免费', note: '先试再买' },
+    { name: '体验卡', days: '3 天', price: '¥3', note: '新人首选' },
     { name: '月卡', days: '30 天', price: '¥29.9', note: '' },
     { name: '季卡', days: '90 天', price: '¥79', note: '热门' },
     { name: '半年卡', days: '180 天', price: '¥139', note: '' },

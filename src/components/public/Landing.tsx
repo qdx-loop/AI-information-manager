@@ -126,14 +126,14 @@ export default function Landing() {
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Button type="primary" size="large" icon={<LoginOutlined />} onClick={goLogin}>
-              免费试用 3 天
+              ¥3 试用 3 天
             </Button>
             <Button size="large" onClick={() => scrollTo('price')}>
               查看价格
             </Button>
           </div>
           <div style={{ marginTop: 14, fontSize: 13, color: '#94A3B8' }}>
-            无需付款信息 · 数据存在你自己的设备里 · 手机电脑都能用
+            体验价 ¥3 · 数据存在你自己的设备里 · 手机电脑都能用
           </div>
 
           <ProductDemo />
@@ -267,9 +267,9 @@ export default function Landing() {
             }}
           >
             <h2 style={{ fontSize: 26, margin: '0 0 10px', color: '#fff' }}>今天录的数据，明天就离不开</h2>
-            <p style={{ color: '#94A3B8', marginBottom: 24 }}>免费试用 3 天，无需付款信息</p>
+            <p style={{ color: '#94A3B8', marginBottom: 24 }}>体验卡仅 ¥3，随时联系管理员开通</p>
             <Button type="primary" size="large" onClick={goLogin}>
-              免费开始使用
+              ¥3 立即开始
             </Button>
           </div>
         </section>
