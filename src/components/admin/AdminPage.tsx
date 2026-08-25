@@ -32,8 +32,10 @@ import {
   adminListAccounts,
   adminCreateAccount,
   adminAccountOp,
+  adminListAudit,
   getAdminToken,
   type AdminAccountRow,
+  type AuditEntry,
 } from '@/lib/serverApi'
 
 const { Text } = Typography
@@ -77,6 +79,7 @@ export default function AdminPage() {
 
   const [accounts, setAccounts] = useState<AdminAccountRow[]>([])
   const [loadingList, setLoadingList] = useState(false)
+  const [logs, setLogs] = useState<AuditEntry[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [cardType, setCardType] = useState('month')
   const [customDays, setCustomDays] = useState<number | null>(null)
@@ -88,6 +91,8 @@ export default function AdminPage() {
 
   const load = useCallback(async () => {
     setLoadingList(true)
+    // 审计日志独立容错：未执行迁移的旧部署没有该表时静默降级
+    adminListAudit().then(setLogs).catch(() => setLogs([]))
     try {
       setAccounts(await adminListAccounts())
     } catch (e) {
@@ -323,6 +328,33 @@ export default function AdminPage() {
 
           <Card title="账户列表" size="small">
             <Table rowKey="id" columns={columns} dataSource={accounts} loading={loadingList} pagination={{ pageSize: 15 }} size="middle" />
+          </Card>
+
+          <Card title="操作日志（最近 200 条）" size="small">
+            <Table
+              rowKey={(r) => `${r.created_at}-${r.action}-${r.target}`}
+              columns={[
+                {
+                  title: '时间',
+                  key: 'time',
+                  width: 150,
+                  render: (_, r) => dayjs(r.created_at).format('MM-DD HH:mm:ss'),
+                },
+                {
+                  title: '操作',
+                  key: 'action',
+                  width: 90,
+                  render: (_, r) =>
+                    ({ login: '登录后台', create: '生成账号', renew: '续费', disable: '停用', enable: '启用', delete: '删除账号' } as Record<string, string>)[r.action] ?? r.action,
+                },
+                { title: '目标账号', dataIndex: 'target', key: 'target', width: 170, render: (v) => <Text code>{v}</Text> },
+                { title: '详情', dataIndex: 'detail', key: 'detail', ellipsis: true },
+                { title: 'IP', dataIndex: 'ip', key: 'ip', width: 130 },
+              ]}
+              dataSource={logs}
+              pagination={{ pageSize: 8 }}
+              size="small"
+            />
           </Card>
 
           <Text type="secondary" style={{ fontSize: 12 }}>

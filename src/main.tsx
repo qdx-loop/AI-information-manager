@@ -26,6 +26,8 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
         locale={zhCN}
         theme={{
           algorithm: themeMode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+          // 开启 CSS 变量：业务代码可用 var(--ant-color-*) 跟随主题，替代写死的灰阶
+          cssVar: true,
           token: {
             // 设计系统：Flat Design · 蓝绿主色 + 橙色行动色（ui-ux-pro-max 生成）
             colorPrimary: '#0D9488',

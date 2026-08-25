@@ -22,3 +22,14 @@ CREATE TABLE IF NOT EXISTS login_attempts (
   count INTEGER NOT NULL,
   window_start INTEGER NOT NULL  -- 窗口起始时间戳（毫秒）
 );
+
+-- 管理后台操作审计（防扯皮：谁在何时对哪个账号做了什么）
+CREATE TABLE IF NOT EXISTS admin_audit (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  action TEXT NOT NULL,          -- login/create/renew/disable/enable/delete
+  target TEXT NOT NULL,          -- 目标用户名；login 记录 '-'
+  detail TEXT NOT NULL DEFAULT '',
+  ip TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit(created_at DESC);

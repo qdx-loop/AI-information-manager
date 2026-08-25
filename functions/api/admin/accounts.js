@@ -2,7 +2,7 @@
 //   GET  — 列出全部账户（管理后台表格）
 //   POST — 生成新账户：{ cardType: 'trial'|'month'|'quarter'|'year' } 或 { days: N }
 //          返回明文用户名/密码，仅此一次；服务端只存哈希
-import { json, errorJson, requireAdmin, CARD_TYPES, hashPassword, randomString, cardDays, publicAccount } from '../../lib/_auth'
+import { json, errorJson, requireAdmin, CARD_TYPES, hashPassword, randomString, cardDays, publicAccount, logAdmin } from '../../lib/_auth'
 
 export async function onRequestGet({ request, env }) {
   const { error } = await requireAdmin(request, env)
@@ -76,6 +76,8 @@ export async function onRequestPost({ request, env }) {
   )
     .bind(id, username, stored, '', expiresAt, now)
     .run()
+
+  await logAdmin(env, request, 'create', username, `卡种天数=${days}，初始密码已生成（仅此一次）`)
 
   return json({
     account: publicAccount(await env.DB.prepare('SELECT id, username, expires_at, disabled, created_at, last_login FROM accounts WHERE id = ?').bind(id).first()),

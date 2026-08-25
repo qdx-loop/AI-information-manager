@@ -133,3 +133,17 @@ export type AdminOp =
 export async function adminAccountOp(accountId: string, payload: AdminOp): Promise<{ expiresAt?: number }> {
   return adminRequest('/api/admin/account', { method: 'POST', body: JSON.stringify({ accountId, ...payload }) })
 }
+
+// ———— 管理端操作审计 ————
+
+export interface AuditEntry {
+  action: string
+  target: string
+  detail: string
+  ip: string
+  created_at: number
+}
+
+export async function adminListAudit(): Promise<AuditEntry[]> {
+  return (await adminRequest<{ logs: AuditEntry[] }>('/api/admin/audit')).logs
+}

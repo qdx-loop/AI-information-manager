@@ -1,7 +1,7 @@
 // POST /api/admin/account — 对单个账户执行操作
 // body: { accountId, op: 'renew'|'disable'|'enable'|'delete', cardType?, days? }
 // 注意：不提供重置密码的能力——卖家不可触碰买家凭证（产品决策，见 PRODUCT.md）
-import { json, errorJson, requireAdmin, hashPassword, cardDays } from '../../lib/_auth'
+import { json, errorJson, requireAdmin, cardDays, logAdmin } from '../../lib/_auth'
 
 export async function onRequestPost({ request, env }) {
   const { error } = await requireAdmin(request, env)
@@ -31,18 +31,22 @@ export async function onRequestPost({ request, env }) {
       await env.DB.prepare('UPDATE accounts SET expires_at = ?, disabled = 0 WHERE id = ?')
         .bind(expiresAt, accountId)
         .run()
+      await logAdmin(env, request, 'renew', acc.username, `+${days}天 → 新到期 ${new Date(expiresAt).toISOString().slice(0, 10)}`)
       return json({ ok: true, expiresAt })
     }
     case 'disable': {
       await env.DB.prepare('UPDATE accounts SET disabled = 1 WHERE id = ?').bind(accountId).run()
+      await logAdmin(env, request, 'disable', acc.username)
       return json({ ok: true })
     }
     case 'enable': {
       await env.DB.prepare('UPDATE accounts SET disabled = 0 WHERE id = ?').bind(accountId).run()
+      await logAdmin(env, request, 'enable', acc.username)
       return json({ ok: true })
     }
     case 'delete': {
       await env.DB.prepare('DELETE FROM accounts WHERE id = ?').bind(accountId).run()
+      await logAdmin(env, request, 'delete', acc.username)
       return json({ ok: true })
     }
     default:

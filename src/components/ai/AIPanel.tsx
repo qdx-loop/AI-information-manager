@@ -1094,7 +1094,7 @@ export default function AIPanel() {
           <Empty
             image={false}
             description={
-              <span style={{ color: '#999' }}>
+              <span style={{ color: 'var(--ant-color-text-secondary)' }}>
                 问点什么吧，例如「统计每个分类的条目数」或「新增一条姓名=测试的记录」
               </span>
             }
@@ -1147,9 +1147,9 @@ export default function AIPanel() {
                     }}
                     items={[{
                       key: 'thinking',
-                      label: <span style={{ fontSize: 12, color: '#999' }}>思考过程</span>,
+                      label: <span style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>思考过程</span>,
                       children: (
-                        <pre style={{ margin: 0, fontSize: 12, color: '#888', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        <pre style={{ margin: 0, fontSize: 12, color: 'var(--ant-color-text-secondary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                           {m.thinking}
                         </pre>
                       ),
@@ -1169,7 +1169,7 @@ export default function AIPanel() {
                       key: 'steps',
                       label: <span style={{ fontSize: 12, color: '#0D9488' }}>执行过程（{m.steps.length} 步）</span>,
                       children: (
-                        <div style={{ fontSize: 12, color: '#888' }}>
+                        <div style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>
                           {m.steps.map((s, si) => (
                             <div key={si} style={{ padding: '1px 0' }}>{si + 1}. {s}</div>
                           ))}

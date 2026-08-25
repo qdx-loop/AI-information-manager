@@ -1,10 +1,13 @@
-import { Layout, Drawer, Button, Tooltip } from 'antd'
-import { useState, useEffect } from 'react'
+import { Layout, Drawer, Button, Tooltip, Spin } from 'antd'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { MoonOutlined, SunOutlined, MenuOutlined } from '@ant-design/icons'
 import Sidebar, { SidebarContent } from './Sidebar'
-import AIPanel from '@/components/ai/AIPanel'
 import { useAppStore } from '@/store/appStore'
+
+// AI 面板懒加载：xlsx/papaparse/react-markdown 等重依赖只在首次打开抽屉时下载，
+// 显著缩小首屏主包（红队报告 P10）
+const AIPanel = lazy(() => import('@/components/ai/AIPanel'))
 
 const { Content, Header } = Layout
 
@@ -75,7 +78,15 @@ export default function AppShell() {
         onClose={() => setAiOpen(false)}
         styles={{ body: { padding: 0 } }}
       >
-        <AIPanel />
+        <Suspense
+          fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
+              <Spin tip="正在加载 AI 助手…" />
+            </div>
+          }
+        >
+          <AIPanel />
+        </Suspense>
       </Drawer>
     </Layout>
   )

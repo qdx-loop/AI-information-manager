@@ -110,7 +110,7 @@ export default function ImportExport({ fields, items, onImport }: Props) {
         onOk={confirmImport}
         width={520}
       >
-        <p style={{ color: '#999', marginBottom: 12 }}>
+        <p style={{ color: 'var(--ant-color-text-secondary)', marginBottom: 12 }}>
           共解析到 {parsedRows.length} 行，请将文件列对应到管理库字段：
         </p>
         {headers.map((h) => (

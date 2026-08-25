@@ -159,7 +159,7 @@ export default function ConfirmLibActionModal({
         </Descriptions>
       )}
 
-      <p style={{ marginTop: 12, color: '#999', fontSize: 12 }}>
+      <p style={{ marginTop: 12, color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>
         确认后将立即生效。删除管理库可从回收站恢复。
       </p>
     </Modal>

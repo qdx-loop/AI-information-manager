@@ -129,7 +129,7 @@ export default function SyncImportModal({
         <video ref={videoRef} style={{ width: '100%', display: cameraOn ? 'block' : 'none' }} playsInline muted />
         <canvas ref={canvasRef} style={{ display: 'none' }} />
         {!cameraOn && (
-          <Text type="secondary" style={{ color: '#999', padding: 24, textAlign: 'center' }}>
+          <Text type="secondary" style={{ color: 'rgba(255,255,255,0.72)', padding: 24, textAlign: 'center' }}>
             {scanning ? '正在启动摄像头…' : '摄像头不可用（未授权或设备无摄像头），可改用下方粘贴方式'}
           </Text>
         )}

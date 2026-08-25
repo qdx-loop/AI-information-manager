@@ -8,6 +8,7 @@ import {
   recordLoginFailure,
   clearLoginFailures,
   clientIp,
+  logAdmin,
 } from '../../lib/_auth'
 
 export async function onRequestPost({ request, env }) {
@@ -32,6 +33,7 @@ export async function onRequestPost({ request, env }) {
     return errorJson('管理密码错误', 401, 'WRONG_ADMIN')
   }
   await clearLoginFailures(env, `admin:${ip}`)
+  await logAdmin(env, request, 'login', '-', '管理后台登录成功')
   const token = await issueAdminToken(env.AUTH_SECRET)
   return json({ token })
 }

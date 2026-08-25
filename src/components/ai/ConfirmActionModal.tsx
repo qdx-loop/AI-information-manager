@@ -96,7 +96,7 @@ export default function ConfirmActionModal({
                   action.action === 'create' || String(newVal) !== String(oldVal)
                 return (
                   <div key={f.key} style={{ display: 'flex', gap: 8 }}>
-                    <span style={{ color: '#666', minWidth: 80 }}>{f.label}:</span>
+                    <span style={{ color: 'var(--ant-color-text-secondary)', minWidth: 80 }}>{f.label}:</span>
                     <span>
                       {action.action === 'update' && changed ? (
                         <>
@@ -120,7 +120,7 @@ export default function ConfirmActionModal({
         )}
       </Descriptions>
 
-      <p style={{ marginTop: 12, color: '#999', fontSize: 12 }}>
+      <p style={{ marginTop: 12, color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>
         确认后将立即生效。删除操作可从回收站恢复。
       </p>
     </Modal>

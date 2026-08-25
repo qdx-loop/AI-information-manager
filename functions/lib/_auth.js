@@ -245,3 +245,16 @@ export async function clearLoginFailures(env, key) {
     /* 忽略：清理失败不影响登录 */
   }
 }
+
+// ———— 管理端审计日志（尽力写入，失败不影响主流程）————
+export async function logAdmin(env, request, action, target = '-', detail = '') {
+  try {
+    await env.DB.prepare(
+      'INSERT INTO admin_audit (action, target, detail, ip, created_at) VALUES (?, ?, ?, ?, ?)',
+    )
+      .bind(action, String(target), String(detail).slice(0, 200), clientIp(request), Date.now())
+      .run()
+  } catch (e) {
+    console.warn('[audit] 写入失败:', e?.message)
+  }
+}

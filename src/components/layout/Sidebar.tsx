@@ -261,7 +261,7 @@ function SidebarBody({
             style={{
               fontSize: 12,
               marginBottom: 8,
-              color: '#999',
+              color: 'var(--ant-color-text-secondary)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',

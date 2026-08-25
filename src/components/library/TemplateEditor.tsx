@@ -109,7 +109,7 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
     >
       <Space style={{ marginBottom: 12 }}>
         <Button icon={<PlusOutlined />} onClick={addField}>添加字段</Button>
-        <span style={{ color: '#999', fontSize: 12 }}>拖拽 ⠿ 调整顺序</span>
+        <span style={{ color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>拖拽 ⠿ 调整顺序</span>
       </Space>
 
       {list.length === 0 ? (

@@ -298,7 +298,7 @@ export default function LibraryView() {
         onCancel={() => setCloneOpen(false)}
         onOk={confirmClone}
       >
-        <p style={{ color: '#999', marginBottom: 12 }}>选择目标管理库（可多选）：</p>
+        <p style={{ color: 'var(--ant-color-text-secondary)', marginBottom: 12 }}>选择目标管理库（可多选）：</p>
         <Select
           mode="multiple"
           placeholder="选择目标管理库"

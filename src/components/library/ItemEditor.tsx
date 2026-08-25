@@ -61,7 +61,7 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
           </Form.Item>
         ))}
         {visibleFields.length === 0 && (
-          <p style={{ color: '#999', textAlign: 'center' }}>当前管理库尚未配置字段，请先在「字段模板」中添加字段。</p>
+          <p style={{ color: 'var(--ant-color-text-secondary)', textAlign: 'center' }}>当前管理库尚未配置字段，请先在「字段模板」中添加字段。</p>
         )}
       </Form>
     </Modal>
