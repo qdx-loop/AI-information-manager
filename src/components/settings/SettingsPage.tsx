@@ -13,6 +13,7 @@ import {
   Typography,
   Alert,
   Divider,
+  Radio,
 } from 'antd'
 import {
   UserOutlined,
@@ -29,7 +30,8 @@ import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { useLibraryStore } from '@/store/libraryStore'
 import { encodeSyncCode } from '@/utils/syncCode'
-import { pushLocalToCloud, mergeCloudToLocal } from '@/db/syncService'
+import { pushLocalToCloud, mergeCloudToLocal, syncBidirectional } from '@/db/syncService'
+import { friendlyDbError } from '@/utils/dbErrors'
 import { initFromSettings } from '@/db/providerFactory'
 import { apiChangePassword } from '@/lib/serverApi'
 import { exportBackup, importBackup } from '@/db/backup'
@@ -48,6 +50,7 @@ export default function SettingsPage() {
           items={[
             { key: 'account', label: '账户', children: <AccountTab /> },
             { key: 'storage', label: '存储', children: <StorageTab /> },
+            { key: 'configsync', label: '配置同步', children: <ConfigSyncTab /> },
             { key: 'ai', label: 'AI 配置', children: <AITab /> },
             { key: 'backup', label: '备份恢复', children: <BackupTab /> },
           ]}
@@ -81,7 +84,7 @@ function AccountTab() {
     setPwdLoading(true)
     try {
       await apiChangePassword(oldPwd, newPwd)
-      message.success('密码已修改')
+      message.success('密码已修改，请牢记新密码（管理员无法帮你找回）')
       setOldPwd('')
       setNewPwd('')
       setPwdOpen(false)
@@ -117,9 +120,10 @@ function AccountTab() {
           </Space>
         </Card>
       )}
+
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<UserOutlined />} onClick={() => setPwdOpen(true)} disabled={!account}>
-          修改当前账户密码
+          修改密码
         </Button>
         <Button danger onClick={() => logout()}>
           退出登录
@@ -127,9 +131,9 @@ function AccountTab() {
       </Space>
 
       {pwdOpen && (
-        <Card size="small" title="修改密码" style={{ marginTop: 16, maxWidth: 400 }}>
+        <Card size="small" title="修改密码" style={{ marginBottom: 16, maxWidth: 400 }}>
           <Input.Password
-            placeholder="旧密码"
+            placeholder="旧密码（首次修改即卖家发放的初始密码）"
             value={oldPwd}
             onChange={(e) => setOldPwd(e.target.value)}
             style={{ marginBottom: 8 }}
@@ -146,74 +150,28 @@ function AccountTab() {
             </Button>
             <Button onClick={() => { setPwdOpen(false); setOldPwd(''); setNewPwd('') }}>取消</Button>
           </Space>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+            只有你自己能改密码；管理员无法查看、重置或代改。改完请牢记新密码。
+          </Text>
         </Card>
       )}
+
+      <Alert
+        type="info"
+        showIcon
+        style={{ maxWidth: 480 }}
+        message="密码安全说明"
+        description="你可以随时在这里自行修改密码。卖家只持有发放时的初始密码，无法查看你的新密码，也无法替你重置。"
+      />
     </div>
   )
 }
 
 function StorageTab() {
   const { message, modal } = App.useApp()
-  const { settings, setStorageMode, setCloud, setAI } = useAppStore()
+  const { settings, setStorageMode, setCloud } = useAppStore()
   const { account } = useAuthStore()
   const [syncing, setSyncing] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
-  const [qrDataUrl, setQrDataUrl] = useState('')
-
-  // 当前同步码内容（含云端与 AI 配置），生成二维码用
-  const syncCodeValue =
-    settings.cloud.url && settings.cloud.anonKey
-      ? encodeSyncCode({
-          cloudUrl: settings.cloud.url,
-          cloudKey: settings.cloud.anonKey,
-          aiBaseUrl: settings.ai.baseUrl,
-          aiApiKey: settings.ai.apiKey,
-          aiModel: settings.ai.model,
-        })
-      : ''
-
-  useEffect(() => {
-    if (!syncCodeValue) {
-      setQrDataUrl('')
-      return
-    }
-    QRCode.toDataURL(syncCodeValue, { width: 220, margin: 1 })
-      .then(setQrDataUrl)
-      .catch(() => setQrDataUrl(''))
-  }, [syncCodeValue])
-
-  const handleDecodedImport = (d: {
-    cloudUrl: string
-    cloudKey: string
-    aiBaseUrl: string
-    aiApiKey: string
-    aiModel: string
-  }) => {
-    setCloud({ url: d.cloudUrl, anonKey: d.cloudKey })
-    if (d.aiBaseUrl || d.aiApiKey || d.aiModel) {
-      setAI({ baseUrl: d.aiBaseUrl, apiKey: d.aiApiKey, model: d.aiModel })
-    }
-    setImportOpen(false)
-
-    // 已配置好且处于云端模式 → 直接合并拉取，一步到位（换设备场景）
-    if (settings.storageMode === 'cloud' && account) {
-      void (async () => {
-        try {
-          const r = await mergeCloudToLocal(account.id, { url: d.cloudUrl, anonKey: d.cloudKey })
-          await useLibraryStore.getState().loadLibraries()
-          await useLibraryStore.getState().refreshCurrent()
-          message.success(
-            `配置已导入并拉取云端数据：新增管理库 ${r.addedLibraries} 个、条目 ${r.addedItems} 条，更新条目 ${r.updatedItems} 条`,
-            6,
-          )
-        } catch (e) {
-          message.warning(`配置已导入，但拉取云端数据失败：${(e as Error).message}`)
-        }
-      })()
-    } else {
-      message.success('配置已导入。打开上方「云端存储模式」开关即可启用同步。')
-    }
-  }
 
   const handleSync = (direction: 'push' | 'pull') => {
     if (!account) {
@@ -225,19 +183,23 @@ function StorageTab() {
       return
     }
     modal.confirm({
-      title: direction === 'push' ? '上传本地数据到云端？' : '从云端合并数据到本地？',
+      title: direction === 'push' ? '与云端双向同步？' : '从云端合并数据到本地？',
       content:
         direction === 'push'
-          ? '将当前账户的本地数据上传到云端数据库（按 ID 覆盖同条记录）。'
+          ? '先拉取云端修改并按「修改时间较新者胜」合并到本地，再整体上传——任何一端的修改都不会丢失。'
           : '合并规则：本地缺少的记录直接补入；两边都有的条目以修改时间较新的一方为准；云端已删除的管理库会同步删除。不会丢失任何一边的数据。',
-      okText: direction === 'push' ? '上传' : '合并拉取',
+      okText: direction === 'push' ? '双向同步' : '合并拉取',
       onOk: async () => {
         setSyncing(true)
         try {
           if (direction === 'push') {
-            message.loading({ content: '正在上传…', key: 'sync', duration: 0 })
-            await pushLocalToCloud(account.id, settings.cloud)
-            message.success({ content: '本地数据已上传到云端', key: 'sync' })
+            message.loading({ content: '正在双向同步…', key: 'sync', duration: 0 })
+            const r = await syncBidirectional(account.id, settings.cloud)
+            message.success({
+              content: `同步完成：新增管理库 ${r.addedLibraries} 个、条目 ${r.addedItems} 条，更新条目 ${r.updatedItems} 条`,
+              key: 'sync',
+              duration: 6,
+            })
           } else {
             message.loading({ content: '正在合并拉取…', key: 'sync', duration: 0 })
             const r = await mergeCloudToLocal(account.id, settings.cloud)
@@ -250,7 +212,7 @@ function StorageTab() {
             })
           }
         } catch (e) {
-          message.error({ content: '同步失败：' + (e as Error).message, key: 'sync' })
+          message.error({ content: '同步失败：' + friendlyDbError(e), key: 'sync' })
         } finally {
           setSyncing(false)
         }
@@ -277,11 +239,20 @@ function StorageTab() {
       onOk: async () => {
         try {
           if (mode === 'cloud') {
-            message.loading({ content: '正在上传数据到云端…', key: 'migrate', duration: 0 })
-            await pushLocalToCloud(account.id, settings.cloud)
+            // 先合并云端（新者胜），再上传本地——切换动作不会用本机旧副本覆盖云端的较新修改
+            message.loading({ content: '正在合并云端数据…', key: 'migrate', duration: 0 })
+            const r = await mergeCloudToLocal(account.id, settings.cloud)
             setStorageMode(mode)
             initFromSettings(useAppStore.getState().settings)
-            message.success({ content: '已切换到云端模式，数据已上传', key: 'migrate' })
+            message.loading({ content: '正在上传本地数据…', key: 'migrate', duration: 0 })
+            await pushLocalToCloud(account.id, settings.cloud)
+            await useLibraryStore.getState().loadLibraries()
+            await useLibraryStore.getState().refreshCurrent()
+            message.success({
+              content: `已开启云端模式：新增管理库 ${r.addedLibraries} 个、条目 ${r.addedItems} 条，更新条目 ${r.updatedItems} 条`,
+              key: 'migrate',
+              duration: 6,
+            })
           } else {
             message.loading({ content: '正在拉取云端数据…', key: 'migrate', duration: 0 })
             const r = await mergeCloudToLocal(account.id, settings.cloud)
@@ -339,58 +310,6 @@ function StorageTab() {
           />
         </Form.Item>
       </Form>
-
-      {settings.cloud.url && settings.cloud.anonKey && (
-        <Card size="small" title="跨设备同步" style={{ marginTop: 8 }}>
-          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-            在其他设备登录后，打开「设置 → 存储 → 扫码导入」，扫描下面的二维码，即可一键带入云端数据库和 AI 配置。
-          </Text>
-          <Alert
-            type="warning"
-            showIcon
-            style={{ marginBottom: 12, fontSize: 12 }}
-            message="二维码与同步码含数据库访问凭证和 AI 密钥，请像密码一样保管，不要公开分享。"
-          />
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            {qrDataUrl && (
-              <img
-                src={qrDataUrl}
-                alt="同步二维码"
-                width={180}
-                height={180}
-                style={{ borderRadius: 8, border: '1px solid #eee' }}
-              />
-            )}
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <Input.Group compact>
-                <Input
-                  readOnly
-                  style={{ width: 'calc(100% - 80px)' }}
-                  value={syncCodeValue}
-                />
-                <Button
-                  style={{ width: 80 }}
-                  icon={<CopyOutlined />}
-                  onClick={() => {
-                    navigator.clipboard.writeText(syncCodeValue)
-                    message.success('同步码已复制')
-                  }}
-                >
-                  复制
-                </Button>
-              </Input.Group>
-              <Button block style={{ marginTop: 8 }} onClick={() => setImportOpen(true)}>
-                从其他设备导入配置（扫码 / 粘贴）
-              </Button>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 6 }}>
-                换新电脑或手机时：先登录账号 → 点上面按钮扫码 → 自动填入配置并拉取云端数据。
-              </Text>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      <SyncImportModal open={importOpen} onClose={() => setImportOpen(false)} onDecoded={handleDecodedImport} />
 
       <Card size="small" title="建表 SQL（复制到 Supabase SQL Editor 执行）" style={{ marginTop: 8 }}>
         <pre style={{ fontSize: 11, maxHeight: 200, overflow: 'auto', margin: 0 }}>
@@ -450,12 +369,14 @@ alter table items disable row level security;`}
             </Text>
             <Space>
               <Button
-                icon={<UploadOutlined />}
+                type="primary"
+                ghost
+                icon={<SyncOutlined />}
                 loading={syncing}
                 onClick={() => handleSync('push')}
                 disabled={!account}
               >
-                上传到云端
+                双向同步
               </Button>
               <Button
                 icon={<DownloadOutlined />}
@@ -463,15 +384,204 @@ alter table items disable row level security;`}
                 onClick={() => handleSync('pull')}
                 disabled={!account}
               >
-                从云端拉取
+                仅拉取云端
               </Button>
             </Space>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              <SyncOutlined /> 上传：本地 → 云端（覆盖同 ID 记录）；拉取：云端 → 本地（覆盖同 ID 记录）
+              <SyncOutlined /> 双向同步：先合并（新者胜）再上传，永不丢数据；仅拉取：云端 → 本地合并
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              跨设备二维码迁移请到「配置同步」标签页。
             </Text>
           </Space>
         </Card>
       ) : null}
+    </div>
+  )
+}
+
+// 「配置同步」标签页：跨设备迁移的统一入口，独立于存储设置。
+// 同步码内容自适应——开启云端数据库时打包「数据库 + AI」配置，未开启时只打包 AI 配置。
+function ConfigSyncTab() {
+  const { message, modal } = App.useApp()
+  const { settings, setStorageMode, setCloud, setAI } = useAppStore()
+  const { account } = useAuthStore()
+  const [importOpen, setImportOpen] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState('')
+
+  const hasCloud = settings.storageMode === 'cloud' && !!settings.cloud.url && !!settings.cloud.anonKey
+  const hasAI = !!(settings.ai.baseUrl || settings.ai.apiKey || settings.ai.model)
+
+  // 未开启云端时，云端字段留空（解码端据此跳过数据库配置的导入）
+  const syncCodeValue =
+    hasCloud || hasAI
+      ? encodeSyncCode({
+          cloudUrl: hasCloud ? settings.cloud.url : '',
+          cloudKey: hasCloud ? settings.cloud.anonKey : '',
+          aiBaseUrl: settings.ai.baseUrl,
+          aiApiKey: settings.ai.apiKey,
+          aiModel: settings.ai.model,
+        })
+      : ''
+
+  useEffect(() => {
+    if (!syncCodeValue) {
+      setQrDataUrl('')
+      return
+    }
+    QRCode.toDataURL(syncCodeValue, { width: 220, margin: 1 })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(''))
+  }, [syncCodeValue])
+
+  // 扫码/粘贴导入后的完整落地流程：填入配置 → 自动开启云端模式 → 双向同步（先拉取、后上传）
+  const applyAndSync = async (d: { cloudUrl: string; cloudKey: string }) => {
+    if (!account) return
+    const key = 'sync-import'
+    try {
+      message.loading({ content: '正在开启云端模式…', key, duration: 0 })
+      setStorageMode('cloud')
+      initFromSettings(useAppStore.getState().settings)
+
+      message.loading({ content: '正在从云端拉取数据…', key, duration: 0 })
+      const r = await mergeCloudToLocal(account.id, { url: d.cloudUrl, anonKey: d.cloudKey })
+
+      // 反向上传：把本机（离线期间）已有的数据也推上去，保证两端一致
+      message.loading({ content: '正在上传本机数据…', key, duration: 0 })
+      await pushLocalToCloud(account.id, { url: d.cloudUrl, anonKey: d.cloudKey })
+
+      await useLibraryStore.getState().loadLibraries()
+      await useLibraryStore.getState().refreshCurrent()
+      message.success({
+        content: `同步完成：新增管理库 ${r.addedLibraries} 个、条目 ${r.addedItems} 条，更新条目 ${r.updatedItems} 条`,
+        key,
+        duration: 6,
+      })
+    } catch (e) {
+      message.error({
+        content: `同步失败：${(e as Error).message}（配置已保存，可到「存储」标签页手动重试）`,
+        key,
+        duration: 8,
+      })
+    }
+  }
+
+  const handleDecodedImport = (d: {
+    cloudUrl: string
+    cloudKey: string
+    aiBaseUrl: string
+    aiApiKey: string
+    aiModel: string
+  }) => {
+    const withCloud = !!(d.cloudUrl && d.cloudKey)
+    if (withCloud) {
+      setCloud({ url: d.cloudUrl, anonKey: d.cloudKey })
+    }
+    if (d.aiBaseUrl || d.aiApiKey || d.aiModel) {
+      setAI({ baseUrl: d.aiBaseUrl, apiKey: d.aiApiKey, model: d.aiModel })
+    }
+    setImportOpen(false)
+
+    if (!withCloud) {
+      message.success('已导入 AI 配置。')
+      return
+    }
+    if (!account) {
+      message.warning('配置已导入。请先登录同一账号，再到本页重新扫码完成数据同步。')
+      return
+    }
+
+    // 已处于云端模式：静默直接同步；否则确认后自动切换并双向同步
+    if (settings.storageMode === 'cloud') {
+      void applyAndSync(d)
+      return
+    }
+    modal.confirm({
+      title: '导入并立即开启云端同步？',
+      content:
+        '将自动切换到云端模式：先拉取云端数据到本机，再把本机已有数据上传合并，两端保持一致。',
+      okText: '开始同步',
+      cancelText: '仅导入配置',
+      onOk: () => applyAndSync(d),
+      onCancel: () => {
+        message.success('配置已导入。需要时在「存储」标签页打开「云端存储模式」开关即可启用同步。')
+      },
+    })
+  }
+
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="什么是配置同步"
+        description="把这台设备的配置打包成二维码/同步码，另一台设备登录同一账号后扫码即可带入。开启云端数据库时会一并包含数据库连接；未开启时只包含 AI 配置。"
+      />
+
+      {!syncCodeValue ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="还没有可同步的内容"
+          description={
+            <span>
+              请先到「AI 配置」填入接口信息；如需连同数据库一起迁移，再到「存储」标签页开启云端模式。配置好后回到本页生成二维码。
+            </span>
+          }
+        />
+      ) : (
+        <Card size="small" title="我的同步二维码" style={{ marginBottom: 16 }}>
+          <Space wrap size={4} style={{ marginBottom: 12 }}>
+            <Tag color={hasCloud ? 'green' : 'default'}>
+              云端数据库{hasCloud ? '：已包含' : '：未包含'}
+            </Tag>
+            <Tag color={hasAI ? 'green' : 'default'}>
+              AI 配置{hasAI ? '：已包含' : '：未包含'}
+            </Tag>
+          </Space>
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12, fontSize: 12 }}
+            message="二维码与同步码含数据库访问凭证和 AI 密钥，请像密码一样保管，不要公开分享。"
+          />
+          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            {qrDataUrl && (
+              <img
+                src={qrDataUrl}
+                alt="同步二维码"
+                width={180}
+                height={180}
+                style={{ borderRadius: 8, border: '1px solid #eee' }}
+              />
+            )}
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <Input.Group compact>
+                <Input readOnly style={{ width: 'calc(100% - 80px)' }} value={syncCodeValue} />
+                <Button
+                  style={{ width: 80 }}
+                  icon={<CopyOutlined />}
+                  onClick={() => {
+                    navigator.clipboard.writeText(syncCodeValue)
+                    message.success('同步码已复制')
+                  }}
+                >
+                  复制
+                </Button>
+              </Input.Group>
+              <Button block style={{ marginTop: 8 }} onClick={() => setImportOpen(true)}>
+                从其他设备导入配置（扫码 / 粘贴）
+              </Button>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 6 }}>
+                换新电脑或手机时：先登录账号 → 点上面按钮扫码 → 自动填入配置并完成同步。
+              </Text>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <SyncImportModal open={importOpen} onClose={() => setImportOpen(false)} onDecoded={handleDecodedImport} />
     </div>
   )
 }
@@ -481,6 +591,17 @@ function AITab() {
   const { settings, setAI } = useAppStore()
   const account = useAuthStore((s) => s.account)
   const [memoryLines, setMemoryLines] = useState('')
+  // 平台代管 AI 是否已在服务端配置（GET /api/ai/proxy 仅返回布尔值）
+  const [platformEnabled, setPlatformEnabled] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    fetch('/api/ai/proxy')
+      .then((r) => r.json())
+      .then((d: { enabled?: boolean }) => setPlatformEnabled(!!d.enabled))
+      .catch(() => setPlatformEnabled(false))
+  }, [])
+
+  const usingPlatform = !!settings.ai.usePlatformAI && platformEnabled === true
 
   // 加载结构化记忆（旧版纯文本自动迁移）
   useEffect(() => {
@@ -500,6 +621,10 @@ function AITab() {
   }
 
   const handleTest = async () => {
+    if (usingPlatform) {
+      message.success(platformEnabled ? '平台 AI 可用' : '平台 AI 未启用')
+      return
+    }
     if (!settings.ai.baseUrl || !settings.ai.apiKey || !settings.ai.model) {
       message.warning('请填写完整')
       return
@@ -530,9 +655,31 @@ function AITab() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="接入通用大模型接口"
-        description="填写模型服务商提供的接口地址（Base URL）、API Key 与模型名即可。本应用支持业界通用的 chat/completions 接口格式，国内外主流服务商均可使用，具体以你的服务商文档为准。"
+        message="接入大模型"
+        description={
+          usingPlatform
+            ? '当前使用平台提供的 AI 服务，无需任何配置，直接打开 AI 助手即可使用。'
+            : '推荐使用「平台提供」方式——无需注册和密钥，开箱即用。也可以填入你自己的模型服务商接口（Base URL、API Key 与模型名）。'
+        }
       />
+
+      <Form layout="vertical">
+        <Form.Item label="连接方式">
+          <Radio.Group
+            value={usingPlatform ? 'platform' : 'custom'}
+            onChange={(e) => setAI({ usePlatformAI: e.target.value === 'platform' })}
+            optionType="button"
+            buttonStyle="solid"
+            options={[
+              { label: platformEnabled === true ? '平台提供（推荐）' : '平台提供（未开放）', value: 'platform', disabled: platformEnabled !== true },
+              { label: '我自己的接口', value: 'custom' },
+            ]}
+          />
+        </Form.Item>
+      </Form>
+
+      {!usingPlatform && (
+        <>
       <Form layout="vertical">
         <Form.Item label="Base URL">
           <Input
@@ -564,6 +711,8 @@ function AITab() {
           </Button>
         </Space>
       </Form>
+        </>
+      )}
 
       <Divider />
 
@@ -701,7 +850,7 @@ function BackupTab() {
         showIcon
         style={{ marginBottom: 16 }}
         message="本地备份与恢复"
-        description="导出当前账户的全部管理库、字段模板、条目数据为 JSON 文件。恢复时将覆盖当前账户现有数据。"
+        description="导出全部管理库、字段模板、条目为 JSON 文件——不依赖云端数据库，可作为不开云端时的手动「换机同步」方式。恢复时将覆盖本机当前账户数据。"
       />
       <Space direction="vertical" style={{ width: '100%' }}>
         <Button icon={<DownloadOutlined />} onClick={handleExport} block>

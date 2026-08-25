@@ -13,3 +13,8 @@ database_id = "633bb5c3-878c-476a-9ca8-f2f77e3a6c40"
 # 机密变量（不要写进本文件，用命令设置）：
 #   npx wrangler pages secret put AUTH_SECRET     ← 随机长字符串，用于令牌签名
 #   npx wrangler pages secret put ADMIN_PASSWORD  ← 你的管理后台密码
+#
+# 可选：平台代管 AI（配置后买家在「设置 → AI 配置」选"平台提供"即可零配置使用）
+#   npx wrangler pages secret put PLATFORM_AI_BASEURL  ← 上游地址，如 https://api.deepseek.com/v1
+#   npx wrangler pages secret put PLATFORM_AI_KEY      ← 上游 API Key
+#   npx wrangler pages secret put PLATFORM_AI_MODEL    ← 统一模型名，如 deepseek-chat

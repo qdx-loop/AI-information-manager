@@ -75,6 +75,7 @@ export async function apiMe(): Promise<ServerAccount> {
   return (await request<{ account: ServerAccount }>('/api/auth/me', { method: 'GET' }, true)).account
 }
 
+// 买家自助修改密码（需验证旧密码；管理员侧无重置能力）
 export async function apiChangePassword(oldPassword: string, newPassword: string): Promise<void> {
   await request('/api/auth/password', { method: 'POST', body: JSON.stringify({ oldPassword, newPassword }) }, true)
 }
@@ -126,8 +127,8 @@ export type AdminOp =
   | { op: 'renew'; cardType?: string; days?: number }
   | { op: 'disable' }
   | { op: 'enable' }
-  | { op: 'resetPassword'; newPassword: string }
   | { op: 'delete' }
+// 注：不提供 resetPassword——管理端不可重置买家密码（产品决策，后端已同步移除）
 
 export async function adminAccountOp(accountId: string, payload: AdminOp): Promise<{ expiresAt?: number }> {
   return adminRequest('/api/admin/account', { method: 'POST', body: JSON.stringify({ accountId, ...payload }) })

@@ -11,6 +11,7 @@ import type {
 } from '@/types'
 import { generateSalt, hashPassword, verifyPassword } from '@/utils/crypto'
 import { newId } from '@/utils/id'
+import { friendlyDbError } from '@/utils/dbErrors'
 
 // DB 行类型（snake_case）
 interface AccountRow {
@@ -308,11 +309,23 @@ export class SupabaseDataProvider implements DataProvider {
   }
 
   async saveTemplate(libraryId: string, fields: FieldDef[]): Promise<void> {
-    await this.client.from('fields').delete().eq('library_id', libraryId)
+    // 差量保存：先 upsert 目标模板行（幂等），再删除被移除的旧行。
+    // 任一步中断都不会出现"模板被清空"的窗口，重试即可收敛（红队报告 P5）。
+    const existing = await this.client.from('fields').select('id').eq('library_id', libraryId)
+    if (existing.error) throw new Error(friendlyDbError(existing.error.message))
+    const existingIds = new Set(((existing.data ?? []) as Array<{ id: string }>).map((r) => r.id))
+    const nextIds = new Set(fields.map((f) => f.id))
+
     if (fields.length) {
-      const rows = fields.map((f) => fieldToRow({ ...f, libraryId }))
-      const { error } = await this.client.from('fields').insert(rows)
-      if (error) throw new Error(error.message)
+      const { error } = await this.client
+        .from('fields')
+        .upsert(fields.map((f) => fieldToRow({ ...f, libraryId })))
+      if (error) throw new Error(friendlyDbError(error.message))
+    }
+    const stale = [...existingIds].filter((id) => !nextIds.has(id))
+    if (stale.length) {
+      const { error } = await this.client.from('fields').delete().in('id', stale)
+      if (error) throw new Error(friendlyDbError(error.message))
     }
   }
 
@@ -428,6 +441,25 @@ export class SupabaseDataProvider implements DataProvider {
   }
 
   async importAll(accountId: string, blob: BackupBlob): Promise<void> {
+    // 失败前快照：导入中断/失败时尽力回滚，绝不留下"半删除"状态（红队报告 P5）
+    const snapshot = await this.exportAll(accountId)
+    try {
+      await this.rawImportAll(accountId, blob)
+    } catch (e) {
+      let rolledBack = false
+      try {
+        await this.rawImportAll(accountId, snapshot)
+        rolledBack = true
+      } catch {
+        /* 回滚失败时在错误信息中明确告知用户 */
+      }
+      throw new Error(
+        `导入失败${rolledBack ? '，已自动恢复到导入前的数据，请重试' : '且回滚未完全成功——请立即「导出备份」核对数据'}：${friendlyDbError(e)}`,
+      )
+    }
+  }
+
+  private async rawImportAll(accountId: string, blob: BackupBlob): Promise<void> {
     // 清空当前账户数据
     await this.client.from('items').delete().eq('account_id', accountId)
     const { data: existLibs } = await this.client

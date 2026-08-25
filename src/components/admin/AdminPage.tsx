@@ -144,13 +144,20 @@ export default function AdminPage() {
     }
   }
 
-  const handleOp = async (accountId: string, payload: Parameters<typeof adminAccountOp>[1], tip: string) => {
+  // 返回是否成功，供调用方决定是否关闭弹窗
+  const handleOp = async (
+    accountId: string,
+    payload: Parameters<typeof adminAccountOp>[1],
+    tip: string,
+  ): Promise<boolean> => {
     try {
       await adminAccountOp(accountId, payload)
       message.success(tip)
       load()
+      return true
     } catch (e) {
       message.error((e as Error).message)
+      return false
     }
   }
 
@@ -265,32 +272,6 @@ export default function AdminPage() {
               </Button>
             </Popconfirm>
           )}
-          <Button
-            size="small"
-            onClick={() => {
-              Modal.confirm({
-                title: `重置 ${r.username} 的密码`,
-                content: (
-                  <Input.Password
-                    id="admin-reset-pwd"
-                    placeholder="新密码（至少6位）"
-                    style={{ marginTop: 8 }}
-                  />
-                ),
-                onOk: () => {
-                  const el = document.getElementById('admin-reset-pwd') as HTMLInputElement | null
-                  const pwd = el?.value ?? ''
-                  if (pwd.length < 6) {
-                    message.warning('新密码至少 6 位')
-                    return Promise.reject()
-                  }
-                  return handleOp(r.id, { op: 'resetPassword', newPassword: pwd }, '密码已重置').then(() => undefined)
-                },
-              })
-            }}
-          >
-            改密
-          </Button>
           <Popconfirm
             title={`删除 ${r.username}？`}
             description="仅删除登录账号；用户的资料数据不受影响。"
@@ -423,17 +404,19 @@ export default function AdminPage() {
         onCancel={() => setRenewFor(null)}
         onOk={async () => {
           if (!renewFor) return
+          let ok = false
           if (renewType === CUSTOM_DAYS) {
             const days = normalizeDays(renewCustomDays)
             if (!days) {
               message.warning('自定义天数需为 1~3650 的整数')
               return Promise.reject()
             }
-            await handleOp(renewFor.id, { op: 'renew', days }, '续费成功')
+            ok = await handleOp(renewFor.id, { op: 'renew', days }, '续费成功')
           } else {
-            await handleOp(renewFor.id, { op: 'renew', cardType: renewType }, '续费成功')
+            ok = await handleOp(renewFor.id, { op: 'renew', cardType: renewType }, '续费成功')
           }
-          setRenewFor(null)
+          if (ok) setRenewFor(null)
+          else return Promise.reject()
         }}
         okText="确认续费"
       >

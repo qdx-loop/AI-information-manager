@@ -13,7 +13,33 @@ export async function onRequestGet({ request, env }) {
   return json({ accounts: results.map(publicAccount) })
 }
 
+// 好记但不重复的用户名：形容词-动物-四位数字，如 lucky-panda-4821
+// 词库两两组合 400 种 × 数字 9000 = 360 万种，碰撞概率极低；仍冲突则重试，最终兜底随机串
+const USERNAME_ADJ = [
+  'happy', 'lucky', 'brave', 'calm', 'clever', 'swift', 'bright', 'gentle',
+  'noble', 'sunny', 'quiet', 'bold', 'warm', 'kind', 'wise', 'merry',
+  'quick', 'amber', 'coral', 'maple',
+]
+const USERNAME_NOUN = [
+  'tiger', 'panda', 'eagle', 'otter', 'fox', 'wolf', 'deer', 'hawk',
+  'lynx', 'bear', 'whale', 'falcon', 'raven', 'koala', 'horse', 'lion',
+  'river', 'cloud', 'star', 'pine',
+]
+
+function pickWord(words) {
+  const buf = new Uint32Array(1)
+  crypto.getRandomValues(buf)
+  return words[buf[0] % words.length]
+}
+
 async function uniqueUsername(env) {
+  for (let i = 0; i < 10; i++) {
+    const num = 1000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 9000)
+    const name = `${pickWord(USERNAME_ADJ)}-${pickWord(USERNAME_NOUN)}-${num}`
+    const hit = await env.DB.prepare('SELECT id FROM accounts WHERE username = ?').bind(name).first()
+    if (!hit) return name
+  }
+  // 兜底：纯随机串（理论上极少走到）
   for (let i = 0; i < 10; i++) {
     const name = 'u' + randomString(7).toLowerCase()
     const hit = await env.DB.prepare('SELECT id FROM accounts WHERE username = ?').bind(name).first()

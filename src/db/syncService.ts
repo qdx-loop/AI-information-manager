@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import type { FieldDef, Item } from "@/types"
 import { db } from "./dexie"
+import { friendlyDbError } from "@/utils/dbErrors"
 
 export interface CloudConfig {
   url: string
@@ -35,7 +36,7 @@ export async function pushLocalToCloud(accountId: string, cloud: CloudConfig): P
         category: l.category, sort_order: l.sortOrder, deleted_at: l.deletedAt,
       })),
     )
-    if (error) throw new Error(`上传管理库失败：${error.message}`)
+    if (error) throw new Error(friendlyDbError(`上传管理库失败：${error.message}`))
   }
 
   const libIds = libs.map((l) => l.id)
@@ -49,7 +50,7 @@ export async function pushLocalToCloud(accountId: string, cloud: CloudConfig): P
           visible: f.visible, sort_order: f.sortOrder,
         })),
       )
-      if (error) throw new Error(`上传字段模板失败：${error.message}`)
+      if (error) throw new Error(friendlyDbError(`上传字段模板失败：${error.message}`))
     }
   }
 
@@ -64,7 +65,7 @@ export async function pushLocalToCloud(accountId: string, cloud: CloudConfig): P
         created_at: it.createdAt, updated_at: it.updatedAt, deleted_at: it.deletedAt,
       })),
     )
-    if (error) throw new Error(`上传条目失败：${error.message}`)
+    if (error) throw new Error(friendlyDbError(`上传条目失败：${error.message}`))
   }
 }
 
@@ -82,20 +83,32 @@ export async function pushLocalToCloud(accountId: string, cloud: CloudConfig): P
 export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): Promise<MergeResult> {
   const client = makeClient(cloud)
 
-  const [libsRes, fieldsRes, itemsRes] = await Promise.all([
+  const [libsRes, itemsRes] = await Promise.all([
     client.from("libraries").select("*").eq("account_id", accountId),
-    client.from("fields").select("*"),
     client.from("items").select("*").eq("account_id", accountId),
   ])
-  if (libsRes.error) throw new Error(`读取云端管理库失败：${libsRes.error.message}`)
-  if (fieldsRes.error) throw new Error(`读取云端字段模板失败：${fieldsRes.error.message}`)
-  if (itemsRes.error) throw new Error(`读取云端条目失败：${itemsRes.error.message}`)
+  if (libsRes.error) throw new Error(friendlyDbError(`读取云端管理库失败：${libsRes.error.message}`))
+  if (itemsRes.error) throw new Error(friendlyDbError(`读取云端条目失败：${itemsRes.error.message}`))
 
   const result: MergeResult = { addedLibraries: 0, addedFields: 0, addedItems: 0, updatedItems: 0 }
 
   // —— 管理库 ——
   const cloudLibs = (libsRes.data ?? []) as Array<Record<string, unknown>>
   const localLibs = await db.libraries.where("accountId").equals(accountId).toArray()
+
+  // 本账号可见的库 ID 集合（云端 ∪ 本地）。字段查询按其过滤，
+  // 不再把整张 fields 表（含其他账号的模板）拉进浏览器（红队报告 P2）。
+  const visibleLibIds = new Set<string>([
+    ...cloudLibs.map((r) => String(r.id)),
+    ...localLibs.map((l) => l.id),
+  ])
+  let cloudFields: Array<Record<string, unknown>> = []
+  if (visibleLibIds.size > 0) {
+    const fieldsRes = await client.from("fields").select("*").in("library_id", [...visibleLibIds])
+    if (fieldsRes.error)
+      throw new Error(friendlyDbError(`读取云端字段模板失败：${fieldsRes.error.message}`))
+    cloudFields = (fieldsRes.data ?? []) as Array<Record<string, unknown>>
+  }
   const localLibMap = new Map(localLibs.map((l) => [l.id, l]))
 
   for (const row of cloudLibs) {
@@ -125,7 +138,7 @@ export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): 
   const libIdSet = new Set(localLibs.map((l) => l.id))
   for (const row of libsRes.data ?? []) libIdSet.add(String(row.id))
 
-  for (const row of (fieldsRes.data ?? []) as Array<Record<string, unknown>>) {
+  for (const row of cloudFields) {
     const id = String(row.id)
     const libraryId = String(row.library_id)
     if (!libIdSet.has(libraryId)) continue // 字段所属库不属于该账号，跳过脏数据
@@ -178,4 +191,15 @@ export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): 
   }
 
   return result
+}
+
+// ——————————————————————————————
+// 双向安全同步：先合并云端到本地（新者胜/墓碑传播），再整体上传。
+// 上传的永远是"两边合并后的最新状态"，杜绝旧设备用陈旧副本盲覆盖
+// 云端新修改的回滚问题（红队报告 P1/P9）。所有自动与手动同步路径统一走这里。
+// ——————————————————————————————
+export async function syncBidirectional(accountId: string, cloud: CloudConfig): Promise<MergeResult> {
+  const merged = await mergeCloudToLocal(accountId, cloud)
+  await pushLocalToCloud(accountId, cloud)
+  return merged
 }

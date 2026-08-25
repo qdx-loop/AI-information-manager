@@ -187,3 +187,61 @@ export function publicAccount(row) {
     lastLogin: row.last_login ?? null,
   }
 }
+
+// ———— 登录限速（D1 固定窗口；仅失败计数，成功清零）————
+// 表缺失时降级为放行并告警——避免未执行迁移的旧部署直接登录瘫痪。
+// 迁移：npx wrangler d1 execute info-manager --file=./schema.sql --remote
+
+export function clientIp(request) {
+  return (
+    request.headers.get('CF-Connecting-IP') ||
+    (request.headers.get('X-Forwarded-For') || '').split(',')[0].trim() ||
+    'unknown'
+  )
+}
+
+export async function checkRateLimit(env, key, maxFailures = 5, windowMs = 15 * 60_000) {
+  try {
+    const now = Date.now()
+    const row = await env.DB.prepare('SELECT count, window_start FROM login_attempts WHERE key = ?')
+      .bind(key)
+      .first()
+    if (!row || now - Number(row.window_start) > windowMs) return { allowed: true }
+    if (Number(row.count) >= maxFailures) {
+      const waitMin = Math.max(1, Math.ceil((windowMs - (now - Number(row.window_start))) / 60_000))
+      return { allowed: false, waitMin }
+    }
+    return { allowed: true }
+  } catch (e) {
+    console.warn('[ratelimit] 查询失败，已放行（请执行 schema.sql 迁移）:', e?.message)
+    return { allowed: true }
+  }
+}
+
+export async function recordLoginFailure(env, key, windowMs = 15 * 60_000) {
+  try {
+    const now = Date.now()
+    const row = await env.DB.prepare('SELECT window_start FROM login_attempts WHERE key = ?')
+      .bind(key)
+      .first()
+    if (!row || now - Number(row.window_start) > windowMs) {
+      await env.DB.prepare(
+        'INSERT INTO login_attempts (key, count, window_start) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = 1, window_start = excluded.window_start',
+      )
+        .bind(key, now)
+        .run()
+    } else {
+      await env.DB.prepare('UPDATE login_attempts SET count = count + 1 WHERE key = ?').bind(key).run()
+    }
+  } catch (e) {
+    console.warn('[ratelimit] 记录失败:', e?.message)
+  }
+}
+
+export async function clearLoginFailures(env, key) {
+  try {
+    await env.DB.prepare('DELETE FROM login_attempts WHERE key = ?').bind(key).run()
+  } catch {
+    /* 忽略：清理失败不影响登录 */
+  }
+}

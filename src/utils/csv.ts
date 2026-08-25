@@ -40,7 +40,11 @@ export function downloadBlob(filename: string, blob: Blob) {
 
 function formatValueForExport(v: unknown): string {
   if (v === null || v === undefined) return ''
-  if (typeof v === 'boolean') return v ? '是' : '否'
-  if (typeof v === 'object') return JSON.stringify(v)
-  return String(v)
+  let s: string
+  if (typeof v === 'boolean') s = v ? '是' : '否'
+  else if (typeof v === 'object') s = JSON.stringify(v)
+  else s = String(v)
+  // 防 CSV 公式注入：以公式起始符开头的值前加单引号，Excel 打开不会执行（红队报告）
+  if (/^[=+@\t\r]|^-[^0-9.]/.test(s)) return `'${s}`
+  return s
 }

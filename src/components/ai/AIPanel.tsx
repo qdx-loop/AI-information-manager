@@ -39,6 +39,8 @@ import {
   replaceAllMemory,
 } from '@/ai/memory'
 import { processAttachment, type Attachment } from '@/ai/attachments'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { ContentPart } from '@/ai/types'
 import ChartModal, { type ChartPayload } from './ChartModal'
 import type { ChatMessage } from '@/ai/types'
@@ -71,7 +73,7 @@ const MAX_ROUNDS = 50
 
 export default function AIPanel() {
   const navigate = useNavigate()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const { token } = antdTheme.useToken()
   const { settings, setAI } = useAppStore()
   const { account } = useAuthStore()
@@ -114,7 +116,18 @@ export default function AIPanel() {
   const [parsingFile, setParsingFile] = useState(false)
   const [chartPayload, setChartPayload] = useState<ChartPayload | null>(null)
 
-  const aiConfigured = !!(settings.ai.baseUrl && settings.ai.apiKey && settings.ai.model)
+  // 服务端是否已配置平台代管 AI（GET 仅返回布尔值）
+  const [platformAI, setPlatformAI] = useState(false)
+  useEffect(() => {
+    fetch('/api/ai/proxy')
+      .then((r) => r.json())
+      .then((d: { enabled?: boolean }) => setPlatformAI(!!d.enabled))
+      .catch(() => setPlatformAI(false))
+  }, [])
+
+  const usingPlatform = settings.ai.usePlatformAI === true && platformAI
+  const aiConfigured =
+    usingPlatform || !!(settings.ai.baseUrl && settings.ai.apiKey && settings.ai.model)
 
   useEffect(() => {
     setAI({ scope })
@@ -267,6 +280,7 @@ export default function AIPanel() {
         baseUrl: settings.ai.baseUrl,
         apiKey: settings.ai.apiKey,
         model: settings.ai.model,
+        viaProxy: usingPlatform,
         messages: currentMessages,
         tools: ALL_TOOLS,
         signal: abortRef.current!.signal,
@@ -394,13 +408,52 @@ export default function AIPanel() {
           }
         } else if (tc.function.name === 'save_memory') {
           // 结构化记忆：add / update / remove / replaceAll
+          // 记忆跨会话生效且影响 AI 后续行为，必须经用户确认——防提示注入静默篡改（红队报告 P7）
           const op = (args as { op?: string }).op ?? 'replaceAll'
           const texts = Array.isArray((args as { texts?: unknown }).texts)
             ? ((args as { texts: string[] }).texts as string[])
             : []
+          const OP_LABEL: Record<string, string> = {
+            add: '新增长期记忆',
+            update: '修改长期记忆',
+            remove: '删除长期记忆',
+            replaceAll: '整体替换长期记忆',
+          }
+          const preview =
+            op === 'update'
+              ? `目标：${String(texts[0] ?? '')}\n改为：${String(texts[1] ?? '')}`
+              : texts.map((t) => `· ${String(t)}`).join('\n')
           let result = ''
-          if (account) {
-            if (op === 'add') {
+          if (!account) {
+            result = '当前未登录，无法保存记忆。'
+          } else {
+            const allowed = await new Promise<boolean>((resolve) => {
+              modal.confirm({
+                title: `AI 请求${OP_LABEL[op] ?? '更新长期记忆'}`,
+                content: (
+                  <pre
+                    style={{
+                      maxHeight: 200,
+                      overflow: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      fontSize: 12,
+                      margin: 0,
+                    }}
+                  >
+                    {preview || '（空）'}
+                  </pre>
+                ),
+                okText: '允许',
+                cancelText: '拒绝',
+                onOk: () => resolve(true),
+                onCancel: () => resolve(false),
+              })
+            })
+            if (!allowed) {
+              result = '用户拒绝了该记忆操作。'
+              pushStep('🧠 记忆操作 → 用户拒绝')
+            } else if (op === 'add') {
               const n = addMemory(account.id, texts)
               pushStep(`🧠 记忆新增 ${n} 条`)
               result = n > 0 ? `已新增 ${n} 条记忆。` : '没有新增（内容为空或与已有记忆重复）。'
@@ -420,8 +473,6 @@ export default function AIPanel() {
               result = `记忆已整体替换，当前共 ${texts.filter(Boolean).length} 条。`
               pushStep(`🧠 记忆整体替换`)
             }
-          } else {
-            result = '当前未登录，无法保存记忆。'
           }
           currentMessages.push({
             role: 'tool',
@@ -958,8 +1009,8 @@ export default function AIPanel() {
     }
   }, [messages, message])
 
-  // 渲染消息内容：把 (id=xxx) 转成可点击 chip
-  const renderContent = (text: string, contexts: LibraryContext[] | null) => {
+  // 渲染消息内容：把 (id=xxx) 转成可点击 chip；assistant 消息按 markdown 渲染
+  const renderContent = (text: string, contexts: LibraryContext[] | null, isAssistant = false) => {
     if (!text) return null
     const parts = text.split(/(\(id=[^)]+\))/g)
     return parts.map((part, i) => {
@@ -983,6 +1034,14 @@ export default function AIPanel() {
           )
         }
       }
+      if (!part) return null
+      if (isAssistant) {
+        return (
+          <div key={i} className="ai-md">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{part}</ReactMarkdown>
+          </div>
+        )
+      }
       return <span key={i}>{part}</span>
     })
   }
@@ -997,7 +1056,9 @@ export default function AIPanel() {
           image={<RobotOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
           description="尚未配置 AI"
         >
-          <Text type="secondary">请到「设置 → AI 配置」填写服务商地址、API Key 与模型名。</Text>
+          <Text type="secondary">
+            请到「设置 → AI 配置」：优先选择「平台提供」（零配置），或填写你自己的服务商地址、API Key 与模型名。
+          </Text>
         </Empty>
       </div>
     )
@@ -1117,7 +1178,9 @@ export default function AIPanel() {
                     }]}
                   />
                 )}
-                {m.pending && !m.content ? <Spin size="small" /> : renderContent(m.content, lastContextsRef.current)}
+                {m.pending && !m.content ? (
+                  <Spin size="small" />
+                ) : renderContent(m.content, lastContextsRef.current, m.role === 'assistant')}
                 {/* 撤回按钮 */}
                 {m.undo && (
                   <Button

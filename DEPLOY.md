@@ -29,7 +29,7 @@ npx wrangler d1 create info-manager
 命令执行后会输出一段信息，找到 `"database_id": "xxxx..."` 这一串，
 把它填进项目根目录的 `wrangler.toml` 文件里（替换 REPLACE_WITH_YOUR_D1_DATABASE_ID）。
 
-然后建表：
+然后建表（已有部署也请重跑一次，会新增登录限速所需的表）：
 
 ```bash
 npx wrangler d1 execute info-manager --file=./schema.sql --remote
@@ -41,7 +41,7 @@ npx wrangler d1 execute info-manager --file=./schema.sql --remote
 npx wrangler pages project create info-manager --production-branch=main
 ```
 
-## 第三步：设置两个密码
+## 第三步：设置密钥
 
 ```bash
 # 管理后台的登录密码（自己想一个，别用弱密码）
@@ -49,7 +49,15 @@ npx wrangler pages secret put ADMIN_PASSWORD
 
 # 给登录令牌签名的随机密钥（随便一长串乱码即可）
 npx wrangler pages secret put AUTH_SECRET
+
+# ——以下三个可选——配置后买家即可在「设置 → AI 配置」选"平台提供"，零配置使用 AI：
+npx wrangler pages secret put PLATFORM_AI_BASEURL   # 上游地址，如 https://api.deepseek.com/v1
+npx wrangler pages secret put PLATFORM_AI_KEY       # 上游 API Key
+npx wrangler pages secret put PLATFORM_AI_MODEL     # 统一模型名，如 deepseek-chat
 ```
+
+> 平台 AI 的密钥只存在服务器端，买家端看不到、拿不走；模型由服务端锁定。
+> 建议为该 Key 设置消费限额，防止被刷。
 
 每个命令回车后会提示输入值，粘贴后回车。
 
@@ -94,7 +102,7 @@ npx wrangler pages deploy dist
 | 买月/季/年卡 | 同上，选对应卡种 |
 | 续费 | 找到该用户的行 → 点「续费」→ 选时长。未到期的在原时间上累加，不亏天数 |
 | 用户闹脾气想退款 | 点「停用」→ 对方立刻无法登录 |
-| 用户忘记密码 | 点「改密」→ 设置新密码告诉对方 |
+| 用户忘记密码 | 若从未改过密码：把发放时的初始密码再发一遍即可；若自己改过后忘了：无法找回，只能重新购卡（你没有重置密码的权限） |
 | 查看谁快到期 | 表格里橙色标签就是 3 天内到期的 |
 
 注意：生成账号时弹出的密码**只显示这一次**，务必当场复制发给买家。
@@ -132,7 +140,7 @@ A: 不是。存的是 PBKDF2 加盐哈希（10万次迭代），连你也看不�
 
 ```
 functions/lib/_auth.js          后端公共库（哈希/令牌/卡种）
-functions/api/auth/*            登录/状态核对/改密
+functions/api/auth/*            登录/状态核对/买家自助改密（管理员无重置接口）
 functions/api/admin/*           后台登录/列账号/生成账号/续费停用等
 schema.sql                      D1 建表脚本
 wrangler.toml                   Cloudflare 配置

@@ -74,6 +74,7 @@ export interface Settings {
     scope: AIScope
     memory: string           // AI 永久记忆（跨会话保留，注入每次对话）
     customPrompt: string     // 自定义系统提示词（空则使用内置默认）
+    usePlatformAI?: boolean  // 平台代管模式：走服务端代理，买家零配置
   }
   theme: 'light' | 'dark'
 }
@@ -92,6 +93,6 @@ export interface BackupBlob {
 export const DEFAULT_SETTINGS: Settings = {
   storageMode: 'local',
   cloud: { url: '', anonKey: '' },
-  ai: { baseUrl: '', apiKey: '', model: '', scope: 'current', memory: '', customPrompt: '' },
+  ai: { baseUrl: '', apiKey: '', model: '', scope: 'current', memory: '', customPrompt: '', usePlatformAI: false },
   theme: 'light',
 }

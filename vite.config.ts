@@ -19,7 +19,8 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // 生产不产出 sourcemap——公开的 sourcemap 等于把完整源码暴露给任何人
+    sourcemap: false,
   },
   // @ts-expect-error - vitest config is merged via vite plugin
   test: {

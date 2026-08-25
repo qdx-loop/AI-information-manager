@@ -31,9 +31,11 @@ web
 ## Capabilities and Constraints
 
 - 中文优先界面；无自助注册（账号只能由管理员发放）。
+- 密码规则（产品决策）：买家登录后可自行修改密码（唯一通道，需验证旧密码）；卖家只持有发放时的初始密码，无法查看、重置或代改任何人的密码——管理后台的改密接口已移除。买家改密后遗忘则无法找回，只能重新购卡；未改密时卖家可重发初始密码。
 - 到期/停用需实时生效：本地每分钟自查 + 每 10 分钟向服务器核对 + 窗口聚焦时核对。
 - 必须在中国大陆网络环境可用：避免强依赖被墙资源（Google Fonts、部分 CDN）；图表库已做多 CDN 回退。
 - 技术栈：React 18 + Vite + Antd v5 + Zustand + Dexie；后端为 Cloudflare Pages Functions（无服务器）。
+- 云端数据库当前仅支持 Supabase（决策记录：数据库领域没有 AI「URL+Key」式的统一接口标准，Supabase 是唯一主流的浏览器直连方案；代码中 DataProvider 接口已抽象，未来可按需增加 PocketBase/Firebase 等适配器，现阶段不为单人维护增加多适配负担）。
 - 数据安全底线：服务端只存 PBKDF2 密码哈希；AI 写操作必须经用户确认弹窗。
 
 ## Brand Commitments

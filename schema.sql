@@ -13,3 +13,12 @@ CREATE TABLE IF NOT EXISTS accounts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_accounts_username ON accounts(username);
+
+-- 登录限速（固定窗口计数；仅失败才计数，成功即清零）
+-- 已部署过的环境需重跑一次本文件完成迁移：
+--   npx wrangler d1 execute info-manager --file=./schema.sql --remote
+CREATE TABLE IF NOT EXISTS login_attempts (
+  key TEXT PRIMARY KEY,          -- 'admin:<ip>' 或 'user:<username>:<ip>'
+  count INTEGER NOT NULL,
+  window_start INTEGER NOT NULL  -- 窗口起始时间戳（毫秒）
+);

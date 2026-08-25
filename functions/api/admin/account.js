@@ -1,5 +1,6 @@
 // POST /api/admin/account — 对单个账户执行操作
-// body: { accountId, op: 'renew'|'disable'|'enable'|'resetPassword'|'delete', cardType?, days?, newPassword? }
+// body: { accountId, op: 'renew'|'disable'|'enable'|'delete', cardType?, days? }
+// 注意：不提供重置密码的能力——卖家不可触碰买家凭证（产品决策，见 PRODUCT.md）
 import { json, errorJson, requireAdmin, hashPassword, cardDays } from '../../lib/_auth'
 
 export async function onRequestPost({ request, env }) {
@@ -38,13 +39,6 @@ export async function onRequestPost({ request, env }) {
     }
     case 'enable': {
       await env.DB.prepare('UPDATE accounts SET disabled = 0 WHERE id = ?').bind(accountId).run()
-      return json({ ok: true })
-    }
-    case 'resetPassword': {
-      const newPwd = String(body.newPassword ?? '')
-      if (newPwd.length < 6) return errorJson('新密码至少 6 位', 400, 'WEAK_PASSWORD')
-      const stored = await hashPassword(newPwd)
-      await env.DB.prepare('UPDATE accounts SET password_hash = ? WHERE id = ?').bind(stored, accountId).run()
       return json({ ok: true })
     }
     case 'delete': {

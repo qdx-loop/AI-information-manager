@@ -1,4 +1,5 @@
-// POST /api/auth/password — 用户自助修改密码（需登录）
+// POST /api/auth/password — 买家自助修改密码（需登录，验证旧密码）
+// 注意：这是唯一的改密通道；管理员侧没有重置密码的接口（产品决策，见 PRODUCT.md）
 import { json, errorJson, requireUser, hashPassword, verifyPassword } from '../../lib/_auth'
 
 export async function onRequestPost({ request, env }) {
