@@ -1,5 +1,5 @@
 import type { ChatMessage, ToolCall } from './types'
-import { API_BASE } from '@/lib/serverApi'
+import { API_BASE, getToken } from '@/lib/serverApi'
 
 export interface ChatOptions {
   baseUrl?: string
@@ -46,7 +46,12 @@ export async function chat({
     tools: tools && tools.length ? tools : undefined,
     stream: true,
   }
-  if (!viaProxy) {
+  if (viaProxy) {
+    // 代理模式：携带买家自己的登录令牌做身份核验（密钥由服务端持有）
+    const token = getToken()
+    if (!token) throw new Error('登录已失效，请重新登录后再使用 AI')
+    headers.Authorization = `Bearer ${token}`
+  } else {
     headers.Authorization = `Bearer ${apiKey!}`
     payload.model = model!
   }
