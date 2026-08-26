@@ -23,3 +23,4 @@ apk-build/app-release-*.apk
 apk-build/app-release-*.aab
 apk-build/.gradle
 apk-build/node_modules
+apk-build/answers.txt
