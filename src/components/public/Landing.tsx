@@ -192,6 +192,8 @@ export default function Landing() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, alignItems: 'stretch' }}>
             {SITE.prices.map((p) => {
               const popular = p.note === '热门'
+              const name = lang === 'en' ? (p as { nameEn?: string }).nameEn ?? p.name : p.name
+              const price = lang === 'en' ? (p as { priceEn?: string }).priceEn ?? p.price : p.price
               return (
                 <div
                   key={p.name}
@@ -209,8 +211,8 @@ export default function Landing() {
                       {t('landing.price.popular')}
                     </span>
                   )}
-                  <div style={{ fontWeight: 600, marginBottom: 8 }}>{p.name}</div>
-                  <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em' }}>{p.price}</div>
+                  <div style={{ fontWeight: 600, marginBottom: 8 }}>{name}</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em' }}>{price}</div>
                   <div style={{ color: '#94A3B8', fontSize: 13, marginTop: 4 }}>
                     {t(`landing.days.${p.days}`) !== `landing.days.${p.days}` ? t(`landing.days.${p.days}`) : p.days}
                   </div>

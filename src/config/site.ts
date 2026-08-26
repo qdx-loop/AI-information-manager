@@ -21,11 +21,11 @@ export const SITE = {
     '手动录入或导入 Excel，之后全部交给 AI',
   ],
   prices: [
-    { name: '体验卡', days: '3 天', price: '¥3', note: '新人首选' },
-    { name: '月卡', days: '30 天', price: '¥29.9', note: '' },
-    { name: '季卡', days: '90 天', price: '¥79', note: '热门' },
-    { name: '半年卡', days: '180 天', price: '¥139', note: '' },
-    { name: '年卡', days: '365 天', price: '¥259', note: '最划算' },
+    { name: '体验卡', nameEn: 'Trial', days: '3 天', price: '免费', priceEn: 'Free', note: '新人首选' },
+    { name: '月卡', nameEn: 'Monthly', days: '30 天', price: '¥29.9', priceEn: '¥29.9', note: '' },
+    { name: '季卡', nameEn: 'Quarterly', days: '90 天', price: '¥79', priceEn: '¥79', note: '热门' },
+    { name: '半年卡', nameEn: 'Half-year', days: '180 天', price: '¥139', priceEn: '¥139', note: '' },
+    { name: '年卡', nameEn: 'Yearly', days: '365 天', price: '¥259', priceEn: '¥259', note: '最划算' },
   ],
   contactEmails: ['qdx19qdx@126.com', 'qdx2025@outlook.com'], // ←★ 联系邮箱
 }
