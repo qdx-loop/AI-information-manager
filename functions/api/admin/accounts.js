@@ -13,17 +13,12 @@ export async function onRequestGet({ request, env }) {
   return json({ accounts: results.map(publicAccount) })
 }
 
-// 好记但不重复的用户名：形容词-动物-四位数字，如 lucky-panda-4821
-// 词库两两组合 400 种 × 数字 9000 = 360 万种，碰撞概率极低；仍冲突则重试，最终兜底随机串
-const USERNAME_ADJ = [
-  'happy', 'lucky', 'brave', 'calm', 'clever', 'swift', 'bright', 'gentle',
-  'noble', 'sunny', 'quiet', 'bold', 'warm', 'kind', 'wise', 'merry',
-  'quick', 'amber', 'coral', 'maple',
-]
-const USERNAME_NOUN = [
+// 好记的用户名：单词 + 四位数字，如 tiger4821 / panda7392。
+// 无任何符号、总长 8~10 位；词库×数字约 22 万组合，冲突自动重试，极端情况兜底纯随机串。
+const USERNAME_WORDS = [
   'tiger', 'panda', 'eagle', 'otter', 'fox', 'wolf', 'deer', 'hawk',
   'lynx', 'bear', 'whale', 'falcon', 'raven', 'koala', 'horse', 'lion',
-  'river', 'cloud', 'star', 'pine',
+  'maple', 'coral', 'pine', 'river', 'cloud', 'star', 'ember', 'frost',
 ]
 
 function pickWord(words) {
@@ -33,9 +28,9 @@ function pickWord(words) {
 }
 
 async function uniqueUsername(env) {
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 20; i++) {
     const num = 1000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 9000)
-    const name = `${pickWord(USERNAME_ADJ)}-${pickWord(USERNAME_NOUN)}-${num}`
+    const name = `${pickWord(USERNAME_WORDS)}${num}`
     const hit = await env.DB.prepare('SELECT id FROM accounts WHERE username = ?').bind(name).first()
     if (!hit) return name
   }
@@ -47,6 +42,7 @@ async function uniqueUsername(env) {
   }
   throw new Error('无法生成唯一用户名')
 }
+
 
 export async function onRequestPost({ request, env }) {
   const { error } = await requireAdmin(request, env)
