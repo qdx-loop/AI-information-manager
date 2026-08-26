@@ -35,6 +35,7 @@ import ItemEditor from './ItemEditor'
 import TemplateEditor from './TemplateEditor'
 import ImportExport from './ImportExport'
 import type { Item, FieldValue } from '@/types'
+import { useI18n } from '@/i18n'
 import { track } from '@/utils/track'
 
 const { Title, Text } = Typography
@@ -58,10 +59,11 @@ export default function LibraryView() {
     saveTemplate,
     cloneTemplate,
   } = useLibraryStore()
+  const t = useI18n()
 
   useEffect(() => {
     if (id && id !== currentLibraryId) {
-      selectLibrary(id).catch((e) => message.error('加载管理库失败：' + (e as Error).message))
+      selectLibrary(id).catch((e) => message.error(t('app.loadLibFailed', { msg: (e as Error).message })))
     }
   }, [id, currentLibraryId, selectLibrary, message])
 
@@ -121,9 +123,9 @@ export default function LibraryView() {
   const handleNew = () => {
     if (fields.length === 0) {
       modal.warning({
-        title: '请先配置字段模板',
-        content: '当前管理库还没有字段模板，无法新建条目。请先添加至少一个字段（如姓名、编号等）。',
-        okText: '去配置',
+        title: t('lib.needTemplate.title'),
+        content: t('lib.needTemplate.content'),
+        okText: t('lib.needTemplate.go'),
         onOk: () => setTemplateOpen(true),
       })
       return
@@ -140,11 +142,11 @@ export default function LibraryView() {
   const handleSave = async (values: Record<string, FieldValue>) => {
     if (editing) {
       await updateItem({ ...editing, fields: values })
-      message.success('已更新')
+      message.success(t('lib.saved.item'))
     } else {
       await createItem(values)
       track('item_created')
-      message.success('已新建')
+      message.success(t('lib.created.item'))
     }
     setEditorOpen(false)
     setEditing(null)
@@ -152,14 +154,14 @@ export default function LibraryView() {
 
   const handleDelete = (item: Item) => {
     modal.confirm({
-      title: '删除该条目？',
-      content: '删除后可在回收站恢复。',
-      okText: '删除',
+      title: t('lib.del.title'),
+      content: t('lib.del.content'),
+      okText: t('lib.del.ok'),
       okType: 'danger',
-      cancelText: '取消',
+      cancelText: t('common.cancel'),
       onOk: async () => {
         await deleteItem(item.id)
-        message.success('已移入回收站')
+        message.success(t('lib.del.done'))
       },
     })
   }
@@ -175,7 +177,7 @@ export default function LibraryView() {
   const cloneTargetsOptions = libraries.filter((l) => l.id !== id)
   const handleClone = () => {
     if (cloneTargetsOptions.length === 0) {
-      message.info('没有其他管理库可复用')
+      message.info(t('lib.clone.none'))
       return
     }
     setCloneTargets([])
@@ -183,17 +185,17 @@ export default function LibraryView() {
   }
   const confirmClone = async () => {
     if (!cloneTargets.length) {
-      message.warning('请选择目标')
+      message.warning(t('lib.clone.pickRequired'))
       return
     }
     for (const tid of cloneTargets) {
       await cloneTemplate(id!, tid)
     }
     setCloneOpen(false)
-    message.success(`已复用到 ${cloneTargets.length} 个管理库`)
+    message.success(t('lib.clone.done', { n: cloneTargets.length }))
   }
 
-  if (loading) return <div style={{ padding: 24 }}>加载中…</div>
+  if (loading) return <div style={{ padding: 24 }}>{t('lib.view.loading')}</div>
 
   return (
     <div style={{ padding: 16, height: '100%' }}>
@@ -207,13 +209,12 @@ export default function LibraryView() {
               {lib?.name ?? '管理库'}
             </Title>
             {lib && <Tag color="green">{lib.category}</Tag>}
-            <Text type="secondary">共 {items.length} 条</Text>
+            <Text type="secondary">{t('common.totalItems', { n: items.length })}</Text>
           </Space>
           <Space wrap size="small">
-            <Button icon={<PlusOutlined />} type="primary" onClick={handleNew}>新建</Button>
-            <Button icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>模板</Button>
-            <Button icon={<ImportOutlined />} onClick={handleClone} disabled={fields.length === 0}>
-              复用
+            <Button icon={<PlusOutlined />} type="primary" onClick={handleNew}>{t('lib.new')}</Button>
+            <Button icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>{t('lib.template')}</Button>
+            <Button icon={<ImportOutlined />} onClick={handleClone} disabled={fields.length === 0}>{t('lib.clone')}
             </Button>
             <ImportExport fields={fields} items={items} onImport={handleImport} />
           </Space>
@@ -224,14 +225,14 @@ export default function LibraryView() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
           <Input
             prefix={<SearchOutlined />}
-            placeholder="搜索"
+            placeholder={t('lib.searchPlaceholder')}
             allowClear
             value={keywordInput}
             onChange={(e) => setKeywordInput(e.target.value)}
             style={{ width: '100%', marginBottom: 4 }}
           />
           <Select
-            placeholder="筛选字段"
+            placeholder={t('lib.filterField')}
             value={filterField || undefined}
             onChange={(v) => setFilterField(v ?? '')}
             allowClear
@@ -240,7 +241,7 @@ export default function LibraryView() {
           />
           {filterField && (
             <Input
-              placeholder="筛选值"
+              placeholder={t('lib.filterValue')}
               allowClear
               value={filterValue}
               onChange={(e) => setFilterValue(e.target.value)}
@@ -248,7 +249,7 @@ export default function LibraryView() {
             />
           )}
           <Select
-            placeholder="排序"
+            placeholder={t('lib.sort')}
             value={sortField || undefined}
             onChange={(v) => setSortField(v ?? '')}
             allowClear
@@ -257,20 +258,19 @@ export default function LibraryView() {
           />
           {sortField && (
             <Switch
-              checkedChildren="降序"
-              unCheckedChildren="升序"
+              checkedChildren={t('lib.desc')}
+              unCheckedChildren={t('lib.asc')}
               checked={sortDesc}
               onChange={setSortDesc}
             />
           )}
-          <Button type="link" onClick={() => { setKeywordInput(''); setFilterField(''); setFilterValue(''); setSortField('') }}>
-            清除
+          <Button type="link" onClick={() => { setKeywordInput(''); setFilterField(''); setFilterValue(''); setSortField('') }}>{t('lib.clear')}
           </Button>
         </div>
 
         {processed.length === 0 ? (
-          <Empty description={items.length === 0 ? '暂无条目，点击「新建条目」开始' : '无匹配结果'}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>新建条目</Button>
+          <Empty description={items.length === 0 ? t('lib.empty.none') : t('lib.empty.noMatch')}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>{t('lib.empty.cta')}</Button>
           </Empty>
         ) : (
           <LibraryTable
@@ -307,15 +307,15 @@ export default function LibraryView() {
         }}
       />
       <Modal
-        title="复用字段模板到"
+        title={t('lib.clone.modalTitle')}
         open={cloneOpen}
         onCancel={() => setCloneOpen(false)}
         onOk={confirmClone}
       >
-        <p style={{ color: 'var(--ant-color-text-secondary)', marginBottom: 12 }}>选择目标管理库（可多选）：</p>
+        <p style={{ color: 'var(--ant-color-text-secondary)', marginBottom: 12 }}>{t('lib.clone.pick')}</p>
         <Select
           mode="multiple"
-          placeholder="选择目标管理库"
+          placeholder={t('lib.clone.placeholder')}
           style={{ width: '100%' }}
           value={cloneTargets}
           onChange={setCloneTargets}

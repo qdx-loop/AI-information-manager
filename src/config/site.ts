@@ -1,10 +1,8 @@
 /**
  * ★★★ 卖家配置文件（推广落地页展示的内容，只改这个文件即可） ★★★
  *
- * 1. 把 contactWechat 改成你的微信号
- * 2. 如果做了微信收款码图片，把图片放到 public/ 目录（如 public/wx-qr.png），
- *    并把 qrImage 改成 '/wx-qr.png'
- * 3. 价格随行情自己调整
+ * 1. contactEmails 为买家联系邮箱，可自行增删
+ * 2. 价格随行情自己调整
  */
 
 export const SITE = {
@@ -29,7 +27,5 @@ export const SITE = {
     { name: '半年卡', days: '180 天', price: '¥139', note: '' },
     { name: '年卡', days: '365 天', price: '¥259', note: '最划算' },
   ],
-  contactWechat: 'your-wechat-id', // ←★ 改成你的微信号
-  contactNote: '购买/试用请添加微信，备注"开通"',
-  qrImage: '', // ←★ 可选：收款码/微信二维码图片路径，如 '/wx-qr.png'
+  contactEmails: ['qdx19qdx@126.com', 'qdx2025@outlook.com'], // ←★ 联系邮箱
 }

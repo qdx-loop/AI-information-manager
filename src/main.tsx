@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ConfigProvider, App as AntdApp, theme as antdTheme } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
+import enUS from 'antd/locale/en_US'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import App from './App'
@@ -11,7 +12,7 @@ import { useAppStore } from '@/store/appStore'
 import { autoSyncManager } from '@/utils/autoSync'
 import './styles/index.css'
 
-dayjs.locale('zh-cn')
+dayjs.locale(useAppStore.getState().settings.language === 'en' ? 'en' : 'zh-cn')
 
 // 应用启动前根据设置初始化存储 provider
 initFromSettings(useAppStore.getState().settings)
@@ -21,9 +22,13 @@ autoSyncManager.installGlobalHooks()
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
   const themeMode = useAppStore((s) => s.settings.theme)
+  const lang = useAppStore((s) => s.settings.language ?? 'zh')
+  useEffect(() => {
+    dayjs.locale(lang === 'en' ? 'en' : 'zh-cn')
+  }, [lang])
   return (
       <ConfigProvider
-        locale={zhCN}
+        locale={lang === 'en' ? enUS : zhCN}
         theme={{
           algorithm: themeMode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
           // 开启 CSS 变量：业务代码可用 var(--ant-color-*) 跟随主题，替代写死的灰阶

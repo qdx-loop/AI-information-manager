@@ -2,6 +2,7 @@ import { Modal, Form, App } from 'antd'
 import { useEffect } from 'react'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import FieldRenderer from '@/components/fields/FieldRenderer'
+import { useI18n } from '@/i18n'
 
 interface Props {
   open: boolean
@@ -14,6 +15,7 @@ interface Props {
 export default function ItemEditor({ open, fields, item, onCancel, onSave }: Props) {
   const { message } = App.useApp()
   const [form] = Form.useForm()
+  const t = useI18n()
 
   useEffect(() => {
     if (open) {
@@ -38,7 +40,7 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
 
   return (
     <Modal
-      title={item ? '编辑条目' : '新建条目'}
+      title={item ? t('lib.editor.editTitle') : t('lib.editor.newTitle')}
       open={open}
       onCancel={() => {
         form.resetFields()

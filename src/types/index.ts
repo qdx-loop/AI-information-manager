@@ -63,6 +63,7 @@ export type AIScope = 'current' | 'all'
 // 应用设置
 export interface Settings {
   storageMode: StorageMode
+  language?: 'zh' | 'en'    // 界面语言；未设置时按浏览器语言自动识别
   cloud: {
     url: string
     anonKey: string

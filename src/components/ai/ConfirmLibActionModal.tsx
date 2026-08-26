@@ -2,26 +2,7 @@ import { Modal, Descriptions, Tag, App } from 'antd'
 import { useEffect, useState } from 'react'
 import type { LibraryAction, TemplateAction } from '@/ai/tools'
 import type { Library, FieldDef } from '@/types'
-
-const FIELD_TYPE_LABELS: Record<string, string> = {
-  text: '文本（单行）',
-  textarea: '文本（多行）',
-  number: '数字',
-  date: '日期',
-  select: '下拉单选',
-  checkbox: '复选框',
-  rating: '评分',
-}
-
-const ACTION_LABELS: Record<string, string> = {
-  create: '新建管理库',
-  rename: '重命名管理库',
-  delete: '删除管理库',
-  setCategory: '修改分类',
-  addField: '新增字段',
-  updateField: '修改字段',
-  deleteField: '删除字段',
-}
+import { useI18n } from '@/i18n'
 
 const ACTION_COLORS: Record<string, string> = {
   create: 'green',
@@ -53,6 +34,7 @@ export default function ConfirmLibActionModal({
   onCancel,
 }: Props) {
   const { message } = App.useApp()
+  const t = useI18n()
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -64,6 +46,28 @@ export default function ConfirmLibActionModal({
 
   const actionKey = action.action
   const isDelete = actionKey === 'delete' || actionKey === 'deleteField'
+
+  const LIB_ACTION_LABEL: Record<string, string> = {
+    create: t('ai.action.create'),
+    rename: t('common.rename'),
+    delete: t('common.delete'),
+    setCategory: t('ai.action.update'),
+  }
+  const TPL_ACTION_LABEL: Record<string, string> = {
+    addField: t('lib.tpl.addField'),
+    updateField: t('ai.action.update'),
+    deleteField: t('ai.action.delete'),
+  }
+  const FIELD_TYPE_LABEL: Record<string, string> = {
+    text: t('lib.tpl.type.text'),
+    textarea: t('lib.tpl.type.textarea'),
+    number: t('lib.tpl.type.number'),
+    date: t('lib.tpl.type.date'),
+    select: t('lib.tpl.type.select'),
+    checkbox: t('lib.tpl.type.checkbox'),
+    rating: t('lib.tpl.type.rating'),
+  }
+  const actionLabel = (libAction ? LIB_ACTION_LABEL[actionKey] : TPL_ACTION_LABEL[actionKey]) ?? actionKey
 
   const handleOk = async () => {
     setLoading(true)
@@ -80,51 +84,51 @@ export default function ConfirmLibActionModal({
     <Modal
       title={
         <span>
-          AI 请求执行操作 <Tag color={ACTION_COLORS[actionKey]}>{ACTION_LABELS[actionKey]}</Tag>
+          {t('ai.confirm.libTitle')} <Tag color={ACTION_COLORS[actionKey]}>{actionLabel}</Tag>
         </span>
       }
       open={open}
       onCancel={onCancel}
       onOk={handleOk}
-      okText="确认执行"
-      cancelText="取消"
+      okText={t('ai.confirm.ok')}
+      cancelText={t('common.cancel')}
       okType={isDelete ? 'danger' : 'primary'}
       confirmLoading={loading}
       width={520}
     >
       {(libAction || tplAction)!.reason && (
         <p style={{ background: '#f6ffed', padding: 12, borderRadius: 6, marginBottom: 16 }}>
-          <strong>AI 理由：</strong>
+          <strong>{t('ai.confirm.reason')}</strong>
           {(libAction || tplAction)!.reason}
         </p>
       )}
 
       {libAction && (
         <Descriptions column={1} size="small" bordered>
-          <Descriptions.Item label="操作">
-            {ACTION_LABELS[libAction.action]}
+          <Descriptions.Item label={t('ai.confirm.lib.op')}>
+            {actionLabel}
           </Descriptions.Item>
           {libAction.action !== 'create' && (
-            <Descriptions.Item label="目标管理库">
+            <Descriptions.Item label={t('ai.confirm.lib.targetLib')}>
               {library?.name ?? libAction.libraryId}
             </Descriptions.Item>
           )}
           {(libAction.action === 'create' || libAction.action === 'rename') && libAction.name && (
-            <Descriptions.Item label="名称">{libAction.name}</Descriptions.Item>
+            <Descriptions.Item label={t('ai.confirm.lib.name')}>{libAction.name}</Descriptions.Item>
           )}
           {(libAction.action === 'create' || libAction.action === 'setCategory') && libAction.category && (
-            <Descriptions.Item label="分类">{libAction.category}</Descriptions.Item>
+            <Descriptions.Item label={t('ai.confirm.lib.category')}>{libAction.category}</Descriptions.Item>
           )}
         </Descriptions>
       )}
 
       {tplAction && (
         <Descriptions column={1} size="small" bordered>
-          <Descriptions.Item label="目标管理库">
+          <Descriptions.Item label={t('ai.confirm.lib.targetLib')}>
             {library?.name ?? tplAction.libraryId}
           </Descriptions.Item>
-          <Descriptions.Item label="操作">
-            {ACTION_LABELS[tplAction.action]}
+          <Descriptions.Item label={t('ai.confirm.lib.op')}>
+            {actionLabel}
           </Descriptions.Item>
           {tplAction.action !== 'addField' && tplAction.fieldId && (
             <Descriptions.Item label="目标字段">
@@ -135,24 +139,24 @@ export default function ConfirmLibActionModal({
             <Descriptions.Item label="字段名">{tplAction.label}</Descriptions.Item>
           )}
           {tplAction.type && (
-            <Descriptions.Item label="字段类型">
-              {FIELD_TYPE_LABELS[tplAction.type] ?? tplAction.type}
+            <Descriptions.Item label={t('ai.confirm.lib.fieldType')}>
+              {FIELD_TYPE_LABEL[tplAction.type ?? ''] ?? tplAction.type}
             </Descriptions.Item>
           )}
           {tplAction.options && tplAction.options.length > 0 && (
-            <Descriptions.Item label="选项">
+            <Descriptions.Item label={t('ai.confirm.lib.options')}>
               {tplAction.options.map((o) => (
                 <Tag key={o} style={{ marginBottom: 2 }}>{o}</Tag>
               ))}
             </Descriptions.Item>
           )}
           {tplAction.required !== undefined && (
-            <Descriptions.Item label="是否必填">
+            <Descriptions.Item label={t('ai.confirm.lib.required')}>
               {tplAction.required ? '是' : '否'}
             </Descriptions.Item>
           )}
           {tplAction.visible !== undefined && (
-            <Descriptions.Item label="是否可见">
+            <Descriptions.Item label={t('ai.confirm.lib.visible')}>
               {tplAction.visible ? '是' : '否'}
             </Descriptions.Item>
           )}
@@ -160,7 +164,7 @@ export default function ConfirmLibActionModal({
       )}
 
       <p style={{ marginTop: 12, color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>
-        确认后将立即生效。删除管理库可从回收站恢复。
+        {t('ai.confirm.lib.note')}
       </p>
     </Modal>
   )

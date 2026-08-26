@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   Card,
   Segmented,
@@ -29,6 +29,7 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useI18n } from '@/i18n'
 import {
   adminLogin,
   adminListAccounts,
@@ -44,39 +45,23 @@ import {
 
 const { Text } = Typography
 
-// 卡种选项：与后端 CARD_TYPES 保持一致
-export const CARD_OPTIONS = [
-  { value: 'trial', label: '体验卡（3天）' },
-  { value: 'month', label: '月卡（30天）' },
-  { value: 'quarter', label: '季卡（90天）' },
-  { value: 'halfYear', label: '半年卡（180天）' },
-  { value: 'year', label: '年卡（365天）' },
+// 卡种选项随语言生成；与后端 CARD_TYPES 保持一致
+export const buildCardOptions = (t: (k: string) => string) => [
+  { value: 'trial', label: t('admin.cardTypes.trial') },
+  { value: 'month', label: t('admin.cardTypes.month') },
+  { value: 'quarter', label: t('admin.cardTypes.quarter') },
+  { value: 'halfYear', label: t('admin.cardTypes.halfYear') },
+  { value: 'year', label: t('admin.cardTypes.year') },
 ]
-
-// 卡种下拉中的「自定义天数」哨兵值；选中时按输入的天数（1~3650）提交
 const CUSTOM_DAYS = '__custom__'
-
-const DAY_SELECT_OPTIONS = [...CARD_OPTIONS, { value: CUSTOM_DAYS, label: '自定义天数…' }]
 
 function normalizeDays(days: number | null): number | null {
   return days !== null && Number.isInteger(days) && days >= 1 && days <= 3650 ? days : null
 }
 
-function expiryTag(row: AdminAccountRow) {
-  if (!row.expiresAt) return <Text type="secondary">—</Text>
-  const days = Math.floor((row.expiresAt - Date.now()) / 86400000)
-  if (row.disabled) return <Tag color="default">已停用 · 至 {dayjs(row.expiresAt).format('YYYY-MM-DD')}</Tag>
-  if (days <= 0) return <Tag color="red">已到期</Tag>
-  if (days <= 3) return <Tag color="orange">剩 {days} 天</Tag>
-  return (
-    <Tag color="green">
-      至 {dayjs(row.expiresAt).format('YYYY-MM-DD')}（剩 {days} 天）
-    </Tag>
-  )
-}
-
 export default function AdminPage() {
   const { message } = App.useApp()
+  const t = useI18n()
   const [logged, setLogged] = useState(!!getAdminToken())
   const [password, setPassword] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
@@ -140,7 +125,7 @@ export default function AdminPage() {
   const handleCreate = async () => {
     const payload = buildCreatePayload()
     if (!payload) {
-      message.warning('自定义天数需为 1~3650 的整数')
+      message.warning(t('admin.customDays.invalid'))
       return
     }
     setCreating(true)
@@ -175,8 +160,8 @@ export default function AdminPage() {
 
   const copyCreds = () => {
     if (!issuedCreds) return
-    navigator.clipboard.writeText(`用户名：${issuedCreds.username}\n密码：${issuedCreds.password}`)
-    message.success('已复制，可直接发给买家')
+    navigator.clipboard.writeText(`${t('admin.create.username')} ${issuedCreds.username}\n${t('admin.create.password')} ${issuedCreds.password}`)
+    message.success(t('admin.create.copied'))
   }
 
   if (!logged) {
@@ -202,13 +187,13 @@ export default function AdminPage() {
                 marginBottom: 10,
               }}
             />
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#134E4A' }}>管理后台</h2>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#134E4A' }}>{t('admin.title')}</h2>
             <p style={{ color: '#475569', fontSize: 12, marginTop: 4, marginBottom: 0 }}>
-              仅管理员使用 · 用户请从首页登录
+              {t('admin.cardOnly')}
             </p>
           </div>
           <Input.Password
-            placeholder="管理密码"
+            placeholder={t('auth.password')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onPressEnter={handleLogin}
@@ -223,7 +208,7 @@ export default function AdminPage() {
             onClick={handleLogin}
             icon={<KeyOutlined />}
           >
-            进入后台
+            {t('admin.loginBtn')}
           </Button>
         </Card>
       </div>
@@ -231,6 +216,34 @@ export default function AdminPage() {
   }
 
   const activeCount = accounts.filter((a) => !a.disabled && a.expiresAt && a.expiresAt > Date.now()).length
+
+  const cardOptions = useMemo(() => buildCardOptions(t), [t])
+  const daySelectOptions = useMemo(
+    () => [...cardOptions, { value: CUSTOM_DAYS, label: t('admin.cardTypes.custom') }],
+    [cardOptions, t],
+  )
+  function expiryTag(row: AdminAccountRow) {
+    if (!row.expiresAt) return <Text type="secondary">—</Text>
+    const days = Math.floor((row.expiresAt - Date.now()) / 86400000)
+    if (row.disabled)
+      return <Tag color="default">{t('admin.tag.disabledUntil', { date: dayjs(row.expiresAt).format('YYYY-MM-DD') })}</Tag>
+    if (days <= 0) return <Tag color="red">{t('admin.tag.expired')}</Tag>
+    if (days <= 3) return <Tag color="orange">{t('app.daysLeft', { n: days })}</Tag>
+    return (
+      <Tag color="green">
+        {t('admin.tag.until', { date: dayjs(row.expiresAt).format('YYYY-MM-DD'), n: days })}
+      </Tag>
+    )
+  }
+
+  const EVENT_LABELS = () => ({
+    login: t('admin.ev.login'),
+    library_created: t('admin.ev.library_created'),
+    item_created: t('admin.ev.item_created'),
+    items_imported: t('admin.ev.items_imported'),
+    ai_message_sent: t('admin.ev.ai_message_sent'),
+    demo_created: t('admin.ev.demo_created'),
+  })
 
   // —— 到期提醒自动化：3 天内到期的账号，一键复制催续费话术 ——
   const expiringSoon = accounts.filter((a) => {
@@ -268,7 +281,7 @@ export default function AdminPage() {
         `【续费提醒】您好！您的账号 ${a.username} 将于 ${dayjs(a.expiresAt).format('YYYY-MM-DD')} 到期，如需继续使用请回复本消息办理续费哦~`,
     )
     navigator.clipboard.writeText(lines.join('\n\n'))
-    message.success(`已复制 ${lines.length} 条续费提醒话术，去微信粘贴发送吧`)
+    message.success(t('admin.expiry.copied', { n: lines.length }))
   }
 
   // 表格筛选
@@ -282,33 +295,25 @@ export default function AdminPage() {
     return true
   })
 
-  const EVENT_LABELS: Record<string, string> = {
-    login: '登录',
-    library_created: '创建管理库',
-    item_created: '录入条目',
-    items_imported: '导入条目',
-    ai_message_sent: 'AI 对话',
-    demo_created: '创建演示库',
-  }
 
   const columns: ColumnsType<AdminAccountRow> = [
-    { title: '用户名', dataIndex: 'username', key: 'username', render: (v) => <Text code>{v}</Text> },
-    { title: '有效期', key: 'expiry', render: (_, r) => expiryTag(r) },
+    { title: t('admin.tbl.username'), dataIndex: 'username', key: 'username', render: (v) => <Text code>{v}</Text> },
+    { title: t('admin.tbl.validity'), key: 'expiry', render: (_, r) => expiryTag(r) },
     {
-      title: '状态',
+      title: t('admin.tbl.status'),
       dataIndex: 'disabled',
       key: 'disabled',
       width: 80,
-      render: (v: boolean) => (v ? <Tag color="default">停用</Tag> : <Tag color="green">正常</Tag>),
+      render: (v: boolean) => (v ? <Tag color="default">{t('admin.status.disabled')}</Tag> : <Tag color="green">{t('admin.status.normal')}</Tag>),
     },
     {
-      title: '最近登录',
+      title: t('admin.tbl.lastLogin'),
       dataIndex: 'lastLogin',
       key: 'lastLogin',
-      render: (v?: number | null) => (v ? dayjs(v).format('MM-DD HH:mm') : '从未'),
+      render: (v?: number | null) => (v ? dayjs(v).format('MM-DD HH:mm') : t('admin.never')),
     },
     {
-      title: '操作',
+      title: t('admin.tbl.op'),
       key: 'op',
       width: 300,
       render: (_, r) => (
@@ -322,21 +327,21 @@ export default function AdminPage() {
               setRenewCustomDays(null)
             }}
           >
-            续费
+            {t('admin.op.renew')}
           </Button>
           {r.disabled ? (
             <Button
               size="small"
               icon={<CheckCircleOutlined />}
-              onClick={() => handleOp(r.id, { op: 'enable' }, `已启用 ${r.username}`)}
+              onClick={() => handleOp(r.id, { op: 'enable' }, t('admin.enabled', { name: r.username }))}
             >
-              启用
+              {t('admin.op.enable')}
             </Button>
           ) : (
             <Popconfirm
-              title={`停用 ${r.username}？`}
-              description="停用后该用户立即无法使用"
-              onConfirm={() => handleOp(r.id, { op: 'disable' }, `已停用 ${r.username}`)}
+              title={t('admin.disableConfirm.title', { name: r.username })}
+              description={t('admin.disableConfirm.body')}
+              onConfirm={() => handleOp(r.id, { op: 'disable' }, t('admin.disabled', { name: r.username }))}
             >
               <Button size="small" icon={<StopOutlined />}>
                 停用
@@ -344,11 +349,11 @@ export default function AdminPage() {
             </Popconfirm>
           )}
           <Popconfirm
-            title={`删除 ${r.username}？`}
-            description="仅删除登录账号；用户的资料数据不受影响。"
-            okText="删除"
+            title={t('admin.deleteConfirm.title', { name: r.username })}
+            description={t('admin.deleteConfirm.body')}
+            okText={t('common.delete')}
             okType="danger"
-            onConfirm={() => handleOp(r.id, { op: 'delete' }, `已删除 ${r.username}`)}
+            onConfirm={() => handleOp(r.id, { op: 'delete' }, t('admin.deleted', { name: r.username }))}
           >
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -364,22 +369,22 @@ export default function AdminPage() {
           <Card>
             <Space size="large" align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
               <Space size="large">
-                <Statistic title="总账号数" value={accounts.length} />
-                <Statistic title="有效用户" value={activeCount} valueStyle={{ color: '#3f8600' }} />
+                <Statistic title={t('admin.stat.total')} value={accounts.length} />
+                <Statistic title={t('admin.stat.active')} value={activeCount} valueStyle={{ color: '#3f8600' }} />
               </Space>
               <Space>
                 <Button icon={<ReloadOutlined />} onClick={load} loading={loadingList}>
-                  刷新
+                  {t('common.refresh')}
                 </Button>
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
                   onClick={() => setCreateOpen(true)}
                 >
-                  卖卡 · 生成账号
+                  {t('admin.btn.create')}
                 </Button>
                 <Button icon={<DownloadOutlined />} onClick={exportAccountsCsv} disabled={accounts.length === 0}>
-                  导出CSV
+                  {t('admin.btn.exportCsv')}
                 </Button>
                 <Button
                   danger
@@ -389,7 +394,7 @@ export default function AdminPage() {
                     setLogged(false)
                   }}
                 >
-                  退出后台
+                  {t('admin.btn.logout')}
                 </Button>
               </Space>
             </Space>
@@ -399,38 +404,38 @@ export default function AdminPage() {
             <Alert
               type="warning"
               showIcon
-              message={`⏰ ${expiringSoon.length} 个账号将在 3 天内到期：${expiringSoon.map((a) => a.username).join('、')}`}
+              message={t('admin.expiry.alert', { n: expiringSoon.length, names: expiringSoon.map((a) => a.username).join(', ') })}
               action={
                 <Button size="small" type="primary" onClick={copyRenewScripts}>
-                  一键复制催续费话术
+                  {t('admin.expiry.copyBtn')}
                 </Button>
               }
               style={{ marginBottom: 16 }}
             />
           )}
 
-          <Card title="运营概览（近 7 天）" size="small" style={{ marginBottom: 16 }}>
+          <Card title={t('admin.stats.title')} size="small" style={{ marginBottom: 16 }}>
             <Space size="large" wrap align="center">
-              <Statistic title="有效用户（活跃）" value={stats?.activeUsers7 ?? 0} valueStyle={{ color: '#3f8600' }} />
-              <Statistic title="新增注册" value={stats?.signups7 ?? 0} />
+              <Statistic title={t('admin.stats.active7')} value={stats?.activeUsers7 ?? 0} valueStyle={{ color: '#3f8600' }} />
+              <Statistic title={t('admin.stats.signups')} value={stats?.signups7 ?? 0} />
               {(stats?.events7 ?? []).slice(0, 6).map((e) => (
-                <Statistic key={e.name} title={EVENT_LABELS[e.name] ?? e.name} value={e.count} />
+                <Statistic key={e.name} title={EVENT_LABELS()[e.name as keyof ReturnType<typeof EVENT_LABELS>] ?? e.name} value={e.count} />
               ))}
             </Space>
           </Card>
 
           <Card
-            title="账户列表"
+            title={t('admin.tbl.accounts')}
             size="small"
             extra={
               <Segmented
                 value={filterKey}
                 onChange={(v) => setFilterKey(v as typeof filterKey)}
                 options={[
-                  { label: '全部', value: 'all' },
-                  { label: `3天内到期 (${expiringSoon.length})`, value: 'expiring' },
-                  { label: '已到期', value: 'expired' },
-                  { label: '已停用', value: 'disabled' },
+                  { label: t('admin.filter.all'), value: 'all' },
+                  { label: t('admin.filter.expiring', { n: expiringSoon.length }), value: 'expiring' },
+                  { label: t('admin.filter.expired'), value: 'expired' },
+                  { label: t('admin.filter.disabled'), value: 'disabled' },
                 ]}
               />
             }
@@ -438,26 +443,26 @@ export default function AdminPage() {
             <Table rowKey="id" columns={columns} dataSource={filteredAccounts} loading={loadingList} pagination={{ pageSize: 15 }} size="middle" />
           </Card>
 
-          <Card title="操作日志（最近 200 条）" size="small">
+          <Card title={t('admin.audit.title')} size="small">
             <Table
               rowKey={(r) => `${r.created_at}-${r.action}-${r.target}`}
               columns={[
                 {
-                  title: '时间',
+                  title: t('admin.audit.col.time'),
                   key: 'time',
                   width: 150,
                   render: (_, r) => dayjs(r.created_at).format('MM-DD HH:mm:ss'),
                 },
                 {
-                  title: '操作',
+                  title: t('admin.tbl.op'),
                   key: 'action',
                   width: 90,
                   render: (_, r) =>
-                    ({ login: '登录后台', create: '生成账号', renew: '续费', disable: '停用', enable: '启用', delete: '删除账号' } as Record<string, string>)[r.action] ?? r.action,
+                    ({ login: t('admin.audit.act.login'), create: t('admin.audit.act.create'), renew: t('admin.audit.act.renew'), disable: t('admin.audit.act.disable'), enable: t('admin.audit.act.enable'), delete: t('admin.audit.act.delete') } as Record<string, string>)[r.action] ?? r.action,
                 },
-                { title: '目标账号', dataIndex: 'target', key: 'target', width: 170, render: (v) => <Text code>{v}</Text> },
-                { title: '详情', dataIndex: 'detail', key: 'detail', ellipsis: true },
-                { title: 'IP', dataIndex: 'ip', key: 'ip', width: 130 },
+                { title: t('admin.audit.col.target'), dataIndex: 'target', key: 'target', width: 170, render: (v) => <Text code>{v}</Text> },
+                { title: t('admin.audit.col.detail'), dataIndex: 'detail', key: 'detail', ellipsis: true },
+                { title: t('admin.audit.col.ip'), dataIndex: 'ip', key: 'ip', width: 130 },
               ]}
               dataSource={logs}
               pagination={{ pageSize: 8 }}
@@ -473,16 +478,16 @@ export default function AdminPage() {
 
       {/* 生成账号 */}
       <Modal
-        title="生成新账号（卖卡）"
+        title={t('admin.create.modalTitle')}
         open={createOpen}
         onCancel={() => setCreateOpen(false)}
         onOk={handleCreate}
         confirmLoading={creating}
-        okText="生成"
+        okText={t('admin.create.okText')}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Select
-            options={DAY_SELECT_OPTIONS}
+            options={daySelectOptions}
             value={cardType}
             onChange={(v) => {
               setCardType(v)
@@ -498,40 +503,40 @@ export default function AdminPage() {
               precision={0}
               value={customDays}
               onChange={(v) => setCustomDays(v)}
-              placeholder="输入天数（1~3650）"
-              addonAfter="天"
+              placeholder={t('admin.customDays.placeholder')}
+              addonAfter={t('admin.customDays.unit')}
               style={{ width: '100%' }}
               size="large"
               autoFocus
             />
           )}
           <Text type="secondary" style={{ fontSize: 12 }}>
-            系统自动生成用户名和随机密码，有效期自现在起算。
+            {t('admin.create.auto')}
           </Text>
         </Space>
       </Modal>
 
       {/* 新账号凭证（只显示一次） */}
-      <Modal open={!!issuedCreds} footer={null} onCancel={() => setIssuedCreds(null)} title="✅ 账号已生成，请复制发给买家">
+      <Modal open={!!issuedCreds} footer={null} onCancel={() => setIssuedCreds(null)} title={t('admin.create.doneTitle')}>
         {issuedCreds && (
           <div style={{ fontSize: 16, lineHeight: 2 }}>
             <div>
-              卡种：<b>{CARD_OPTIONS.find((c) => c.value === cardType)?.label ?? `${issuedCreds.days}天`}</b>
+              {t('admin.create.cardType')}<b>{cardOptions.find((c) => c.value === cardType)?.label ?? `${issuedCreds.days}${t('admin.customDays.unit')}`}</b>
             </div>
             <div>
-              用户名：<Text code copyable style={{ fontSize: 18 }}>{issuedCreds.username}</Text>
+              {t('admin.create.username')}<Text code copyable style={{ fontSize: 18 }}>{issuedCreds.username}</Text>
             </div>
             <div>
-              密　码：<Text code copyable style={{ fontSize: 18 }}>{issuedCreds.password}</Text>
+              {t('admin.create.password')}<Text code copyable style={{ fontSize: 18 }}>{issuedCreds.password}</Text>
             </div>
             <Button block type="primary" ghost icon={<CopyOutlined />} style={{ marginTop: 12 }} onClick={copyCreds}>
-              一键复制用户名+密码
+              {t('admin.create.copyAll')}
             </Button>
             <Alert
               type="warning"
               showIcon
               style={{ marginTop: 12 }}
-              message="关闭本窗口后密码将无法再次查看，请务必先复制保存。"
+              message={t('admin.create.warning')}
             />
           </div>
         )}
@@ -539,7 +544,7 @@ export default function AdminPage() {
 
       {/* 续费 */}
       <Modal
-        title={`给 ${renewFor?.username ?? ''} 续费`}
+        title={t('admin.renew.title', { name: renewFor?.username ?? '' })}
         open={!!renewFor}
         onCancel={() => setRenewFor(null)}
         onOk={async () => {
@@ -548,21 +553,21 @@ export default function AdminPage() {
           if (renewType === CUSTOM_DAYS) {
             const days = normalizeDays(renewCustomDays)
             if (!days) {
-              message.warning('自定义天数需为 1~3650 的整数')
+              message.warning(t('admin.customDays.invalid'))
               return Promise.reject()
             }
-            ok = await handleOp(renewFor.id, { op: 'renew', days }, '续费成功')
+            ok = await handleOp(renewFor.id, { op: 'renew', days }, t('admin.renew.success'))
           } else {
-            ok = await handleOp(renewFor.id, { op: 'renew', cardType: renewType }, '续费成功')
+            ok = await handleOp(renewFor.id, { op: 'renew', cardType: renewType }, t('admin.renew.success'))
           }
           if (ok) setRenewFor(null)
           else return Promise.reject()
         }}
-        okText="确认续费"
+        okText={t('admin.renew.ok')}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Select
-            options={DAY_SELECT_OPTIONS}
+            options={daySelectOptions}
             value={renewType}
             onChange={(v) => {
               setRenewType(v)
@@ -578,14 +583,14 @@ export default function AdminPage() {
               precision={0}
               value={renewCustomDays}
               onChange={(v) => setRenewCustomDays(v)}
-              placeholder="输入天数（1~3650）"
-              addonAfter="天"
+              placeholder={t('admin.customDays.placeholder')}
+              addonAfter={t('admin.customDays.unit')}
               style={{ width: '100%' }}
               size="large"
             />
           )}
           <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-            未到期的账号在原到期时间上累加；已到期或被停用的账号从今天重新起算并自动恢复启用。
+            {t('admin.renew.hint')}
           </Text>
         </Space>
       </Modal>

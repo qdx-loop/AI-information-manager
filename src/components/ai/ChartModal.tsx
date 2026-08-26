@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Modal, Button, Space, Spin, App } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
+import { useI18n, tNow } from '@/i18n'
 
 // 按需加载图表库（UMD 版），多个 CDN 依次回退，保证国内外网络环境可用
 let echartsPromise: Promise<unknown> | null = null
@@ -22,7 +23,7 @@ function loadECharts(): Promise<unknown> {
     const tryNext = () => {
       if (idx >= CDN_LIST.length) {
         echartsPromise = null
-        reject(new Error('图表组件加载失败，请检查网络后重试'))
+        reject(new Error(tNow('ai.chart.loadFailed')))
         return
       }
       const script = document.createElement('script')
@@ -61,6 +62,7 @@ export default function ChartModal({
   onClose: () => void
 }) {
   const { message } = App.useApp()
+  const t = useI18n()
   const chartDivRef = useRef<HTMLDivElement | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef = useRef<any>(null)
@@ -101,7 +103,7 @@ export default function ChartModal({
   const handleDownload = () => {
     const canvas = chartDivRef.current?.querySelector('canvas')
     if (!canvas) {
-      message.warning('图表尚未渲染完成')
+      message.warning(t('ai.chart.notReady'))
       return
     }
     const url = canvas.toDataURL('image/png')
@@ -109,7 +111,7 @@ export default function ChartModal({
     a.href = url
     a.download = `${payload?.title || '统计图'}.png`
     a.click()
-    message.success('图片已下载')
+    message.success(t('ai.chart.downloaded'))
   }
 
   return (
@@ -121,9 +123,9 @@ export default function ChartModal({
       footer={
         <Space>
           <Button icon={<DownloadOutlined />} type="primary" onClick={handleDownload}>
-            下载图片 (PNG)
+            {t('ai.chart.download')}
           </Button>
-          <Button onClick={onClose}>关闭</Button>
+          <Button onClick={onClose}>{t('common.close')}</Button>
         </Space>
       }
     >
@@ -131,7 +133,7 @@ export default function ChartModal({
         <div ref={chartDivRef} style={{ width: '100%', height: 420 }} />
         {loading && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Spin tip="正在生成图表…" />
+            <Spin tip={t('ai.chart.loading')} />
           </div>
         )}
       </div>

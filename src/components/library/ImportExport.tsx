@@ -6,6 +6,7 @@ import type { FieldDef, Item, FieldValue } from '@/types'
 import { itemsToCSV, parseCSV, downloadCSV } from '@/utils/csv'
 import { itemsToExcel, parseExcel } from '@/utils/excel'
 import { downloadBlob } from '@/utils/csv'
+import { useI18n } from '@/i18n'
 
 interface Props {
   fields: FieldDef[]
@@ -15,6 +16,7 @@ interface Props {
 
 export default function ImportExport({ fields, items, onImport }: Props) {
   const { message } = App.useApp()
+  const t = useI18n()
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([])
   const [headers, setHeaders] = useState<string[]>([])
   const [mapping, setMapping] = useState<Record<string, string>>({})
@@ -24,7 +26,7 @@ export default function ImportExport({ fields, items, onImport }: Props) {
 
   const handleExport = (kind: 'csv' | 'excel') => {
     if (items.length === 0) {
-      message.warning('没有可导出的数据')
+      message.warning(t('lib.importExport.nothing'))
       return
     }
     if (kind === 'csv') {
@@ -39,8 +41,8 @@ export default function ImportExport({ fields, items, onImport }: Props) {
 
   const exportMenu: MenuProps = {
     items: [
-      { key: 'csv', label: '导出 CSV' },
-      { key: 'excel', label: '导出 Excel' },
+      { key: 'csv', label: t('lib.importExport.exportCsv') },
+      { key: 'excel', label: t('lib.importExport.exportExcel') },
     ],
     onClick: ({ key }) => handleExport(key as 'csv' | 'excel'),
   }
@@ -49,14 +51,14 @@ export default function ImportExport({ fields, items, onImport }: Props) {
     // 限制文件大小为 10MB，防止超大文件卡死浏览器
     const MAX_SIZE = 10 * 1024 * 1024
     if (file.size > MAX_SIZE) {
-      message.error('文件过大（超过 10MB），请拆分后再导入')
+      message.error(t('lib.importExport.tooLarge'))
       return false
     }
     try {
       const isCsv = file.name.toLowerCase().endsWith('.csv')
       const rows = isCsv ? await parseCSV(file) : await parseExcel(file)
       if (rows.length === 0) {
-        message.warning('文件无数据')
+        message.warning(t('lib.importExport.emptyFile'))
         return false
       }
       const hs = Object.keys(rows[0])
@@ -71,7 +73,7 @@ export default function ImportExport({ fields, items, onImport }: Props) {
       setParsedRows(rows)
       setModalOpen(true)
     } catch (e) {
-      message.error('解析失败：' + (e as Error).message)
+      message.error(t('lib.importExport.parseFailed', { msg: (e as Error).message }))
     }
     return false // 阻止 antd 自动上传
   }
@@ -91,27 +93,27 @@ export default function ImportExport({ fields, items, onImport }: Props) {
     await onImport(rows)
     setModalOpen(false)
     setParsedRows([])
-    message.success(`已导入 ${rows.length} 条`)
+    message.success(t('lib.importExport.imported', { n: rows.length }))
   }
 
   return (
     <>
       <Upload beforeUpload={handleFile} showUploadList={false} accept=".csv,.xlsx,.xls">
-        <Button icon={<ImportOutlined />}>导入</Button>
+        <Button icon={<ImportOutlined />}>{t('lib.importExport.import')}</Button>
       </Upload>
       <Dropdown menu={exportMenu}>
-        <Button icon={<ExportOutlined />}>导出</Button>
+        <Button icon={<ExportOutlined />}>{t('lib.importExport.export')}</Button>
       </Dropdown>
 
       <Modal
-        title="字段映射"
+        title={t('lib.importExport.mapTitle')}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={confirmImport}
         width={520}
       >
         <p style={{ color: 'var(--ant-color-text-secondary)', marginBottom: 12 }}>
-          共解析到 {parsedRows.length} 行，请将文件列对应到管理库字段：
+          {t('lib.importExport.mapIntro', { n: parsedRows.length })}
         </p>
         {headers.map((h) => (
           <div key={h} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
@@ -121,7 +123,7 @@ export default function ImportExport({ fields, items, onImport }: Props) {
               value={mapping[h]}
               onChange={(v) => setMapping({ ...mapping, [h]: v })}
               options={[
-                { label: '— 不导入 —', value: '' },
+                { label: t('lib.importExport.skip'), value: '' },
                 ...visibleFields.map((f) => ({ label: f.label, value: f.key })),
               ]}
               allowClear

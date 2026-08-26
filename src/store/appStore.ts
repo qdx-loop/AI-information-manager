@@ -3,6 +3,8 @@ import { DEFAULT_SETTINGS, type Settings } from '@/types'
 
 const STORAGE_KEY = 'info-mgmt-settings'
 
+export type Language = 'zh' | 'en'
+
 function load(): Settings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -21,6 +23,7 @@ function persist(s: Settings) {
 interface AppState {
   settings: Settings
   setStorageMode: (mode: Settings['storageMode']) => void
+  setLanguage: (lang: Language) => void
   setCloud: (c: Partial<Settings['cloud']>) => void
   setAI: (a: Partial<Settings['ai']>) => void
   setTheme: (t: 'light' | 'dark') => void
@@ -32,6 +35,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setStorageMode(mode) {
     const next = { ...get().settings, storageMode: mode }
+    persist(next)
+    set({ settings: next })
+  },
+
+  setLanguage(lang) {
+    const next = { ...get().settings, language: lang }
     persist(next)
     set({ settings: next })
   },

@@ -8,6 +8,7 @@ import {
   BarChartOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/store/authStore'
+import { useI18n } from '@/i18n'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 
@@ -20,6 +21,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [remember, setRemember] = useState(false)
   const [form] = Form.useForm<{ username: string; password: string }>()
+  const t = useI18n()
 
   // 如果 init() 在跳转到 /login 后才完成恢复，自动跳回主页
   useEffect(() => {
@@ -31,7 +33,9 @@ export default function AuthPage() {
     try {
       const acc = await login(values.username, values.password, remember)
       message.success(
-        acc.expiresAt ? `登录成功，有效期至 ${dayjs(acc.expiresAt).format('YYYY-MM-DD HH:mm')}` : '登录成功',
+        acc.expiresAt
+          ? t('auth.ok.expires', { time: dayjs(acc.expiresAt).format('YYYY-MM-DD HH:mm') })
+          : t('auth.ok.plain'),
       )
       navigate('/')
     } catch (e) {
@@ -42,9 +46,9 @@ export default function AuthPage() {
   }
 
   const features = [
-    { icon: <MessageOutlined />, text: '自然语言操作数据，AI 帮你录入、检索、统计' },
-    { icon: <DatabaseOutlined />, text: '自定义管理库与字段模板，想怎么管就怎么管' },
-    { icon: <BarChartOutlined />, text: '一句话生成统计图表，随时下载保存' },
+    { icon: <MessageOutlined />, text: t('auth.f1') },
+    { icon: <DatabaseOutlined />, text: t('auth.f2') },
+    { icon: <BarChartOutlined />, text: t('auth.f3') },
   ]
 
   return (
@@ -62,13 +66,12 @@ export default function AuthPage() {
                 display: 'inline-block',
               }}
             />
-            <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: 1 }}>信息管理</span>
+            <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: 1 }}>{t('auth.brand')}</span>
           </div>
-          <h1 style={{ fontSize: 32, lineHeight: 1.35, fontWeight: 700, margin: '0 0 16px' }}>
-            AI 智能信息管理助手
+          <h1 style={{ fontSize: 32, lineHeight: 1.35, fontWeight: 700, margin: '0 0 16px' }}>{t('auth.hero.title')}
           </h1>
           <p style={{ fontSize: 15, opacity: 0.92, margin: '0 0 36px', lineHeight: 1.7 }}>
-            用说话的方式管理你的数据。建库、录数据、查资料、出报表，都交给 AI。
+            {t('auth.hero.subtitle')}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {features.map((f, i) => (
@@ -94,7 +97,7 @@ export default function AuthPage() {
           </div>
         </div>
         <div style={{ position: 'absolute', bottom: 28, left: 64, fontSize: 12, opacity: 0.6 }}>
-          登录即代表同意合理使用本服务 · 数据由你的账号独立隔离
+          {t('auth.footerNote')}
         </div>
       </div>
 
@@ -103,12 +106,12 @@ export default function AuthPage() {
         <div style={{ width: '100%', maxWidth: 320, padding: '0 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 36 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: BRAND, display: 'inline-block' }} />
-            <span style={{ fontWeight: 700, fontSize: 15, color: '#134E4A' }}>信息管理</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: '#134E4A' }}>{t('auth.brand')}</span>
           </div>
 
-          <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px', color: '#134E4A' }}>欢迎回来</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px', color: '#134E4A' }}>{t('auth.welcome')}</h2>
           <p style={{ color: '#475569', fontSize: 13, margin: '0 0 28px' }}>
-            请输入管理员发放的账号密码登录
+            {t('auth.hint')}
           </p>
 
           <Form
@@ -119,41 +122,41 @@ export default function AuthPage() {
             validateTrigger={['onSubmit', 'onChange']}
             requiredMark={false}
           >
-            <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+            <Form.Item name="username" rules={[{ required: true, message: t('auth.err.username') }]}>
               <Input
                 prefix={<UserOutlined style={{ color: '#94a3b8' }} />}
-                placeholder="用户名"
+                placeholder={t('auth.username')}
                 autoComplete="username"
-                aria-label="用户名"
+                aria-label={t('auth.username')}
               />
             </Form.Item>
             <Form.Item
               name="password"
               rules={[
-                { required: true, message: '请输入密码' },
-                { min: 6, message: '密码至少 6 位' },
+                { required: true, message: t('auth.err.password') },
+                { min: 6, message: t('auth.err.passwordMin') },
               ]}
             >
               <Input.Password
                 prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
-                placeholder="密码"
+                placeholder={t('auth.password')}
                 autoComplete="current-password"
-                aria-label="密码"
+                aria-label={t('auth.password')}
               />
             </Form.Item>
             <Form.Item style={{ marginBottom: 16 }}>
               <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
-                <span style={{ fontSize: 13, color: '#475569' }}>记住登录状态</span>
+                <span style={{ fontSize: 13, color: '#475569' }}>{t('auth.remember')}</span>
               </Checkbox>
             </Form.Item>
 
             <Button type="primary" htmlType="submit" block loading={loading} style={{ fontWeight: 600 }}>
-              登 录
+              {t('auth.login')}
             </Button>
           </Form>
 
           <p style={{ textAlign: 'center', marginTop: 28, color: '#475569', fontSize: 12, lineHeight: 1.8 }}>
-            没有账号？请联系管理员购买开通
+            {t('auth.noAccount')}
             <br />
             <a
               href="/"
@@ -162,10 +165,10 @@ export default function AuthPage() {
                 navigate('/')
               }}
             >
-              ← 返回官网首页
+              {t('auth.backHome')}
             </a>
             <br />
-            云端同步请在登录后到「设置 → 存储」配置
+            {t('auth.cloudHint')}
           </p>
         </div>
       </div>

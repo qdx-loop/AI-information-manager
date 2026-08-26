@@ -17,6 +17,7 @@ import { useAppStore } from '@/store/appStore'
 import { useEffect, useMemo, useState } from 'react'
 import type { Library } from '@/types'
 import { syncNow } from '@/utils/autoSync'
+import { useI18n } from '@/i18n'
 import dayjs from 'dayjs'
 
 const { Sider } = Layout
@@ -39,9 +40,10 @@ function useSidebarState() {
   } = useLibraryStore()
   const isDark = useAppStore((s) => s.settings.theme === 'dark')
   const [loggingOut, setLoggingOut] = useState(false)
+  const t = useI18n()
 
   useEffect(() => {
-    loadLibraries().catch((e) => message.error('加载管理库列表失败：' + (e as Error).message))
+    loadLibraries().catch((e) => message.error(t('app.loadLibsFailed', { msg: (e as Error).message })))
   }, [loadLibraries, message])
 
   // 按分类分组
@@ -58,19 +60,19 @@ function useSidebarState() {
   const handleNewLibrary = () => {
     let name = ''
     modal.confirm({
-      title: '新建管理库',
+      title: t('app.newLibrary'),
       content: (
-        <Input placeholder="管理库名称，如：联系人管理库" onChange={(e) => (name = e.target.value)} />
+        <Input placeholder={t('app.lib.namePlaceholder')} onChange={(e) => (name = e.target.value)} />
       ),
       onOk: async () => {
         if (!name.trim()) {
-          message.warning('请输入名称')
+          message.warning(t('app.lib.nameRequired'))
           return
         }
         const id = await createLibrary(name.trim())
         await selectLibrary(id)
         navigate(`/library/${id}`)
-        message.success('已创建')
+        message.success(t('app.lib.created'))
       },
     })
   }
@@ -78,26 +80,26 @@ function useSidebarState() {
   const handleRename = (lib: Library) => {
     let name = lib.name
     modal.confirm({
-      title: '重命名管理库',
+      title: t('app.lib.renameTitle'),
       content: <Input defaultValue={lib.name} onChange={(e) => (name = e.target.value)} />,
       onOk: async () => {
         if (!name.trim()) {
-          message.warning('名称不能为空')
+          message.warning(t('app.lib.nameEmpty'))
           return
         }
         await renameLibrary(lib.id, name.trim())
-        message.success('已重命名')
+        message.success(t('app.lib.renamed'))
       },
     })
   }
 
   const handleDelete = (lib: Library) => {
     modal.confirm({
-      title: `删除管理库「${lib.name}」？`,
-      content: '该库及其全部条目将移入回收站，可从回收站恢复。',
-      okText: '删除',
+      title: t('app.lib.deleteTitle', { name: lib.name }),
+      content: t('app.lib.deleteContent'),
+      okText: t('common.delete'),
       okType: 'danger',
-      cancelText: '取消',
+      cancelText: t('common.cancel'),
       onOk: async () => {
         await deleteLibrary(lib.id)
         if (currentLibraryId === lib.id) navigate('/')
@@ -109,8 +111,8 @@ function useSidebarState() {
   // 单个库的「⋯」下拉菜单
   const libActions = (lib: Library): MenuProps => ({
     items: [
-      { key: 'rename', label: '重命名', icon: <EditOutlined /> },
-      { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true },
+      { key: 'rename', label: t('common.rename'), icon: <EditOutlined /> },
+      { key: 'delete', label: t('common.delete'), icon: <DeleteOutlined />, danger: true },
     ],
     onClick: ({ key, domEvent }) => {
       domEvent.stopPropagation()
@@ -122,7 +124,7 @@ function useSidebarState() {
   const menuItems = [
     {
       key: 'group-libraries',
-      label: '管理库',
+      label: t('app.group.libraries'),
       type: 'group' as const,
       children: [
         ...grouped.map(([cat, libs]) => ({
@@ -150,16 +152,16 @@ function useSidebarState() {
             ),
           })),
         })),
-        { key: 'new-library', label: '新建管理库', icon: <PlusOutlined /> },
+        { key: 'new-library', label: t('app.newLibrary'), icon: <PlusOutlined /> },
       ],
     },
     {
       key: 'group-tools',
-      label: '工具',
+      label: t('app.group.tools'),
       type: 'group' as const,
       children: [
-        { key: '/trash', label: '回收站', icon: <DeleteOutlined /> },
-        { key: '/settings', label: '设置', icon: <SettingOutlined /> },
+        { key: '/trash', label: t('app.trash'), icon: <DeleteOutlined /> },
+        { key: '/settings', label: t('app.settings'), icon: <SettingOutlined /> },
       ],
     },
   ]
@@ -179,7 +181,7 @@ function useSidebarState() {
     navigate(key)
     if (key.startsWith('/library/')) {
       const id = key.replace('/library/', '')
-      selectLibrary(id).catch((e) => message.error('加载管理库失败：' + (e as Error).message))
+      selectLibrary(id).catch((e) => message.error(t('app.loadLibFailed', { msg: (e as Error).message })))
     } else {
       selectLibrary(null).catch(() => {/* 切换到非库页面，忽略 */})
     }
@@ -221,6 +223,7 @@ function SidebarBody({
   collapsed: boolean
   onOpenPanel: () => void
 }) {
+  const t = useI18n()
   const { account, isDark, menuItems, selectedKey, handleClick, handleLogout, loggingOut } = state
   return (
     <>
@@ -235,7 +238,7 @@ function SidebarBody({
         }}
       >
         <Badge color="#0D9488" />
-        {!collapsed && <span>信息管理</span>}
+        {!collapsed && <span>{t('app.brand')}</span>}
       </div>
 
       <Menu
@@ -267,13 +270,13 @@ function SidebarBody({
               alignItems: 'center',
             }}
           >
-            <span>到期：{dayjs(account.expiresAt).format('YYYY-MM-DD')}</span>
+            <span>{t('app.expiresAt', { date: dayjs(account.expiresAt).format('YYYY-MM-DD') })}</span>
             {(() => {
               const days = Math.floor((account.expiresAt! - Date.now()) / 86400000)
               if (days <= 3) {
                 return (
                   <Tag color={days < 0 ? 'red' : 'orange'} style={{ marginRight: 0 }}>
-                    {days < 0 ? '已到期' : `剩 ${days} 天`}
+                    {days < 0 ? t('app.expired') : t('app.daysLeft', { n: days })}
                   </Tag>
                 )
               }
@@ -282,7 +285,7 @@ function SidebarBody({
           </div>
         )}
         <Button icon={<RobotOutlined />} block onClick={onOpenPanel} style={{ marginBottom: 8 }}>
-          {collapsed ? '' : 'AI 助手'}
+          {collapsed ? '' : t('app.aiAssistant')}
         </Button>
         <Button
           icon={<LogoutOutlined />}
@@ -291,7 +294,7 @@ function SidebarBody({
           onClick={handleLogout}
           loading={loggingOut}
         >
-          {collapsed ? '' : `退出 (${account?.username})`}
+          {collapsed ? '' : t('app.logout', { name: account?.username ?? '' })}
         </Button>
       </div>
     </>

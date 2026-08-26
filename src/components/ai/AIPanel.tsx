@@ -21,7 +21,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useLibraryStore } from '@/store/libraryStore'
 import { getProvider } from '@/db/providerFactory'
 import { chat } from '@/ai/client'
-import { buildContext, SYSTEM_PROMPT, type LibraryContext } from '@/ai/contextBuilder'
+import { buildContext, SYSTEM_PROMPT, SYSTEM_PROMPT_EN, type LibraryContext } from '@/ai/contextBuilder'
 import {
   ALL_TOOLS,
   parseItemAction,
@@ -40,6 +40,7 @@ import {
   replaceAllMemory,
 } from '@/ai/memory'
 import { processAttachment, type Attachment } from '@/ai/attachments'
+import { useI18n } from '@/i18n'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ContentPart } from '@/ai/types'
@@ -75,6 +76,7 @@ const MAX_ROUNDS = 50
 export default function AIPanel() {
   const navigate = useNavigate()
   const { message, modal } = App.useApp()
+  const t = useI18n()
   const { token } = antdTheme.useToken()
   const { settings, setAI } = useAppStore()
   const { account } = useAuthStore()
@@ -218,7 +220,7 @@ export default function AIPanel() {
         role: m.role,
         content: m.content,
       }))
-      const systemPrompt = settings.ai.customPrompt || SYSTEM_PROMPT
+      const systemPrompt = settings.ai.customPrompt || (settings.language === 'en' ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT)
       const memoryText = account ? memoryPrompt(account.id) : null
       const chatMessages: ChatMessage[] = [
         { role: 'system', content: systemPrompt },
@@ -352,7 +354,7 @@ export default function AIPanel() {
           const itemId = (args as { itemId?: string }).itemId
           if (itemId) {
             await locateAndFocus(itemId, contexts)
-            pushStep('🎯 定位并高亮条目')
+            pushStep(t('ai.step.locate'))
           }
           currentMessages.push({
             role: 'tool',
@@ -395,14 +397,14 @@ export default function AIPanel() {
               tool_call_id: tc.id,
               content: '用户取消了该操作。',
             })
-            pushStep(`✏️ ${action.action} 条目 → 用户取消`)
+            pushStep(t('ai.step.itemActionCancelled', { action: action.action }))
             continue
           }
 
           // 执行操作
           try {
             const { result, undo } = await executeAction(confirmed)
-            pushStep(`✏️ ${confirmed.action} 条目（已确认）`)
+            pushStep(t('ai.step.itemAction', { action: confirmed.action }))
             currentMessages.push({
               role: 'tool',
               tool_call_id: tc.id,
@@ -436,14 +438,14 @@ export default function AIPanel() {
             ? ((args as { texts: string[] }).texts as string[])
             : []
           const OP_LABEL: Record<string, string> = {
-            add: '新增长期记忆',
-            update: '修改长期记忆',
-            remove: '删除长期记忆',
-            replaceAll: '整体替换长期记忆',
+            add: t('ai.confirm.memory.title.add'),
+            update: t('ai.confirm.memory.title.update'),
+            remove: t('ai.confirm.memory.title.remove'),
+            replaceAll: t('ai.confirm.memory.title.replaceAll'),
           }
           const preview =
             op === 'update'
-              ? `目标：${String(texts[0] ?? '')}\n改为：${String(texts[1] ?? '')}`
+              ? `${t('ai.confirm.memory.target')}${String(texts[0] ?? '')}\n${t('ai.confirm.memory.newValue')}${String(texts[1] ?? '')}`
               : texts.map((t) => `· ${String(t)}`).join('\n')
           let result = ''
           if (!account) {
@@ -451,7 +453,7 @@ export default function AIPanel() {
           } else {
             const allowed = await new Promise<boolean>((resolve) => {
               modal.confirm({
-                title: `AI 请求${OP_LABEL[op] ?? '更新长期记忆'}`,
+                title: OP_LABEL[op] ?? t('ai.confirm.itemTitle'),
                 content: (
                   <pre
                     style={{
@@ -466,18 +468,18 @@ export default function AIPanel() {
                     {preview || '（空）'}
                   </pre>
                 ),
-                okText: '允许',
-                cancelText: '拒绝',
+                okText: t('ai.confirm.memory.allow'),
+                cancelText: t('ai.confirm.memory.deny'),
                 onOk: () => resolve(true),
                 onCancel: () => resolve(false),
               })
             })
             if (!allowed) {
               result = '用户拒绝了该记忆操作。'
-              pushStep('🧠 记忆操作 → 用户拒绝')
+              pushStep(t('ai.step.memDenied'))
             } else if (op === 'add') {
               const n = addMemory(account.id, texts)
-              pushStep(`🧠 记忆新增 ${n} 条`)
+              pushStep(t('ai.step.memAdd', { n }))
               result = n > 0 ? `已新增 ${n} 条记忆。` : '没有新增（内容为空或与已有记忆重复）。'
             } else if (op === 'update') {
               // texts 形如 [编号或原文, 新内容]
@@ -485,15 +487,15 @@ export default function AIPanel() {
               const newText = String(texts[1] ?? '')
               const ok = updateMemoryByIdxOrText(account.id, idxOrText, newText)
               result = ok ? '记忆已更新。' : '未找到要更新的记忆条目。'
-              pushStep(`🧠 记忆更新`)
+              pushStep(t('ai.step.memUpdate'))
             } else if (op === 'remove') {
               const n = removeMemoryByIdxOrText(account.id, texts.map(String))
               result = n > 0 ? `已删除 ${n} 条记忆。` : '未找到要删除的记忆条目。'
-              pushStep(`🧠 记忆删除 ${n} 条`)
+              pushStep(t('ai.step.memDelete', { n }))
             } else {
               replaceAllMemory(account.id, texts)
               result = `记忆已整体替换，当前共 ${texts.filter(Boolean).length} 条。`
-              pushStep(`🧠 记忆整体替换`)
+              pushStep(t('ai.step.memReplace'))
             }
           }
           currentMessages.push({
@@ -510,7 +512,7 @@ export default function AIPanel() {
             const ctxs = await fetchAllContexts()
             const needle = q.toLowerCase()
             if (!needle) {
-              pushStep('🔍 搜索（缺少关键词）')
+              pushStep(t('ai.step.searchNoQuery'))
               currentMessages.push({
                 role: 'tool',
                 tool_call_id: tc.id,
@@ -533,7 +535,7 @@ export default function AIPanel() {
                 }
                 if (hits.length >= limit) break
               }
-              pushStep(`🔍 搜索「${q}」→ ${hits.length} 条`)
+              pushStep(t('ai.step.search', { q, n: hits.length }))
               currentMessages.push({
                 role: 'tool',
                 tool_call_id: tc.id,
@@ -607,7 +609,7 @@ export default function AIPanel() {
                 lines.push(`${head}`)
               }
             }
-            pushStep('📊 统计分析完成')
+            pushStep(t('ai.step.stat'))
             currentMessages.push({
               role: 'tool',
               tool_call_id: tc.id,
@@ -619,7 +621,7 @@ export default function AIPanel() {
         } else if (tc.function.name === 'list_libraries') {
           try {
             const ctxs = await fetchAllContexts()
-            pushStep('📚 查看全部管理库')
+            pushStep(t('ai.step.listLibs'))
             currentMessages.push({
               role: 'tool',
               tool_call_id: tc.id,
@@ -645,7 +647,7 @@ export default function AIPanel() {
           const option = (args as { option?: unknown }).option
           if (option && typeof option === 'object') {
             setChartPayload({ title, option: option as Record<string, unknown> })
-            pushStep(`📊 生成图表「${title}」`)
+            pushStep(t('ai.step.chart', { t: title }))
             currentMessages.push({
               role: 'tool',
               tool_call_id: tc.id,
@@ -676,12 +678,12 @@ export default function AIPanel() {
 
           if (!confirmed) {
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: '用户取消了该操作。' })
-            pushStep('📁 管理库操作 → 用户取消')
+            pushStep(t('ai.step.libCancelled'))
             continue
           }
           try {
             const { result, undo } = await executeLibAction(libAction)
-            pushStep(`📁 ${libAction.action} 管理库（已确认）`)
+            pushStep(t('ai.step.libAction', { action: libAction.action }))
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
             if (undo) {
               // 反向找最新一条非 pending 的 assistant 消息附加撤回按钮，避免挂到历史消息上
@@ -715,12 +717,12 @@ export default function AIPanel() {
 
           if (!confirmed) {
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: '用户取消了该操作。' })
-            pushStep('📋 字段模板操作 → 用户取消')
+            pushStep(t('ai.step.tplCancelled'))
             continue
           }
           try {
             const { result, undo } = await executeTplAction(tplAction)
-            pushStep(`📋 模板 ${tplAction.action}（已确认）`)
+            pushStep(t('ai.step.tplAction', { action: tplAction.action }))
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
             if (undo) {
               // 反向找最新一条非 pending 的 assistant 消息附加撤回按钮，避免挂到历史消息上
@@ -748,7 +750,7 @@ export default function AIPanel() {
     setMessages((m) =>
       m.map((msg, i) =>
         i === m.length - 1 && msg.pending
-          ? { ...msg, pending: false, content: msg.content || `（已达到工具调用最大轮数 ${MAX_ROUNDS}，如任务未完成请继续对话）` }
+          ? { ...msg, pending: false, content: msg.content || t('ai.maxRounds', { n: MAX_ROUNDS }) }
           : msg,
       ),
     )
@@ -1028,13 +1030,13 @@ export default function AIPanel() {
       setMessages((m) =>
         m.map((mm, i) =>
           i === msgIndex
-            ? { ...mm, undo: undefined, content: mm.content + '\n\n（已撤回）' }
+            ? { ...mm, undo: undefined, content: mm.content + t('ai.undoDone') }
             : mm,
         ),
       )
-      message.success('已撤回操作')
+      message.success(t('ai.undoSuccess'))
     } catch (e) {
-      message.error(`撤回失败：${(e as Error).message}`)
+      message.error(t('ai.undoFailed', { msg: (e as Error).message }))
     }
   }, [messages, message])
 
@@ -1083,10 +1085,10 @@ export default function AIPanel() {
       <div style={{ padding: 24, height: '100%' }}>
         <Empty
           image={<RobotOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
-          description="尚未配置 AI"
+          description={t('ai.notConfigured')}
         >
           <Text type="secondary">
-            请到「设置 → AI 配置」：优先选择「平台提供」（零配置），或填写你自己的服务商地址、API Key 与模型名。
+            {t('ai.notConfiguredHint')}
           </Text>
         </Empty>
       </div>
@@ -1104,15 +1106,15 @@ export default function AIPanel() {
           gap: 8,
         }}
       >
-        <Text type="secondary" style={{ fontSize: 12 }}>作用域:</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>{t('ai.scope')}</Text>
         <Select
           size="small"
           value={scope}
           onChange={(v) => setScope(v)}
           style={{ flex: 1 }}
           options={[
-            { label: '当前管理库', value: 'current' },
-            { label: '全部管理库', value: 'all' },
+            { label: t('ai.scope.current'), value: 'current' },
+            { label: t('ai.scope.all'), value: 'all' },
           ]}
         />
         <Button size="small" icon={<ReloadOutlined />} onClick={handleClear} type="text" />
@@ -1124,7 +1126,7 @@ export default function AIPanel() {
             image={false}
             description={
               <span style={{ color: 'var(--ant-color-text-secondary)' }}>
-                问点什么吧，例如「统计每个分类的条目数」或「新增一条姓名=测试的记录」
+                {t('ai.emptyHint')}
               </span>
             }
           />
@@ -1176,7 +1178,7 @@ export default function AIPanel() {
                     }}
                     items={[{
                       key: 'thinking',
-                      label: <span style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>思考过程</span>,
+                      label: <span style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>{t('ai.thinking')}</span>,
                       children: (
                         <pre style={{ margin: 0, fontSize: 12, color: 'var(--ant-color-text-secondary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                           {m.thinking}
@@ -1196,7 +1198,7 @@ export default function AIPanel() {
                     }}
                     items={[{
                       key: 'steps',
-                      label: <span style={{ fontSize: 12, color: '#0D9488' }}>执行过程（{m.steps.length} 步）</span>,
+                      label: <span style={{ fontSize: 12, color: '#0D9488' }}>{t('ai.steps', { n: m.steps.length })}</span>,
                       children: (
                         <div style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>
                           {m.steps.map((s, si) => (
@@ -1219,7 +1221,7 @@ export default function AIPanel() {
                     onClick={() => handleUndo(i)}
                     style={{ marginTop: 4, padding: 0, height: 'auto', fontSize: 12 }}
                   >
-                    撤回{m.undo.label}
+                    {t('ai.undo', { label: m.undo.label })}
                   </Button>
                 )}
               </div>
@@ -1264,13 +1266,13 @@ export default function AIPanel() {
               return false
             }}
           >
-            <Button size="small" icon={<PaperClipOutlined />} loading={parsingFile} title="上传 Excel/CSV 表格或图片" />
+            <Button size="small" icon={<PaperClipOutlined />} loading={parsingFile} title={t('ai.upload.tooltip')} />
           </Upload>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onPressEnter={handleSend}
-            placeholder="输入问题或指令…可上传 Excel/CSV 让 AI 帮你录入分析"
+            placeholder={t('ai.inputPlaceholder')}
             disabled={loading}
             style={{ flex: 1 }}
           />
@@ -1284,7 +1286,7 @@ export default function AIPanel() {
         </div>
         {loading && (
           <Button size="small" type="link" onClick={handleStop} style={{ marginTop: 4 }}>
-            停止生成
+            {t('ai.stop')}
           </Button>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { Button, Result } from 'antd'
+import { tNow } from '@/i18n'
 
 interface Props {
   children: ReactNode
@@ -35,11 +36,11 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <Result
           status="error"
-          title="页面渲染异常"
+          title={tNow("errorBoundary.title")}
           subTitle={this.state.error?.message}
           extra={
             <Button type="primary" onClick={this.handleReset}>
-              重试
+              {tNow('errorBoundary.retry')}
             </Button>
           }
         />

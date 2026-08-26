@@ -3,6 +3,7 @@ import { Modal, Input, Button, App, Space, Typography, Divider } from 'antd'
 import { ScanOutlined } from '@ant-design/icons'
 import jsQR from 'jsqr'
 import { decodeSyncCode } from '@/utils/syncCode'
+import { useI18n } from '@/i18n'
 
 const { Text } = Typography
 
@@ -28,6 +29,7 @@ export default function SyncImportModal({
   onDecoded: (d: Decoded) => void
 }) {
   const { message } = App.useApp()
+  const t = useI18n()
   const [pasting, setPasting] = useState('')
   const [cameraOn, setCameraOn] = useState(false)
   const [scanning, setScanning] = useState(false)
@@ -82,7 +84,7 @@ export default function SyncImportModal({
       const decoded = decodeSyncCode(text)
       stopCamera()
       if (!decoded) {
-        message.error('识别到二维码，但不是有效的同步码')
+        message.error(t('settings.sync.badQr'))
         return
       }
       onDecoded(decoded as unknown as Decoded)
@@ -115,7 +117,7 @@ export default function SyncImportModal({
   const handlePasteImport = () => {
     const decoded = decodeSyncCode(pasting.trim())
     if (!decoded) {
-      message.error('同步码无效或已损坏')
+      message.error(t('settings.sync.invalidCode'))
       return
     }
     stopCamera()
@@ -123,14 +125,14 @@ export default function SyncImportModal({
   }
 
   return (
-    <Modal title="导入同步配置" open={open} footer={null} onCancel={() => { stopCamera(); onClose() }} width={420}>
+    <Modal title={t('settings.sync.modalTitle')} open={open} footer={null} onCancel={() => { stopCamera(); onClose() }} width={420}>
       {/* 摄像头扫码区 */}
       <div style={{ position: 'relative', background: '#000', borderRadius: 8, overflow: 'hidden', minHeight: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <video ref={videoRef} style={{ width: '100%', display: cameraOn ? 'block' : 'none' }} playsInline muted />
         <canvas ref={canvasRef} style={{ display: 'none' }} />
         {!cameraOn && (
           <Text type="secondary" style={{ color: 'rgba(255,255,255,0.72)', padding: 24, textAlign: 'center' }}>
-            {scanning ? '正在启动摄像头…' : '摄像头不可用（未授权或设备无摄像头），可改用下方粘贴方式'}
+            {scanning ? t('settings.sync.cameraStarting') : t('settings.sync.cameraUnavailable')}
           </Text>
         )}
         {cameraOn && (
@@ -147,19 +149,18 @@ export default function SyncImportModal({
         )}
       </div>
       <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-        将摄像头对准电脑上「设置 → 存储」页面中的同步二维码即可自动填入。
+        {t('settings.sync.cameraHint')}
       </Text>
 
-      <Divider>或者粘贴同步码</Divider>
+      <Divider>{t('settings.sync.orPaste')}</Divider>
       <Space.Compact style={{ width: '100%' }}>
         <Input
-          placeholder="粘贴从其他设备复制的同步码"
+          placeholder={t('settings.sync.pastePlaceholder')}
           value={pasting}
           onChange={(e) => setPasting(e.target.value)}
           onPressEnter={handlePasteImport}
         />
-        <Button type="primary" icon={<ScanOutlined />} onClick={handlePasteImport} disabled={!pasting.trim()}>
-          导入
+        <Button type="primary" icon={<ScanOutlined />} onClick={handlePasteImport} disabled={!pasting.trim()}>{t('settings.sync.import')}
         </Button>
       </Space.Compact>
     </Modal>

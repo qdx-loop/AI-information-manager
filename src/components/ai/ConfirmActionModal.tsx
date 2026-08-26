@@ -2,6 +2,7 @@ import { Modal, Descriptions, Tag, App } from 'antd'
 import { useEffect, useState } from 'react'
 import type { ItemAction } from '@/ai/tools'
 import type { Library, FieldDef, Item } from '@/types'
+import { useI18n } from '@/i18n'
 
 interface Props {
   open: boolean
@@ -13,11 +14,7 @@ interface Props {
   onCancel: () => void
 }
 
-const ACTION_LABEL: Record<ItemAction['action'], string> = {
-  create: '新增条目',
-  update: '修改条目',
-  delete: '删除条目',
-}
+// 动作标签在组件内按语言生成
 
 const ACTION_COLOR: Record<ItemAction['action'], string> = {
   create: 'green',
@@ -35,6 +32,7 @@ export default function ConfirmActionModal({
   onCancel,
 }: Props) {
   const { message } = App.useApp()
+  const t = useI18n()
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -60,34 +58,34 @@ export default function ConfirmActionModal({
     <Modal
       title={
         <span>
-          AI 请求执行操作 <Tag color={ACTION_COLOR[action.action]}>{ACTION_LABEL[action.action]}</Tag>
+          {t('ai.confirm.itemTitle')} <Tag color={ACTION_COLOR[action.action]}>{t('ai.action.' + action.action)}</Tag>
         </span>
       }
       open={open}
       onCancel={onCancel}
       onOk={handleOk}
-      okText="确认执行"
-      cancelText="取消"
+      okText={t('ai.confirm.ok')}
+      cancelText={t('common.cancel')}
       okType={action.action === 'delete' ? 'danger' : 'primary'}
       confirmLoading={loading}
       width={560}
     >
       {action.reason && (
         <p style={{ background: '#f6ffed', padding: 12, borderRadius: 6, marginBottom: 16 }}>
-          <strong>AI 理由：</strong>
+          <strong>{t('ai.confirm.reason')}</strong>
           {action.reason}
         </p>
       )}
 
       <Descriptions column={1} size="small" bordered>
-        <Descriptions.Item label="目标管理库">
+        <Descriptions.Item label={t('ai.confirm.targetLib')}>
           {library?.name ?? action.libraryId}
         </Descriptions.Item>
         {action.action !== 'create' && (
-          <Descriptions.Item label="目标条目 ID">{action.itemId}</Descriptions.Item>
+          <Descriptions.Item label={t('ai.confirm.targetItem')}>{action.itemId}</Descriptions.Item>
         )}
         {action.action !== 'delete' && (
-          <Descriptions.Item label="字段值">
+          <Descriptions.Item label={t('ai.confirm.fields')}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {visibleFields.map((f) => {
                 const newVal = action.fields?.[f.key]
@@ -121,7 +119,7 @@ export default function ConfirmActionModal({
       </Descriptions>
 
       <p style={{ marginTop: 12, color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>
-        确认后将立即生效。删除操作可从回收站恢复。
+        {t('ai.confirm.note')}
       </p>
     </Modal>
   )

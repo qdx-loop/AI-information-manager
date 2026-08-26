@@ -20,6 +20,30 @@ export function clearToken() {
   sessionStorage.removeItem(USER_TOKEN_KEY)
 }
 
+// 常见错误码双语化：跟随浏览器语言（登录/踢出场景发生在语言切换语境之外）
+const CODE_MSG: Record<string, [string, string]> = {
+  INVALID_CREDENTIALS: ['用户名或密码错误', 'Incorrect username or password'],
+  DISABLED: ['账户已被停用，请联系管理员', 'This account is disabled — contact your administrator'],
+  EXPIRED: ['您的账户已到期，请联系管理员续费', 'Your account has expired — contact your administrator to renew'],
+  RATE_LIMITED: ['尝试次数过多，请稍后再试', 'Too many attempts — please try again later'],
+  NO_TOKEN: ['未登录', 'Not signed in'],
+  BAD_TOKEN: ['登录已失效，请重新登录', 'Session expired — please sign in again'],
+  NO_ACCOUNT: ['账户不存在', 'Account not found'],
+  WRONG_ADMIN: ['管理密码错误', 'Incorrect admin password'],
+  WEAK_PASSWORD: ['新密码至少 6 位', 'New password must be at least 6 characters'],
+  WRONG_OLD: ['旧密码不正确', 'The old password is incorrect'],
+  NETWORK: ['网络连接失败，请检查网络', 'Network error — check your connection'],
+}
+
+function prefersEnglish(): boolean {
+  try {
+    const langs = navigator.languages ?? [navigator.language || 'zh-CN']
+    return !langs.some((l) => l.toLowerCase().startsWith('zh'))
+  } catch {
+    return false
+  }
+}
+
 export class ApiError extends Error {
   code: string
   status: number
@@ -44,7 +68,10 @@ async function request<T>(path: string, init: RequestInit = {}, authHeader = fal
   }
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    throw new ApiError(data.error || `请求失败 (${res.status})`, res.status, data.code)
+    const fallback = `请求失败 (${res.status})`
+    const raw: string = data.error || fallback
+    const msg = prefersEnglish() ? (data.code ? CODE_MSG[data.code]?.[1] ?? raw : raw) : raw
+    throw new ApiError(msg, res.status, data.code)
   }
   return data as T
 }

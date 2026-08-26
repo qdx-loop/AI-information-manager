@@ -38,21 +38,23 @@ import { exportBackup, importBackup } from '@/db/backup'
 import { SYSTEM_PROMPT } from '@/ai/contextBuilder'
 import { importLegacyMemory, listMemory, replaceAllMemory, clearMemory } from '@/ai/memory'
 import SyncImportModal from '@/components/settings/SyncImportModal'
+import { useI18n } from '@/i18n'
 import QRCode from 'qrcode'
 
 const { Text } = Typography
 
 export default function SettingsPage() {
+  const t = useI18n()
   return (
     <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
       <Card>
         <Tabs
           items={[
-            { key: 'account', label: '账户', children: <AccountTab /> },
-            { key: 'storage', label: '存储', children: <StorageTab /> },
-            { key: 'configsync', label: '配置同步', children: <ConfigSyncTab /> },
-            { key: 'ai', label: 'AI 配置', children: <AITab /> },
-            { key: 'backup', label: '备份恢复', children: <BackupTab /> },
+            { key: 'account', label: t('settings.tab.account'), children: <AccountTab /> },
+            { key: 'storage', label: t('settings.tab.storage'), children: <StorageTab /> },
+            { key: 'configsync', label: t('settings.tab.configsync'), children: <ConfigSyncTab /> },
+            { key: 'ai', label: t('settings.tab.ai'), children: <AITab /> },
+            { key: 'backup', label: t('settings.tab.backup'), children: <BackupTab /> },
           ]}
         />
       </Card>
@@ -62,6 +64,7 @@ export default function SettingsPage() {
 
 function AccountTab() {
   const { message } = App.useApp()
+  const t = useI18n()
   const { account, logout } = useAuthStore()
   const [pwdOpen, setPwdOpen] = useState(false)
   const [oldPwd, setOldPwd] = useState('')
@@ -70,26 +73,26 @@ function AccountTab() {
 
   const handleChangePwd = async () => {
     if (!oldPwd) {
-      message.warning('请输入旧密码')
+      message.warning(t('settings.account.warn.old'))
       return
     }
     if (newPwd.length < 6) {
-      message.warning('新密码至少 6 位')
+      message.warning(t('settings.account.warn.min6'))
       return
     }
     if (oldPwd === newPwd) {
-      message.warning('新密码不能与旧密码相同')
+      message.warning(t('settings.account.warn.same'))
       return
     }
     setPwdLoading(true)
     try {
       await apiChangePassword(oldPwd, newPwd)
-      message.success('密码已修改，请牢记新密码（管理员无法帮你找回）')
+      message.success(t('settings.account.pwdChanged'))
       setOldPwd('')
       setNewPwd('')
       setPwdOpen(false)
     } catch (e) {
-      message.error('修改失败：' + (e as Error).message)
+      message.error(t('settings.account.changeFailed', { msg: (e as Error).message }))
     } finally {
       setPwdLoading(false)
     }
@@ -103,19 +106,19 @@ function AccountTab() {
         <Card size="small" style={{ marginBottom: 16, maxWidth: 480 }}>
           <Space direction="vertical" size={4}>
             <span>
-              当前账号：<Text strong>{account.username}</Text>
+              {t('settings.account.current')}<Text strong>{account.username}</Text>
             </span>
             {account.expiresAt && (
               <span>
-                有效期至：
+                {t('settings.account.validUntil')}
                 <Tag color={daysLeft !== null && daysLeft <= 3 ? 'orange' : 'green'}>
                   {dayjs(account.expiresAt).format('YYYY-MM-DD HH:mm')}
-                  {daysLeft !== null && daysLeft >= 0 ? `（剩 ${daysLeft} 天）` : ''}
+                  {daysLeft !== null && daysLeft >= 0 ? t('settings.account.daysLeft', { n: daysLeft }) : ''}
                 </Tag>
               </span>
             )}
             <Text type="secondary" style={{ fontSize: 12 }}>
-              到期后软件将自动退出并无法登录，续费请联系管理员。
+              {t('settings.account.expireHint')}
             </Text>
           </Space>
         </Card>
@@ -123,15 +126,15 @@ function AccountTab() {
 
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<UserOutlined />} onClick={() => setPwdOpen(true)} disabled={!account}>
-          修改密码
+          {t('settings.account.changePwd')}
         </Button>
         <Button danger onClick={() => logout()}>
-          退出登录
+          {t('settings.account.logout')}
         </Button>
       </Space>
 
       {pwdOpen && (
-        <Card size="small" title="修改密码" style={{ marginBottom: 16, maxWidth: 400 }}>
+        <Card size="small" title={t('settings.account.pwdCard')} style={{ marginBottom: 16, maxWidth: 400 }}>
           <Input.Password
             placeholder="旧密码（首次修改即卖家发放的初始密码）"
             value={oldPwd}
@@ -146,12 +149,12 @@ function AccountTab() {
           />
           <Space>
             <Button type="primary" onClick={handleChangePwd} loading={pwdLoading}>
-              确认修改
+              {t('settings.account.pwdConfirm')}
             </Button>
-            <Button onClick={() => { setPwdOpen(false); setOldPwd(''); setNewPwd('') }}>取消</Button>
+            <Button onClick={() => { setPwdOpen(false); setOldPwd(''); setNewPwd('') }}>{t('common.cancel')}</Button>
           </Space>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-            只有你自己能改密码；管理员无法查看、重置或代改。改完请牢记新密码。
+            {t('settings.account.pwdOnlyYou')}
           </Text>
         </Card>
       )}
@@ -160,8 +163,8 @@ function AccountTab() {
         type="info"
         showIcon
         style={{ maxWidth: 480 }}
-        message="密码安全说明"
-        description="你可以随时在这里自行修改密码。卖家只持有发放时的初始密码，无法查看你的新密码，也无法替你重置。"
+        message={t('settings.account.pwdInfo.title')}
+        description={t('settings.account.pwdInfo.body')}
       />
     </div>
   )
@@ -169,50 +172,51 @@ function AccountTab() {
 
 function StorageTab() {
   const { message, modal } = App.useApp()
+  const t = useI18n()
   const { settings, setStorageMode, setCloud } = useAppStore()
   const { account } = useAuthStore()
   const [syncing, setSyncing] = useState(false)
 
   const handleSync = (direction: 'push' | 'pull') => {
     if (!account) {
-      message.warning('请先登录')
+      message.warning(t('settings.storage.warn.login'))
       return
     }
     if (!settings.cloud.url || !settings.cloud.anonKey) {
-      message.warning('请先填写云端连接信息')
+      message.warning(t('settings.storage.warn.creds'))
       return
     }
     modal.confirm({
-      title: direction === 'push' ? '与云端双向同步？' : '从云端合并数据到本地？',
+      title: direction === 'push' ? t('settings.storage.confirm.pushTitle') : t('settings.storage.confirm.pullTitle'),
       content:
         direction === 'push'
-          ? '先拉取云端修改并按「修改时间较新者胜」合并到本地，再整体上传——任何一端的修改都不会丢失。'
-          : '合并规则：本地缺少的记录直接补入；两边都有的条目以修改时间较新的一方为准；云端已删除的管理库会同步删除。不会丢失任何一边的数据。',
-      okText: direction === 'push' ? '双向同步' : '合并拉取',
+          ? t('settings.storage.confirm.pushBody')
+          : t('settings.storage.confirm.pullBody'),
+      okText: direction === 'push' ? t('settings.storage.confirm.pushOk') : t('settings.storage.confirm.pullOk'),
       onOk: async () => {
         setSyncing(true)
         try {
           if (direction === 'push') {
-            message.loading({ content: '正在双向同步…', key: 'sync', duration: 0 })
+            message.loading({ content: t('settings.storage.doing.bidir'), key: 'sync', duration: 0 })
             const r = await syncBidirectional(account.id, settings.cloud)
             message.success({
-              content: `同步完成：新增管理库 ${r.addedLibraries} 个、条目 ${r.addedItems} 条，更新条目 ${r.updatedItems} 条`,
+              content: t('settings.storage.done.bidir', { libs: r.addedLibraries, items: r.addedItems, updated: r.updatedItems }),
               key: 'sync',
               duration: 6,
             })
           } else {
-            message.loading({ content: '正在合并拉取…', key: 'sync', duration: 0 })
+            message.loading({ content: t('settings.storage.doing.pull'), key: 'sync', duration: 0 })
             const r = await mergeCloudToLocal(account.id, settings.cloud)
             await useLibraryStore.getState().loadLibraries()
             await useLibraryStore.getState().refreshCurrent()
             message.success({
-              content: `合并完成：新增管理库 ${r.addedLibraries} 个、字段模板 ${r.addedFields} 个、条目 ${r.addedItems} 条；更新条目 ${r.updatedItems} 条`,
+              content: t('settings.storage.done.pull', { libs: r.addedLibraries, fields: r.addedFields, items: r.addedItems, updated: r.updatedItems }),
               key: 'sync',
               duration: 6,
             })
           }
         } catch (e) {
-          message.error({ content: '同步失败：' + friendlyDbError(e), key: 'sync' })
+          message.error({ content: t('settings.storage.failed', { msg: friendlyDbError(e) }), key: 'sync' })
         } finally {
           setSyncing(false)
         }
@@ -223,43 +227,41 @@ function StorageTab() {
   const handleToggle = (checked: boolean) => {
     const mode = checked ? 'cloud' : 'local'
     if (mode === 'cloud' && (!settings.cloud.url || !settings.cloud.anonKey)) {
-      message.warning('请先填写云端连接信息')
+      message.warning(t('settings.storage.warn.creds'))
       return
     }
     if (!account) {
-      message.warning('请先登录')
+      message.warning(t('settings.storage.warn.login'))
       return
     }
     modal.confirm({
-      title: `切换到${checked ? '云端' : '本地'}存储模式？`,
-      content: checked
-        ? '开启后当前本地数据将合并上传到云端数据库，可在其他设备登录同步。'
-        : '切换为本地后，仅当前浏览器可访问数据；云端数据不受影响。',
-      okText: '确认切换',
+      title: checked ? t('settings.storage.toggle.cloudTitle') : t('settings.storage.toggle.localTitle'),
+      content: checked ? t('settings.storage.toggle.cloudBody') : t('settings.storage.toggle.localBody'),
+      okText: t('settings.storage.toggle.ok'),
       onOk: async () => {
         try {
           if (mode === 'cloud') {
             // 先合并云端（新者胜），再上传本地——切换动作不会用本机旧副本覆盖云端的较新修改
-            message.loading({ content: '正在合并云端数据…', key: 'migrate', duration: 0 })
+            message.loading({ content: t('settings.storage.mergingCloud'), key: 'migrate', duration: 0 })
             const r = await mergeCloudToLocal(account.id, settings.cloud)
             setStorageMode(mode)
             initFromSettings(useAppStore.getState().settings)
-            message.loading({ content: '正在上传本地数据…', key: 'migrate', duration: 0 })
+            message.loading({ content: t('settings.storage.uploadingLocal'), key: 'migrate', duration: 0 })
             await pushLocalToCloud(account.id, settings.cloud)
             await useLibraryStore.getState().loadLibraries()
             await useLibraryStore.getState().refreshCurrent()
             message.success({
-              content: `已开启云端模式：新增管理库 ${r.addedLibraries} 个、条目 ${r.addedItems} 条，更新条目 ${r.updatedItems} 条`,
+              content: t('settings.storage.toggleDone.cloud', { libs: r.addedLibraries, items: r.addedItems, updated: r.updatedItems }),
               key: 'migrate',
               duration: 6,
             })
           } else {
-            message.loading({ content: '正在拉取云端数据…', key: 'migrate', duration: 0 })
+            message.loading({ content: t('settings.storage.pullingCloud'), key: 'migrate', duration: 0 })
             const r = await mergeCloudToLocal(account.id, settings.cloud)
             setStorageMode(mode)
             initFromSettings(useAppStore.getState().settings)
             message.success({
-              content: `已切换到本地模式：新增管理库 ${r.addedLibraries} 个、条目 ${r.addedItems} 条，更新条目 ${r.updatedItems} 条`,
+              content: t('settings.storage.toggleDone.local', { libs: r.addedLibraries, items: r.addedItems, updated: r.updatedItems }),
               key: 'migrate',
               duration: 6,
             })
@@ -269,7 +271,7 @@ function StorageTab() {
           // 切换存储模式后清空当前库选中状态（数据源已变，旧 fields/items 无意义）
           useLibraryStore.setState({ currentLibraryId: null, fields: [], items: [], trash: [], focusItemId: null })
         } catch (e) {
-          message.error({ content: '切换失败：' + (e as Error).message, key: 'migrate' })
+          message.error({ content: t('settings.storage.toggleFailed', { msg: (e as Error).message }), key: 'migrate' })
         }
       },
     })
@@ -280,7 +282,7 @@ function StorageTab() {
       <Space align="center" style={{ marginBottom: 16 }}>
         <Switch checked={settings.storageMode === 'cloud'} onChange={handleToggle} />
         <Text strong>
-          {settings.storageMode === 'cloud' ? '云端存储模式（已开启）' : '本地存储模式（默认）'}
+          {settings.storageMode === 'cloud' ? t('settings.storage.mode.cloudOn') : t('settings.storage.mode.localOn')}
         </Text>
       </Space>
 
@@ -288,8 +290,8 @@ function StorageTab() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="云端存储说明"
-        description="采用 Supabase 云数据库直连。请先在 Supabase 项目中执行建表 SQL（见下方），再填写连接信息。开启后账户与数据将同步至云端，支持跨设备登录。"
+        message={t('settings.storage.info.title')}
+        description={t('settings.storage.info.body')}
       />
 
       <Form layout="vertical">
@@ -311,7 +313,7 @@ function StorageTab() {
         </Form.Item>
       </Form>
 
-      <Card size="small" title="建表 SQL（复制到 Supabase SQL Editor 执行）" style={{ marginTop: 8 }}>
+      <Card size="small" title={t('settings.storage.sqlTitle')} style={{ marginTop: 8 }}>
         <pre style={{ fontSize: 11, maxHeight: 200, overflow: 'auto', margin: 0 }}>
 {`create table accounts (
   id uuid primary key,
@@ -359,13 +361,13 @@ alter table items disable row level security;`}
       {(settings.cloud.url && settings.cloud.anonKey) ? (
         <Card
           size="small"
-          title="数据同步"
+          title={t('settings.storage.syncTitle')}
           style={{ marginTop: 16 }}
         >
           <Space direction="vertical" style={{ width: '100%' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              <CloudOutlined /> 当前模式：{settings.storageMode === 'cloud' ? '云端' : '本地'}
-              {account ? `　|　账户：${account.username}` : ''}
+              <CloudOutlined /> {t('settings.storage.currentMode')}{settings.storageMode === 'cloud' ? t('settings.storage.mode.cloud') : t('settings.storage.mode.local')}
+              {account ? t('settings.storage.accountLabel') + account.username : ''}
             </Text>
             <Space>
               <Button
@@ -376,7 +378,7 @@ alter table items disable row level security;`}
                 onClick={() => handleSync('push')}
                 disabled={!account}
               >
-                双向同步
+                {t('settings.storage.btn.bidirectional')}
               </Button>
               <Button
                 icon={<DownloadOutlined />}
@@ -384,14 +386,14 @@ alter table items disable row level security;`}
                 onClick={() => handleSync('pull')}
                 disabled={!account}
               >
-                仅拉取云端
+                {t('settings.storage.btn.pull')}
               </Button>
             </Space>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              <SyncOutlined /> 双向同步：先合并（新者胜）再上传，永不丢数据；仅拉取：云端 → 本地合并
+              <SyncOutlined /> {t('settings.storage.hint.sync')}
             </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              跨设备二维码迁移请到「配置同步」标签页。
+              {t('settings.storage.hint.qr')}
             </Text>
           </Space>
         </Card>
@@ -404,6 +406,7 @@ alter table items disable row level security;`}
 // 同步码内容自适应——开启云端数据库时打包「数据库 + AI」配置，未开启时只打包 AI 配置。
 function ConfigSyncTab() {
   const { message, modal } = App.useApp()
+  const t = useI18n()
   const { settings, setStorageMode, setCloud, setAI } = useAppStore()
   const { account } = useAuthStore()
   const [importOpen, setImportOpen] = useState(false)
@@ -439,27 +442,27 @@ function ConfigSyncTab() {
     if (!account) return
     const key = 'sync-import'
     try {
-      message.loading({ content: '正在开启云端模式…', key, duration: 0 })
+      message.loading({ content: t('settings.sync.enabling'), key, duration: 0 })
       setStorageMode('cloud')
       initFromSettings(useAppStore.getState().settings)
 
-      message.loading({ content: '正在从云端拉取数据…', key, duration: 0 })
+      message.loading({ content: t('settings.sync.fetching'), key, duration: 0 })
       const r = await mergeCloudToLocal(account.id, { url: d.cloudUrl, anonKey: d.cloudKey })
 
       // 反向上传：把本机（离线期间）已有的数据也推上去，保证两端一致
-      message.loading({ content: '正在上传本机数据…', key, duration: 0 })
+      message.loading({ content: t('settings.sync.uploading'), key, duration: 0 })
       await pushLocalToCloud(account.id, { url: d.cloudUrl, anonKey: d.cloudKey })
 
       await useLibraryStore.getState().loadLibraries()
       await useLibraryStore.getState().refreshCurrent()
       message.success({
-        content: `同步完成：新增管理库 ${r.addedLibraries} 个、条目 ${r.addedItems} 条，更新条目 ${r.updatedItems} 条`,
+        content: t('settings.sync.done', { libs: r.addedLibraries, items: r.addedItems, updated: r.updatedItems }),
         key,
         duration: 6,
       })
     } catch (e) {
       message.error({
-        content: `同步失败：${(e as Error).message}（配置已保存，可到「存储」标签页手动重试）`,
+        content: t('settings.sync.failedRetry', { msg: friendlyDbError(e) }),
         key,
         duration: 8,
       })
@@ -483,11 +486,11 @@ function ConfigSyncTab() {
     setImportOpen(false)
 
     if (!withCloud) {
-      message.success('已导入 AI 配置。')
+      message.success(t('settings.sync.importedAiOnly'))
       return
     }
     if (!account) {
-      message.warning('配置已导入。请先登录同一账号，再到本页重新扫码完成数据同步。')
+      message.warning(t('settings.sync.importedNeedLogin'))
       return
     }
 
@@ -497,14 +500,14 @@ function ConfigSyncTab() {
       return
     }
     modal.confirm({
-      title: '导入并立即开启云端同步？',
+      title: t('settings.sync.importTitle'),
       content:
-        '将自动切换到云端模式：先拉取云端数据到本机，再把本机已有数据上传合并，两端保持一致。',
-      okText: '开始同步',
-      cancelText: '仅导入配置',
+        t('settings.sync.importBody'),
+      okText: t('settings.sync.importOk'),
+      cancelText: t('settings.sync.importCancel'),
       onOk: () => applyAndSync(d),
       onCancel: () => {
-        message.success('配置已导入。需要时在「存储」标签页打开「云端存储模式」开关即可启用同步。')
+        message.success(t('settings.sync.importCancelled'))
       },
     })
   }
@@ -515,36 +518,36 @@ function ConfigSyncTab() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="什么是配置同步"
-        description="把这台设备的配置打包成二维码/同步码，另一台设备登录同一账号后扫码即可带入。开启云端数据库时会一并包含数据库连接；未开启时只包含 AI 配置。"
+        message={t('settings.sync.title')}
+        description={t('settings.sync.body')}
       />
 
       {!syncCodeValue ? (
         <Alert
           type="warning"
           showIcon
-          message="还没有可同步的内容"
+          message={t('settings.sync.none.title')}
           description={
             <span>
-              请先到「AI 配置」填入接口信息；如需连同数据库一起迁移，再到「存储」标签页开启云端模式。配置好后回到本页生成二维码。
+              {t('settings.sync.none.body')}
             </span>
           }
         />
       ) : (
-        <Card size="small" title="我的同步二维码" style={{ marginBottom: 16 }}>
+        <Card size="small" title={t('settings.sync.myQr')} style={{ marginBottom: 16 }}>
           <Space wrap size={4} style={{ marginBottom: 12 }}>
             <Tag color={hasCloud ? 'green' : 'default'}>
-              云端数据库{hasCloud ? '：已包含' : '：未包含'}
+              {hasCloud ? t('settings.sync.included.cloud') : t('settings.sync.excluded.cloud')}
             </Tag>
             <Tag color={hasAI ? 'green' : 'default'}>
-              AI 配置{hasAI ? '：已包含' : '：未包含'}
+              {hasAI ? t('settings.sync.included.ai') : t('settings.sync.excluded.ai')}
             </Tag>
           </Space>
           <Alert
             type="warning"
             showIcon
             style={{ marginBottom: 12, fontSize: 12 }}
-            message="二维码与同步码含数据库访问凭证和 AI 密钥，请像密码一样保管，不要公开分享。"
+            message={t('settings.sync.qrWarning')}
           />
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             {qrDataUrl && (
@@ -564,17 +567,17 @@ function ConfigSyncTab() {
                   icon={<CopyOutlined />}
                   onClick={() => {
                     navigator.clipboard.writeText(syncCodeValue)
-                    message.success('同步码已复制')
+                    message.success(t('settings.sync.codeCopied'))
                   }}
                 >
                   复制
                 </Button>
               </Input.Group>
               <Button block style={{ marginTop: 8 }} onClick={() => setImportOpen(true)}>
-                从其他设备导入配置（扫码 / 粘贴）
+                {t('settings.sync.importBtn')}
               </Button>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 6 }}>
-                换新电脑或手机时：先登录账号 → 点上面按钮扫码 → 自动填入配置并完成同步。
+                {t('settings.sync.flowHint')}
               </Text>
             </div>
           </div>
@@ -588,6 +591,7 @@ function ConfigSyncTab() {
 
 function AITab() {
   const { message } = App.useApp()
+  const t = useI18n()
   const { settings, setAI } = useAppStore()
   const account = useAuthStore((s) => s.account)
   const [memoryLines, setMemoryLines] = useState('')
@@ -622,11 +626,11 @@ function AITab() {
 
   const handleTest = async () => {
     if (usingPlatform) {
-      message.success(platformEnabled ? '平台 AI 可用' : '平台 AI 未启用')
+      message.success(t('settings.ai.test.platformOk'))
       return
     }
     if (!settings.ai.baseUrl || !settings.ai.apiKey || !settings.ai.model) {
-      message.warning('请填写完整')
+      message.warning(t('settings.ai.test.fillAll'))
       return
     }
     try {
@@ -642,10 +646,10 @@ function AITab() {
           max_tokens: 5,
         }),
       })
-      if (res.ok) message.success('连接正常')
-      else message.error(`连接失败 (${res.status})`)
+      if (res.ok) message.success(t('settings.ai.test.ok'))
+      else message.error(t('settings.ai.test.fail', { status: res.status }))
     } catch (e) {
-      message.error('连接失败：' + (e as Error).message)
+      message.error(t('settings.ai.test.failMsg', { msg: (e as Error).message }))
     }
   }
 
@@ -655,11 +659,11 @@ function AITab() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="接入大模型"
+        message={t('settings.ai.info.title')}
         description={
           usingPlatform
-            ? '已使用平台统一接入的 AI 服务，无需任何配置，直接打开 AI 助手即可使用。'
-            : '选择「平台提供」可零配置直接使用；或填入你自己的模型服务商接口（Base URL、API Key 与模型名）。'
+            ? t('settings.ai.info.platform')
+            : t('settings.ai.info.custom')
         }
       />
       {usingPlatform && (
@@ -667,20 +671,20 @@ function AITab() {
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
-          message="平台 AI 由管理员统一接入，不保证模型质量及服务连通性；生成结果请自行核对重要信息。"
+          message={t('settings.ai.platform.warn')}
         />
       )}
 
       <Form layout="vertical">
-        <Form.Item label="连接方式">
+        <Form.Item label={t('settings.ai.radio.label')}>
           <Radio.Group
             value={usingPlatform ? 'platform' : 'custom'}
             onChange={(e) => setAI({ usePlatformAI: e.target.value === 'platform' })}
             optionType="button"
             buttonStyle="solid"
             options={[
-              { label: platformEnabled === true ? '平台提供' : '平台提供（未开放）', value: 'platform', disabled: platformEnabled !== true },
-              { label: '我自己的接口', value: 'custom' },
+              { label: platformEnabled === true ? t('settings.ai.radio.platform') : t('settings.ai.radio.platformOff'), value: 'platform', disabled: platformEnabled !== true },
+              { label: t('settings.ai.radio.custom'), value: 'custom' },
             ]}
           />
         </Form.Item>
@@ -689,21 +693,21 @@ function AITab() {
       {!usingPlatform && (
         <>
       <Form layout="vertical">
-        <Form.Item label="Base URL">
+        <Form.Item label={t('settings.ai.baseUrl')}>
           <Input
             placeholder="https://api.你的服务商.com/v1"
             value={settings.ai.baseUrl}
             onChange={(e) => setAI({ baseUrl: e.target.value })}
           />
         </Form.Item>
-        <Form.Item label="API Key">
+        <Form.Item label={t('settings.ai.apiKey')}>
           <Input.Password
             placeholder="sk-..."
             value={settings.ai.apiKey}
             onChange={(e) => setAI({ apiKey: e.target.value })}
           />
         </Form.Item>
-        <Form.Item label="模型名">
+        <Form.Item label={t('settings.ai.model')}>
           <Input
             placeholder="填写服务商文档中的模型名称"
             value={settings.ai.model}
@@ -714,7 +718,7 @@ function AITab() {
           <Button icon={<RobotOutlined />} onClick={handleTest}>
             测试连接
           </Button>
-          <Button type="primary" onClick={() => message.success('已保存')}>
+          <Button type="primary" onClick={() => message.success(t('settings.ai.saved'))}>
             保存
           </Button>
         </Space>
@@ -728,13 +732,13 @@ function AITab() {
         <Form.Item
           label={
             <Space>
-              <Text strong>预设提示词</Text>
+              <Text strong>{t('settings.ai.prompt.label')}</Text>
               <Tag color={settings.ai.customPrompt ? 'green' : 'default'} style={{ fontSize: 11 }}>
-                {settings.ai.customPrompt ? '自定义' : '默认'}
+                {settings.ai.customPrompt ? t('settings.ai.prompt.custom') : t('settings.ai.prompt.default')}
               </Tag>
             </Space>
           }
-          help="自定义 AI 的系统提示词（角色设定与规则）。留空则使用内置默认提示词。"
+          help={t('settings.ai.prompt.help')}
         >
           <Input.TextArea
             rows={6}
@@ -749,19 +753,19 @@ function AITab() {
             size="small"
             onClick={() => {
               setAI({ customPrompt: '' })
-              message.success('已恢复为默认提示词')
+              message.success(t('settings.ai.prompt.resetDone'))
             }}
           >
-            恢复默认
+            {t('settings.ai.prompt.reset')}
           </Button>
           <Button
             size="small"
             onClick={() => {
               setAI({ customPrompt: SYSTEM_PROMPT })
-              message.success('已填入默认提示词，可在此基础修改')
+              message.success(t('settings.ai.prompt.loadedDefault'))
             }}
           >
-            载入默认到编辑框
+            {t('settings.ai.prompt.loadDefault')}
           </Button>
         </Space>
       </Form>
@@ -772,19 +776,19 @@ function AITab() {
         <Form.Item
           label={
             <Space>
-              <Text strong>AI 永久记忆</Text>
+              <Text strong>{t('settings.ai.memory.label')}</Text>
               {account && listMemory(account.id).length > 0 && (
                 <Tag color="green" style={{ fontSize: 11 }}>
-                  已记忆 {listMemory(account.id).length} 条
+                  {t('settings.ai.memory.count', { n: listMemory(account.id).length })}
                 </Tag>
               )}
             </Space>
           }
-          help="AI 会记住这些信息并在每次对话中参考（每行一条）。AI 也可在对话中自动增删改单条记忆。"
+          help={t('settings.ai.memory.help')}
         >
           <Input.TextArea
             rows={6}
-            placeholder={'例如：\n- 用户偏好用表格形式展示统计结果\n- 常用管理库是「联系人管理」\n- 日期格式偏好 YYYY-MM-DD'}
+            placeholder={t('settings.ai.memory.placeholder')}
             value={memoryLines}
             onChange={(e) => handleMemoryChange(e.target.value)}
             style={{ fontFamily: 'monospace', fontSize: 12 }}
@@ -798,13 +802,13 @@ function AITab() {
             onClick={() => {
               if (account) clearMemory(account.id)
               setMemoryLines('')
-              message.success('已清空记忆')
+              message.success(t('settings.ai.memory.cleared'))
             }}
           >
-            清空记忆
+            {t('settings.ai.memory.clear')}
           </Button>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            记忆按账号存储在本地浏览器中，跨会话保留。
+            {t('settings.ai.memory.localNote')}
           </Text>
         </Space>
       </Form>
@@ -814,6 +818,7 @@ function AITab() {
 
 function BackupTab() {
   const { message, modal } = App.useApp()
+  const t = useI18n()
   const { account } = useAuthStore()
 
   const handleExport = async () => {
@@ -827,24 +832,24 @@ function BackupTab() {
     a.download = `备份_${dayjs().format('YYYYMMDD_HHmmss')}.json`
     a.click()
     URL.revokeObjectURL(url)
-    message.success('已导出备份')
+    message.success(t('settings.backup.exported'))
   }
 
   const handleImport = (file: File) => {
     modal.confirm({
-      title: '导入备份将覆盖当前账户的全部数据',
-      content: '此操作不可撤销，建议先导出当前数据。',
-      okText: '确认覆盖导入',
+      title: t('settings.backup.confirm.title'),
+      content: t('settings.backup.confirm.body'),
+      okText: t('settings.backup.confirm.ok'),
       okType: 'danger',
       onOk: async () => {
         try {
           const text = await file.text()
           const blob = JSON.parse(text)
           await importBackup(account!.id, blob)
-          message.success('已恢复，请刷新页面')
+          message.success(t('settings.backup.done'))
           setTimeout(() => window.location.reload(), 1000)
         } catch (e) {
-          message.error('导入失败：' + (e as Error).message)
+          message.error(t('settings.backup.failed', { msg: (e as Error).message }))
         }
       },
     })
@@ -857,20 +862,20 @@ function BackupTab() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="本地备份与恢复"
-        description="导出全部管理库、字段模板、条目为 JSON 文件——不依赖云端数据库，可作为不开云端时的手动「换机同步」方式。恢复时将覆盖本机当前账户数据。"
+        message={t('settings.backup.info.title')}
+        description={t('settings.backup.info.body')}
       />
       <Space direction="vertical" style={{ width: '100%' }}>
         <Button icon={<DownloadOutlined />} onClick={handleExport} block>
-          导出备份
+          {t('settings.backup.export')}
         </Button>
         <Upload beforeUpload={handleImport} showUploadList={false} accept=".json">
           <Button icon={<UploadOutlined />} block>
-            选择备份文件恢复
+            {t('settings.backup.import')}
           </Button>
         </Upload>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          <DatabaseOutlined /> 仅在本地存储模式下有意义；云端模式的数据由 Supabase 托管。
+          <DatabaseOutlined /> {t('settings.backup.cloudNote')}
         </Text>
       </Space>
     </div>

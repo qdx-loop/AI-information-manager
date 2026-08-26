@@ -4,6 +4,7 @@ import { Outlet } from 'react-router-dom'
 import { MoonOutlined, SunOutlined, MenuOutlined } from '@ant-design/icons'
 import Sidebar, { SidebarContent } from './Sidebar'
 import { useAppStore } from '@/store/appStore'
+import { useI18n } from '@/i18n'
 import { sweepTrashOncePerDay } from '@/utils/trashSweep'
 
 // AI 面板懒加载：xlsx/papaparse/react-markdown 等重依赖只在首次打开抽屉时下载，
@@ -15,7 +16,8 @@ const { Content, Header } = Layout
 export default function AppShell() {
   const [aiOpen, setAiOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { settings, setTheme } = useAppStore()
+  const { settings, setTheme, setLanguage } = useAppStore()
+  const t = useI18n()
   const isDark = settings.theme === 'dark'
 
   // 检测移动端
@@ -64,7 +66,12 @@ export default function AppShell() {
               onClick={() => setSidebarOpen(true)}
             />
           )}
-          <Tooltip title={isDark ? '切换到亮色' : '切换到暗色'}>
+          <Tooltip title={settings.language === 'zh' ? 'English' : '中文'}>
+            <Button type="text" onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}>
+              {settings.language === 'zh' ? 'EN' : '中'}
+            </Button>
+          </Tooltip>
+          <Tooltip title={isDark ? t('app.theme.light') : t('app.theme.dark')}>
             <Button
               type="text"
               icon={isDark ? <SunOutlined /> : <MoonOutlined />}

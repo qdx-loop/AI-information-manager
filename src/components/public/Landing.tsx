@@ -5,10 +5,12 @@ import {
   AppstoreOutlined,
   BarChartOutlined,
   MobileOutlined,
-  WechatOutlined,
   CheckOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { MailOutlined } from '@ant-design/icons'
+import { useI18n } from '@/i18n'
 import { SITE } from '@/config/site'
 
 const { Text } = Typography
@@ -81,6 +83,8 @@ function ProductDemo() {
 
 export default function Landing() {
   const navigate = useNavigate()
+  const t = useI18n()
+  const [copiedEmail, setCopiedEmail] = useState('')
   const goLogin = () => navigate('/login')
 
   return (
@@ -276,20 +280,27 @@ export default function Landing() {
 
         {/* ===== 联系方式 ===== */}
         <section id="contact" style={{ paddingTop: 64, textAlign: 'center' }}>
-          <WechatOutlined style={{ fontSize: 26, color: '#0D9488' }} />
-          <h3 style={{ fontSize: 20, margin: '10px 0 6px' }}>购买或开通试用</h3>
-          <p style={{ color: '#64748B', marginBottom: 14 }}>{SITE.contactNote}</p>
-          {SITE.qrImage && (
-            <img src={SITE.qrImage} alt="微信二维码" width={150} height={150} style={{ borderRadius: 12, border: '1px solid #E2E8F0', display: 'block', margin: '0 auto 12px' }} />
-          )}
-          <Button
-            icon={<WechatOutlined />}
-            onClick={() => {
-              navigator.clipboard.writeText(SITE.contactWechat)
-            }}
-          >
-            微信号：{SITE.contactWechat}（点击复制）
-          </Button>
+          <MailOutlined style={{ fontSize: 26, color: '#0D9488' }} />
+          <h3 style={{ fontSize: 20, margin: '10px 0 6px' }}>{t('landing.contact.title')}</h3>
+          <p style={{ color: '#64748B', marginBottom: 14 }}>{t('landing.contact.note')}</p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
+            {SITE.contactEmails.map((email) => (
+              <Button
+                key={email}
+                icon={<MailOutlined />}
+                onClick={() => {
+                  navigator.clipboard.writeText(email)
+                  setCopiedEmail(email)
+                }}
+              >
+                {email}
+                {copiedEmail === email ? ` · ${t('common.copied')}` : ` · ${t('landing.contact.copyHint')}`}
+              </Button>
+            ))}
+          </div>
+          <a href={`mailto:${SITE.contactEmails[0]}`} style={{ fontSize: 13 }}>
+            ✉️ {t('landing.nav.login')}
+          </a>
         </section>
 
         <footer style={{ borderTop: '1px solid #EEF2F6', marginTop: 56, paddingTop: 24, textAlign: 'center', fontSize: 12, color: '#94A3B8' }}>

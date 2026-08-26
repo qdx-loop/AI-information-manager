@@ -18,16 +18,9 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { FieldDef, FieldType } from '@/types'
 import { newId } from '@/utils/id'
+import { useI18n } from '@/i18n'
 
-const FIELD_TYPES: { label: string; value: FieldType }[] = [
-  { label: '文本（单行）', value: 'text' },
-  { label: '文本（多行）', value: 'textarea' },
-  { label: '数字', value: 'number' },
-  { label: '日期', value: 'date' },
-  { label: '下拉单选', value: 'select' },
-  { label: '复选框', value: 'checkbox' },
-  { label: '评分', value: 'rating' },
-]
+// 字段类型选项在组件内按当前语言生成（fieldTypes）
 
 interface Props {
   open: boolean
@@ -39,10 +32,21 @@ interface Props {
 
 export default function TemplateEditor({ open, libraryId, fields, onCancel, onSave }: Props) {
   const { message } = App.useApp()
+  const t = useI18n()
   const [list, setList] = useState<FieldDef[]>(fields)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const handleOpen = () => setList(fields)
+
+  const fieldTypes: { label: string; value: FieldType }[] = [
+    { label: t('lib.tpl.type.text'), value: 'text' },
+    { label: t('lib.tpl.type.textarea'), value: 'textarea' },
+    { label: t('lib.tpl.type.number'), value: 'number' },
+    { label: t('lib.tpl.type.date'), value: 'date' },
+    { label: t('lib.tpl.type.select'), value: 'select' },
+    { label: t('lib.tpl.type.checkbox'), value: 'checkbox' },
+    { label: t('lib.tpl.type.rating'), value: 'rating' },
+  ]
 
   const addField = () => {
     const f: FieldDef = {
@@ -81,16 +85,16 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
     // 校验 label 与 key 唯一
     const labels = list.map((f) => f.label.trim())
     if (labels.some((l) => !l)) {
-      message.warning('字段名称不能为空')
+      message.warning(t('lib.tpl.err.labelEmpty'))
       return
     }
     if (new Set(labels).size !== labels.length) {
-      message.warning('字段名称不能重复')
+      message.warning(t('lib.tpl.err.labelDup'))
       return
     }
     const keys = list.map((f) => f.key)
     if (new Set(keys).size !== keys.length) {
-      message.warning('字段标识冲突')
+      message.warning(t('lib.tpl.err.keyDup'))
       return
     }
     const final = list.map((f, i) => ({ ...f, sortOrder: i }))
@@ -99,7 +103,7 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
 
   return (
     <Modal
-      title="字段模板配置"
+      title={t('lib.tpl.modalTitle')}
       open={open}
       onCancel={onCancel}
       onOk={handleSave}
@@ -108,12 +112,12 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
       afterOpenChange={(o) => o && handleOpen()}
     >
       <Space style={{ marginBottom: 12 }}>
-        <Button icon={<PlusOutlined />} onClick={addField}>添加字段</Button>
-        <span style={{ color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>拖拽 ⠿ 调整顺序</span>
+        <Button icon={<PlusOutlined />} onClick={addField}>{t('lib.tpl.addField')}</Button>
+        <span style={{ color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>{t('lib.tpl.dragHint')}</span>
       </Space>
 
       {list.length === 0 ? (
-        <Empty description="暂无字段，点击「添加字段」开始" />
+        <Empty description={t('lib.tpl.empty')} />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={list.map((f) => f.id)} strategy={verticalListSortingStrategy}>
@@ -122,6 +126,7 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
                 <FieldRow
                   key={f.id}
                   field={f}
+                  fieldTypes={fieldTypes}
                   onChange={(patch) => updateField(f.id, patch)}
                   onRemove={() => removeField(f.id)}
                 />
@@ -136,13 +141,16 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
 
 function FieldRow({
   field,
+  fieldTypes,
   onChange,
   onRemove,
 }: {
   field: FieldDef
+  fieldTypes: { label: string; value: FieldType }[]
   onChange: (patch: Partial<FieldDef>) => void
   onRemove: () => void
 }) {
+  const t = useI18n()
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: field.id,
   })
@@ -167,13 +175,13 @@ function FieldRow({
         value={field.label}
         onChange={(e) => onChange({ label: e.target.value })}
         style={{ width: 140, flex: 1, minWidth: 100 }}
-        placeholder="字段名"
+        placeholder={t('lib.tpl.fieldName')}
         autoFocus
       />
       <Select
         value={field.type}
         onChange={(v) => onChange({ type: v })}
-        options={FIELD_TYPES}
+        options={fieldTypes}
         style={{ width: 140, flexShrink: 0 }}
       />
       {field.type === 'select' && (
@@ -182,13 +190,13 @@ function FieldRow({
           value={field.options}
           onChange={(v) => onChange({ options: v })}
           style={{ flex: 1 }}
-          placeholder="输入选项后回车"
+          placeholder={t('lib.tpl.optionsPlaceholder')}
         />
       )}
       <Space size="small">
-        <span style={{ fontSize: 12 }}>必填</span>
+        <span style={{ fontSize: 12 }}>{t('common.required')}</span>
         <Switch size="small" checked={field.required} onChange={(v) => onChange({ required: v })} />
-        <span style={{ fontSize: 12 }}>显示</span>
+        <span style={{ fontSize: 12 }}>{t('common.visible')}</span>
         <Switch size="small" checked={field.visible} onChange={(v) => onChange({ visible: v })} />
         <Button type="text" danger icon={<DeleteOutlined />} onClick={onRemove} />
       </Space>
