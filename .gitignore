@@ -15,3 +15,11 @@ vite.config.js
 
 # Cloudflare 本地开发状态
 .wrangler/
+
+# APK 打包产物与签名（勿提交：私钥泄露=别人可冒充你的App）
+apk-build/infodesk.keystore
+apk-build/app/
+apk-build/app-release-*.apk
+apk-build/app-release-*.aab
+apk-build/.gradle
+apk-build/node_modules

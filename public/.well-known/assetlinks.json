@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "net.aiim.infodesk",
+      "sha256_cert_fingerprints": [
+        "80:73:CF:75:72:AC:8C:83:04:04:ED:A3:FE:C1:AD:32:33:81:1E:57:D8:D0:D3:4A:20:DE:89:F3:62:B1:75:CA"
+      ]
+    }
+  }
+]

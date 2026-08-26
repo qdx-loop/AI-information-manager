@@ -1,0 +1,42 @@
+{
+  "packageId": "net.aiim.infodesk",
+  "host": "aiim.de5.net",
+  "name": "信息管理 · AI 助手",
+  "launcherName": "信息管理",
+  "display": "standalone",
+  "themeColor": "#0D9488",
+  "themeColorDark": "#141414",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#333333",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#F0FDFA",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://aiim.de5.net/icon-512.png",
+  "maskableIconUrl": "https://aiim.de5.net/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "infodesk.keystore",
+    "alias": "infodesk"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 2,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 21,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "displayOverride": [],
+  "appVersion": "1.0.0"
+}

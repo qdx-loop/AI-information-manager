@@ -1,0 +1,6 @@
+n
+/home/qdx/.bubblewrap/jdk
+y
+y
+y
+y
