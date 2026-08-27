@@ -13,14 +13,14 @@
   "backgroundColor": "#F0FDFA",
   "enableNotifications": false,
   "startUrl": "/",
-  "iconUrl": "https://aiim.de5.net/icon-512.png",
-  "maskableIconUrl": "https://aiim.de5.net/icon-maskable-512.png",
-  "splashScreenFadeOutDuration": 300,
+  "iconUrl": "https://aiim.de5.net/icon-1024.png",
+  "maskableIconUrl": "https://aiim.de5.net/icon-maskable-1024.png",
+  "splashScreenFadeOutDuration": 200,
   "signingKey": {
     "path": "infodesk.keystore",
     "alias": "infodesk"
   },
-  "appVersionName": "1.0.0",
+  "appVersionName": "1.0.1",
   "appVersionCode": 2,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
@@ -38,5 +38,6 @@
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "displayOverride": [],
-  "appVersion": "1.0.0"
+  "appVersion": "1.0.0",
+  "splashScreenIconUrl": "https://aiim.de5.net/icon-1024.png"
 }
