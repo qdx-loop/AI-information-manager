@@ -152,6 +152,7 @@ export default function Landing() {
             <Button size="large" type="dashed" href="/app/infodesk.apk" download="信息管理.apk">
               {t('landing.hero.downloadApk')}
             </Button>
+
           </div>
           <div style={{ marginTop: 14, fontSize: 13, color: '#94A3B8' }}>{t('landing.hero.trust')}</div>
 

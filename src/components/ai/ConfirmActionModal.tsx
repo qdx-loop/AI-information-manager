@@ -1,8 +1,9 @@
-import { Modal, Descriptions, Tag, App } from 'antd'
+import { Modal, Descriptions, Tag, App, Checkbox } from 'antd'
 import { useEffect, useState } from 'react'
 import type { ItemAction } from '@/ai/tools'
 import type { Library, FieldDef, Item } from '@/types'
 import { useI18n } from '@/i18n'
+import { useAutoConfirm } from '@/ai/autoConfirm'
 
 interface Props {
   open: boolean
@@ -34,6 +35,8 @@ export default function ConfirmActionModal({
   const { message } = App.useApp()
   const t = useI18n()
   const [loading, setLoading] = useState(false)
+  const { alwaysAllowFor, setAlwaysAllowFor } = useAutoConfirm()
+  const [always, setAlways] = useState(false)
 
   useEffect(() => {
     setLoading(false)
@@ -42,6 +45,7 @@ export default function ConfirmActionModal({
   if (!action) return null
 
   const handleOk = async () => {
+    if (always) setAlwaysAllowFor('item')
     setLoading(true)
     try {
       await onConfirm()
@@ -117,6 +121,15 @@ export default function ConfirmActionModal({
           </Descriptions.Item>
         )}
       </Descriptions>
+
+      <Checkbox
+        checked={always}
+        onChange={(e) => setAlways(e.target.checked)}
+        disabled={alwaysAllowFor.has('item')}
+        style={{ marginTop: 10, fontSize: 12 }}
+      >
+        本轮会话后续此类操作不再询问
+      </Checkbox>
 
       <p style={{ marginTop: 12, color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>
         {t('ai.confirm.note')}

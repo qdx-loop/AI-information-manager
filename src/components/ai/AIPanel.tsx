@@ -13,7 +13,7 @@ import {
   Upload,
   theme as antdTheme,
 } from 'antd'
-import { SendOutlined, RobotOutlined, UserOutlined, ReloadOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, BarChartOutlined, PictureOutlined } from '@ant-design/icons'
+import { SendOutlined, RobotOutlined, UserOutlined, ReloadOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, BarChartOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
@@ -40,7 +40,10 @@ import {
   replaceAllMemory,
 } from '@/ai/memory'
 import { processAttachment, type Attachment } from '@/ai/attachments'
+import { API_BASE, getToken } from '@/lib/serverApi'
+import { normalizeChartOption } from '@/ai/chartUtils'
 import { useI18n } from '@/i18n'
+import { AutoConfirmContext } from '@/ai/autoConfirm'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ContentPart } from '@/ai/types'
@@ -65,6 +68,8 @@ interface UIMessage {
   thinking?: string
   steps?: string[] // agent 执行步骤（工具调用轨迹）
   undo?: UndoInfo
+  /** 本消息附带的统计图（缩略展示，点击放大） */
+  chart?: ChartPayload
 }
 
 // 工具调用轮数上限：放宽以覆盖批量录入、多步整理等长任务
@@ -113,7 +118,7 @@ export default function AIPanel() {
     try {
       localStorage.setItem(
         `ai-chat-${account.id}`,
-        JSON.stringify(messages.map((m) => ({ role: m.role, content: m.content, thinking: m.thinking, steps: m.steps }))),
+        JSON.stringify(messages.map((m) => ({ role: m.role, content: m.content, thinking: m.thinking, steps: m.steps, chart: m.chart }))),
       )
     } catch {
       /* 存储异常时静默，不影响对话 */
@@ -138,6 +143,10 @@ export default function AIPanel() {
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [parsingFile, setParsingFile] = useState(false)
   const [chartPayload, setChartPayload] = useState<ChartPayload | null>(null)
+  const autoConfirmRef = useRef<Set<string>>(new Set())
+  const setAlwaysAllowFor = (k: string) => autoConfirmRef.current.add(k)
+  // 内嵌图表：图表定义为消息附件
+
 
   // 服务端是否已配置平台代管 AI（GET 仅返回布尔值）
   const [platformAI, setPlatformAI] = useState(false)
@@ -194,7 +203,7 @@ export default function AIPanel() {
     const userText = input.trim()
 
     // 附件处理：表格摘要并入文本；图片走多模态内容段
-    const tables = attachments.filter((a) => a.kind === 'table' && a.summary)
+    const tables = attachments.filter((a) => (a.kind === 'table' || a.kind === 'text') && a.summary)
     const images = attachments.filter((a) => a.kind === 'image' && a.dataUrl)
     let fullText = userText
     if (tables.length > 0) fullText += '\n\n' + tables.map((t) => t.summary).join('\n\n')
@@ -379,16 +388,18 @@ export default function AIPanel() {
             ? libCtx?.items.find((i) => i.id === action.itemId) ?? null
             : null
 
-          // 弹窗等待用户确认
-          const confirmed = await new Promise<ItemAction | null>((resolve) => {
-            confirmResolverRef.current = resolve
-            setPendingAction({
-              action,
-              library: libCtx?.library,
-              fields: libFields,
-              existingItem: existing,
-            })
-          })
+          // 弹窗等待用户确认；会话级 autoConfirm 直跳过
+          const confirmed = autoConfirmRef.current.has('item')
+            ? action
+            : await new Promise<ItemAction | null>((resolve) => {
+                confirmResolverRef.current = resolve
+                setPendingAction({
+                  action,
+                  library: libCtx?.library,
+                  fields: libFields,
+                  existingItem: existing,
+                })
+              })
           setPendingAction(null)
 
           if (!confirmed) {
@@ -450,6 +461,9 @@ export default function AIPanel() {
           let result = ''
           if (!account) {
             result = '当前未登录，无法保存记忆。'
+          } else if (autoConfirmRef.current.has('memory')) {
+            // 会话内始终允许记忆更新：直接执行（防重复骚扰）
+            result = execMemoryOp(op, texts)
           } else {
             const allowed = await new Promise<boolean>((resolve) => {
               modal.confirm({
@@ -477,25 +491,8 @@ export default function AIPanel() {
             if (!allowed) {
               result = '用户拒绝了该记忆操作。'
               pushStep(t('ai.step.memDenied'))
-            } else if (op === 'add') {
-              const n = addMemory(account.id, texts)
-              pushStep(t('ai.step.memAdd', { n }))
-              result = n > 0 ? `已新增 ${n} 条记忆。` : '没有新增（内容为空或与已有记忆重复）。'
-            } else if (op === 'update') {
-              // texts 形如 [编号或原文, 新内容]
-              const idxOrText = String(texts[0] ?? '')
-              const newText = String(texts[1] ?? '')
-              const ok = updateMemoryByIdxOrText(account.id, idxOrText, newText)
-              result = ok ? '记忆已更新。' : '未找到要更新的记忆条目。'
-              pushStep(t('ai.step.memUpdate'))
-            } else if (op === 'remove') {
-              const n = removeMemoryByIdxOrText(account.id, texts.map(String))
-              result = n > 0 ? `已删除 ${n} 条记忆。` : '未找到要删除的记忆条目。'
-              pushStep(t('ai.step.memDelete', { n }))
             } else {
-              replaceAllMemory(account.id, texts)
-              result = `记忆已整体替换，当前共 ${texts.filter(Boolean).length} 条。`
-              pushStep(t('ai.step.memReplace'))
+              result = execMemoryOp(op, texts)
             }
           }
           currentMessages.push({
@@ -644,21 +641,52 @@ export default function AIPanel() {
           }
         } else if (tc.function.name === 'create_chart') {
           const title = String((args as { title?: string }).title ?? '统计图')
-          const option = (args as { option?: unknown }).option
-          if (option && typeof option === 'object') {
-            setChartPayload({ title, option: option as Record<string, unknown> })
+          const rawOption = (args as { option?: unknown }).option
+          const option = normalizeChartOption(rawOption)
+          if (option) {
+            setChartPayload(null)
+            setMessages((m) => {
+              for (let i = m.length - 1; i >= 0; i--) {
+                if (m[i].role === 'assistant' && !m[i].pending) {
+                  return [...m.slice(0, i), { ...m[i], chart: { title, option } }, ...m.slice(i + 1)]
+                }
+              }
+              return m
+            })
             pushStep(t('ai.step.chart', { t: title }))
             currentMessages.push({
               role: 'tool',
               tool_call_id: tc.id,
-              content: `图表「${title}」已渲染给用户（用户可下载图片）。请用文字简要说明图表结论。`,
+              content: `图表「${title}」已显示在对话中（点击放大、可下载为 PNG）。请用文字简要说明结论。`,
             })
           } else {
             currentMessages.push({
               role: 'tool',
               tool_call_id: tc.id,
-              content: '图表配置无效：缺少 option 对象，请按格式重新生成。',
+              content: '图表配置无效：请确保 option 中有 series 数组且每项含 type+数据 data；柱/折线还需要 xAxis.data 分类标签。修正后重新调用。',
             })
+          }
+        } else if (tc.function.name === 'fetch_url') {
+          const url = String((args as { url?: string }).url ?? '')
+          pushStep(t('ai.step.fetch', { url }))
+          try {
+            const res = await fetch(`${API_BASE}/api/ai/fetch`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${getToken() ?? ''}`,
+              },
+              body: JSON.stringify({ url }),
+            })
+            const data = (await res.json()) as { text?: string; title?: string; error?: string; truncated?: boolean }
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+            currentMessages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: `「${data.title || url}」正文摘录：\n${data.text ?? ''}${data.truncated ? '\n(内容已截断)' : ''}`,
+            })
+          } catch (e) {
+            currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: `抓取失败：${(e as Error).message}` })
           }
         } else if (tc.function.name === 'execute_library_action') {
           const libAction = parseLibraryAction(args)
@@ -670,10 +698,12 @@ export default function AIPanel() {
             ? contexts.find((c) => c.library.id === libAction.libraryId)?.library
             : undefined
 
-          const confirmed = await new Promise<boolean>((resolve) => {
-            libConfirmResolverRef.current = resolve
-            setPendingLibAction({ libAction, tplAction: null, library: lib, fields: [] })
-          })
+          const confirmed = autoConfirmRef.current.has('lib')
+            ? true
+            : await new Promise<boolean>((resolve) => {
+                libConfirmResolverRef.current = resolve
+                setPendingLibAction({ libAction, tplAction: null, library: lib, fields: [] })
+              })
           setPendingLibAction(null)
 
           if (!confirmed) {
@@ -709,10 +739,12 @@ export default function AIPanel() {
           const libCtx = contexts.find((c) => c.library.id === tplAction.libraryId)
           const libFields = libCtx?.fields ?? []
 
-          const confirmed = await new Promise<boolean>((resolve) => {
-            libConfirmResolverRef.current = resolve
-            setPendingLibAction({ libAction: null, tplAction, library: libCtx?.library, fields: libFields })
-          })
+          const confirmed = autoConfirmRef.current.has('tpl')
+            ? true
+            : await new Promise<boolean>((resolve) => {
+                libConfirmResolverRef.current = resolve
+                setPendingLibAction({ libAction: null, tplAction, library: libCtx?.library, fields: libFields })
+              })
           setPendingLibAction(null)
 
           if (!confirmed) {
@@ -996,6 +1028,30 @@ export default function AIPanel() {
     confirmResolverRef.current = null
     setPendingAction(null)
   }
+  function execMemoryOp(op: string, texts: string[]): string {
+    if (!account) return '当前未登录，无法保存记忆。'
+    if (op === 'add') {
+      const n = addMemory(account.id, texts)
+      pushStep(t('ai.step.memAdd', { n }))
+      return n > 0 ? `已新增 ${n} 条记忆。` : '没有新增（内容为空或与已有记忆重复）。'
+    }
+    if (op === 'update') {
+      const idxOrText = String(texts[0] ?? '')
+      const newText = String(texts[1] ?? '')
+      const ok = updateMemoryByIdxOrText(account.id, idxOrText, newText)
+      pushStep(t('ai.step.memUpdate'))
+      return ok ? '记忆已更新。' : '未找到要更新的记忆条目。'
+    }
+    if (op === 'remove') {
+      const n = removeMemoryByIdxOrText(account.id, texts.map(String))
+      pushStep(t('ai.step.memDelete', { n }))
+      return n > 0 ? `已删除 ${n} 条记忆。` : '未找到要删除的记忆条目。'
+    }
+    replaceAllMemory(account.id, texts)
+    pushStep(t('ai.step.memReplace'))
+    return `记忆已整体替换，当前共 ${texts.filter(Boolean).length} 条。`
+  }
+
   const handleConfirmLibAction = async () => {
     libConfirmResolverRef.current?.(true)
     libConfirmResolverRef.current = null
@@ -1096,6 +1152,9 @@ export default function AIPanel() {
   }
 
   return (
+    <AutoConfirmContext.Provider
+      value={{ alwaysAllowFor: autoConfirmRef.current, setAlwaysAllowFor }}
+    >
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
         style={{
@@ -1212,6 +1271,30 @@ export default function AIPanel() {
                 {m.pending && !m.content ? (
                   <Spin size="small" />
                 ) : renderContent(m.content, lastContextsRef.current, m.role === 'assistant')}
+                {m.chart && (
+                  <div
+                    onClick={() => setChartPayload(m.chart as ChartPayload)}
+                    style={{
+                      marginTop: 10,
+                      padding: '10px 12px',
+                      border: `1px solid ${token.colorBorderSecondary}`,
+                      borderRadius: 10,
+                      background: 'rgba(128,128,128,0.05)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                  >
+                    <BarChartOutlined style={{ fontSize: 18, color: '#0D9488' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: token.colorText }}>{m.chart.title}</div>
+                      <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
+                        {t('ai.chart.thumbHint')}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* 撤回按钮 */}
                 {m.undo && (
                   <Button
@@ -1239,7 +1322,7 @@ export default function AIPanel() {
                 closable
                 closeIcon={<CloseOutlined style={{ fontSize: 10 }} />}
                 onClose={() => setAttachments((p) => p.filter((x) => x.id !== a.id))}
-                icon={a.kind === 'image' ? <PictureOutlined /> : <BarChartOutlined />}
+                icon={a.kind === 'image' ? <PictureOutlined /> : <FileTextOutlined />}
               >
                 {a.name}
               </Tag>
@@ -1248,7 +1331,7 @@ export default function AIPanel() {
         )}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Upload
-            accept=".xlsx,.xls,.csv,image/*"
+            accept="*/*"
             showUploadList={false}
             multiple
             beforeUpload={(file) => {
@@ -1313,5 +1396,6 @@ export default function AIPanel() {
         onCancel={handleCancelLibAction}
       />
     </div>
+    </AutoConfirmContext.Provider>
   )
 }

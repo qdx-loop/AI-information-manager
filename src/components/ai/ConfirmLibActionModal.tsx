@@ -1,8 +1,9 @@
-import { Modal, Descriptions, Tag, App } from 'antd'
+import { Modal, Descriptions, Tag, App, Checkbox } from 'antd'
 import { useEffect, useState } from 'react'
 import type { LibraryAction, TemplateAction } from '@/ai/tools'
 import type { Library, FieldDef } from '@/types'
 import { useI18n } from '@/i18n'
+import { useAutoConfirm } from '@/ai/autoConfirm'
 
 const ACTION_COLORS: Record<string, string> = {
   create: 'green',
@@ -36,6 +37,8 @@ export default function ConfirmLibActionModal({
   const { message } = App.useApp()
   const t = useI18n()
   const [loading, setLoading] = useState(false)
+  const { alwaysAllowFor, setAlwaysAllowFor } = useAutoConfirm()
+  const [always, setAlways] = useState(false)
 
   useEffect(() => {
     setLoading(false)
@@ -70,6 +73,7 @@ export default function ConfirmLibActionModal({
   const actionLabel = (libAction ? LIB_ACTION_LABEL[actionKey] : TPL_ACTION_LABEL[actionKey]) ?? actionKey
 
   const handleOk = async () => {
+    if (always) setAlwaysAllowFor(libAction ? 'lib' : 'tpl')
     setLoading(true)
     try {
       await onConfirm()
@@ -162,6 +166,15 @@ export default function ConfirmLibActionModal({
           )}
         </Descriptions>
       )}
+
+      <Checkbox
+        checked={always}
+        onChange={(e) => setAlways(e.target.checked)}
+        disabled={alwaysAllowFor.has(libAction ? 'lib' : 'tpl')}
+        style={{ marginTop: 10, fontSize: 12 }}
+      >
+        本轮会话后续此类操作不再询问
+      </Checkbox>
 
       <p style={{ marginTop: 12, color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>
         {t('ai.confirm.lib.note')}

@@ -462,6 +462,8 @@ Object.assign(zh, {
   'ai.step.stat': '📊 统计分析完成',
   'ai.step.listLibs': '📚 查看全部管理库',
   'ai.step.chart': '📊 生成图表「{t}」',
+  'ai.step.fetch': '🌐 读取网页：{url}',
+  'ai.chart.thumbHint': '点击放大',
   'ai.step.itemAction': '✏️ {action} 条目',
   'ai.step.itemActionCancelled': '✏️ {action} 条目 → 用户取消',
   'ai.step.libAction': '📁 {action} 管理库（已确认）',
@@ -556,6 +558,7 @@ Object.assign(zh as Dict, {
   'landing.hero.cta': '免费试用 3 天',
   'landing.hero.cta2': '查看价格',
   'landing.hero.downloadApk': '下载安卓 App',
+
   'landing.hero.trust': '体验卡免费领 · 数据存在你自己的设备里 · 手机电脑都能用',
   'landing.demo.windowTitle': '{brand} · AI 助手',
   'landing.demo.userMsg': '统计每个城市的客户数',
@@ -1057,6 +1060,8 @@ Object.assign(en, {
   'ai.step.stat': '📊 Statistics done',
   'ai.step.listLibs': '📚 Listed all libraries',
   'ai.step.chart': '📊 Chart generated: {t}',
+  'ai.step.fetch': '🌐 Reading {url}',
+  'ai.chart.thumbHint': 'Click to enlarge',
   'ai.step.itemAction': '✏️ Item {action}',
   'ai.step.itemActionCancelled': '✏️ Item {action} → cancelled',
   'ai.step.libAction': '📁 Library {action} (confirmed)',
@@ -1116,6 +1121,7 @@ Object.assign(en, {
   'landing.hero.cta': 'Free 3-day trial',
   'landing.hero.cta2': 'See pricing',
   'landing.hero.downloadApk': 'Download Android App',
+
   'landing.hero.trust': 'Free trial · Your data stays on your own device · Works on phone & desktop',
   'landing.demo.windowTitle': '{brand} · AI Assistant',
   'landing.demo.userMsg': 'Count customers per city',

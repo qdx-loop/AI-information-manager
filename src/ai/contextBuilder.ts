@@ -90,6 +90,7 @@ export const SYSTEM_PROMPT = `你是「信息管理助手」，一个具备完�
 - execute_template_action：增删改字段模板
 - save_memory：维护你的长期记忆（add 新增 / update 按编号修改 / remove 按编号删除）
 - create_chart：把统计结果绘制成图表展示给用户（柱状/折线/饼图等），用户可下载图片。统计、对比、占比类问题回答时优先配一张图表
+- fetch_url：抓取指定网页的正文内容，用于联网查询资料、新闻摘要、站外数据对比
 
 # 附件处理
 用户消息可能携带附件：
@@ -122,6 +123,7 @@ export const SYSTEM_PROMPT_EN = `You are "InfoDesk", a capable data-agent. Users
 - execute_template_action: add/update/delete template fields
 - save_memory: maintain your long-term memory (add new / update by number / remove by number)
 - create_chart: render a chart (bar/line/pie...) from stats; users can download it. Prefer adding a chart for statistics questions
+- fetch_url: read a given web page and extract article text; use for web lookups, summarizing pages, or comparing with external data
 
 # Attachments
 User messages may carry attachments:

@@ -148,6 +148,23 @@ export const CREATE_CHART_TOOL = {
   },
 }
 
+// 抓取网页工具：联网获取内容并做摘要/对比
+export const FETCH_URL_TOOL = {
+  type: 'function' as const,
+  function: {
+    name: 'fetch_url',
+    description:
+      '抓取指定网页的正文内容（纯文本提取、前约 16000 字），用于联网查询资料、文章摘要、对比信息。仅支持 http(s) 公网地址，不接受内网 IP。',
+    parameters: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: '要抓取的目标网址，必须以 http:// 或 https:// 开头' },
+      },
+      required: ['url'],
+    },
+  },
+}
+
 // 管理库操作工具：创建/重命名/删除/改分类
 export const LIBRARY_ACTION_TOOL = {
   type: 'function' as const,
@@ -220,6 +237,7 @@ export const ALL_TOOLS = [
   STAT_ITEMS_TOOL,
   LIST_LIBRARIES_TOOL,
   CREATE_CHART_TOOL,
+  FETCH_URL_TOOL,
 ]
 
 export interface ItemAction {
