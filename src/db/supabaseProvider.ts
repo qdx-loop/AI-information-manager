@@ -28,6 +28,7 @@ interface LibraryRow {
   category: string
   sort_order: number
   deleted_at: number | null
+  parent_id?: string | null
 }
 interface FieldRow {
   id: string
@@ -59,6 +60,7 @@ const libFromRow = (r: LibraryRow): Library => ({
   category: r.category,
   sortOrder: r.sort_order,
   deletedAt: r.deleted_at,
+  parentId: r.parent_id ?? null,
 })
 const libToRow = (l: Library): Omit<LibraryRow, never> => ({
   id: l.id,
@@ -67,6 +69,7 @@ const libToRow = (l: Library): Omit<LibraryRow, never> => ({
   category: l.category,
   sort_order: l.sortOrder,
   deleted_at: l.deletedAt,
+  parent_id: l.parentId ?? null,
 })
 
 const fieldFromRow = (r: FieldRow): FieldDef => ({
@@ -251,39 +254,76 @@ export class SupabaseDataProvider implements DataProvider {
     if (error) throw new Error(error.message)
   }
 
+  /** 收集某库及其所有子孙库的 id 列表（含根） */
+  private async collectDescendantIds(accountId: string, rootId: string): Promise<string[]> {
+    const { data } = await this.client
+      .from('libraries')
+      .select('id, parent_id')
+      .eq('account_id', accountId)
+    const all = (data ?? []) as Array<{ id: string; parent_id: string | null }>
+    const byParent = new Map<string | null, string[]>()
+    for (const l of all) byParent.set(l.parent_id ?? null, [...(byParent.get(l.parent_id ?? null) ?? []), l.id])
+
+    const result: string[] = []
+    const walk = (pid: string) => {
+      for (const cid of byParent.get(pid) ?? []) {
+        result.push(cid)
+        walk(cid)
+      }
+    }
+    result.push(rootId)
+    walk(rootId)
+    return result
+  }
+
   async deleteLibrary(id: string): Promise<void> {
     const now = Date.now()
-    const { error: e1 } = await this.client.from('libraries').update({ deleted_at: now }).eq('id', id)
+    const lib = await this.client.from('libraries').select('account_id').eq('id', id).maybeSingle()
+    const accountId = (lib.data as LibraryRow | null)?.account_id
+    const ids = accountId ? await this.collectDescendantIds(accountId, id) : [id]
+    // 软删该库及所有子孙库
+    const { error: e1 } = await this.client
+      .from('libraries')
+      .update({ deleted_at: now })
+      .in('id', ids)
     if (e1) throw new Error(e1.message)
     // 只级联删除尚未被单独删除的条目
     const { error: e2 } = await this.client
       .from('items')
       .update({ deleted_at: now })
-      .eq('library_id', id)
+      .in('library_id', ids)
       .is('deleted_at', null)
     if (e2) throw new Error(e2.message)
   }
 
   async restoreLibrary(id: string): Promise<void> {
-    // 先获取库的 deletedAt，用于判断哪些条目是随库一起被级联删除的
-    const { data: libData } = await this.client.from('libraries').select('deleted_at').eq('id', id).maybeSingle()
-    const libDeletedAt = (libData as LibraryRow | null)?.deleted_at ?? null
-    const { error: e1 } = await this.client.from('libraries').update({ deleted_at: null }).eq('id', id)
+    const lib = await this.client.from('libraries').select('account_id, deleted_at').eq('id', id).maybeSingle()
+    const row = lib.data as LibraryRow | null
+    if (!row) return
+    const libDeletedAt = row.deleted_at ?? null
+    const ids = await this.collectDescendantIds(row.account_id, id)
+    const { error: e1 } = await this.client
+      .from('libraries')
+      .update({ deleted_at: null })
+      .in('id', ids)
     if (e1) throw new Error(e1.message)
     if (libDeletedAt === null) return
-    // 只恢复随库一起被级联删除的条目
+    // 只恢复随库一起被级联删除的条目（deletedAt 与库相同）
     const { error: e2 } = await this.client
       .from('items')
       .update({ deleted_at: null })
-      .eq('library_id', id)
+      .in('library_id', ids)
       .eq('deleted_at', libDeletedAt)
     if (e2) throw new Error(e2.message)
   }
 
   async purgeLibrary(id: string): Promise<void> {
-    await this.client.from('items').delete().eq('library_id', id)
-    await this.client.from('fields').delete().eq('library_id', id)
-    await this.client.from('libraries').delete().eq('id', id)
+    const lib = await this.client.from('libraries').select('account_id').eq('id', id).maybeSingle()
+    const accountId = (lib.data as LibraryRow | null)?.account_id
+    const ids = accountId ? await this.collectDescendantIds(accountId, id) : [id]
+    await this.client.from('items').delete().in('library_id', ids)
+    await this.client.from('fields').delete().in('library_id', ids)
+    await this.client.from('libraries').delete().in('id', ids)
   }
 
   async reorderLibraries(accountId: string, orderedIds: string[]): Promise<void> {

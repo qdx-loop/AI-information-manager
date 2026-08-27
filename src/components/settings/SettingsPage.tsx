@@ -328,7 +328,8 @@ create table libraries (
   name text not null,
   category text,
   sort_order int,
-  deleted_at bigint
+  deleted_at bigint,
+  parent_id uuid
 );
 create table fields (
   id uuid primary key,

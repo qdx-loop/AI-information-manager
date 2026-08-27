@@ -21,6 +21,7 @@ export interface Library {
   category: string
   sortOrder: number
   deletedAt: number | null
+  parentId?: string | null   // 父管理库 ID；空=顶级库（支持子库层级）
 }
 
 // 字段定义（模板）

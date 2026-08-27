@@ -77,6 +77,25 @@ function useSidebarState() {
     })
   }
 
+  // 在指定库下新建子库
+  const handleNewChild = (parent: Library) => {
+    let name = ''
+    modal.confirm({
+      title: t('app.newLibrary'),
+      content: <Input placeholder={t('app.lib.namePlaceholder')} onChange={(e) => (name = e.target.value)} />,
+      onOk: async () => {
+        if (!name.trim()) {
+          message.warning(t('app.lib.nameRequired'))
+          return
+        }
+        const id = await createLibrary(name.trim(), parent.category, parent.id)
+        await selectLibrary(id)
+        navigate(`/library/${id}`)
+        message.success(t('app.lib.created'))
+      },
+    })
+  }
+
   const handleRename = (lib: Library) => {
     let name = lib.name
     modal.confirm({
@@ -111,15 +130,54 @@ function useSidebarState() {
   // 单个库的「⋯」下拉菜单
   const libActions = (lib: Library): MenuProps => ({
     items: [
+      { key: 'child', label: t('app.newChild'), icon: <PlusOutlined /> },
       { key: 'rename', label: t('common.rename'), icon: <EditOutlined /> },
       { key: 'delete', label: t('common.delete'), icon: <DeleteOutlined />, danger: true },
     ],
     onClick: ({ key, domEvent }) => {
       domEvent.stopPropagation()
-      if (key === 'rename') handleRename(lib)
+      if (key === 'child') handleNewChild(lib)
+      else if (key === 'rename') handleRename(lib)
       else if (key === 'delete') handleDelete(lib)
     },
   })
+
+  // 单个库的菜单项（含子库递归）
+  const buildLibItems = useMemo(
+    () => (libs: Library[]) => {
+      type MenuItem = NonNullable<MenuProps['items']>[number]
+      const byParent = new Map<string | null, Library[]>()
+      for (const l of libs) byParent.set(l.parentId ?? null, [...(byParent.get(l.parentId ?? null) ?? []), l])
+      const makeItem = (l: Library): MenuItem => {
+        const children: MenuItem[] = (byParent.get(l.id) ?? [])
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map(makeItem)
+        return {
+          key: `/library/${l.id}`,
+          icon: <AppstoreOutlined />,
+          label: (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                {l.name}
+              </span>
+              <Dropdown menu={libActions(l)} trigger={['click']}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<MoreOutlined />}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ flexShrink: 0 }}
+                />
+              </Dropdown>
+            </div>
+          ),
+          ...(children.length ? { children } : {}),
+        }
+      }
+      return (byParent.get(null) ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map(makeItem)
+    },
+    [libActions],
+  )
 
   const menuItems = [
     {
@@ -131,26 +189,7 @@ function useSidebarState() {
           key: `cat-${cat}`,
           label: cat,
           type: 'group' as const,
-          children: libs.map((l) => ({
-            key: `/library/${l.id}`,
-            icon: <AppstoreOutlined />,
-            label: (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                  {l.name}
-                </span>
-                <Dropdown menu={libActions(l)} trigger={['click']}>
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<MoreOutlined />}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ flexShrink: 0 }}
-                  />
-                </Dropdown>
-              </div>
-            ),
-          })),
+          children: buildLibItems(libs),
         })),
         { key: 'new-library', label: t('app.newLibrary'), icon: <PlusOutlined /> },
       ],

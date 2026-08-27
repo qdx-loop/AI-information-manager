@@ -183,6 +183,7 @@ export const LIBRARY_ACTION_TOOL = {
         libraryId: { type: 'string', description: 'rename/delete/setCategory 时必填，目标管理库 ID' },
         name: { type: 'string', description: 'create/rename 时的管理库名称' },
         category: { type: 'string', description: 'create/setCategory 时的分类名称' },
+        parentId: { type: 'string', description: '仅 create 时可选：父管理库 ID（不传则创建为顶级库）' },
         reason: { type: 'string', description: '执行该操作的理由（展示给用户）' },
       },
       required: ['action'],
@@ -306,6 +307,7 @@ export interface LibraryAction {
   libraryId?: string
   name?: string
   category?: string
+  parentId?: string
   reason?: string
 }
 
@@ -319,6 +321,7 @@ export function parseLibraryAction(args: unknown): LibraryAction | null {
     libraryId: typeof a.libraryId === 'string' ? a.libraryId : undefined,
     name: typeof a.name === 'string' ? a.name : undefined,
     category: typeof a.category === 'string' ? a.category : undefined,
+    parentId: typeof a.parentId === 'string' ? a.parentId : undefined,
     reason: typeof a.reason === 'string' ? a.reason : undefined,
   }
 }

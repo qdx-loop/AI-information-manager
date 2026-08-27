@@ -45,6 +45,7 @@ export default function EmptyHome() {
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
   const [tplKey, setTplKey] = useState('blank')
+  const [parentId, setParentId] = useState<string | null>(null)
   const [demoLoading, setDemoLoading] = useState(false)
 
   // 新手引导：仅对"还没有任何库且未完成引导"的账号展示
@@ -71,6 +72,7 @@ export default function EmptyHome() {
   const openNaming = () => {
     finishOnboarding()
     setNewName('')
+    setParentId(null)
     setNamingOpen(true)
   }
 
@@ -78,7 +80,7 @@ export default function EmptyHome() {
     const name = newName.trim() || '未命名管理库'
     setCreating(true)
     try {
-      const id = await createLibrary(name)
+      const id = await createLibrary(name, undefined, parentId)
       const tpl = LIB_TEMPLATES.find((x) => x.key === tplKey)
       if (tpl) await applyTemplate(id, tpl)
       await loadLibraries()
@@ -203,6 +205,16 @@ export default function EmptyHome() {
           onPressEnter={handleCreate}
           autoFocus
           style={{ marginTop: 8 }}
+        />
+        <Select
+          value={parentId ?? undefined}
+          onChange={(v) => setParentId(v ?? null)}
+          allowClear
+          placeholder={t('home.create.parentHint')}
+          style={{ width: '100%', marginTop: 12 }}
+          options={libraries
+            .filter((l) => l.parentId == null)
+            .map((l) => ({ label: `${l.name}（${l.category}）`, value: l.id }))}
         />
         <Select
           value={tplKey}

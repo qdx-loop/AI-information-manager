@@ -10,9 +10,10 @@ export class AppDB extends Dexie {
 
   constructor() {
     super('info-management-db')
-    this.version(1).stores({
+    // version(2)：libraries 增加 parentId 索引以支持子库层级
+    this.version(2).stores({
       accounts: 'id, username',
-      libraries: 'id, accountId, category, sortOrder, deletedAt',
+      libraries: 'id, accountId, parentId, category, sortOrder, deletedAt',
       fields: 'id, libraryId, sortOrder',
       items: 'id, libraryId, accountId, sortOrder, pinned, deletedAt, updatedAt',
     })

@@ -34,6 +34,7 @@ export async function pushLocalToCloud(accountId: string, cloud: CloudConfig): P
       libs.map((l) => ({
         id: l.id, account_id: l.accountId, name: l.name,
         category: l.category, sort_order: l.sortOrder, deleted_at: l.deletedAt,
+        parent_id: l.parentId ?? null,
       })),
     )
     if (error) throw new Error(friendlyDbError(`上传管理库失败：${error.message}`))
@@ -125,6 +126,7 @@ export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): 
         category: String(row.category ?? ""),
         sortOrder: Number(row.sort_order ?? 0),
         deletedAt: cloudDeletedAt,
+        parentId: (row.parent_id as string | null) ?? null,
       })
     } else if (cloudDeletedAt != null && local.deletedAt == null) {
       // 云端已删、本地还在 → 传播软删除

@@ -11,6 +11,30 @@ import { db } from './dexie'
 import { generateSalt, hashPassword, verifyPassword } from '@/utils/crypto'
 import { newId } from '@/utils/id'
 
+// 收集某库及其所有子孙库的 id 列表（含根）。minDeletedAt 可选：恢复时只取 deletedAt 与之相同的子孙
+function collectDescendants(all: Library[], rootId: string, minDeletedAt?: number | null): Library[] {
+  const result: Library[] = []
+  const byParent = new Map<string | null, Library[]>()
+  for (const l of all) byParent.set(l.parentId ?? null, [...(byParent.get(l.parentId ?? null) ?? []), l])
+
+  const walk = (pid: string) => {
+    const children = byParent.get(pid) ?? []
+    for (const c of children) {
+      result.push(c)
+      walk(c.id)
+    }
+  }
+  const root = all.find((l) => l.id === rootId)
+  if (!root) return []
+  result.push(root)
+  walk(root.id)
+  // 恢复场景：若指定了删除时间，仅保留同时被级联删除的子孙（过滤掉单独删除的）
+  if (minDeletedAt !== undefined) {
+    return result.filter((l) => l.deletedAt === minDeletedAt)
+  }
+  return result
+}
+
 export class LocalDataProvider implements DataProvider {
   // —————— 账户 ——————
   async registerAccount(username: string, password: string): Promise<Account> {
@@ -95,14 +119,23 @@ export class LocalDataProvider implements DataProvider {
   async deleteLibrary(id: string): Promise<void> {
     const now = Date.now()
     await db.transaction('rw', db.libraries, db.items, async () => {
-      await db.libraries.update(id, { deletedAt: now })
-      // 只级联删除尚未被单独删除的条目，保留已回收条目的原始 deletedAt
-      const items = await db.items.where('libraryId').equals(id).toArray()
-      await Promise.all(
-        items
-          .filter((it) => it.deletedAt === null)
-          .map((it) => db.items.update(it.id, { deletedAt: now })),
-      )
+      // 收集该库及其所有子孙库
+      const account = await db.libraries.get(id)
+      const all = account
+        ? await db.libraries.where('accountId').equals(account.accountId).toArray()
+        : []
+      const affected = collectDescendants(all, id)
+
+      for (const l of affected) {
+        await db.libraries.update(l.id, { deletedAt: now })
+        // 只级联删除尚未被单独删除的条目，保留已回收条目的原始 deletedAt
+        const items = await db.items.where('libraryId').equals(l.id).toArray()
+        await Promise.all(
+          items
+            .filter((it) => it.deletedAt === null)
+            .map((it) => db.items.update(it.id, { deletedAt: now })),
+        )
+      }
     })
   }
 
@@ -110,23 +143,34 @@ export class LocalDataProvider implements DataProvider {
     await db.transaction('rw', db.libraries, db.items, async () => {
       const lib = await db.libraries.get(id)
       const libDeletedAt = lib?.deletedAt
-      await db.libraries.update(id, { deletedAt: null })
-      if (libDeletedAt === null || libDeletedAt === undefined) return
-      // 只恢复随库一起被级联删除的条目（deletedAt 与库相同），不恢复用户单独删除的
-      const items = await db.items.where('libraryId').equals(id).toArray()
-      await Promise.all(
-        items
-          .filter((it) => it.deletedAt === libDeletedAt)
-          .map((it) => db.items.update(it.id, { deletedAt: null })),
-      )
+      if (!lib) return
+      const all = await db.libraries.where('accountId').equals(lib.accountId).toArray()
+      // 恢复该库及其子孙库（仅恢复与父库同时被级联删除的子孙）
+      const affected = collectDescendants(all, id, libDeletedAt)
+      for (const l of affected) {
+        await db.libraries.update(l.id, { deletedAt: null })
+        const items = await db.items.where('libraryId').equals(l.id).toArray()
+        await Promise.all(
+          items
+            .filter((it) => it.deletedAt === libDeletedAt)
+            .map((it) => db.items.update(it.id, { deletedAt: null })),
+        )
+      }
     })
   }
 
   async purgeLibrary(id: string): Promise<void> {
     await db.transaction('rw', db.libraries, db.fields, db.items, async () => {
-      await db.libraries.delete(id)
-      await db.fields.where('libraryId').equals(id).delete()
-      await db.items.where('libraryId').equals(id).delete()
+      const lib = await db.libraries.get(id)
+      const all = lib
+        ? await db.libraries.where('accountId').equals(lib.accountId).toArray()
+        : []
+      const affected = collectDescendants(all, id)
+      for (const l of affected) {
+        await db.fields.where('libraryId').equals(l.id).delete()
+        await db.items.where('libraryId').equals(l.id).delete()
+        await db.libraries.delete(l.id)
+      }
     })
   }
 

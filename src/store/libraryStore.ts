@@ -19,7 +19,7 @@ interface LibraryState {
   selectLibrary: (id: string | null) => Promise<void>
   refreshCurrent: () => Promise<void>
 
-  createLibrary: (name: string, category?: string) => Promise<string>
+  createLibrary: (name: string, category?: string, parentId?: string | null) => Promise<string>
   renameLibrary: (id: string, name: string) => Promise<void>
   setLibraryCategory: (id: string, category: string) => Promise<void>
   deleteLibrary: (id: string) => Promise<void>
@@ -88,7 +88,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     set({ fields, items })
   },
 
-  async createLibrary(name, category = '默认') {
+  async createLibrary(name, category = '默认', parentId?: string | null) {
     const acc = useAuthStore.getState().account
     if (!acc) throw new Error('未登录，无法创建管理库')
     const order = get().libraries.reduce((m, l) => Math.max(m, l.sortOrder), -1) + 1
@@ -99,6 +99,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       category,
       sortOrder: order,
       deletedAt: null,
+      parentId: parentId ?? null,
     }
     await getProvider().createLibrary(lib)
     track('library_created', { name })

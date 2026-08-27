@@ -876,7 +876,7 @@ export default function AIPanel() {
   async function executeLibAction(action: LibraryAction): Promise<{ result: string; undo?: UndoInfo }> {
     if (action.action === 'create') {
       if (!action.name) return { result: '缺少管理库名称' }
-      const id = await createLibrary(action.name, action.category || '默认')
+      const id = await createLibrary(action.name, action.category || '默认', action.parentId ?? null)
       return {
         result: `已新建管理库「${action.name}」(id=${id})`,
         undo: {
