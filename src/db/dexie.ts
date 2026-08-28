@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Account, Library, FieldDef, Item } from '@/types'
+import type { Account, Library, FieldDef, Item, SnapshotRecord } from '@/types'
 
 // 单例 Dexie 实例
 export class AppDB extends Dexie {
@@ -7,6 +7,7 @@ export class AppDB extends Dexie {
   libraries!: Table<Library, string>
   fields!: Table<FieldDef, string>
   items!: Table<Item, string>
+  snapshots!: Table<SnapshotRecord, string>
 
   constructor() {
     super('info-management-db')
@@ -16,6 +17,14 @@ export class AppDB extends Dexie {
       libraries: 'id, accountId, parentId, category, sortOrder, deletedAt',
       fields: 'id, libraryId, sortOrder',
       items: 'id, libraryId, accountId, sortOrder, pinned, deletedAt, updatedAt',
+    })
+    // version(3)：新增快照表（数据回溯）
+    this.version(3).stores({
+      accounts: 'id, username',
+      libraries: 'id, accountId, parentId, category, sortOrder, deletedAt',
+      fields: 'id, libraryId, sortOrder',
+      items: 'id, libraryId, accountId, sortOrder, pinned, deletedAt, updatedAt',
+      snapshots: 'id, accountId, createdAt',
     })
   }
 }

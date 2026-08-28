@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useLibraryStore } from '@/store/libraryStore'
 import { exportBackup } from '@/db/backup'
 import { mergeNativeIntoLocal, type MergeResult } from '@/db/syncService'
+import { createSnapshot } from '@/db/snapshotService'
 import {
   P2PSession,
   P2PError,
@@ -128,6 +129,12 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
         const blob = JSON.parse(payload) as BackupBlob
         if (!blob || !Array.isArray(blob.libraries) || !Array.isArray(blob.items)) {
           throw new Error('bad payload')
+        }
+        // 合并前自动拍一张快照（兜底，失败不阻断合并）
+        try {
+          await createSnapshot(account.id, 'transfer')
+        } catch (e) {
+          console.warn('[f2f] 合并前快照失败：', e)
         }
         const r = await mergeNativeIntoLocal(account.id, {
           libraries: blob.libraries,

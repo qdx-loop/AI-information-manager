@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Card,
   Tabs,
@@ -25,6 +25,10 @@ import {
   SyncOutlined,
   CopyOutlined,
   SwapOutlined,
+  HistoryOutlined,
+  RollbackOutlined,
+  DeleteOutlined,
+  PlusOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useAuthStore } from '@/store/authStore'
@@ -36,6 +40,14 @@ import { friendlyDbError } from '@/utils/dbErrors'
 import { initFromSettings } from '@/db/providerFactory'
 import { apiChangePassword } from '@/lib/serverApi'
 import { exportBackup, importBackup } from '@/db/backup'
+import {
+  createSnapshot,
+  listSnapshots,
+  restoreSnapshot,
+  deleteSnapshot,
+  MAX_SNAPSHOTS,
+  type SnapshotSummary,
+} from '@/db/snapshotService'
 import { SYSTEM_PROMPT } from '@/ai/contextBuilder'
 import { importLegacyMemory, listMemory, replaceAllMemory, clearMemory } from '@/ai/memory'
 import SyncImportModal from '@/components/settings/SyncImportModal'
@@ -837,6 +849,78 @@ function BackupTab() {
   const { message, modal } = App.useApp()
   const t = useI18n()
   const { account } = useAuthStore()
+  const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([])
+  const [snapLoading, setSnapLoading] = useState(false)
+
+  const refreshSnapshots = useCallback(async () => {
+    if (!account) return
+    try {
+      setSnapshots(await listSnapshots(account.id))
+    } catch {
+      setSnapshots([])
+    }
+  }, [account])
+
+  useEffect(() => {
+    void refreshSnapshots()
+  }, [refreshSnapshots])
+
+  const triggerLabel = (tr: SnapshotSummary['trigger']): string => {
+    switch (tr) {
+      case 'manual': return t('settings.snap.trigger.manual')
+      case 'transfer': return t('settings.snap.trigger.transfer')
+      case 'import': return t('settings.snap.trigger.import')
+      case 'pre-restore': return t('settings.snap.trigger.preRestore')
+      default: return tr
+    }
+  }
+
+  const handleManualSnapshot = async () => {
+    if (!account) return
+    setSnapLoading(true)
+    try {
+      await createSnapshot(account.id, 'manual')
+      message.success(t('settings.snap.created'))
+      await refreshSnapshots()
+    } catch (e) {
+      message.error(t('settings.snap.createFailed', { msg: (e as Error).message }))
+    } finally {
+      setSnapLoading(false)
+    }
+  }
+
+  const handleRestoreSnapshot = (s: SnapshotSummary) => {
+    if (!account) return
+    modal.confirm({
+      title: t('settings.snap.restore.title'),
+      content: t('settings.snap.restore.body', { time: dayjs(s.createdAt).format('YYYY-MM-DD HH:mm') }),
+      okText: t('settings.snap.restore.ok'),
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await restoreSnapshot(account.id, s.id)
+          message.success(t('settings.snap.restore.done'))
+          setTimeout(() => window.location.reload(), 1000)
+        } catch (e) {
+          message.error(t('settings.snap.restore.failed', { msg: (e as Error).message }))
+        }
+      },
+    })
+  }
+
+  const handleDeleteSnapshot = (s: SnapshotSummary) => {
+    if (!account) return
+    modal.confirm({
+      title: t('settings.snap.delete.title'),
+      content: t('settings.snap.delete.body'),
+      okText: t('settings.snap.delete.ok'),
+      okType: 'danger',
+      onOk: async () => {
+        await deleteSnapshot(account.id, s.id)
+        await refreshSnapshots()
+      },
+    })
+  }
 
   const handleExport = async () => {
     if (!account) return
@@ -862,6 +946,12 @@ function BackupTab() {
         try {
           const text = await file.text()
           const blob = JSON.parse(text)
+          // 导入前自动拍一张快照，便于回溯（失败不阻断导入）
+          try {
+            await createSnapshot(account!.id, 'import')
+          } catch (e) {
+            console.warn('[backup] 导入前快照失败：', e)
+          }
           await importBackup(account!.id, blob)
           message.success(t('settings.backup.done'))
           setTimeout(() => window.location.reload(), 1000)
@@ -895,6 +985,42 @@ function BackupTab() {
           <DatabaseOutlined /> {t('settings.backup.cloudNote')}
         </Text>
       </Space>
+
+      <Divider style={{ margin: '20px 0 12px' }} />
+      <Card size="small" title={<span><HistoryOutlined /> {t('settings.snap.title')}</span>}>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+          <Text type="secondary" style={{ fontSize: 12 }}>{t('settings.snap.hint', { max: MAX_SNAPSHOTS })}</Text>
+          <Button size="small" icon={<PlusOutlined />} loading={snapLoading} onClick={() => void handleManualSnapshot()}>
+            {t('settings.snap.create')}
+          </Button>
+        </Space>
+
+        {snapshots.length === 0 ? (
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>{t('settings.snap.empty')}</Text>
+        ) : (
+          <div style={{ marginTop: 4 }}>
+            {snapshots.map((s) => (
+              <div
+                key={s.id}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f0f0f0', gap: 8 }}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <Text style={{ fontSize: 13, display: 'block' }}>{dayjs(s.createdAt).format('YYYY-MM-DD HH:mm')}</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {triggerLabel(s.trigger)} · {t('settings.snap.counts', { libs: s.libraries, items: s.items })}
+                  </Text>
+                </div>
+                <Space size={4}>
+                  <Button size="small" icon={<RollbackOutlined />} onClick={() => handleRestoreSnapshot(s)}>
+                    {t('settings.snap.restore.btn')}
+                  </Button>
+                  <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteSnapshot(s)} />
+                </Space>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

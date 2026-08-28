@@ -91,6 +91,17 @@ export interface BackupBlob {
   items: Item[]
 }
 
+// 数据回溯快照
+export type SnapshotTrigger = 'manual' | 'transfer' | 'import' | 'pre-restore'
+
+export interface SnapshotRecord {
+  id: string
+  accountId: string
+  createdAt: number
+  trigger: SnapshotTrigger
+  data: BackupBlob
+}
+
 // 默认设置
 export const DEFAULT_SETTINGS: Settings = {
   storageMode: 'local',

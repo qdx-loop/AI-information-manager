@@ -396,6 +396,28 @@ const zh: Dict = {
   'settings.backup.done': '已恢复，请刷新页面',
   'settings.backup.failed': '导入失败：{msg}',
   'settings.backup.cloudNote': '仅在本地存储模式下有意义；云端模式的数据由 Supabase 托管。',
+
+  // —— 数据回溯（本机快照）——
+  'settings.snap.title': '数据回溯',
+  'settings.snap.hint': '快照保存在本机，用于出问题时一键恢复。互传合并、备份导入前会自动拍一张；最多保留最近 {max} 张。',
+  'settings.snap.create': '立即存快照',
+  'settings.snap.created': '快照已保存',
+  'settings.snap.createFailed': '存快照失败：{msg}',
+  'settings.snap.empty': '暂无快照。进行互传或导入备份时会自动生成，也可以点右上方手动保存。',
+  'settings.snap.counts': '管理库 {libs} 个 · 条目 {items} 条',
+  'settings.snap.trigger.manual': '手动',
+  'settings.snap.trigger.transfer': '互传合并前',
+  'settings.snap.trigger.import': '备份导入前',
+  'settings.snap.trigger.preRestore': '恢复前自动',
+  'settings.snap.restore.btn': '恢复',
+  'settings.snap.restore.title': '恢复到这张快照？',
+  'settings.snap.restore.body': '将把当前数据整体还原为 {time} 的状态。当前数据会先自动存一张快照，可随时再恢复回来。',
+  'settings.snap.restore.ok': '确认恢复',
+  'settings.snap.restore.done': '已恢复，即将刷新页面',
+  'settings.snap.restore.failed': '恢复失败：{msg}',
+  'settings.snap.delete.title': '删除这张快照？',
+  'settings.snap.delete.body': '删除后无法再用它恢复数据（不影响当前数据）。',
+  'settings.snap.delete.ok': '删除',
 }
 
 // —— 后台管理 ——
@@ -1046,6 +1068,28 @@ Object.assign(en, {
   'settings.backup.done': 'Restored — page will refresh',
   'settings.backup.failed': 'Import failed: {msg}',
   'settings.backup.cloudNote': 'Only meaningful in local mode; cloud-mode data lives in Supabase.',
+
+  // —— Data rollback (local snapshots) ——
+  'settings.snap.title': 'Data rollback',
+  'settings.snap.hint': 'Snapshots are stored on this device so you can restore if anything goes wrong. One is taken automatically before a transfer merge or backup import; up to the latest {max} are kept.',
+  'settings.snap.create': 'Save snapshot now',
+  'settings.snap.created': 'Snapshot saved',
+  'settings.snap.createFailed': 'Failed to save snapshot: {msg}',
+  'settings.snap.empty': 'No snapshots yet. They are created automatically during transfers or backup imports, or save one manually above.',
+  'settings.snap.counts': '{libs} libraries · {items} items',
+  'settings.snap.trigger.manual': 'Manual',
+  'settings.snap.trigger.transfer': 'Before transfer merge',
+  'settings.snap.trigger.import': 'Before backup import',
+  'settings.snap.trigger.preRestore': 'Auto before restore',
+  'settings.snap.restore.btn': 'Restore',
+  'settings.snap.restore.title': 'Restore to this snapshot?',
+  'settings.snap.restore.body': 'This replaces your current data with the state from {time}. A snapshot of the current state is saved first, so you can always come back.',
+  'settings.snap.restore.ok': 'Restore',
+  'settings.snap.restore.done': 'Restored — page will refresh',
+  'settings.snap.restore.failed': 'Restore failed: {msg}',
+  'settings.snap.delete.title': 'Delete this snapshot?',
+  'settings.snap.delete.body': 'You will no longer be able to restore from it (your current data is unaffected).',
+  'settings.snap.delete.ok': 'Delete',
 })
 
 Object.assign(en, {
