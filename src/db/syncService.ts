@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
-import type { FieldDef, Item } from "@/types"
+import type { FieldDef, Item, Library } from "@/types"
 import { db } from "./dexie"
 import { friendlyDbError } from "@/utils/dbErrors"
 
@@ -71,14 +71,73 @@ export async function pushLocalToCloud(accountId: string, cloud: CloudConfig): P
 }
 
 // ——————————————————————————————
-// 合并式拉取：云端 → 本地
+// 合并核心：把一份外部数据（本地原生类型）按规则并入本机 IndexedDB。
 //
-// 冲突规则（应对“拉取前本地也建了数据”的场景）：
+// 冲突规则（应对"合并前本机也建了数据"的场景）：
 // 1. 管理库/字段模板：按 ID 并集——本地没有的直接插入；已存在则保留本地版本，
-//    仅当云端标记了软删除(deleted_at)时传播删除（墓碑机制，防止删掉的库复活）。
+//    仅当外部数据标记了软删除(deletedAt)时传播删除（墓碑机制，防止删掉的库复活）。
 // 2. 条目：本地没有 → 插入；两边都有 → 比较 updatedAt，新的赢；
-//    软删除同样按时间比较，保证“最近一次操作”生效。
-// 这样换设备登录时不会丢任何一边的数据；同一设备反复拉取是幂等的。
+//    软删除同样按时间比较，保证"最近一次操作"生效。
+// 这样换设备/互传时不会丢任何一边的数据；重复合并是幂等的。
+//
+// Supabase 云同步与「面对面互传」共用此函数，保证两条路径语义完全一致。
+// ——————————————————————————————
+
+export interface IncomingData {
+  libraries: Library[]
+  fields: FieldDef[]
+  items: Item[]
+}
+
+export async function mergeNativeIntoLocal(accountId: string, incoming: IncomingData): Promise<MergeResult> {
+  const result: MergeResult = { addedLibraries: 0, addedFields: 0, addedItems: 0, updatedItems: 0 }
+
+  // —— 管理库：并集 + 墓碑 ——
+  const localLibs = await db.libraries.where("accountId").equals(accountId).toArray()
+  const localLibMap = new Map(localLibs.map((l) => [l.id, l]))
+  for (const inc of incoming.libraries) {
+    const local = localLibMap.get(inc.id)
+    if (!local) {
+      result.addedLibraries++
+      await db.libraries.put({ ...inc, accountId })
+    } else if (inc.deletedAt != null && local.deletedAt == null) {
+      // 外部已删、本地还在 → 传播软删除
+      await db.libraries.put({ ...local, deletedAt: inc.deletedAt })
+    }
+    // 其余情况保留本地（避免覆盖离线期间本地的重命名/分类修改）
+  }
+
+  // —— 字段模板：并集（只为属于本账号可见库的缺失字段插入）——
+  const libIdSet = new Set<string>(localLibs.map((l) => l.id))
+  for (const inc of incoming.libraries) libIdSet.add(inc.id)
+  for (const inc of incoming.fields) {
+    if (!libIdSet.has(inc.libraryId)) continue // 字段所属库不属于该账号，跳过脏数据
+    const exists = await db.fields.get(inc.id)
+    if (!exists) {
+      result.addedFields++
+      await db.fields.put({ ...inc })
+    }
+  }
+
+  // —— 条目：新者胜 ——
+  for (const inc of incoming.items) {
+    const local = await db.items.get(inc.id)
+    const incomingItem: Item = { ...inc, accountId }
+    if (!local) {
+      result.addedItems++
+      await db.items.put(incomingItem)
+    } else if ((inc.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
+      result.updatedItems++
+      await db.items.put(incomingItem)
+    }
+    // 本地较新或相等 → 保留本地
+  }
+
+  return result
+}
+
+// ——————————————————————————————
+// 合并式拉取：云端(Supabase) → 本地。先把云端行映射为本地原生类型，再走统一合并核心。
 // ——————————————————————————————
 
 export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): Promise<MergeResult> {
@@ -91,108 +150,59 @@ export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): 
   if (libsRes.error) throw new Error(friendlyDbError(`读取云端管理库失败：${libsRes.error.message}`))
   if (itemsRes.error) throw new Error(friendlyDbError(`读取云端条目失败：${itemsRes.error.message}`))
 
-  const result: MergeResult = { addedLibraries: 0, addedFields: 0, addedItems: 0, updatedItems: 0 }
-
-  // —— 管理库 ——
   const cloudLibs = (libsRes.data ?? []) as Array<Record<string, unknown>>
-  const localLibs = await db.libraries.where("accountId").equals(accountId).toArray()
 
-  // 本账号可见的库 ID 集合（云端 ∪ 本地）。字段查询按其过滤，
-  // 不再把整张 fields 表（含其他账号的模板）拉进浏览器（红队报告 P2）。
+  // 字段只拉取本账号可见库的（云端 ∪ 本地），不再把整张 fields 表
+  // （含其他账号的模板）拉进浏览器（红队报告 P2）。
+  const localLibs = await db.libraries.where("accountId").equals(accountId).toArray()
   const visibleLibIds = new Set<string>([
     ...cloudLibs.map((r) => String(r.id)),
     ...localLibs.map((l) => l.id),
   ])
-  let cloudFields: Array<Record<string, unknown>> = []
+  let cloudFieldRows: Array<Record<string, unknown>> = []
   if (visibleLibIds.size > 0) {
     const fieldsRes = await client.from("fields").select("*").in("library_id", [...visibleLibIds])
     if (fieldsRes.error)
       throw new Error(friendlyDbError(`读取云端字段模板失败：${fieldsRes.error.message}`))
-    cloudFields = (fieldsRes.data ?? []) as Array<Record<string, unknown>>
-  }
-  const localLibMap = new Map(localLibs.map((l) => [l.id, l]))
-
-  for (const row of cloudLibs) {
-    const id = String(row.id)
-    const cloudDeletedAt = (row.deleted_at as number | null) ?? null
-    const local = localLibMap.get(id)
-
-    if (!local) {
-      result.addedLibraries++
-      await db.libraries.put({
-        id,
-        accountId,
-        name: String(row.name ?? "未命名"),
-        category: String(row.category ?? ""),
-        sortOrder: Number(row.sort_order ?? 0),
-        deletedAt: cloudDeletedAt,
-        parentId: (row.parent_id as string | null) ?? null,
-      })
-    } else if (cloudDeletedAt != null && local.deletedAt == null) {
-      // 云端已删、本地还在 → 传播软删除
-      await db.libraries.put({ ...local, deletedAt: cloudDeletedAt })
-    }
-    // 其余情况保留本地（避免覆盖离线期间的本地的重命名/分类修改）
+    cloudFieldRows = fieldsRes.data ?? []
   }
 
-  // —— 字段模板（并集 + 墓碑）——
-  const cloudFieldIds = new Set<string>()
-  const libIdSet = new Set(localLibs.map((l) => l.id))
-  for (const row of libsRes.data ?? []) libIdSet.add(String(row.id))
+  // 映射为本地原生类型，交给统一合并核心
+  const libraries: Library[] = cloudLibs.map((row) => ({
+    id: String(row.id),
+    accountId,
+    name: String(row.name ?? "未命名"),
+    category: String(row.category ?? ""),
+    sortOrder: Number(row.sort_order ?? 0),
+    deletedAt: (row.deleted_at as number | null) ?? null,
+    parentId: (row.parent_id as string | null) ?? null,
+  }))
 
-  for (const row of cloudFields) {
-    const id = String(row.id)
-    const libraryId = String(row.library_id)
-    if (!libIdSet.has(libraryId)) continue // 字段所属库不属于该账号，跳过脏数据
-    cloudFieldIds.add(id)
-    const exists = await db.fields.get(id)
-    if (!exists) {
-      result.addedFields++
-      await db.fields.put({
-        id,
-        libraryId,
-        key: String(row.key ?? `field_${id.slice(0, 8)}`),
-        label: String(row.label ?? ""),
-        type: (row.type as FieldDef["type"]) ?? "text",
-        options: Array.isArray(row.options) ? (row.options as string[]) : [],
-        required: !!row.required,
-        visible: row.visible !== false,
-        sortOrder: Number(row.sort_order ?? 0),
-      })
-    }
-  }
+  const fields: FieldDef[] = cloudFieldRows.map((row) => ({
+    id: String(row.id),
+    libraryId: String(row.library_id),
+    key: String(row.key ?? `field_${String(row.id).slice(0, 8)}`),
+    label: String(row.label ?? ""),
+    type: (row.type as FieldDef["type"]) ?? "text",
+    options: Array.isArray(row.options) ? (row.options as string[]) : [],
+    required: !!row.required,
+    visible: row.visible !== false,
+    sortOrder: Number(row.sort_order ?? 0),
+  }))
 
-  // —— 条目（新者胜）——
-  for (const row of (itemsRes.data ?? []) as Array<Record<string, unknown>>) {
-    const id = String(row.id)
-    const cloudItem: Item = {
-      id,
-      libraryId: String(row.library_id),
-      accountId,
-      fields: (row.fields as Item["fields"]) ?? {},
-      pinned: !!row.pinned,
-      sortOrder: Number(row.sort_order ?? 0),
-      createdAt: Number(row.created_at ?? Date.now()),
-      updatedAt: Number(row.updated_at ?? row.created_at ?? Date.now()),
-      deletedAt: (row.deleted_at as number | null) ?? null,
-    }
+  const items: Item[] = ((itemsRes.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id),
+    libraryId: String(row.library_id),
+    accountId,
+    fields: (row.fields as Item["fields"]) ?? {},
+    pinned: !!row.pinned,
+    sortOrder: Number(row.sort_order ?? 0),
+    createdAt: Number(row.created_at ?? Date.now()),
+    updatedAt: Number(row.updated_at ?? row.created_at ?? Date.now()),
+    deletedAt: (row.deleted_at as number | null) ?? null,
+  }))
 
-    const local = await db.items.get(id)
-    if (!local) {
-      result.addedItems++
-      await db.items.put(cloudItem)
-    } else {
-      const cloudTime = cloudItem.updatedAt ?? 0
-      const localTime = local.updatedAt ?? 0
-      if (cloudTime > localTime) {
-        result.updatedItems++
-        await db.items.put(cloudItem)
-      }
-      // 本地较新或相等 → 保留本地（下次上传时会把本地版本推上去）
-    }
-  }
-
-  return result
+  return mergeNativeIntoLocal(accountId, { libraries, fields, items })
 }
 
 // ——————————————————————————————

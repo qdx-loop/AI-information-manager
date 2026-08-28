@@ -24,6 +24,7 @@ import {
   CloudOutlined,
   SyncOutlined,
   CopyOutlined,
+  SwapOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useAuthStore } from '@/store/authStore'
@@ -38,6 +39,7 @@ import { exportBackup, importBackup } from '@/db/backup'
 import { SYSTEM_PROMPT } from '@/ai/contextBuilder'
 import { importLegacyMemory, listMemory, replaceAllMemory, clearMemory } from '@/ai/memory'
 import SyncImportModal from '@/components/settings/SyncImportModal'
+import FaceToFaceSyncModal from '@/components/settings/FaceToFaceSyncModal'
 import { useI18n } from '@/i18n'
 import QRCode from 'qrcode'
 
@@ -412,6 +414,7 @@ function ConfigSyncTab() {
   const { account } = useAuthStore()
   const [importOpen, setImportOpen] = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState('')
+  const [f2fOpen, setF2fOpen] = useState(false)
 
   const hasCloud = settings.storageMode === 'cloud' && !!settings.cloud.url && !!settings.cloud.anonKey
   const hasAI = !!(settings.ai.baseUrl || settings.ai.apiKey || settings.ai.model)
@@ -523,6 +526,18 @@ function ConfigSyncTab() {
         description={t('settings.sync.body')}
       />
 
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+          <div style={{ minWidth: 220, flex: 1 }}>
+            <Text strong style={{ display: 'block' }}>{t('settings.f2f.card.title')}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{t('settings.f2f.card.body')}</Text>
+          </div>
+          <Button type="primary" icon={<SwapOutlined />} onClick={() => setF2fOpen(true)}>
+            {t('settings.f2f.card.btn')}
+          </Button>
+        </Space>
+      </Card>
+
       {!syncCodeValue ? (
         <Alert
           type="warning"
@@ -586,6 +601,7 @@ function ConfigSyncTab() {
       )}
 
       <SyncImportModal open={importOpen} onClose={() => setImportOpen(false)} onDecoded={handleDecodedImport} />
+      <FaceToFaceSyncModal open={f2fOpen} onClose={() => setF2fOpen(false)} />
     </div>
   )
 }
