@@ -12,7 +12,8 @@ import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { createDemoLibrary } from '@/utils/demoData'
 import { useI18n } from '@/i18n'
-import { LIB_TEMPLATES, applyTemplate } from '@/utils/libraryTemplates'
+import { LIB_TEMPLATES, applyTemplate, copyTemplateToLibrary } from '@/utils/libraryTemplates'
+import { getProvider } from '@/db/providerFactory'
 
 const { Paragraph } = Typography
 
@@ -82,7 +83,15 @@ export default function EmptyHome() {
     try {
       const id = await createLibrary(name, undefined, parentId)
       const tpl = LIB_TEMPLATES.find((x) => x.key === tplKey)
-      if (tpl) await applyTemplate(id, tpl)
+      if (tpl && tpl.fields.length > 0) {
+        await applyTemplate(id, tpl)
+      } else if (parentId) {
+        // 选了父库但未选行业模板：继承父库字段结构
+        try {
+          const parentTpl = await getProvider().getTemplate(parentId)
+          if (parentTpl.length > 0) await copyTemplateToLibrary(parentTpl, id)
+        } catch { /* 忽略 */ }
+      }
       await loadLibraries()
       await selectLibrary(id)
       navigate(`/library/${id}`)
@@ -212,9 +221,20 @@ export default function EmptyHome() {
           allowClear
           placeholder={t('home.create.parentHint')}
           style={{ width: '100%', marginTop: 12 }}
-          options={libraries
-            .filter((l) => l.parentId == null)
-            .map((l) => ({ label: `${l.name}（${l.category}）`, value: l.id }))}
+          options={(() => {
+            const sorted = [...libraries].sort((a, b) => a.sortOrder - b.sortOrder)
+            const byParent = new Map<string | null, typeof sorted>()
+            for (const l of sorted) byParent.set(l.parentId ?? null, [...(byParent.get(l.parentId ?? null) ?? []), l])
+            const out: { label: string; value: string }[] = []
+            const walk = (pid: string | null, depth: number) => {
+              for (const l of byParent.get(pid) ?? []) {
+                out.push({ label: `${'　'.repeat(depth)}${l.name}（${l.category}）`, value: l.id })
+                walk(l.id, depth + 1)
+              }
+            }
+            walk(null, 0)
+            return out
+          })()}
         />
         <Select
           value={tplKey}

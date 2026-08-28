@@ -97,6 +97,18 @@ export const LIB_TEMPLATES: LibTemplate[] = [
   },
 ]
 
+/** 复制一份字段模板到指定库（新建子库时继承父库结构用） */
+export async function copyTemplateToLibrary(srcFields: FieldDef[], dstLibraryId: string): Promise<void> {
+  if (srcFields.length === 0) return
+  const fields: FieldDef[] = srcFields.map((f, idx) => ({
+    ...f,
+    id: newId(),
+    libraryId: dstLibraryId,
+    sortOrder: idx,
+  }))
+  await getProvider().saveTemplate(dstLibraryId, fields)
+}
+
 /** 把模板字段写入指定库（保留调用方已创建的库名/分类） */
 export async function applyTemplate(libraryId: string, tpl: LibTemplate): Promise<void> {
   if (tpl.fields.length === 0) return

@@ -440,6 +440,7 @@ Object.assign(zh, {
   // —— AI 面板 ——
   'ai.scope': '作用域:',
   'ai.scope.current': '当前管理库',
+  'ai.allLibraries': 'AI 可操作全部管理库',
   'ai.scope.all': '全部管理库',
   'ai.notConfigured': '尚未配置 AI',
   'ai.notConfiguredHint': '请到「设置 → AI 配置」：优先选择「平台提供」（零配置），或填写你自己的服务商地址、API Key 与模型名。',
@@ -1040,6 +1041,7 @@ Object.assign(en, {
   // —— AI panel ——
   'ai.scope': 'Scope:',
   'ai.scope.current': 'Current library',
+  'ai.allLibraries': 'AI can operate on all libraries',
   'ai.scope.all': 'All libraries',
   'ai.notConfigured': 'AI not configured',
   'ai.notConfiguredHint': 'Go to Settings → AI Setup: choose "Provided by platform" (zero config), or enter your own base URL, API key and model.',

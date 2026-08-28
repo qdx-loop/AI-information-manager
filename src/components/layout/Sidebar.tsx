@@ -17,6 +17,8 @@ import { useAppStore } from '@/store/appStore'
 import { useEffect, useMemo, useState } from 'react'
 import type { Library } from '@/types'
 import { syncNow } from '@/utils/autoSync'
+import { getProvider } from '@/db/providerFactory'
+import { copyTemplateToLibrary } from '@/utils/libraryTemplates'
 import { useI18n } from '@/i18n'
 import dayjs from 'dayjs'
 
@@ -89,6 +91,11 @@ function useSidebarState() {
           return
         }
         const id = await createLibrary(name.trim(), parent.category, parent.id)
+        // 子库默认继承父库的字段模板（若有）
+        try {
+          const parentTpl = await getProvider().getTemplate(parent.id)
+          if (parentTpl.length > 0) await copyTemplateToLibrary(parentTpl, id)
+        } catch { /* 模板继承失败不阻塞建库 */ }
         await selectLibrary(id)
         navigate(`/library/${id}`)
         message.success(t('app.lib.created'))

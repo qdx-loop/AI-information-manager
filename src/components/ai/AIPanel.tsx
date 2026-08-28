@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Input,
   Button,
-  Select,
   Typography,
   Spin,
   Empty,
@@ -83,15 +82,13 @@ export default function AIPanel() {
   const { message, modal } = App.useApp()
   const t = useI18n()
   const { token } = antdTheme.useToken()
-  const { settings, setAI } = useAppStore()
+  const { settings } = useAppStore()
   const { account } = useAuthStore()
   const confirmResolverRef = useRef<((action: ItemAction | null) => void) | null>(null)
   const libConfirmResolverRef = useRef<((confirmed: boolean) => void) | null>(null)
   const {
     libraries,
     currentLibraryId,
-    fields,
-    items,
     selectLibrary,
     focusItem,
     refreshCurrent,
@@ -102,7 +99,6 @@ export default function AIPanel() {
     saveTemplate,
   } = useLibraryStore()
 
-  const [scope, setScope] = useState(settings.ai.scope)
   // 对话按账号本地持久化：刷新/重开浏览器不丢（撤回器为闭包不序列化，恢复后撤回按钮自然失效）
   const [messages, setMessages] = useState<UIMessage[]>(() => {
     if (!account) return []
@@ -162,10 +158,6 @@ export default function AIPanel() {
     usingPlatform || !!(settings.ai.baseUrl && settings.ai.apiKey && settings.ai.model)
 
   useEffect(() => {
-    setAI({ scope })
-  }, [scope, setAI])
-
-  useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
 
@@ -178,13 +170,7 @@ export default function AIPanel() {
   // 收集上下文数据
   async function gatherContext(): Promise<LibraryContext[]> {
     const acc = account!
-    if (scope === 'current') {
-      if (!currentLibraryId) return []
-      const lib = libraries.find((l) => l.id === currentLibraryId)
-      if (!lib) return []
-      return [{ library: lib, fields, items }]
-    }
-    // 全部库
+    // 默认（也是唯一）作用域：全部管理库
     const allLibs = await getProvider().listLibraries(acc.id)
     const result: LibraryContext[] = []
     for (const lib of allLibs) {
@@ -222,7 +208,7 @@ export default function AIPanel() {
     try {
       const contexts = await gatherContext()
       lastContextsRef.current = contexts
-      const contextText = buildContext(scope, contexts, currentLibraryId)
+      const contextText = buildContext('all', contexts, currentLibraryId)
 
       // 组装对话消息：system + 上下文预览 + 记忆 + 历史 + 当前
       const history: ChatMessage[] = messages.map((m) => ({
@@ -1165,17 +1151,7 @@ export default function AIPanel() {
           gap: 8,
         }}
       >
-        <Text type="secondary" style={{ fontSize: 12 }}>{t('ai.scope')}</Text>
-        <Select
-          size="small"
-          value={scope}
-          onChange={(v) => setScope(v)}
-          style={{ flex: 1 }}
-          options={[
-            { label: t('ai.scope.current'), value: 'current' },
-            { label: t('ai.scope.all'), value: 'all' },
-          ]}
-        />
+        <Text type="secondary" style={{ fontSize: 12 }}>{t('ai.allLibraries')}</Text>
         <Button size="small" icon={<ReloadOutlined />} onClick={handleClear} type="text" />
       </div>
 
