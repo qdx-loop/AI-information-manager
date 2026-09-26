@@ -107,6 +107,45 @@ export async function apiChangePassword(oldPassword: string, newPassword: string
   await request('/api/auth/password', { method: 'POST', body: JSON.stringify({ oldPassword, newPassword }) }, true)
 }
 
+// ———— 局域网同步信令（服务器只中转配对，数据走 WebRTC 直连） ————
+
+export interface P2PSignalRow {
+  id: string
+  role: 'host' | 'guest'
+  offer: string | null
+  answer: string | null
+  status: 'waiting' | 'done'
+}
+
+/** host：发布配对请求（含 WebRTC offer），返回 rowId */
+export async function apiSignalHost(deviceId: string, offer: string): Promise<string> {
+  const r = await request<{ rowId: string }>(
+    '/api/sync/signal',
+    { method: 'POST', body: JSON.stringify({ role: 'host', deviceId, offer }) },
+    true,
+  )
+  return r.rowId
+}
+
+/** guest：对某条配对请求写入 answer，完成握手 */
+export async function apiSignalGuest(deviceId: string, rowId: string, answer: string): Promise<void> {
+  await request(
+    '/api/sync/signal',
+    { method: 'POST', body: JSON.stringify({ role: 'guest', deviceId, rowId, answer }) },
+    true,
+  )
+}
+
+/** 轮询：host 等 answer / guest 等 offer。pending=false 表示暂无 */
+export async function apiSignalPoll(deviceId: string): Promise<{ pending: boolean; signal?: P2PSignalRow }> {
+  return request(`/api/sync/signal?deviceId=${encodeURIComponent(deviceId)}`, { method: 'GET' }, true)
+}
+
+/** 作废本设备的等待中请求（关闭弹窗时调用） */
+export async function apiSignalCancel(deviceId: string): Promise<void> {
+  await request('/api/sync/signal', { method: 'DELETE', body: JSON.stringify({ deviceId }) }, true)
+}
+
 // ———— 管理后台接口 ————
 
 const ADMIN_TOKEN_KEY = 'info-mgmt-admin-token'
@@ -181,6 +220,14 @@ export interface OpsStats {
   activeUsers7: number
   signups7: number
   events7: Array<{ name: string; count: number }>
+  /** 近 30 天续费操作数（admin_audit renew 记录） */
+  renewCount30?: number
+  /** 近 30 天内到期的账号数（续费率分母） */
+  expiredCount30?: number
+  /** 体验卡（≤7 天）总数 */
+  trialTotal?: number
+  /** 体验卡中被续费的数量 */
+  trialRenewed?: number
 }
 
 export async function adminGetStats(): Promise<OpsStats> {

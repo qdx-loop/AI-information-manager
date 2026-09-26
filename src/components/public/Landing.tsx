@@ -122,6 +122,7 @@ export default function Landing() {
             <button className="lp-nav-link" onClick={() => scrollTo('price')}>{t('landing.nav.price')}</button>
             <button className="lp-nav-link" onClick={() => scrollTo('faq')}>{t('landing.nav.faq')}</button>
             <button className="lp-nav-link" onClick={() => scrollTo('contact')}>{t('landing.nav.contact')}</button>
+            <button className="lp-nav-link" onClick={() => navigate('/help')}>{t('landing.nav.help')}</button>
           </nav>
           <Button type="text" onClick={() => setLanguage(lang === 'zh' ? 'en' : 'zh')}>
             {lang === 'zh' ? 'EN' : '中'}

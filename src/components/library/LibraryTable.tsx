@@ -4,6 +4,7 @@ import { EditOutlined, DeleteOutlined, PushpinOutlined, PushpinFilled } from '@a
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FieldDef, Item } from '@/types'
 import { renderCellValue } from '@/components/fields/FieldRenderer'
+import SmartValue from '@/components/fields/SmartValue'
 import { useLibraryStore } from '@/store/libraryStore'
 import dayjs from 'dayjs'
 
@@ -109,7 +110,9 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
                   >
                     {f.label}
                   </span>
-                  <span style={{ wordBreak: 'break-all' }}>{renderCellValue(f, it.fields[f.key])}</span>
+                  <span style={{ wordBreak: 'break-all' }}>
+                    <SmartValue field={f} value={it.fields[f.key]} />
+                  </span>
                 </div>
               ))}
             </Card>
@@ -155,7 +158,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
       dataIndex: ['fields', f.key],
       key: f.key,
       ellipsis: true,
-      render: (_: unknown, record: Item) => renderCellValue(f, record.fields[f.key]),
+      render: (_: unknown, record: Item) => <SmartValue field={f} value={record.fields[f.key]} />,
     })),
     {
       title: '创建时间',

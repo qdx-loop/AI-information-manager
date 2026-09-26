@@ -1,6 +1,7 @@
 import { getProvider } from '@/db/providerFactory'
 import { useAuthStore } from '@/store/authStore'
 import { scheduleAutoSync } from '@/utils/autoSync'
+import { getSubStatus } from '@/utils/subscription'
 
 const KEY = 'info-mgmt-trash-swept-at'
 const DAY_MS = 24 * 3600 * 1000
@@ -17,6 +18,8 @@ export async function sweepTrashOncePerDay(): Promise<void> {
     localStorage.setItem(KEY, String(Date.now()))
     const acc = useAuthStore.getState().account
     if (!acc) return
+    // 只读宽限期内跳过自动清理：用户正在保全数据，不做任何删除动作
+    if (acc.expiresAt != null && getSubStatus(acc.expiresAt) === 'grace') return
     await getProvider().purgeExpiredTrash?.(acc.id, TRASH_RETENTION_DAYS)
     scheduleAutoSync()
   } catch (e) {

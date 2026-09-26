@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { apiLogin, apiMe, clearToken, getToken, ApiError } from '@/lib/serverApi'
 import { track } from '@/utils/track'
+import { getSubStatus } from '@/utils/subscription'
 
 const SESSION_KEY = 'info-mgmt-account-id'
 
@@ -69,7 +70,8 @@ function startWatcher(get: () => AuthState, set: (p: Partial<AuthState>) => void
   setInterval(() => {
     const acc = get().account
     if (!acc?.expiresAt) return
-    if (Date.now() > acc.expiresAt) kick('您的账户已到期，请联系管理员续费')
+    // 宽限期内不登出（界面进入只读提示）；超过宽限期才强制登出
+    if (getSubStatus(acc.expiresAt) === 'expired') kick('您的账户已到期，请联系管理员续费')
   }, 60_000)
   setInterval(serverCheck, 10 * 60_000)
   window.addEventListener('focus', serverCheck)

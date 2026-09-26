@@ -139,4 +139,17 @@ describe('ChunkReceiver 重组', () => {
     expect(rec.feed('not json')).toBeNull()
     expect(rec.progress).toBe(0)
   })
+
+  it('缺块时收到 end 不返回损坏数据（返回 null）', () => {
+    const payload = 'E'.repeat(CHUNK_SIZE * 3) // 3 个分块
+    const seq = buildSendSequence(payload, meta)
+    const rec = new ChunkReceiver()
+    rec.feed(seq[0]) // meta
+    rec.feed(seq[1]) // chunk 0
+    // 故意跳过 chunk 1，直接喂 chunk 2 和 end
+    rec.feed(seq[3])
+    const end = seq[seq.length - 1]
+    expect(rec.feed(end)).toBeNull() // 缺块 → 拒绝返回损坏数据
+    expect(rec.done).toBe(true)
+  })
 })

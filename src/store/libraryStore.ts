@@ -5,6 +5,23 @@ import { useAuthStore } from './authStore'
 import { newId } from '@/utils/id'
 import { track } from '@/utils/track'
 import { scheduleAutoSync } from '@/utils/autoSync'
+import { getSubStatus } from '@/utils/subscription'
+import { tNow } from '@/i18n'
+import { markObStep } from '@/utils/onboarding'
+
+// 只读宽限期守卫：到期后的宽限期内禁止任何写操作（可看、可导出，不可改）
+function guardWritable() {
+  const acc = useAuthStore.getState().account
+  if (acc?.expiresAt != null && getSubStatus(acc.expiresAt) === 'grace') {
+    throw new Error(tNow('sub.readonly.error'))
+  }
+}
+
+// 统一的写操作收尾：bump 派生数据版本号（首页概览缓存失效键）+ 防抖云同步
+function touchData() {
+  useLibraryStore.setState((s) => ({ dataVersion: s.dataVersion + 1 }))
+  scheduleAutoSync()
+}
 
 interface LibraryState {
   libraries: Library[]
@@ -14,6 +31,8 @@ interface LibraryState {
   trash: TrashEntry[]
   focusItemId: string | null
   loading: boolean
+  /** 每次任一数据写操作后自增；首页概览等派生计算用它做缓存失效键 */
+  dataVersion: number
 
   loadLibraries: () => Promise<void>
   selectLibrary: (id: string | null) => Promise<void>
@@ -40,10 +59,13 @@ interface LibraryState {
 
   loadTrash: () => Promise<void>
   focusItem: (id: string | null) => void
+  /** 旁路数据变更（云同步/P2P 合并/备份导入）后手动失效派生缓存（首页智能提醒等） */
+  bumpDataVersion: () => void
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   libraries: [],
+  dataVersion: 0,
   currentLibraryId: null,
   fields: [],
   items: [],
@@ -89,6 +111,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   async createLibrary(name, category = '默认', parentId?: string | null) {
+    guardWritable()
     const acc = useAuthStore.getState().account
     if (!acc) throw new Error('未登录，无法创建管理库')
     const order = get().libraries.reduce((m, l) => Math.max(m, l.sortOrder), -1) + 1
@@ -104,64 +127,73 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     await getProvider().createLibrary(lib)
     track('library_created', { name })
     await get().loadLibraries()
-    scheduleAutoSync()
+    touchData()
     return lib.id
   },
 
   async renameLibrary(id, name) {
+    guardWritable()
     await getProvider().renameLibrary(id, name)
     await get().loadLibraries()
-    scheduleAutoSync()
+    touchData()
   },
 
   async setLibraryCategory(id, category) {
+    guardWritable()
     await getProvider().setLibraryCategory(id, category)
     await get().loadLibraries()
-    scheduleAutoSync()
+    touchData()
   },
 
   async deleteLibrary(id) {
+    guardWritable()
     await getProvider().deleteLibrary(id)
     if (get().currentLibraryId === id) set({ currentLibraryId: null, fields: [], items: [] })
     await get().loadLibraries()
-    scheduleAutoSync()
+    touchData()
   },
 
   async restoreLibrary(id) {
+    guardWritable()
     await getProvider().restoreLibrary(id)
     await get().loadLibraries()
     await get().loadTrash()
-    scheduleAutoSync()
+    touchData()
   },
 
   async purgeLibrary(id) {
+    guardWritable()
     await getProvider().purgeLibrary(id)
     await get().loadTrash()
-    scheduleAutoSync()
+    touchData()
   },
 
   async reorderLibraries(orderedIds) {
+    guardWritable()
     const acc = useAuthStore.getState().account
     if (!acc) throw new Error('未登录，无法重排管理库')
     await getProvider().reorderLibraries(acc.id, orderedIds)
     await get().loadLibraries()
-    scheduleAutoSync()
+    touchData()
   },
 
   async saveTemplate(libraryId, fields) {
+    guardWritable()
     await getProvider().saveTemplate(libraryId, fields)
     if (get().currentLibraryId === libraryId) {
       set({ fields: await getProvider().getTemplate(libraryId) })
     }
-    scheduleAutoSync()
+    touchData()
   },
 
   async cloneTemplate(srcId, dstId) {
+    guardWritable()
     await getProvider().cloneTemplate(srcId, dstId)
-    scheduleAutoSync()
+    touchData()
   },
 
   async createItem(fieldsValues) {
+    guardWritable()
     const acc = useAuthStore.getState().account
     if (!acc) throw new Error('未登录，无法创建条目')
     const libId = get().currentLibraryId
@@ -180,43 +212,50 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
     await getProvider().createItem(item)
     set({ items: [...get().items, item] })
-    scheduleAutoSync()
+    markObStep(acc.id, 'item')
+    touchData()
     return item
   },
 
   async updateItem(item) {
+    guardWritable()
     await getProvider().updateItem(item)
     set({ items: get().items.map((i) => (i.id === item.id ? { ...item, updatedAt: Date.now() } : i)) })
-    scheduleAutoSync()
+    touchData()
   },
 
   async deleteItem(id) {
+    guardWritable()
     await getProvider().deleteItem(id)
     set({ items: get().items.filter((i) => i.id !== id) })
-    scheduleAutoSync()
+    touchData()
   },
 
   async restoreItem(id) {
+    guardWritable()
     await getProvider().restoreItem(id)
     await get().loadTrash()
     await get().refreshCurrent()
-    scheduleAutoSync()
+    touchData()
   },
 
   async purgeItem(id) {
+    guardWritable()
     await getProvider().purgeItem(id)
     await get().loadTrash()
     await get().refreshCurrent()
-    scheduleAutoSync()
+    touchData()
   },
 
   async pinItem(id, pinned) {
+    guardWritable()
     await getProvider().pinItem(id, pinned)
     set({ items: get().items.map((i) => (i.id === id ? { ...i, pinned } : i)) })
-    scheduleAutoSync()
+    touchData()
   },
 
   async reorderItems(orderedIds) {
+    guardWritable()
     const libId = get().currentLibraryId
     if (!libId) throw new Error('未选择管理库，无法重排条目')
     await getProvider().reorderItems(libId, orderedIds)
@@ -226,7 +265,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         return idx >= 0 ? { ...i, sortOrder: idx } : i
       }),
     })
-    scheduleAutoSync()
+    touchData()
   },
 
   async loadTrash() {
@@ -238,5 +277,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   focusItem(id) {
     set({ focusItemId: id })
+  },
+
+  bumpDataVersion() {
+    set((s) => ({ dataVersion: s.dataVersion + 1 }))
   },
 }))

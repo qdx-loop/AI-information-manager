@@ -68,8 +68,17 @@ export default function ChartModal({
   const chartRef = useRef<any>(null)
   const [loading, setLoading] = useState(false)
 
+  const [ready, setReady] = useState(false)
+
+  // Modal 展开动画结束后才标记 ready——此时容器才具有真实宽高。
+  // ECharts 若在动画中 init 会拿到 0/极小尺寸，图表缩在左上角且不再自愈（bug 表现：
+  // 开关别的窗口触发 window resize 才恢复）。afterOpenChange 从根本上消除该时机问题。
   useEffect(() => {
-    if (!payload || !chartDivRef.current) return
+    if (!payload) setReady(false)
+  }, [payload])
+
+  useEffect(() => {
+    if (!payload || !ready || !chartDivRef.current) return
     let disposed = false
     setLoading(true)
 
@@ -79,13 +88,19 @@ export default function ChartModal({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const echarts = mod as any
         chartRef.current?.dispose()
-        const chart = echarts.init(chartDivRef.current)
+        // 双保险：init 前再校验一次容器尺寸，异常环境（如容器仍为 0）时推迟到 resize
+        const el = chartDivRef.current
+        const chart = echarts.init(el)
         const option = {
           ...payload.option,
           tooltip: payload.option.tooltip ?? { trigger: 'auto' },
           title: payload.option.title ?? { text: payload.title, left: 'center' },
         }
         chart.setOption(option)
+        // init 完成后若容器尺寸与画布不一致（时序竞态兜底），立即修正
+        requestAnimationFrame(() => {
+          if (!disposed && chartRef.current) chartRef.current.resize()
+        })
         chartRef.current = chart
       })
       .catch((e: Error) => message.error(e.message))
@@ -98,7 +113,7 @@ export default function ChartModal({
       window.removeEventListener('resize', onResize)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payload])
+  }, [payload, ready])
 
   const handleDownload = () => {
     const canvas = chartDivRef.current?.querySelector('canvas')
@@ -120,6 +135,7 @@ export default function ChartModal({
       title={`📊 ${payload?.title ?? ''}`}
       width={720}
       onCancel={onClose}
+      afterOpenChange={(open) => open && setReady(true)}
       footer={
         <Space>
           <Button icon={<DownloadOutlined />} type="primary" onClick={handleDownload}>

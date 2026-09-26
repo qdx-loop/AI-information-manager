@@ -7,6 +7,7 @@ import AuthPage from '@/components/auth/AuthPage'
 import AdminPage from '@/components/admin/AdminPage'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
 import Landing from '@/components/public/Landing'
+import HelpPage from '@/components/public/HelpPage'
 
 const LibraryView = lazy(() => import('@/components/library/LibraryView'))
 const TrashBin = lazy(() => import('@/components/library/TrashBin'))
@@ -91,6 +92,7 @@ export default function Router() {
       <Routes>
         <Route path="/login" element={<PublicOnly><AuthPage /></PublicOnly>} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/help" element={<HelpPage />} />
         <Route path="/" element={<HomeGate />}>
           <Route index element={<EmptyHome />} />
           <Route path="library/:id" element={<LibraryView />} />

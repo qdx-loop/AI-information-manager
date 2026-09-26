@@ -2,6 +2,7 @@ import type { FieldDef, Item, Library } from '@/types'
 import { getProvider } from '@/db/providerFactory'
 import { newId } from '@/utils/id'
 import { track } from '@/utils/track'
+import { markObStep } from '@/utils/onboarding'
 
 /**
  * 一键创建演示库：预置「客户管理」字段模板与示例数据，
@@ -75,5 +76,7 @@ export async function createDemoLibrary(accountId: string): Promise<string> {
   }
 
   track('demo_created', { libraryId: lib.id })
+  // 演示库自带条目，直接为新手清单勾掉「录入第一条数据」
+  markObStep(accountId, 'item')
   return lib.id
 }

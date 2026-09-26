@@ -8,6 +8,7 @@ import {
   PlusOutlined,
   MoreOutlined,
   EditOutlined,
+  HomeOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -163,7 +164,15 @@ function useSidebarState() {
           key: `/library/${l.id}`,
           icon: <AppstoreOutlined />,
           label: (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                // 有子库时右侧预留展开箭头的位置，避免「⋯ 更多」按钮与箭头重叠
+                paddingRight: children.length ? 16 : 0,
+              }}
+            >
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                 {l.name}
               </span>
@@ -187,6 +196,7 @@ function useSidebarState() {
   )
 
   const menuItems = [
+    { key: '/', label: t('app.home'), icon: <HomeOutlined /> },
     {
       key: 'group-libraries',
       label: t('app.group.libraries'),
@@ -213,7 +223,7 @@ function useSidebarState() {
   ]
 
   const selectedKey =
-    location.pathname === '/trash' || location.pathname === '/settings'
+    location.pathname === '/' || location.pathname === '/trash' || location.pathname === '/settings'
       ? location.pathname
       : currentLibraryId
         ? `/library/${currentLibraryId}`
@@ -264,16 +274,19 @@ function SidebarBody({
   state,
   collapsed,
   onOpenPanel,
+  aiRef,
 }: {
   state: ReturnType<typeof useSidebarState>
   collapsed: boolean
   onOpenPanel: () => void
+  aiRef?: React.Ref<HTMLButtonElement>
 }) {
   const t = useI18n()
   const { account, isDark, menuItems, selectedKey, handleClick, handleLogout, loggingOut } = state
   return (
     <>
       <div
+        onClick={() => handleClick('/')}
         style={{
           padding: '16px 16px 8px',
           display: 'flex',
@@ -281,6 +294,7 @@ function SidebarBody({
           gap: 8,
           fontWeight: 600,
           color: '#0D9488',
+          cursor: 'pointer',
         }}
       >
         <Badge color="#0D9488" />
@@ -330,7 +344,7 @@ function SidebarBody({
             })()}
           </div>
         )}
-        <Button icon={<RobotOutlined />} block onClick={onOpenPanel} style={{ marginBottom: 8 }}>
+        <Button ref={aiRef} icon={<RobotOutlined />} block onClick={onOpenPanel} style={{ marginBottom: 8 }}>
           {collapsed ? '' : t('app.aiAssistant')}
         </Button>
         <Button
@@ -347,13 +361,22 @@ function SidebarBody({
   )
 }
 
-export default function Sidebar({ onOpenPanel }: { onOpenPanel: () => void }) {
+export default function Sidebar({
+  onOpenPanel,
+  siderRef,
+  aiRef,
+}: {
+  onOpenPanel: () => void
+  siderRef?: React.Ref<HTMLDivElement>
+  aiRef?: React.Ref<HTMLButtonElement>
+}) {
   const state = useSidebarState()
   const { isDark } = state
   const [collapsed, setCollapsed] = useState(false)
 
   return (
     <Sider
+      ref={siderRef}
       collapsible
       collapsed={collapsed}
       onCollapse={setCollapsed}
@@ -361,7 +384,7 @@ export default function Sidebar({ onOpenPanel }: { onOpenPanel: () => void }) {
       style={{ height: '100vh', overflow: 'auto' }}
       theme={isDark ? 'dark' : 'light'}
     >
-      <SidebarBody state={state} collapsed={collapsed} onOpenPanel={onOpenPanel} />
+      <SidebarBody state={state} collapsed={collapsed} onOpenPanel={onOpenPanel} aiRef={aiRef} />
     </Sider>
   )
 }

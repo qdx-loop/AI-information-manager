@@ -1,19 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Result, Button, Card, Typography, Alert, Input, Modal, App, Space, Steps, Select } from 'antd'
-import {
-  AppstoreAddOutlined,
-  WarningOutlined,
-  RocketOutlined,
-  EditOutlined,
-} from '@ant-design/icons'
+import { Result, Button, Card, Typography, Alert, Input, Modal, App, Select } from 'antd'
+import { AppstoreAddOutlined, WarningOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
-import { createDemoLibrary } from '@/utils/demoData'
 import { useI18n } from '@/i18n'
 import { LIB_TEMPLATES, applyTemplate, copyTemplateToLibrary } from '@/utils/libraryTemplates'
 import { getProvider } from '@/db/providerFactory'
+import HomeDashboard from './HomeDashboard'
+import GettingStarted from './GettingStarted'
 
 const { Paragraph } = Typography
 
@@ -31,7 +27,6 @@ function isIosSafari(): boolean {
 }
 
 const RISK_KEY = 'info-mgmt-safari-risk-dismissed'
-const onboardKey = (accountId: string) => `info-mgmt-onboarded-${accountId}`
 
 export default function EmptyHome() {
   const navigate = useNavigate()
@@ -47,19 +42,6 @@ export default function EmptyHome() {
   const [creating, setCreating] = useState(false)
   const [tplKey, setTplKey] = useState('blank')
   const [parentId, setParentId] = useState<string | null>(null)
-  const [demoLoading, setDemoLoading] = useState(false)
-
-  // 新手引导：仅对"还没有任何库且未完成引导"的账号展示
-  const [onboardDone, setOnboardDone] = useState(true)
-  useEffect(() => {
-    if (account) setOnboardDone(localStorage.getItem(onboardKey(account.id)) === '1')
-    else setOnboardDone(true)
-  }, [account?.id])
-  const finishOnboarding = () => {
-    if (account) localStorage.setItem(onboardKey(account.id), '1')
-    setOnboardDone(true)
-  }
-  const showOnboarding = libraries.length === 0 && !onboardDone
 
   const safariRisk = useMemo(
     () => settings.storageMode === 'local' && isIosSafari(),
@@ -71,7 +53,6 @@ export default function EmptyHome() {
   }, [])
 
   const openNaming = () => {
-    finishOnboarding()
     setNewName('')
     setParentId(null)
     setNamingOpen(true)
@@ -109,23 +90,6 @@ export default function EmptyHome() {
     }
   }
 
-  const handleDemo = async () => {
-    if (!account) return
-    setDemoLoading(true)
-    try {
-      const id = await createDemoLibrary(account.id)
-      await loadLibraries()
-      await selectLibrary(id)
-      navigate(`/library/${id}`)
-      message.success(t('home.demo.ready'), 6)
-      finishOnboarding()
-    } catch (e) {
-      message.error(t('home.create.failed', { msg: (e as Error).message }))
-    } finally {
-      setDemoLoading(false)
-    }
-  }
-
   return (
     <div style={{ padding: 24, height: '100%' }}>
       <Card>
@@ -149,54 +113,35 @@ export default function EmptyHome() {
           />
         )}
 
-        {showOnboarding && (
-          <Card
-            size="small"
-            title={t('home.onboard.title')}
-            extra={
-              <Button type="text" size="small" onClick={finishOnboarding}>
-                {t('home.onboard.skip')}
-              </Button>
-            }
-            style={{ marginBottom: 16, border: '1px solid #99F6E4' }}
-          >
-            <Steps
-              size="small"
-              current={1}
-              items={[{ title: t('home.onboard.step1') }, { title: t('home.onboard.step2') }, { title: t('home.onboard.step3') }]}
-              style={{ marginBottom: 16 }}
-            />
-            <Paragraph type="secondary" style={{ marginBottom: 12 }}>
-              {t('home.onboard.intro')}
-            </Paragraph>
-            <Space wrap>
-              <Button type="primary" icon={<RocketOutlined />} loading={demoLoading} onClick={handleDemo}>
-                {t('home.onboard.demoBtn')}
-              </Button>
-              <Button icon={<EditOutlined />} onClick={openNaming}>
-                {t('home.onboard.blankBtn')}
-              </Button>
-            </Space>
-          </Card>
-        )}
+        <GettingStarted />
 
-        <Result
-          icon={<AppstoreAddOutlined style={{ color: '#0D9488' }} />}
-          title={t('home.greeting', { name: account?.username ?? '' })}
-          subTitle={
-            libraries.length === 0
-              ? t('home.empty')
-              : t('home.pick')
-          }
-          extra={
-            <Button type="primary" size="large" icon={<AppstoreAddOutlined />} onClick={openNaming}>
-              {t('home.createFirst')}
-            </Button>
-          }
-        />
-        <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-          {t('home.tip')}
-        </Paragraph>
+        {libraries.length > 0 ? (
+          <>
+            <Result
+              icon={<AppstoreAddOutlined style={{ color: '#0D9488' }} />}
+              title={t('home.greeting', { name: account?.username ?? '' })}
+              subTitle={t('home.pick')}
+              style={{ paddingBottom: 12 }}
+            />
+            <HomeDashboard />
+          </>
+        ) : (
+          <>
+            <Result
+              icon={<AppstoreAddOutlined style={{ color: '#0D9488' }} />}
+              title={t('home.greeting', { name: account?.username ?? '' })}
+              subTitle={t('home.empty')}
+              extra={
+                <Button type="primary" size="large" icon={<AppstoreAddOutlined />} onClick={openNaming}>
+                  {t('home.createFirst')}
+                </Button>
+              }
+            />
+            <Paragraph type="secondary" style={{ textAlign: 'center' }}>
+              {t('home.tip')}
+            </Paragraph>
+          </>
+        )}
       </Card>
 
       <Modal

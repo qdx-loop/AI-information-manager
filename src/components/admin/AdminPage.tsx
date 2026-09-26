@@ -70,7 +70,7 @@ export default function AdminPage() {
   const [loadingList, setLoadingList] = useState(false)
   const [logs, setLogs] = useState<AuditEntry[]>([])
   const [stats, setStats] = useState<OpsStats | null>(null)
-  const [filterKey, setFilterKey] = useState<'all' | 'expiring' | 'expired' | 'disabled'>('all')
+  const [filterKey, setFilterKey] = useState<'all' | 'expiring' | 'expired' | 'disabled' | 'inactive'>('all')
   const [createOpen, setCreateOpen] = useState(false)
   const [cardType, setCardType] = useState('month')
   const [customDays, setCustomDays] = useState<number | null>(null)
@@ -245,12 +245,22 @@ export default function AdminPage() {
     demo_created: t('admin.ev.demo_created'),
   })
 
-  // —— 到期提醒自动化：3 天内到期的账号，一键复制催续费话术 ——
+  // —— 到期提醒自动化：7 天内到期的账号，一键复制催续费话术 ——
   const expiringSoon = accounts.filter((a) => {
     if (a.disabled || !a.expiresAt) return false
     const days = Math.floor((a.expiresAt - Date.now()) / 86400000)
-    return days >= 0 && days <= 3
+    return days >= 0 && days <= 7
   })
+  // —— 流失预警：仍有效但已超过 14 天未登录的账号（曾用过、现在沉默）——
+  const INACTIVE_DAYS = 14
+  const churnRisk = accounts.filter(
+    (a) =>
+      !a.disabled &&
+      a.expiresAt &&
+      a.expiresAt > Date.now() &&
+      a.lastLogin &&
+      a.lastLogin < Date.now() - INACTIVE_DAYS * 86400000,
+  )
   const exportAccountsCsv = () => {
     const esc = (v: string) => (/^[=+@\t\r]|^-[^0-9.]/.test(v) ? `'${v}` : v)
     const head = '用户名,状态,到期时间,最近登录'
@@ -270,7 +280,8 @@ export default function AdminPage() {
     link.href = url
     link.download = `账号列表_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
     link.click()
-    URL.revokeObjectURL(url)
+    // 移动端/WebView 下载异步启动，延迟 revoke 防空文件
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
     message.success('已导出')
   }
 
@@ -288,9 +299,10 @@ export default function AdminPage() {
   const filteredAccounts = accounts.filter((a) => {
     if (filterKey === 'all') return true
     if (filterKey === 'disabled') return !!a.disabled
+    if (filterKey === 'inactive') return churnRisk.some((c) => c.id === a.id)
     if (!a.expiresAt) return false
     const days = Math.floor((a.expiresAt - Date.now()) / 86400000)
-    if (filterKey === 'expiring') return !a.disabled && days >= 0 && days <= 3
+    if (filterKey === 'expiring') return !a.disabled && days >= 0 && days <= 7
     if (filterKey === 'expired') return !a.disabled && days < 0
     return true
   })
@@ -414,6 +426,20 @@ export default function AdminPage() {
             />
           )}
 
+          {churnRisk.length > 0 && (
+            <Alert
+              type="info"
+              showIcon
+              message={t('admin.churn.alert', { n: churnRisk.length, days: INACTIVE_DAYS, names: churnRisk.map((a) => a.username).join(', ') })}
+              action={
+                <Button size="small" onClick={() => setFilterKey('inactive')}>
+                  {t('admin.churn.view')}
+                </Button>
+              }
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
           <Card title={t('admin.stats.title')} size="small" style={{ marginBottom: 16 }}>
             <Space size="large" wrap align="center">
               <Statistic title={t('admin.stats.active7')} value={stats?.activeUsers7 ?? 0} valueStyle={{ color: '#3f8600' }} />
@@ -422,6 +448,27 @@ export default function AdminPage() {
                 <Statistic key={e.name} title={EVENT_LABELS()[e.name as keyof ReturnType<typeof EVENT_LABELS>] ?? e.name} value={e.count} />
               ))}
             </Space>
+            {/* —— 续费漏斗（近 30 天；旧部署无数据时隐藏）—— */}
+            {stats?.renewCount30 != null && (
+              <Alert
+                type={stats.renewCount30 > 0 ? 'success' : 'warning'}
+                showIcon
+                style={{ marginTop: 12 }}
+                message={t('admin.funnel.title')}
+                description={t('admin.funnel.body', {
+                  renew: stats.renewCount30,
+                  expiring: stats.expiredCount30 ?? 0,
+                  rate: (stats.expiredCount30 ?? 0) > 0
+                    ? Math.round((stats.renewCount30 / (stats.expiredCount30 || 1)) * 100)
+                    : 0,
+                  trialRate: (stats.trialTotal ?? 0) > 0
+                    ? Math.round(((stats.trialRenewed ?? 0) / (stats.trialTotal || 1)) * 100)
+                    : 0,
+                  trialRenewed: stats.trialRenewed ?? 0,
+                  trialTotal: stats.trialTotal ?? 0,
+                })}
+              />
+            )}
           </Card>
 
           <Card
@@ -435,6 +482,7 @@ export default function AdminPage() {
                   { label: t('admin.filter.all'), value: 'all' },
                   { label: t('admin.filter.expiring', { n: expiringSoon.length }), value: 'expiring' },
                   { label: t('admin.filter.expired'), value: 'expired' },
+                  { label: t('admin.filter.inactive', { n: churnRisk.length }), value: 'inactive' },
                   { label: t('admin.filter.disabled'), value: 'disabled' },
                 ]}
               />

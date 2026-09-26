@@ -10,13 +10,27 @@ import {
   Collapse,
   App,
   Upload,
+  Dropdown,
+  Space,
   theme as antdTheme,
 } from 'antd'
-import { SendOutlined, RobotOutlined, UserOutlined, ReloadOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, BarChartOutlined } from '@ant-design/icons'
+import { SendOutlined, RobotOutlined, UserOutlined, ReloadOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
+import { markObStep } from '@/utils/onboarding'
+import {
+  listSessions,
+  newSession,
+  saveSession,
+  loadMessages,
+  deleteSession,
+  touchSessionTitle,
+  renameSession,
+  isSessionTitled,
+  type SessionMeta,
+} from '@/ai/sessions'
 import { useLibraryStore } from '@/store/libraryStore'
 import { getProvider } from '@/db/providerFactory'
 import { chat } from '@/ai/client'
@@ -42,6 +56,8 @@ import { processAttachment, type Attachment } from '@/ai/attachments'
 import { API_BASE, getToken } from '@/lib/serverApi'
 import { normalizeChartOption } from '@/ai/chartUtils'
 import { useI18n } from '@/i18n'
+import { tNow } from '@/i18n'
+import { getSubStatus } from '@/utils/subscription'
 import { AutoConfirmContext } from '@/ai/autoConfirm'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -97,29 +113,80 @@ export default function AIPanel() {
     setLibraryCategory,
     deleteLibrary,
     saveTemplate,
+    deleteItem: storeDeleteItem,
+    updateItem: storeUpdateItem,
   } = useLibraryStore()
 
-  // 对话按账号本地持久化：刷新/重开浏览器不丢（撤回器为闭包不序列化，恢复后撤回按钮自然失效）
-  const [messages, setMessages] = useState<UIMessage[]>(() => {
-    if (!account) return []
-    try {
-      const raw = localStorage.getItem(`ai-chat-${account.id}`)
-      return raw ? (JSON.parse(raw) as UIMessage[]) : []
-    } catch {
-      return []
-    }
+  // —— 多会话管理：会话列表存 localStorage，切换器在面板顶部 ——
+  const [sessions, setSessions] = useState<SessionMeta[]>(() => (account ? listSessions(account.id) : []))
+  const [sessionId, setSessionId] = useState<string>(() => {
+    if (!account) return ''
+    const list = listSessions(account.id)
+    if (list.length > 0) return list[0].id
+    const s = newSession()
+    saveSession(account.id, s, [])
+    return s.id
   })
+  const [sessionSwitcherOpen, setSessionSwitcherOpen] = useState(false)
+
+  // 当前会话消息（从会话存储加载；撤回器为闭包不序列化，恢复后撤回按钮自然失效）
+  const [messages, setMessages] = useState<UIMessage[]>(() => (sessionId ? loadMessages(sessionId) as UIMessage[] : []))
+
+  // 消息变化 → 持久化到当前会话
   useEffect(() => {
-    if (!account) return
+    if (!account || !sessionId) return
     try {
-      localStorage.setItem(
-        `ai-chat-${account.id}`,
-        JSON.stringify(messages.map((m) => ({ role: m.role, content: m.content, thinking: m.thinking, steps: m.steps, chart: m.chart }))),
-      )
+      saveSession(account.id, sessions.find((s) => s.id === sessionId) ?? { id: sessionId, title: '', updatedAt: Date.now() }, messages.map((m) => ({ role: m.role, content: m.content, thinking: m.thinking, steps: m.steps, chart: m.chart })))
     } catch {
       /* 存储异常时静默，不影响对话 */
     }
-  }, [messages, account?.id])
+  }, [messages, sessionId, account?.id, sessions])
+
+  // 首条用户消息懒取名：更新会话标题
+  useEffect(() => {
+    if (!account || !sessionId) return
+    const firstUser = messages.find((m) => m.role === 'user')
+    if (firstUser?.content) touchSessionTitle(account.id, sessionId, firstUser.content)
+  }, [messages.length, sessionId, account?.id])
+
+  /** 切换会话：保存当前 → 加载目标 */
+  const switchSession = (targetId: string) => {
+    if (targetId === sessionId || loading) return
+    setSessionId(targetId)
+    setMessages(loadMessages(targetId) as UIMessage[])
+    setSessionSwitcherOpen(false)
+  }
+
+  /** 新建会话并切换过去 */
+  const startNewSession = () => {
+    if (!account) return
+    const s = newSession()
+    saveSession(account.id, s, [])
+    setSessions(listSessions(account.id))
+    setSessionId(s.id)
+    setMessages([])
+    setSessionSwitcherOpen(false)
+  }
+
+  /** 删除会话：删掉后自动切到剩余最新会话（没有则新建空会话） */
+  const removeSession = (delId: string) => {
+    if (!account) return
+    if (delId === sessionId && loading) return // 传输中不允许删当前
+    const rest = deleteSession(account.id, delId)
+    if (rest.length === 0) {
+      const s = newSession()
+      saveSession(account.id, s, [])
+      setSessions([s])
+      setSessionId(s.id)
+      setMessages([])
+    } else {
+      setSessions(rest)
+      if (delId === sessionId) {
+        setSessionId(rest[0].id)
+        setMessages(loadMessages(rest[0].id) as UIMessage[])
+      }
+    }
+  }
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState<{
@@ -135,6 +202,9 @@ export default function AIPanel() {
     fields: FieldDef[]
   } | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  // 流截断自动重试：每条用户消息只重试一次；重试时复用同一份会话构造
+  const retryDoneRef = useRef(false)
+  const chatMessagesRef = useRef<ChatMessage[] | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [parsingFile, setParsingFile] = useState(false)
@@ -168,18 +238,25 @@ export default function AIPanel() {
   }, [account?.id])
 
   // 收集上下文数据
-  async function gatherContext(): Promise<LibraryContext[]> {
+  // 全量数据上下文（带缓存）：accountId+dataVersion 为键，任何写操作后自动失效。
+  // 修复"AI 工具调用很慢"的主因——此前每轮工具调用都全量重拉所有库。
+  const contextsCacheRef = useRef<{ key: string; contexts: LibraryContext[] } | null>(null)
+  async function getContexts(): Promise<LibraryContext[]> {
     const acc = account!
-    // 默认（也是唯一）作用域：全部管理库
+    const key = `${acc.id}#${useLibraryStore.getState().dataVersion}`
+    if (contextsCacheRef.current?.key === key) return contextsCacheRef.current.contexts
     const allLibs = await getProvider().listLibraries(acc.id)
-    const result: LibraryContext[] = []
-    for (const lib of allLibs) {
-      const [f, its] = await Promise.all([
-        getProvider().getTemplate(lib.id),
-        getProvider().listItems(lib.id),
-      ])
-      result.push({ library: lib, fields: f, items: its })
-    }
+    // 并行拉取每库的模板与条目（原来是串行 for-await，库多时肉眼可见地慢）
+    const result = await Promise.all(
+      allLibs.map(async (lib) => {
+        const [f, its] = await Promise.all([
+          getProvider().getTemplate(lib.id),
+          getProvider().listItems(lib.id),
+        ])
+        return { library: lib, fields: f, items: its } as LibraryContext
+      }),
+    )
+    contextsCacheRef.current = { key, contexts: result }
     return result
   }
 
@@ -198,6 +275,7 @@ export default function AIPanel() {
 
     setInput('')
     track('ai_message_sent')
+    if (account) markObStep(account.id, 'ai')
     const userMsg: UIMessage = { role: 'user', content: fullText }
     const assistantMsg: UIMessage = { role: 'assistant', content: '', pending: true }
     setMessages((m) => [...m, userMsg, assistantMsg])
@@ -206,7 +284,7 @@ export default function AIPanel() {
     abortRef.current = new AbortController()
 
     try {
-      const contexts = await gatherContext()
+      const contexts = await getContexts()
       lastContextsRef.current = contexts
       const contextText = buildContext('all', contexts, currentLibraryId)
 
@@ -238,25 +316,131 @@ export default function AIPanel() {
       ]
 
       // 多轮：可能 AI 连续调用工具，需循环处理
+      chatMessagesRef.current = chatMessages
       await runConversation(chatMessages, contexts)
     } catch (e) {
-      setMessages((m) =>
-        m.map((msg, i) => {
-          if (i !== m.length - 1) return msg
-          // 保留已流式生成的内容，仅在内容为空时显示错误
-          const errContent = `⚠️ ${(e as Error).message}`
-          return {
-            ...msg,
-            content: msg.content ? msg.content + '\n\n' + errContent : errContent,
-            pending: false,
-          }
-        }),
-      )
+      const err = e as Error
+      // 用户主动停止（AbortError）：绝不重试，静默收尾
+      if (err?.name === 'AbortError') {
+        setMessages((m) =>
+          m.map((msg, i) => (i === m.length - 1 ? { ...msg, pending: false } : msg)),
+        )
+        return
+      }
+      const errMsg = err.message ?? ''
+      const isStreamCut = errMsg.includes('响应中断') || errMsg.includes('参数不完整') || errMsg.includes('流被提前断开')
+      // 流被异常截断（上游断流/网关中断）：静默自动重试一次，用户无感知恢复。
+      // 仅重试一次且仅对此类瞬时故障——避免把真实错误（限流/未配置）反复请求。
+      if (isStreamCut && !retryDoneRef.current) {
+        retryDoneRef.current = true
+        try {
+          // 清掉可能残留的空 assistant 消息，重跑本轮对话
+          setMessages((m) => {
+            const last = m[m.length - 1]
+            if (last && last.role === 'assistant' && !last.content.trim() && !last.steps?.length) {
+              return m.slice(0, -1)
+            }
+            return m
+          })
+          const ctxs = await getContexts()
+          await runConversation(chatMessagesRef.current!, ctxs)
+        } catch (e2) {
+          setMessages((m) =>
+            m.map((msg, i) => {
+              if (i !== m.length - 1) return msg
+              const errContent = `⚠️ ${(e2 as Error).message}`
+              return {
+                ...msg,
+                content: msg.content ? msg.content + '\n\n' + errContent : errContent,
+                pending: false,
+              }
+            }),
+          )
+        }
+      } else {
+        setMessages((m) =>
+          m.map((msg, i) => {
+            if (i !== m.length - 1) return msg
+            // 保留已流式生成的内容，仅在内容为空时显示错误
+            const errContent = `⚠️ ${errMsg}`
+            return {
+              ...msg,
+              content: msg.content ? msg.content + '\n\n' + errContent : errContent,
+              pending: false,
+            }
+          }),
+        )
+      }
     } finally {
       setLoading(false)
       abortRef.current = null
+      retryDoneRef.current = false
+      // 会话首轮对话完成 → AI 自动命名（后台静默，失败降级到截取式标题）
+      void maybeAutoTitle()
     }
   }
+
+  /**
+   * AI 自动会话命名（模仿主流 AI 应用）：
+   *   触发：会话第一条消息完成回复后，一次性后台生成；
+   *   输入：首条用户消息 + AI 首答摘要 → 模型产出 ≤12 字标题；
+   *   约束：每会话只生成一次（titled 标记）；失败静默降级（保留截取标题）；不阻塞对话。
+   */
+  const maybeAutoTitle = useCallback(async () => {
+    if (!account || !sessionId) return
+    try {
+      if (isSessionTitled(account.id, sessionId)) return
+      const msgs = messages
+      const firstUser = msgs.find((m) => m.role === 'user')
+      const firstAssistant = msgs.find((m) => m.role === 'assistant' && m.content?.trim())
+      if (!firstUser?.content?.trim() || !firstAssistant) return
+      // 首答可能很长（含 markdown/图表），截取前 300 字足够命名
+      const answerSnippet = firstAssistant.content.slice(0, 300)
+
+      const reply = await chat({
+        baseUrl: settings.ai.baseUrl,
+        apiKey: settings.ai.apiKey,
+        model: settings.ai.model,
+        viaProxy: usingPlatform,
+        messages: [
+          {
+            role: 'system',
+            content:
+              settings.language === 'en'
+                ? 'You are a chat title generator. Based on the user question and the assistant answer, produce a 2-8 word English title. Concise topic summary. No quotes, no punctuation at the end, no explanation — output the title only.'
+                : '你是会话标题生成器。根据用户提问与助手回答，用简体中文生成一个 2-12 字的会话标题。要求：概括主题、不用引号句号等标点、不解释。直接输出标题本身。',
+          },
+          {
+            role: 'user',
+            content:
+              settings.language === 'en'
+                ? `User question: ${firstUser.content.slice(0, 500)}\nAssistant answer: ${answerSnippet}\n\nGenerate the chat title:`
+                : `用户提问：${firstUser.content.slice(0, 500)}\n助手回答：${answerSnippet}\n\n请生成会话标题：`,
+          },
+        ],
+        signal: AbortSignal.timeout?.(20_000) ?? undefined,
+        maxTokens: 32,
+      })
+
+      const raw = (reply.content ?? '').trim()
+      // 清洗：去掉模型可能带的引号/句号/"标题："前缀
+      const title = raw
+        .replace(/^["'「」『』""]+|["'「」『』""]+$/g, '')
+        .replace(/^标题[:：]\s*/, '')
+        .replace(/[。，,.!！?？~]/g, '')
+        .slice(0, 12)
+        .trim()
+      if (title.length >= 2) {
+        renameSession(account.id, sessionId, title)
+        // 同步刷新本地会话列表（切换器立即显示新标题）
+        setSessions((prev) =>
+          prev.map((s) => (s.id === sessionId ? { ...s, title, titled: true, updatedAt: Date.now() } : s)),
+        )
+      }
+    } catch {
+      /* 命名失败静默降级：保留截取式标题，不打扰用户 */
+    }
+  }, [account?.id, sessionId, messages, settings.ai, usingPlatform])
 
   // 向最近一条 assistant 消息追加执行步骤（agent 进度展示）
   // 从后往前找最新一条非 pending 的 assistant 消息，避免多轮对话时挂到历史消息上
@@ -272,20 +456,6 @@ export default function AIPanel() {
     })
   }, [])
 
-  // 拉取全部管理库最新数据（供检索/统计工具使用，保证写操作后数据新鲜）
-  async function fetchAllContexts(): Promise<LibraryContext[]> {
-    const acc = account!
-    const allLibs = await getProvider().listLibraries(acc.id)
-    const result: LibraryContext[] = []
-    for (const lib of allLibs) {
-      const [f, its] = await Promise.all([
-        getProvider().getTemplate(lib.id),
-        getProvider().listItems(lib.id),
-      ])
-      result.push({ library: lib, fields: f, items: its.filter((i) => !i.deletedAt) })
-    }
-    return result
-  }
 
   async function runConversation(
     chatMessages: ChatMessage[],
@@ -401,6 +571,7 @@ export default function AIPanel() {
           // 执行操作
           try {
             const { result, undo } = await executeAction(confirmed)
+            useLibraryStore.getState().bumpDataVersion()
             pushStep(t('ai.step.itemAction', { action: confirmed.action }))
             currentMessages.push({
               role: 'tool',
@@ -492,7 +663,7 @@ export default function AIPanel() {
           const fieldKey = (args as { fieldKey?: string }).fieldKey
           const limit = Math.min(Math.max(Number((args as { limit?: number }).limit ?? 20), 1), 50)
           try {
-            const ctxs = await fetchAllContexts()
+            const ctxs = await getContexts()
             const needle = q.toLowerCase()
             if (!needle) {
               pushStep(t('ai.step.searchNoQuery'))
@@ -540,7 +711,7 @@ export default function AIPanel() {
           const op = ((args as { op?: string }).op ?? 'count') as 'count' | 'sum' | 'avg'
           const libraryId = (args as { libraryId?: string }).libraryId
           try {
-            const ctxs = await fetchAllContexts()
+            const ctxs = await getContexts()
             const targets = libraryId ? ctxs.filter((c) => c.library.id === libraryId) : ctxs
             const lines: string[] = []
             for (const c of targets) {
@@ -603,7 +774,7 @@ export default function AIPanel() {
           }
         } else if (tc.function.name === 'list_libraries') {
           try {
-            const ctxs = await fetchAllContexts()
+            const ctxs = await getContexts()
             pushStep(t('ai.step.listLibs'))
             currentMessages.push({
               role: 'tool',
@@ -699,6 +870,7 @@ export default function AIPanel() {
           }
           try {
             const { result, undo } = await executeLibAction(libAction)
+            useLibraryStore.getState().bumpDataVersion()
             pushStep(t('ai.step.libAction', { action: libAction.action }))
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
             if (undo) {
@@ -740,6 +912,7 @@ export default function AIPanel() {
           }
           try {
             const { result, undo } = await executeTplAction(tplAction)
+            useLibraryStore.getState().bumpDataVersion()
             pushStep(t('ai.step.tplAction', { action: tplAction.action }))
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
             if (undo) {
@@ -790,9 +963,13 @@ export default function AIPanel() {
 
   async function executeAction(action: ItemAction): Promise<{ result: string; undo?: UndoInfo }> {
     const acc = account!
+    // 只读宽限期内禁止 AI 写操作（create/update/delete 均拦截）
+    if (acc.expiresAt != null && getSubStatus(acc.expiresAt) === 'grace') {
+      return { result: tNow('sub.readonly.error') }
+    }
     if (action.action === 'delete') {
       if (!action.itemId) return { result: '缺少条目 ID' }
-      await getProvider().deleteItem(action.itemId)
+      await storeDeleteItem(action.itemId)
       if (action.libraryId === currentLibraryId) await refreshCurrent()
       return {
         result: `已删除条目 ${action.itemId}（已移入回收站）`,
@@ -844,7 +1021,7 @@ export default function AIPanel() {
       fields: { ...target.fields, ...(action.fields as Item['fields']) },
       updatedAt: Date.now(),
     }
-    await getProvider().updateItem(updated)
+    await storeUpdateItem(updated)
     if (action.libraryId === currentLibraryId) await refreshCurrent()
     return {
       result: `已修改条目 ${action.itemId}`,
@@ -1053,10 +1230,11 @@ export default function AIPanel() {
   }
 
   const handleClear = () => {
+    // 清空当前会话内容（保留会话本身）
     setMessages([])
-    if (account) {
+    if (account && sessionId) {
       try {
-        localStorage.removeItem(`ai-chat-${account.id}`)
+        saveSession(account.id, sessions.find((s) => s.id === sessionId) ?? { id: sessionId, title: '', updatedAt: Date.now() }, [])
       } catch {
         /* 忽略 */
       }
@@ -1066,6 +1244,11 @@ export default function AIPanel() {
   const handleUndo = useCallback(async (msgIndex: number) => {
     const msg = messages[msgIndex]
     if (!msg?.undo) return
+    // 只读宽限期内禁止撤销（撤销也是写操作，会绕过 store 守卫）
+    if (account?.expiresAt != null && getSubStatus(account.expiresAt) === 'grace') {
+      message.warning(tNow('sub.readonly.error'))
+      return
+    }
     try {
       await msg.undo.undo()
       // 移除 undo 信息，标记已撤回
@@ -1151,7 +1334,42 @@ export default function AIPanel() {
           gap: 8,
         }}
       >
-        <Text type="secondary" style={{ fontSize: 12 }}>{t('ai.allLibraries')}</Text>
+        <Dropdown
+          open={sessionSwitcherOpen}
+          onOpenChange={setSessionSwitcherOpen}
+          trigger={['click']}
+          menu={{
+            items: [
+              ...sessions.map((s) => ({
+                key: s.id,
+                label: (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, minWidth: 180 }}>
+                    <span style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: s.id === sessionId ? 600 : 400 }}>
+                      {s.title || t('ai.session.untitled')}
+                    </span>
+                    <Button
+                      size="small"
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={(e) => { e.stopPropagation(); removeSession(s.id) }}
+                    />
+                  </div>
+                ),
+              })),
+              { type: 'divider' as const },
+              { key: '__new__', label: <Space><PlusOutlined />{t('ai.session.new')}</Space> },
+            ],
+            onClick: ({ key }) => { if (key === '__new__') startNewSession(); else switchSession(key) },
+          }}
+        >
+          <Button size="small" type="text" icon={<MessageOutlined />} style={{ maxWidth: 140 }}>
+            <span style={{ maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {sessions.find((s) => s.id === sessionId)?.title || t('ai.session.untitled')}
+            </span>
+          </Button>
+        </Dropdown>
+        <Text type="secondary" style={{ fontSize: 12, flex: 1 }}>{t('ai.allLibraries')}</Text>
         <Button size="small" icon={<ReloadOutlined />} onClick={handleClear} type="text" />
       </div>
 

@@ -12,6 +12,8 @@ export interface ChatOptions {
   signal?: AbortSignal
   onText?: (delta: string) => void
   onReasoning?: (delta: string) => void
+  /** 上限输出 token 数（标题生成等轻量任务用，省额度/加快返回） */
+  maxTokens?: number
 }
 
 interface ChoiceMessage {
@@ -32,6 +34,7 @@ export async function chat({
   signal,
   onText,
   onReasoning,
+  maxTokens,
 }: ChatOptions): Promise<ChoiceMessage> {
   if (!viaProxy && (!baseUrl || !apiKey || !model)) {
     throw new Error('AI 配置不完整：请填写服务地址、API Key 与模型名')
@@ -45,6 +48,7 @@ export async function chat({
     messages,
     tools: tools && tools.length ? tools : undefined,
     stream: true,
+    ...(maxTokens ? { max_tokens: maxTokens } : {}),
   }
   if (viaProxy) {
     // 代理模式：携带买家自己的登录令牌做身份核验（密钥由服务端持有）
@@ -57,6 +61,8 @@ export async function chat({
   }
 
   let res: Response
+  // CF 边缘偶发瞬时 502/503（平台抖动，与上游无关）：静默重试一次可消除大部分体验问题。
+  // 仅对 502/503/504 重试；429（真限流）与其余 4xx 重试无意义。
   try {
     res = await fetch(url, {
       method: 'POST',
@@ -64,6 +70,19 @@ export async function chat({
       body: JSON.stringify(payload),
       signal,
     })
+    if ([502, 503, 504].includes(res.status)) {
+      const first = await res.text().catch(() => '')
+      // 只有 CF 网关错误页（无 JSON 结构）才重试；我们自己的 JSON 错误（已含上游降级结果）不重试
+      if (!first.trim().startsWith('{')) {
+        await new Promise((r) => setTimeout(r, 500))
+        res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+          signal,
+        })
+      }
+    }
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e
     throw new Error('网络连接失败，请检查网络后重试')
@@ -71,13 +90,26 @@ export async function chat({
 
   if (!res.ok || !res.body) {
     const txt = await res.text().catch(() => '')
-    let msg = txt.slice(0, 200)
+    let msg = ''
+    let code = ''
     try {
-      msg = (JSON.parse(txt) as { error?: string }).error ?? msg
+      const parsed = JSON.parse(txt) as { error?: string; code?: string }
+      msg = parsed.error ?? ''
+      code = parsed.code ?? ''
     } catch {
-      /* 非 JSON 响应，保留原文 */
+      /* 非 JSON 响应（如网关 HTML 错误页）——不把原文甩给用户 */
     }
-    throw new Error(`AI 请求失败 (${res.status})${msg ? `: ${msg}` : ''}`)
+    // 按错误码给出可读提示；未知/HTML 响应统一收口为简洁文案
+    const friendly: Record<string, string> = {
+      AI_RATE_LIMITED: msg || 'AI 调用过于频繁，请稍后再试',
+      UPSTREAM_RATE_LIMITED: msg || 'AI 服务当前繁忙，请稍等 1-2 分钟再试',
+      UPSTREAM_NETWORK: msg || '连接上游 AI 服务失败，请稍后重试',
+      UPSTREAM_ERROR: msg || 'AI 服务暂时不可用，请稍后重试',
+      PROXY_INTERNAL: msg || 'AI 服务暂时不可用，请稍后重试',
+      AI_NOT_CONFIGURED: msg || '平台 AI 未配置，请联系管理员',
+    }
+    const final = code ? (friendly[code] ?? (msg || 'AI 服务异常，请稍后重试')) : (msg || 'AI 服务异常，请稍后重试')
+    throw new Error(`AI 请求失败 (${res.status}): ${final}`)
   }
 
   const reader = res.body.getReader()
@@ -134,6 +166,23 @@ export async function chat({
   }
 
   const toolCalls = Array.from(toolCallMap.values()).filter((t) => t.function.name)
+
+  // EOF 健康检查：流正常结束必须"有话说完（content）或要调工具（tool_calls）"。
+  // 两者皆空 = 流被异常截断（上游断流/网关中断），绝不能静默返回——否则 UI 表现为
+  // "正在输出突然终止、无任何报错"。抛出明确错误，由上层展示并可重试。
+  if (!content && !reasoningContent && toolCalls.length === 0) {
+    throw new Error('AI 响应中断（流被提前断开），请重试')
+  }
+
+  // tool_calls 存在但 arguments JSON 解析不全（流中途断在参数里）也是截断：补齐再校验
+  for (const tc of toolCalls) {
+    try {
+      JSON.parse(tc.function.arguments || '{}')
+    } catch {
+      throw new Error('AI 工具调用参数不完整（流被提前断开），请重试')
+    }
+  }
+
   return {
     role: 'assistant',
     content: content || null,

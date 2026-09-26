@@ -117,6 +117,8 @@ export class ChunkReceiver {
     }
     if (msg.t === 'end') {
       this.done = true
+      // 防御：可靠有序通道下不应缺块；若缺块则拒绝返回损坏数据（宁可挂起也不静默错数据）
+      if (this.received < this.expected) return null
       return this.chunks.join('')
     }
     return null
@@ -137,6 +139,8 @@ export class ChunkReceiver {
 const RTC_CONFIG: RTCConfiguration = { iceServers: [] }
 // ICE 收集兜底超时（主机候选通常很快）
 const ICE_GATHER_TIMEOUT_MS = 3000
+// 发送尾部等待缓冲清空的兜底上限，避免异常情况下无限轮询
+const FLUSH_TIMEOUT_MS = 30000
 
 export interface SessionMeta { accountId: string; username: string }
 
@@ -164,6 +168,7 @@ export type P2PErrorCode =
   | 'CONNECT_FAILED'
   | 'SEND_FAILED'
   | 'NO_WEBRTC'
+  | 'READ_ONLY'
 
 export class P2PError extends Error {
   code: P2PErrorCode
@@ -177,16 +182,37 @@ function waitIceComplete(pc: RTCPeerConnection): Promise<void> {
   return new Promise((resolve) => {
     if (pc.iceGatheringState === 'complete') return resolve()
     let settled = false
-    const finish = () => {
-      if (!settled) {
-        settled = true
-        resolve()
-      }
-    }
-    pc.addEventListener('icegatheringstatechange', () => {
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const onState = () => {
       if (pc.iceGatheringState === 'complete') finish()
-    })
-    setTimeout(finish, ICE_GATHER_TIMEOUT_MS)
+    }
+    const finish = () => {
+      if (settled) return
+      settled = true
+      if (timer != null) clearTimeout(timer)
+      pc.removeEventListener('icegatheringstatechange', onState)
+      resolve()
+    }
+    pc.addEventListener('icegatheringstatechange', onState)
+    timer = setTimeout(finish, ICE_GATHER_TIMEOUT_MS)
+  })
+}
+
+// 等待数据通道缓冲回落；通道关闭/会话结束时也要立即返回，避免发送循环永久挂起
+function waitForLowBuffer(ch: RTCDataChannel): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (ch.readyState !== 'open') return resolve()
+    let settled = false
+    const settle = () => {
+      if (settled) return
+      settled = true
+      ch.onbufferedamountlow = null
+      ch.removeEventListener('close', onClose)
+      resolve()
+    }
+    const onClose = () => settle()
+    ch.onbufferedamountlow = settle
+    ch.addEventListener('close', onClose)
   })
 }
 
@@ -298,22 +324,30 @@ export class P2PSession {
     ch.bufferedAmountLowThreshold = CHUNK_SIZE * 8
     try {
       for (let i = 0; i < this.sendMsgs.length; i++) {
-        // 背压控制：缓冲过高时等待排空，避免大数据量一次性灌入
-        while (ch.bufferedAmount > ch.bufferedAmountLowThreshold && !this.ended) {
-          await new Promise<void>((res) => {
-            ch.onbufferedamountlow = () => { ch.onbufferedamountlow = null; res() }
-          })
+        // 背压控制：缓冲过高时等待排空；通道关闭会立即返回，不会永久挂起
+        while (
+          ch.bufferedAmount > ch.bufferedAmountLowThreshold &&
+          !this.ended &&
+          ch.readyState === 'open'
+        ) {
+          await waitForLowBuffer(ch)
         }
-        if (this.ended) return
+        if (this.ended || ch.readyState !== 'open') return
         ch.send(this.sendMsgs[i])
         this.sentIndex = i + 1
         this.emitProgress()
       }
-      // 等待缓冲彻底清空，确保对端可靠收齐（数据通道为可靠传输）
-      while (ch.bufferedAmount > 0 && !this.ended) {
+      // 等待缓冲彻底清空，确保对端可靠收齐（数据通道为可靠传输）；带兜底上限
+      const flushDeadline = Date.now() + FLUSH_TIMEOUT_MS
+      while (
+        ch.bufferedAmount > 0 &&
+        !this.ended &&
+        ch.readyState === 'open' &&
+        Date.now() < flushDeadline
+      ) {
         await new Promise((r) => setTimeout(r, 50))
       }
-      if (this.ended) return
+      if (this.ended || ch.readyState !== 'open') return
       this.emitProgress()
       this.cb.onSentComplete?.()
     } catch (e) {

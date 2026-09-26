@@ -23,7 +23,6 @@ import {
   UploadOutlined,
   CloudOutlined,
   SyncOutlined,
-  CopyOutlined,
   SwapOutlined,
   HistoryOutlined,
   RollbackOutlined,
@@ -34,7 +33,6 @@ import dayjs from 'dayjs'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { useLibraryStore } from '@/store/libraryStore'
-import { encodeSyncCode } from '@/utils/syncCode'
 import { pushLocalToCloud, mergeCloudToLocal, syncBidirectional } from '@/db/syncService'
 import { friendlyDbError } from '@/utils/dbErrors'
 import { initFromSettings } from '@/db/providerFactory'
@@ -50,10 +48,9 @@ import {
 } from '@/db/snapshotService'
 import { SYSTEM_PROMPT } from '@/ai/contextBuilder'
 import { importLegacyMemory, listMemory, replaceAllMemory, clearMemory } from '@/ai/memory'
-import SyncImportModal from '@/components/settings/SyncImportModal'
 import FaceToFaceSyncModal from '@/components/settings/FaceToFaceSyncModal'
 import { useI18n } from '@/i18n'
-import QRCode from 'qrcode'
+import { getSubStatus } from '@/utils/subscription'
 
 const { Text } = Typography
 
@@ -223,6 +220,7 @@ function StorageTab() {
             const r = await mergeCloudToLocal(account.id, settings.cloud)
             await useLibraryStore.getState().loadLibraries()
             await useLibraryStore.getState().refreshCurrent()
+            useLibraryStore.getState().bumpDataVersion()
             message.success({
               content: t('settings.storage.done.pull', { libs: r.addedLibraries, fields: r.addedFields, items: r.addedItems, updated: r.updatedItems }),
               key: 'sync',
@@ -264,6 +262,7 @@ function StorageTab() {
             await pushLocalToCloud(account.id, settings.cloud)
             await useLibraryStore.getState().loadLibraries()
             await useLibraryStore.getState().refreshCurrent()
+            useLibraryStore.getState().bumpDataVersion()
             message.success({
               content: t('settings.storage.toggleDone.cloud', { libs: r.addedLibraries, items: r.addedItems, updated: r.updatedItems }),
               key: 'migrate',
@@ -282,6 +281,7 @@ function StorageTab() {
           }
           // 刷新 libraryStore 数据，避免 window.location.reload() 整页刷新
           await useLibraryStore.getState().loadLibraries()
+          useLibraryStore.getState().bumpDataVersion()
           // 切换存储模式后清空当前库选中状态（数据源已变，旧 fields/items 无意义）
           useLibraryStore.setState({ currentLibraryId: null, fields: [], items: [], trash: [], focusItemId: null })
         } catch (e) {
@@ -417,127 +417,14 @@ alter table items disable row level security;`}
   )
 }
 
-// 「配置同步」标签页：跨设备迁移的统一入口，独立于存储设置。
-// 同步码内容自适应——开启云端数据库时打包「数据库 + AI」配置，未开启时只打包 AI 配置。
+// 「数据同步」标签页：同一局域网内两台设备登录同一账号、连接同一 Wi-Fi，
+// 经 WebRTC 数据通道直连，互传并合并全部数据（库数据 + AI / 云端配置），全程不经过服务器。
 function ConfigSyncTab() {
-  const { message, modal } = App.useApp()
   const t = useI18n()
-  const { settings, setStorageMode, setCloud, setAI } = useAppStore()
-  const { account } = useAuthStore()
-  const [importOpen, setImportOpen] = useState(false)
-  const [qrDataUrl, setQrDataUrl] = useState('')
   const [f2fOpen, setF2fOpen] = useState(false)
-
-  const hasCloud = settings.storageMode === 'cloud' && !!settings.cloud.url && !!settings.cloud.anonKey
-  const hasAI = !!(settings.ai.baseUrl || settings.ai.apiKey || settings.ai.model)
-
-  // 未开启云端时，云端字段留空（解码端据此跳过数据库配置的导入）
-  const syncCodeValue =
-    hasCloud || hasAI
-      ? encodeSyncCode({
-          cloudUrl: hasCloud ? settings.cloud.url : '',
-          cloudKey: hasCloud ? settings.cloud.anonKey : '',
-          aiBaseUrl: settings.ai.baseUrl,
-          aiApiKey: settings.ai.apiKey,
-          aiModel: settings.ai.model,
-        })
-      : ''
-
-  useEffect(() => {
-    if (!syncCodeValue) {
-      setQrDataUrl('')
-      return
-    }
-    QRCode.toDataURL(syncCodeValue, { width: 220, margin: 1 })
-      .then(setQrDataUrl)
-      .catch(() => setQrDataUrl(''))
-  }, [syncCodeValue])
-
-  // 扫码/粘贴导入后的完整落地流程：填入配置 → 自动开启云端模式 → 双向同步（先拉取、后上传）
-  const applyAndSync = async (d: { cloudUrl: string; cloudKey: string }) => {
-    if (!account) return
-    const key = 'sync-import'
-    try {
-      message.loading({ content: t('settings.sync.enabling'), key, duration: 0 })
-      setStorageMode('cloud')
-      initFromSettings(useAppStore.getState().settings)
-
-      message.loading({ content: t('settings.sync.fetching'), key, duration: 0 })
-      const r = await mergeCloudToLocal(account.id, { url: d.cloudUrl, anonKey: d.cloudKey })
-
-      // 反向上传：把本机（离线期间）已有的数据也推上去，保证两端一致
-      message.loading({ content: t('settings.sync.uploading'), key, duration: 0 })
-      await pushLocalToCloud(account.id, { url: d.cloudUrl, anonKey: d.cloudKey })
-
-      await useLibraryStore.getState().loadLibraries()
-      await useLibraryStore.getState().refreshCurrent()
-      message.success({
-        content: t('settings.sync.done', { libs: r.addedLibraries, items: r.addedItems, updated: r.updatedItems }),
-        key,
-        duration: 6,
-      })
-    } catch (e) {
-      message.error({
-        content: t('settings.sync.failedRetry', { msg: friendlyDbError(e) }),
-        key,
-        duration: 8,
-      })
-    }
-  }
-
-  const handleDecodedImport = (d: {
-    cloudUrl: string
-    cloudKey: string
-    aiBaseUrl: string
-    aiApiKey: string
-    aiModel: string
-  }) => {
-    const withCloud = !!(d.cloudUrl && d.cloudKey)
-    if (withCloud) {
-      setCloud({ url: d.cloudUrl, anonKey: d.cloudKey })
-    }
-    if (d.aiBaseUrl || d.aiApiKey || d.aiModel) {
-      setAI({ baseUrl: d.aiBaseUrl, apiKey: d.aiApiKey, model: d.aiModel })
-    }
-    setImportOpen(false)
-
-    if (!withCloud) {
-      message.success(t('settings.sync.importedAiOnly'))
-      return
-    }
-    if (!account) {
-      message.warning(t('settings.sync.importedNeedLogin'))
-      return
-    }
-
-    // 已处于云端模式：静默直接同步；否则确认后自动切换并双向同步
-    if (settings.storageMode === 'cloud') {
-      void applyAndSync(d)
-      return
-    }
-    modal.confirm({
-      title: t('settings.sync.importTitle'),
-      content:
-        t('settings.sync.importBody'),
-      okText: t('settings.sync.importOk'),
-      cancelText: t('settings.sync.importCancel'),
-      onOk: () => applyAndSync(d),
-      onCancel: () => {
-        message.success(t('settings.sync.importCancelled'))
-      },
-    })
-  }
 
   return (
     <div style={{ maxWidth: 560 }}>
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-        message={t('settings.sync.title')}
-        description={t('settings.sync.body')}
-      />
-
       <Card size="small" style={{ marginBottom: 16 }}>
         <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
           <div style={{ minWidth: 220, flex: 1 }}>
@@ -550,69 +437,6 @@ function ConfigSyncTab() {
         </Space>
       </Card>
 
-      {!syncCodeValue ? (
-        <Alert
-          type="warning"
-          showIcon
-          message={t('settings.sync.none.title')}
-          description={
-            <span>
-              {t('settings.sync.none.body')}
-            </span>
-          }
-        />
-      ) : (
-        <Card size="small" title={t('settings.sync.myQr')} style={{ marginBottom: 16 }}>
-          <Space wrap size={4} style={{ marginBottom: 12 }}>
-            <Tag color={hasCloud ? 'green' : 'default'}>
-              {hasCloud ? t('settings.sync.included.cloud') : t('settings.sync.excluded.cloud')}
-            </Tag>
-            <Tag color={hasAI ? 'green' : 'default'}>
-              {hasAI ? t('settings.sync.included.ai') : t('settings.sync.excluded.ai')}
-            </Tag>
-          </Space>
-          <Alert
-            type="warning"
-            showIcon
-            style={{ marginBottom: 12, fontSize: 12 }}
-            message={t('settings.sync.qrWarning')}
-          />
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            {qrDataUrl && (
-              <img
-                src={qrDataUrl}
-                alt="同步二维码"
-                width={180}
-                height={180}
-                style={{ borderRadius: 8, border: '1px solid #eee' }}
-              />
-            )}
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <Input.Group compact>
-                <Input readOnly style={{ width: 'calc(100% - 80px)' }} value={syncCodeValue} />
-                <Button
-                  style={{ width: 80 }}
-                  icon={<CopyOutlined />}
-                  onClick={() => {
-                    navigator.clipboard.writeText(syncCodeValue)
-                    message.success(t('settings.sync.codeCopied'))
-                  }}
-                >
-                  复制
-                </Button>
-              </Input.Group>
-              <Button block style={{ marginTop: 8 }} onClick={() => setImportOpen(true)}>
-                {t('settings.sync.importBtn')}
-              </Button>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 6 }}>
-                {t('settings.sync.flowHint')}
-              </Text>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      <SyncImportModal open={importOpen} onClose={() => setImportOpen(false)} onDecoded={handleDecodedImport} />
       <FaceToFaceSyncModal open={f2fOpen} onClose={() => setF2fOpen(false)} />
     </div>
   )
@@ -932,7 +756,8 @@ function BackupTab() {
     a.href = url
     a.download = `备份_${dayjs().format('YYYYMMDD_HHmmss')}.json`
     a.click()
-    URL.revokeObjectURL(url)
+    // TWA/安卓 WebView 中下载是异步启动的：立即 revoke 会导致下载失败/空文件（桌面 Chrome 宽容但移动端不宽容）
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
     message.success(t('settings.backup.exported'))
   }
 
@@ -944,6 +769,11 @@ function BackupTab() {
       okType: 'danger',
       onOk: async () => {
         try {
+          // 只读宽限期内禁止导入（导入会整包改写数据，绕过 libraryStore 的只读守卫）
+          if (account?.expiresAt != null && getSubStatus(account.expiresAt) === 'grace') {
+            message.warning(t('sub.readonly.error'))
+            return
+          }
           const text = await file.text()
           const blob = JSON.parse(text)
           // 导入前自动拍一张快照，便于回溯（失败不阻断导入）
