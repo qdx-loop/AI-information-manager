@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   expires_at INTEGER NOT NULL,          -- 到期时间戳（毫秒）
   disabled INTEGER NOT NULL DEFAULT 0,  -- 1=已停用
   created_at INTEGER NOT NULL,
-  last_login INTEGER
+  last_login INTEGER,
+  pwd_epoch INTEGER NOT NULL DEFAULT 0  -- 密码纪元：改密时 +1，用于吊销旧令牌
 );
 
 CREATE INDEX IF NOT EXISTS idx_accounts_username ON accounts(username);
@@ -44,3 +45,17 @@ CREATE TABLE IF NOT EXISTS analytics_events (
 );
 CREATE INDEX IF NOT EXISTS idx_analytics_account_time ON analytics_events(account_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_analytics_name_time ON analytics_events(name, created_at DESC);
+
+-- 局域网同步的服务端信令：只中转 WebRTC offer/answer 帮两台同账号设备自动配对，
+-- 业务数据仍走局域网 WebRTC 直连，不经过服务器
+CREATE TABLE IF NOT EXISTS p2p_signals (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  device_id TEXT NOT NULL,
+  role TEXT NOT NULL,               -- 'host'（发起方）| 'guest'（加入方）
+  offer TEXT,
+  answer TEXT,
+  status TEXT NOT NULL DEFAULT 'waiting',  -- waiting（等对端）| done
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_p2p_signals_account ON p2p_signals(account_id, created_at);

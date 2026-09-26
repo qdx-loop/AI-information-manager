@@ -9,6 +9,8 @@ import {
   clearLoginFailures,
   clientIp,
   logAdmin,
+  sha256Hex,
+  timingSafeEqualHex,
 } from '../../lib/_auth'
 
 export async function onRequestPost({ request, env }) {
@@ -28,7 +30,12 @@ export async function onRequestPost({ request, env }) {
     return errorJson('请求格式错误', 400, 'BAD_BODY')
   }
   const password = String(body.password ?? '')
-  if (password !== env.ADMIN_PASSWORD) {
+  // 常量时间比较：先各自归一化为 SHA-256 摘要再比，消除长度与内容时序差
+  const [pwdDigest, adminDigest] = await Promise.all([
+    sha256Hex(password),
+    sha256Hex(env.ADMIN_PASSWORD),
+  ])
+  if (!timingSafeEqualHex(pwdDigest, adminDigest)) {
     await recordLoginFailure(env, `admin:${ip}`)
     return errorJson('管理密码错误', 401, 'WRONG_ADMIN')
   }

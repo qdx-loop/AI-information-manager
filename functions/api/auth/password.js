@@ -20,6 +20,14 @@ export async function onRequestPost({ request, env }) {
   }
   const stored = await hashPassword(newPwd)
   await env.DB.prepare('UPDATE accounts SET password_hash = ? WHERE id = ?').bind(stored, acc.id).run()
+  // 递增密码纪元，使该账户既有令牌全部失效（未迁移时忽略失败，不影响改密本身）
+  try {
+    await env.DB.prepare('UPDATE accounts SET pwd_epoch = COALESCE(pwd_epoch, 0) + 1 WHERE id = ?')
+      .bind(acc.id)
+      .run()
+  } catch (e) {
+    console.warn('[pwd] pwd_epoch 递增失败（请执行 migration-pwd-epoch.sql）:', e?.message)
+  }
   return json({ ok: true })
 }
 

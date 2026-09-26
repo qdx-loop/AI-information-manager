@@ -11,6 +11,7 @@ import {
   recordLoginFailure,
   clearLoginFailures,
   clientIp,
+  GRACE_MS,
 } from '../../lib/_auth'
 
 const DUMMY_SALT = '0123456789abcdef0123456789abcdef'
@@ -50,7 +51,8 @@ export async function onRequestPost({ request, env }) {
     return errorJson('用户名或密码错误', 401, 'INVALID_CREDENTIALS')
   }
   if (acc.disabled) return errorJson('账户已被停用，请联系管理员', 403, 'DISABLED')
-  if (Date.now() > acc.expires_at) {
+  // 宽限期内允许登录（客户端进入只读模式）；超过宽限期才拒绝
+  if (Date.now() > acc.expires_at + GRACE_MS) {
     return errorJson('您的账户已到期，请联系管理员续费', 403, 'EXPIRED')
   }
 
@@ -59,7 +61,7 @@ export async function onRequestPost({ request, env }) {
     .bind(Date.now(), acc.id)
     .run()
 
-  const token = await issueUserToken(acc, env.AUTH_SECRET)
+  const token = await issueUserToken(acc, env.AUTH_SECRET, env)
   return json({
     token,
     account: {

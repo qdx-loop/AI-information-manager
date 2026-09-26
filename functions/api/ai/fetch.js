@@ -1,24 +1,29 @@
 // POST /api/ai/fetch — 服务端抓网页：返回清洗后的正文文本（供 AI 工具使用）
 // 仅登录买家可用；拒绝内网地址防 SSRF。
 import { json, errorJson, requireUser } from '../../lib/_auth'
+import { isFetchableUrl } from '../../lib/ssrf'
 
 const MAX_BYTES = 300 * 1024
 const MAX_CHARS = 16000
 
-function isPrivateHost(host) {
-  try {
-    const ip = host.match(/^(\d{1,3}\.){4}$/) ? host.split('.').map(Number) : null
-    if (ip) {
-      if (ip[0] === 10 || ip[0] === 127 || ip[0] === 0) return true
-      if (ip[0] === 172 && ip[1] >= 16 && ip[1] <= 31) return true
-      if (ip[0] === 192 && ip[1] === 168) return true
-      if (ip[0] === 169 && ip[1] === 254) return true
-      return false
+// 手动跟随重定向并逐跳重新校验目标，防止「公网页 302 到内网」的 SSRF 绕过
+async function safeFetch(rawUrl, init, maxRedirects = 5) {
+  let current = rawUrl
+  for (let i = 0; i <= maxRedirects; i++) {
+    const res = await fetch(current, { ...init, redirect: 'manual' })
+    const status = res.status
+    if (status === 301 || status === 302 || status === 303 || status === 307 || status === 308) {
+      const loc = res.headers.get('location')
+      if (!loc) return res
+      const next = new URL(loc, current).toString()
+      const check = isFetchableUrl(next)
+      if (!check.ok) throw new Error('REDIRECT_BLOCKED')
+      current = next
+      continue
     }
-    return /^(localhost|local|\.localhost|\.local|\.lan)$/i.test(host) || host.endsWith('.local')
-  } catch {
-    return true
+    return res
   }
+  throw new Error('TOO_MANY_REDIRECTS')
 }
 
 function htmlToText(html) {
@@ -56,26 +61,34 @@ export async function onRequestPost({ request, env }) {
   }
 
   const rawUrl = String(body?.url ?? '').trim()
-  if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) {
-    return errorJson('无效 URL，需以 http:// 或 https:// 开头', 400, 'BAD_URL')
-  }
-  const host = new URL(rawUrl).hostname
-  if (!host || isPrivateHost(host)) {
-    return errorJson('该域名不可抓取（内网/本地域名禁止）', 400, 'BLOCKED_HOST')
+  const initialCheck = isFetchableUrl(rawUrl)
+  if (!initialCheck.ok) {
+    return errorJson(
+      initialCheck.reason === 'BLOCKED_HOST'
+        ? '该域名不可抓取（内网/本地域名禁止）'
+        : '无效 URL，需以 http:// 或 https:// 开头',
+      400,
+      initialCheck.reason,
+    )
   }
 
   let upstream
   try {
-    upstream = await fetch(rawUrl, {
+    upstream = await safeFetch(rawUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
         Accept: 'text/html,application/xhtml+xml',
         Accept_Language: 'zh-CN,zh;q=0.9',
       },
-      redirect: 'follow',
       cf: { cacheTtl: 600, cacheEverything: false },
     })
-  } catch {
+  } catch (e) {
+    if (e?.message === 'REDIRECT_BLOCKED') {
+      return errorJson('重定向目标不可抓取（内网/本地域名禁止）', 400, 'BLOCKED_HOST')
+    }
+    if (e?.message === 'TOO_MANY_REDIRECTS') {
+      return errorJson('重定向次数过多', 502, 'TOO_MANY_REDIRECTS')
+    }
     return errorJson('抓取失败：网络不可达或目标拒绝', 502, 'FETCH_FAIL')
   }
 
