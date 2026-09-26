@@ -20,8 +20,8 @@
     "path": "infodesk.keystore",
     "alias": "infodesk"
   },
-  "appVersionName": "1.0.1",
-  "appVersionCode": 2,
+  "appVersionName": "1.1.0",
+  "appVersionCode": 3,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "fallbackType": "customtabs",
@@ -38,6 +38,6 @@
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "displayOverride": [],
-  "appVersion": "1.0.0",
+  "appVersion": "1.1.0",
   "splashScreenIconUrl": "https://aiim.de5.net/icon-1024.png"
 }
