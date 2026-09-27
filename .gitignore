@@ -18,7 +18,8 @@ vite.config.js
 
 # APK 打包产物与签名（勿提交：私钥泄露=别人可冒充你的App）
 apk-build/infodesk.keystore
-apk-build/app/
+# 只排除构建输出；app/src 是壳的源码，必须入库
+apk-build/app/build/
 apk-build/app-release-*.apk
 apk-build/app-release-*.aab
 apk-build/.gradle
