@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Card, Progress, Button, Tag, Space, Alert, App, Typography } from 'antd'
+import { Card, Progress, Button, Tag, Space, Alert, App, Typography, Grid } from 'antd'
 import {
   RocketOutlined,
   CheckCircleFilled,
@@ -54,6 +54,9 @@ export default function GettingStarted() {
   const doneCount = steps.filter((s) => s.done).length
   const allDone = doneCount === steps.length
   const pct = Math.round((doneCount / steps.length) * 100)
+  // 窄屏时把操作按钮换到下一行：中文在 flex 子项里 min-width:auto 会退化成一个字，
+  // 按钮（flexShrink:0）会把文字列挤成 1 字宽、逐字换行，整张卡片被撑到几百像素高。
+  const narrow = !Grid.useBreakpoint().md
 
   if (!account || hidden || isObDismissed(accId)) return null
 
@@ -91,7 +94,7 @@ export default function GettingStarted() {
   const actionFor = (key: string) => {
     if (key === 'lib')
       return (
-        <Space size={4}>
+        <Space size={4} wrap>
           <Button size="small" type="primary" loading={demoLoading} icon={<RocketOutlined />} onClick={handleDemo}>
             {t('ob.act.demo')}
           </Button>
@@ -136,7 +139,7 @@ export default function GettingStarted() {
 
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         {steps.map((s, idx) => (
-          <div key={s.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <div key={s.key} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 10 }}>
             {s.done ? (
               <CheckCircleFilled style={{ color: '#52c41a', fontSize: 18, marginTop: 2 }} />
             ) : (
@@ -150,13 +153,23 @@ export default function GettingStarted() {
                 {idx + 1}
               </span>
             )}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
               <Text style={{ fontWeight: 500, textDecoration: s.done ? 'line-through' : 'none' }} type={s.done ? 'secondary' : undefined}>
                 {s.title}
               </Text>
               <div style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>{s.desc}</div>
             </div>
-            {!s.done && <div style={{ flexShrink: 0 }}>{actionFor(s.key)}</div>}
+            {!s.done && (
+              <div
+                style={{
+                  flexShrink: 0,
+                  // 窄屏：占满整行换到文字下方；宽屏：留在同一行右侧
+                  ...(narrow ? { flexBasis: '100%', paddingLeft: 28 } : null),
+                }}
+              >
+                {actionFor(s.key)}
+              </div>
+            )}
           </div>
         ))}
       </Space>

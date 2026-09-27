@@ -112,12 +112,12 @@ export default function Landing() {
           borderBottom: '1px solid #EEF2F6',
         }}
       >
-        <div style={{ maxWidth: 1080, margin: '0 auto', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 24 }}>
-          <Space align="center" style={{ cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+        <div className="lp-header">
+          <Space align="center" className="lp-brand" style={{ cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <span style={{ width: 14, height: 14, borderRadius: 4, background: '#0D9488', display: 'inline-block' }} />
             <Text strong style={{ fontSize: 16 }}>{SITE.brand}</Text>
           </Space>
-          <nav style={{ flex: 1, display: 'flex', gap: 4, justifyContent: 'center' }}>
+          <nav className="lp-nav">
             <button className="lp-nav-link" onClick={() => scrollTo('features')}>{t('landing.nav.features')}</button>
             <button className="lp-nav-link" onClick={() => scrollTo('price')}>{t('landing.nav.price')}</button>
             <button className="lp-nav-link" onClick={() => scrollTo('faq')}>{t('landing.nav.faq')}</button>

@@ -197,6 +197,28 @@ input {
   color: #0f766e;
   font-size: 13px;
 }
+.lp-header {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+/* 品牌与右侧按钮不允许被压缩：中文在 flex 子项里 min-width:auto 会退化成一个字宽，
+   一旦被挤就会逐字竖排（这正是旧版窄屏导航崩掉的原因）。 */
+.lp-brand,
+.lp-header > .ant-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.lp-nav {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  min-width: 0;
+}
 .lp-nav-link {
   color: #334155;
   font-size: 14px;
@@ -205,11 +227,31 @@ input {
   cursor: pointer;
   padding: 6px 12px;
   border-radius: 6px;
+  white-space: nowrap;
   transition: background 0.15s, color 0.15s;
 }
 .lp-nav-link:hover {
   background: #f1f5f9;
   color: #0f172a;
+}
+/* 窄屏：导航独占一行并可横向滑动，链接不再被压成竖排 */
+@media (max-width: 768px) {
+  .lp-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+  .lp-nav {
+    order: 3;
+    flex: 1 0 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .lp-nav::-webkit-scrollbar {
+    display: none;
+  }
 }
 @keyframes lp-dot-blink {
   0%,
