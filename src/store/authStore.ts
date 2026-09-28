@@ -34,7 +34,7 @@ interface AuthState {
   init: () => Promise<void>
   login: (username: string, password: string, remember?: boolean) => Promise<SessionAccount>
   register: (
-    input: { username: string; password: string; contact?: string },
+    input: { username: string; password: string; contact?: string; turnstileToken?: string },
     remember?: boolean,
   ) => Promise<SessionAccount>
   logout: (reason?: string) => void

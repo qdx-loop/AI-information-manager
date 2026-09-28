@@ -1,9 +1,11 @@
 // /api/auth/register — 自助注册
 //   GET  — { open: boolean }：注册是否开放（环境变量 REGISTRATION_OPEN 控制，用于被灌水时紧急关闭）
-//   POST — { username, password, contact? } → { token, account }
+//   POST — { username, password, contact?, turnstileToken? }
+//          → { token, account }
 //
 // 设计要点：
 //  - 永久免费，注册成功即登录（直接下发令牌，省掉「注册完再登录一次」）
+//  - Turnstile 服务端校验挡脚本（判定与故障分开处理，见 lib/turnstile.js）
 //  - 用户名不区分大小写去重：DB 上是 UNIQUE（区分大小写），这里显式查重并给出
 //    友好提示，避免出现 Alice / alice 两个近似账号
 //  - 按 IP 限速，防止脚本批量灌水；限速表复用 login_attempts（fail-open 降级）
@@ -19,11 +21,15 @@ import {
   checkWindowCount,
   logAdmin,
 } from '../../lib/_auth'
+import { verifyTurnstile } from '../../lib/turnstile'
 
 // 同一 IP 每小时最多注册 5 个。正常用户一生只注册一次，
 // 这个阈值只用来挡住脚本，不会影响真人。
 const REGISTER_MAX = 5
 const REGISTER_WINDOW_MS = 60 * 60_000
+
+// 与前端 widget 的 data-action 一致
+const TURNSTILE_ACTION = 'signup'
 
 function registrationOpen(env) {
   // 未设置时默认开放；设为 0 / false / off 即关闭
@@ -55,6 +61,16 @@ export async function onRequestPost({ request, env }) {
   const gate = await checkWindowCount(env, `reg:${ip}`, REGISTER_MAX, REGISTER_WINDOW_MS)
   if (!gate.allowed) {
     return errorJson(`注册过于频繁，请 ${gate.waitMin} 分钟后再试`, 429, 'RATE_LIMITED')
+  }
+
+  // Turnstile：放在限速之后、落库之前——被限速挡掉的请求不必浪费一次 siteverify 往返
+  const turnstile = await verifyTurnstile(env, body.turnstileToken, TURNSTILE_ACTION, ip)
+  if (!turnstile.ok) {
+    return errorJson(turnstile.message, 400, turnstile.code)
+  }
+  if (turnstile.degraded) {
+    // 降级时留痕，方便管理员发现 Turnstile 一直不可用
+    console.warn('[register] Turnstile 降级放行:', turnstile.reason)
   }
 
   // 用户名大小写不敏感去重

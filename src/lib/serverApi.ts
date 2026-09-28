@@ -102,9 +102,10 @@ export async function apiRegistrationOpen(): Promise<boolean> {
   return (await request<{ open: boolean }>('/api/auth/register', { method: 'GET' })).open
 }
 
-/** 自助注册。成功后直接下发令牌，等同于已登录，省掉再登录一次。 */
+/** 自助注册。成功后直接下发令牌，等同于已登录，省掉再登录一次。
+ *  turnstileToken 为空时由服务端按「Turnstile 故障降级」处理。 */
 export async function apiRegister(
-  input: { username: string; password: string; contact?: string },
+  input: { username: string; password: string; contact?: string; turnstileToken?: string },
   remember: boolean,
 ): Promise<ServerAccount> {
   const r = await request<{ token: string; account: ServerAccount }>('/api/auth/register', {

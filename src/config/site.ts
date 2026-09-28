@@ -7,6 +7,10 @@
 
 export const SITE = {
   brand: '信息管理',
+  // Turnstile sitekey：按设计就是公开的（公钥性质），可以安全地打进前端包。
+  // 真正的安全在服务端 siteverify，密钥 TURNSTILE_SECRET 只存在 Pages 机密里。
+  turnstileSiteKey: '0x4AAAAAAFGx3halRl4kIYkd',
+  turnstileAction: 'signup',
   slogan: '用说话的方式，管理你的数据',
   subtitle: '建库、录入、查资料、做报表——对 AI 说一句话就行。不会 Excel 函数也能上手。',
   features: [
