@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Button, Space, Typography } from 'antd'
 import {
-  LoginOutlined,
   MessageOutlined,
   AppstoreOutlined,
   BarChartOutlined,
@@ -86,6 +85,8 @@ export default function Landing() {
   const setLanguage = useAppStore((s) => s.setLanguage)
   const [copiedEmail, setCopiedEmail] = useState('')
   const goLogin = () => navigate('/login')
+  // 新访客没有账号，导航主按钮直接把他送到「注册」页签，省一次点击
+  const goRegister = () => navigate('/login?mode=register')
 
   const features = [
     { icon: <MessageOutlined />, title: t('landing.f1t'), desc: t('landing.f1d') },
@@ -126,7 +127,7 @@ export default function Landing() {
           <Button type="text" onClick={() => setLanguage(lang === 'zh' ? 'en' : 'zh')}>
             {lang === 'zh' ? 'EN' : '中'}
           </Button>
-          <Button type="primary" onClick={goLogin}>{t('landing.nav.login')}</Button>
+          <Button type="primary" onClick={goRegister}>{t('landing.nav.login')}</Button>
         </div>
       </header>
 
@@ -143,14 +144,11 @@ export default function Landing() {
             {t('landing.hero.sub')}
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Button type="primary" size="large" icon={<LoginOutlined />} onClick={goLogin}>
-              {t('landing.hero.cta')}
-            </Button>
             <Button size="large" type="dashed" href="/app/infodesk.apk" download="信息管理.apk">
               {t('landing.hero.downloadApk')}
             </Button>
-
           </div>
+
           <div style={{ marginTop: 14, fontSize: 13, color: '#94A3B8' }}>{t('landing.hero.trust')}</div>
 
           <ProductDemo />

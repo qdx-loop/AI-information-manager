@@ -12,7 +12,7 @@ import {
 import { useAuthStore } from '@/store/authStore'
 import { apiRegistrationOpen } from '@/lib/serverApi'
 import { useI18n } from '@/i18n'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTurnstile } from './useTurnstile'
 
 const BRAND = '#0D9488'
@@ -29,8 +29,10 @@ interface RegisterValues {
 export default function AuthPage() {
   const { message } = App.useApp()
   const navigate = useNavigate()
+  const [search] = useSearchParams()
   const { login, register, account } = useAuthStore()
-  const [mode, setMode] = useState<Mode>('login')
+  // 落地页导航的「免费注册」会带 ?mode=register，直接落到注册页签
+  const [mode, setMode] = useState<Mode>(search.get('mode') === 'register' ? 'register' : 'login')
   const [loading, setLoading] = useState(false)
   const [remember, setRemember] = useState(false)
   const [loginForm] = Form.useForm<{ username: string; password: string }>()
