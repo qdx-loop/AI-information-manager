@@ -1,5 +1,5 @@
 export function issueUserToken(
-  account: { id: string; expires_at: number },
+  account: { id: string },
   secret: string,
   env?: unknown,
 ): Promise<string>
@@ -17,3 +17,20 @@ export function checkWindowCount(
   maxCount: number,
   windowMs: number,
 ): Promise<{ allowed: boolean; waitMin?: number; remaining?: number }>
+export const MIN_PASSWORD: number
+export const USERNAME_RE: RegExp
+export function validateRegistration(body: unknown): {
+  ok: boolean
+  field?: 'username' | 'password' | 'contact'
+  message?: string
+  value?: { username: string; password: string; contact: string | null }
+}
+export function randomString(len: number, charset?: string): string
+export function publicAccount(row: Record<string, unknown>): {
+  id: string
+  username: string
+  contact: string | null
+  createdAt: number
+  disabled: boolean
+  lastLogin: number | null
+}

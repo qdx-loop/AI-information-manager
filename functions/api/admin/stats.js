@@ -1,62 +1,59 @@
-// GET /api/admin/stats — 运营概览：近 7 天活跃/注册、关键行为、续费漏斗与卡种转化
+// GET /api/admin/stats — 运营概览：账户总量、停用数、近 7/30 天注册与活跃、关键行为、管理操作
+// 2026-09：去掉续费/体验卡漏斗（已无卡种），改为关注注册规模与活跃留存。
 import { json, errorJson, requireAdmin } from '../../lib/_auth'
+
+const DAY = 86400000
 
 export async function onRequestGet({ request, env }) {
   const { error } = await requireAdmin(request, env)
   if (error) return error
 
-  const since = Date.now() - 7 * 86400000
-  const monthAgo = Date.now() - 30 * 86400000
+  const now = Date.now()
+  const since7 = now - 7 * DAY
+  const since30 = now - 30 * DAY
   try {
-    const [active, signups, events, renews, expiry, trialTotal, trialRenewed] = await Promise.all([
+    const [total, disabled, signups7, signups30, active, events, ops] = await Promise.all([
+      env.DB.prepare('SELECT COUNT(*) AS n FROM accounts').first(),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM accounts WHERE disabled = 1').first(),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM accounts WHERE created_at > ?').bind(since7).first(),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM accounts WHERE created_at > ?').bind(since30).first(),
       env.DB.prepare(
         'SELECT COUNT(DISTINCT account_id) AS n FROM analytics_events WHERE created_at > ?',
       )
-        .bind(since)
-        .first(),
-      env.DB.prepare('SELECT COUNT(*) AS n FROM accounts WHERE created_at > ?')
-        .bind(since)
+        .bind(since7)
         .first(),
       env.DB.prepare(
         'SELECT name, COUNT(*) AS c FROM analytics_events WHERE created_at > ? GROUP BY name ORDER BY c DESC',
       )
-        .bind(since)
+        .bind(since7)
         .all(),
-      // 近 30 天续费操作数（audit 中 action='renew'）
       env.DB.prepare(
-        "SELECT COUNT(*) AS n FROM admin_audit WHERE action = 'renew' AND created_at > ?",
+        'SELECT action, COUNT(*) AS c FROM admin_audit WHERE created_at > ? GROUP BY action ORDER BY c DESC',
       )
-        .bind(monthAgo)
-        .first(),
-      // 近 30 天内到期的账号数（续费率分母：含刚到期的）
-      env.DB.prepare(
-        'SELECT COUNT(*) AS n FROM accounts WHERE expires_at > ? AND expires_at <= ?',
-      )
-        .bind(monthAgo, Date.now())
-        .first(),
-      // 体验卡总数（卡期 <= 7 天）
-      env.DB.prepare(
-        'SELECT COUNT(*) AS n FROM accounts WHERE expires_at - created_at <= 7 * 86400000',
-      ).first(),
-      // 体验卡中被续过费的数量（audit renew 记录按用户名对上）
-      env.DB.prepare(
-        "SELECT COUNT(DISTINCT a.id) AS n FROM accounts a JOIN admin_audit r ON r.action = 'renew' AND r.target = a.username WHERE a.expires_at - a.created_at <= 7 * 86400000",
-      ).first(),
+        .bind(since30)
+        .all(),
     ])
     return json({
+      totalAccounts: Number(total?.n ?? 0),
+      disabledAccounts: Number(disabled?.n ?? 0),
+      signups7: Number(signups7?.n ?? 0),
+      signups30: Number(signups30?.n ?? 0),
       activeUsers7: Number(active?.n ?? 0),
-      signups7: Number(signups?.n ?? 0),
       events7: (events.results ?? []).map((r) => ({ name: String(r.name), count: Number(r.c) })),
-      // —— 续费漏斗（近 30 天）——
-      renewCount30: Number(renews?.n ?? 0),
-      expiredCount30: Number(expiry?.n ?? 0),
-      trialTotal: Number(trialTotal?.n ?? 0),
-      trialRenewed: Number(trialRenewed?.n ?? 0),
+      ops30: (ops.results ?? []).map((r) => ({ action: String(r.action), count: Number(r.c) })),
     })
   } catch (e) {
     // 未执行迁移时静默降级为空数据，不阻塞后台加载
     console.warn('[stats] 查询失败:', e?.message)
-    return json({ activeUsers7: 0, signups7: 0, events7: [] })
+    return json({
+      totalAccounts: 0,
+      disabledAccounts: 0,
+      signups7: 0,
+      signups30: 0,
+      activeUsers7: 0,
+      events7: [],
+      ops30: [],
+    })
   }
 }
 

@@ -4,7 +4,6 @@ import { lazy, Suspense, useState, useEffect, useRef } from 'react'
 import { Outlet } from 'react-router-dom'
 import { MoonOutlined, SunOutlined, MenuOutlined } from '@ant-design/icons'
 import Sidebar, { SidebarContent } from './Sidebar'
-import ExpiryBanner from './ExpiryBanner'
 import GlobalSearch from '@/components/common/GlobalSearch'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
@@ -151,7 +150,6 @@ export default function AppShell() {
             />
           </Tooltip>
         </Header>
-        <ExpiryBanner />
         <Content ref={contentRef} style={{ flex: 1, overflow: 'auto', background: isDark ? '#141414' : '#f5f5f5' }}>
           <Outlet />
         </Content>

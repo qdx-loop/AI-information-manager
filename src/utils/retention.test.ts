@@ -1,5 +1,4 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { getSubStatus, daysUntil, graceDaysLeft, GRACE_MS } from './subscription'
 import { getReminderAt, withReminder, REMINDER_FIELD_KEY } from './reminder'
 import { nextOccurrence } from './reminder'
 import { gatherInsights, itemDisplayName, invalidateInsightsCache } from './insights'
@@ -8,35 +7,6 @@ import type { DataProvider } from '@/types/dataProvider'
 import type { Item, Library, FieldDef, FieldValue } from '@/types'
 
 const DAY = 86400000
-
-describe('subscription 状态', () => {
-  const now = 1_700_000_000_000
-  it('未到期为 active', () => {
-    expect(getSubStatus(now + DAY, now)).toBe('active')
-    expect(getSubStatus(now, now)).toBe('active')
-  })
-  it('刚到期进入 grace', () => {
-    expect(getSubStatus(now - 1, now)).toBe('grace')
-  })
-  it('宽限期最后一刻仍是 grace', () => {
-    expect(getSubStatus(now - GRACE_MS, now)).toBe('grace')
-  })
-  it('超过宽限期为 expired', () => {
-    expect(getSubStatus(now - GRACE_MS - 1, now)).toBe('expired')
-  })
-  it('无到期时间视为 active', () => {
-    expect(getSubStatus(null, now)).toBe('active')
-    expect(getSubStatus(undefined, now)).toBe('active')
-  })
-  it('daysUntil 向上取整', () => {
-    expect(daysUntil(now + 3 * DAY, now)).toBe(3)
-    expect(daysUntil(now + 2.2 * DAY, now)).toBe(3)
-  })
-  it('graceDaysLeft 计算宽限剩余', () => {
-    expect(graceDaysLeft(now - 2 * DAY, now)).toBe(5)
-    expect(graceDaysLeft(now - 10 * DAY, now)).toBe(0)
-  })
-})
 
 describe('reminder 保留键', () => {
   const base: Item = {

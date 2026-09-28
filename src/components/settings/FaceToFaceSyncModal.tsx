@@ -9,7 +9,6 @@ import { exportBackup } from '@/db/backup'
 import { mergeNativeIntoLocal, type MergeResult } from '@/db/syncService'
 import { createSnapshot } from '@/db/snapshotService'
 import { initFromSettings } from '@/db/providerFactory'
-import { getSubStatus } from '@/utils/subscription'
 import {
   P2PSession,
   P2PError,
@@ -134,12 +133,6 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
   const handleReceivedPayload = useCallback(
     async (payload: string) => {
       if (!account) return
-      // 只读宽限期内本机数据不允许被合并改写（对端不受影响，可继续发送）
-      if (account.expiresAt != null && getSubStatus(account.expiresAt) === 'grace') {
-        teardownSession()
-        failWith('READ_ONLY')
-        return
-      }
       try {
         const data = JSON.parse(payload)
         const isEnvelope = data && data.type === 'f2f-data' && data.backup

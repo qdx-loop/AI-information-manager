@@ -81,8 +81,7 @@ async function request<T>(path: string, init: RequestInit = {}, authHeader = fal
 export interface ServerAccount {
   id: string
   username: string
-  createdAt?: number
-  expiresAt?: number
+  contact?: string | null
   disabled?: boolean
   lastLogin?: number | null
 }
@@ -93,6 +92,24 @@ export async function apiLogin(username: string, password: string, remember: boo
   const r = await request<{ token: string; account: ServerAccount }>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
+  })
+  saveToken(r.token, remember)
+  return r.account
+}
+
+/** 注册是否开放（管理员可在被灌水时用 REGISTRATION_OPEN=0 紧急关闭） */
+export async function apiRegistrationOpen(): Promise<boolean> {
+  return (await request<{ open: boolean }>('/api/auth/register', { method: 'GET' })).open
+}
+
+/** 自助注册。成功后直接下发令牌，等同于已登录，省掉再登录一次。 */
+export async function apiRegister(
+  input: { username: string; password: string; contact?: string },
+  remember: boolean,
+): Promise<ServerAccount> {
+  const r = await request<{ token: string; account: ServerAccount }>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(input),
   })
   saveToken(r.token, remember)
   return r.account
@@ -182,21 +199,17 @@ export async function adminListAccounts(): Promise<AdminAccountRow[]> {
   return (await adminRequest<{ accounts: AdminAccountRow[] }>('/api/admin/accounts')).accounts
 }
 
-// 生成账号：传 { cardType } 选固定卡种，或 { days } 自定义天数（后端限制 1~3650）
-export async function adminCreateAccount(
-  payload: { cardType?: string; days?: number },
-): Promise<{ account: AdminAccountRow; credentials: { username: string; password: string }; days: number }> {
-  return adminRequest('/api/admin/accounts', { method: 'POST', body: JSON.stringify(payload) })
-}
-
 export type AdminOp =
-  | { op: 'renew'; cardType?: string; days?: number }
   | { op: 'disable' }
   | { op: 'enable' }
   | { op: 'delete' }
-// 注：不提供 resetPassword——管理端不可重置买家密码（产品决策，后端已同步移除）
+  /** 重置密码；不传 newPassword 时由服务端生成临时密码，仅此一次返回 */
+  | { op: 'resetPassword'; newPassword?: string }
 
-export async function adminAccountOp(accountId: string, payload: AdminOp): Promise<{ expiresAt?: number }> {
+export async function adminAccountOp(
+  accountId: string,
+  payload: AdminOp,
+): Promise<{ ok: boolean; password?: string }> {
   return adminRequest('/api/admin/account', { method: 'POST', body: JSON.stringify({ accountId, ...payload }) })
 }
 
@@ -214,20 +227,17 @@ export async function adminListAudit(): Promise<AuditEntry[]> {
   return (await adminRequest<{ logs: AuditEntry[] }>('/api/admin/audit')).logs
 }
 
-// ———— 运营概览（近 7 天） ————
+// ———— 运营概览 ————
 
 export interface OpsStats {
-  activeUsers7: number
+  totalAccounts: number
+  disabledAccounts: number
   signups7: number
+  signups30: number
+  activeUsers7: number
   events7: Array<{ name: string; count: number }>
-  /** 近 30 天续费操作数（admin_audit renew 记录） */
-  renewCount30?: number
-  /** 近 30 天内到期的账号数（续费率分母） */
-  expiredCount30?: number
-  /** 体验卡（≤7 天）总数 */
-  trialTotal?: number
-  /** 体验卡中被续费的数量 */
-  trialRenewed?: number
+  /** 近 30 天管理操作分布（admin_audit 按 action 聚合） */
+  ops30: Array<{ action: string; count: number }>
 }
 
 export async function adminGetStats(): Promise<OpsStats> {

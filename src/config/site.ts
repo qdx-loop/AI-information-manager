@@ -2,7 +2,7 @@
  * ★★★ 卖家配置文件（推广落地页展示的内容，只改这个文件即可） ★★★
  *
  * 1. contactEmails 为买家联系邮箱，可自行增删
- * 2. 价格随行情自己调整
+ * 2. 2026-09 起产品改为「自助注册 + 永久免费」，价格表已整体移除
  */
 
 export const SITE = {
@@ -16,16 +16,9 @@ export const SITE = {
     { icon: '📱', title: '手机电脑都能用', desc: '数据存在自己的设备里，安全私密；可开启云同步跨设备接力' },
   ],
   steps: [
-    '管理员给你开通账号',
-    '登录后创建管理库（有行业模板可一键套用）',
+    '打开网址，点「免费注册」，起个用户名设个密码',
+    '创建管理库（有行业模板可一键套用）',
     '手动录入或导入 Excel，之后全部交给 AI',
-  ],
-  prices: [
-    { name: '体验卡', nameEn: 'Trial', days: '3 天', price: '免费', priceEn: 'Free', note: '新人首选' },
-    { name: '月卡', nameEn: 'Monthly', days: '30 天', price: '¥29.9', priceEn: '¥29.9', note: '' },
-    { name: '季卡', nameEn: 'Quarterly', days: '90 天', price: '¥79', priceEn: '¥79', note: '热门' },
-    { name: '半年卡', nameEn: 'Half-year', days: '180 天', price: '¥139', priceEn: '¥139', note: '' },
-    { name: '年卡', nameEn: 'Yearly', days: '365 天', price: '¥259', priceEn: '¥259', note: '最划算' },
   ],
   contactEmails: ['qdx19qdx@126.com', 'qdx2025@outlook.com'], // ←★ 联系邮箱
 }

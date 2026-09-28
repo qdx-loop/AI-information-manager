@@ -56,8 +56,6 @@ import { processAttachment, type Attachment } from '@/ai/attachments'
 import { API_BASE, getToken } from '@/lib/serverApi'
 import { normalizeChartOption } from '@/ai/chartUtils'
 import { useI18n } from '@/i18n'
-import { tNow } from '@/i18n'
-import { getSubStatus } from '@/utils/subscription'
 import { AutoConfirmContext } from '@/ai/autoConfirm'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -963,10 +961,6 @@ export default function AIPanel() {
 
   async function executeAction(action: ItemAction): Promise<{ result: string; undo?: UndoInfo }> {
     const acc = account!
-    // 只读宽限期内禁止 AI 写操作（create/update/delete 均拦截）
-    if (acc.expiresAt != null && getSubStatus(acc.expiresAt) === 'grace') {
-      return { result: tNow('sub.readonly.error') }
-    }
     if (action.action === 'delete') {
       if (!action.itemId) return { result: '缺少条目 ID' }
       await storeDeleteItem(action.itemId)
@@ -1244,11 +1238,6 @@ export default function AIPanel() {
   const handleUndo = useCallback(async (msgIndex: number) => {
     const msg = messages[msgIndex]
     if (!msg?.undo) return
-    // 只读宽限期内禁止撤销（撤销也是写操作，会绕过 store 守卫）
-    if (account?.expiresAt != null && getSubStatus(account.expiresAt) === 'grace') {
-      message.warning(tNow('sub.readonly.error'))
-      return
-    }
     try {
       await msg.undo.undo()
       // 移除 undo 信息，标记已撤回

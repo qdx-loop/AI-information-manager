@@ -7,11 +7,11 @@ import {
   verifyPassword,
   hashPassword,
   issueUserToken,
+  publicAccount,
   checkRateLimit,
   recordLoginFailure,
   clearLoginFailures,
   clientIp,
-  GRACE_MS,
 } from '../../lib/_auth'
 
 const DUMMY_SALT = '0123456789abcdef0123456789abcdef'
@@ -33,8 +33,9 @@ export async function onRequestPost({ request, env }) {
     return errorJson(`尝试次数过多，请约 ${limit.waitMin} 分钟后再试`, 429, 'RATE_LIMITED')
   }
 
+  // 与注册一致：用户名不区分大小写
   const acc = await env.DB.prepare(
-    'SELECT id, username, password_hash, expires_at, disabled, created_at FROM accounts WHERE username = ?',
+    'SELECT id, username, password_hash, contact, disabled, created_at FROM accounts WHERE username = ? COLLATE NOCASE',
   )
     .bind(username)
     .first()
@@ -51,27 +52,15 @@ export async function onRequestPost({ request, env }) {
     return errorJson('用户名或密码错误', 401, 'INVALID_CREDENTIALS')
   }
   if (acc.disabled) return errorJson('账户已被停用，请联系管理员', 403, 'DISABLED')
-  // 宽限期内允许登录（客户端进入只读模式）；超过宽限期才拒绝
-  if (Date.now() > acc.expires_at + GRACE_MS) {
-    return errorJson('您的账户已到期，请联系管理员续费', 403, 'EXPIRED')
-  }
 
   await clearLoginFailures(env, rateKey)
+  const now = Date.now()
   await env.DB.prepare('UPDATE accounts SET last_login = ? WHERE id = ?')
-    .bind(Date.now(), acc.id)
+    .bind(now, acc.id)
     .run()
 
   const token = await issueUserToken(acc, env.AUTH_SECRET, env)
-  return json({
-    token,
-    account: {
-      id: acc.id,
-      username: acc.username,
-      createdAt: acc.created_at,
-      expiresAt: acc.expires_at,
-      disabled: false,
-    },
-  })
+  return json({ token, account: publicAccount({ ...acc, last_login: now }) })
 }
 
 export async function onRequest() {

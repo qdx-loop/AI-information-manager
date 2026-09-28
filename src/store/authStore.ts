@@ -1,15 +1,13 @@
 import { create } from 'zustand'
-import { apiLogin, apiMe, clearToken, getToken, ApiError } from '@/lib/serverApi'
+import { apiLogin, apiMe, apiRegister, clearToken, getToken, ApiError } from '@/lib/serverApi'
 import { track } from '@/utils/track'
-import { getSubStatus } from '@/utils/subscription'
 
 const SESSION_KEY = 'info-mgmt-account-id'
 
 export interface SessionAccount {
   id: string
   username: string
-  createdAt?: number
-  expiresAt?: number
+  contact?: string | null
 }
 
 // 读取登录态：优先 localStorage（记住），回退 sessionStorage（会话级）
@@ -35,6 +33,10 @@ interface AuthState {
   logoutReason: string | null
   init: () => Promise<void>
   login: (username: string, password: string, remember?: boolean) => Promise<SessionAccount>
+  register: (
+    input: { username: string; password: string; contact?: string },
+    remember?: boolean,
+  ) => Promise<SessionAccount>
   logout: (reason?: string) => void
   clearLogoutReason: () => void
   setAccount: (a: SessionAccount | null) => void
@@ -42,6 +44,8 @@ interface AuthState {
 
 let watcherStarted = false
 
+// 账户永不过期（产品已改为永久免费自助注册），这里只需要定期与服务器核对，
+// 让「停用」和「管理员重置密码」能在 10 分钟内、甚至切回窗口时立刻生效。
 function startWatcher(get: () => AuthState, set: (p: Partial<AuthState>) => void) {
   if (watcherStarted || typeof window === 'undefined') return
   watcherStarted = true
@@ -66,13 +70,6 @@ function startWatcher(get: () => AuthState, set: (p: Partial<AuthState>) => void
     }
   }
 
-  // 本地每分钟检查到期；每 10 分钟向服务器核对（可被后台停用/续费实时生效）
-  setInterval(() => {
-    const acc = get().account
-    if (!acc?.expiresAt) return
-    // 宽限期内不登出（界面进入只读提示）；超过宽限期才强制登出
-    if (getSubStatus(acc.expiresAt) === 'expired') kick('您的账户已到期，请联系管理员续费')
-  }, 60_000)
   setInterval(serverCheck, 10 * 60_000)
   window.addEventListener('focus', serverCheck)
 }
@@ -105,6 +102,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   async login(username, password, remember = false) {
     const acc = await apiLogin(username, password, remember)
+    track('login')
+    writeStoredId(acc.id, remember)
+    set({ account: acc, loading: false, logoutReason: null })
+    return acc
+  },
+
+  async register(input, remember = false) {
+    const acc = await apiRegister(input, remember)
     track('login')
     writeStoredId(acc.id, remember)
     set({ account: acc, loading: false, logoutReason: null })

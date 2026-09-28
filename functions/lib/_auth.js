@@ -1,19 +1,12 @@
-// 共享工具：密码哈希、令牌签发/校验、卡种定义、D1 访问辅助
+// 共享工具：密码哈希、令牌签发/校验、D1 访问辅助、限速、审计
 // 注意：下划线开头的目录不会被 Cloudflare Pages 当作路由
+//
+// 2026-09 起改为「自助注册 + 永久免费」：不再有卡种、不再有到期时间。
+// expires_at / GRACE_MS / CARD_TYPES 已整体移除，账户永不过期。
 
 const ITERATIONS = 100000
 const TOKEN_TTL_USER = 7 * 24 * 3600 // 用户令牌最长 7 天，到期前需重新登录
 const TOKEN_TTL_ADMIN = 12 * 3600 // 管理后台令牌 12 小时
-// 到期后 7 天「只读宽限期」：允许登录与导出，客户端据此进入只读模式（留存设计）
-export const GRACE_MS = 7 * 86400000
-
-export const CARD_TYPES = {
-  trial: { days: 3, label: '体验卡(3天)' },
-  month: { days: 30, label: '月卡(30天)' },
-  quarter: { days: 90, label: '季卡(90天)' },
-  halfYear: { days: 180, label: '半年卡(180天)' },
-  year: { days: 365, label: '年卡(365天)' },
-}
 
 // ———— 基础工具 ————
 
@@ -126,11 +119,9 @@ export async function verifyToken(token, secret) {
   }
 }
 
-export function userTokenExpiry(accountExpiresAtMs) {
-  // 令牌有效期覆盖到宽限期结束，避免到期后令牌先于宽限期失效
-  const cap = Math.floor((accountExpiresAtMs + GRACE_MS) / 1000)
-  const ttl = Math.floor(Date.now() / 1000) + TOKEN_TTL_USER
-  return Math.min(cap, ttl)
+export function userTokenExpiry() {
+  // 账户永不过期，令牌只受固定 TTL 约束
+  return Math.floor(Date.now() / 1000) + TOKEN_TTL_USER
 }
 
 // 读取账户密码纪元；列不存在（未迁移）时返回 0，保证旧部署不受影响（fail-open）
@@ -147,7 +138,7 @@ async function getPwdEpoch(env, accountId) {
 
 export async function issueUserToken(account, secret, env = null) {
   const pe = env ? await getPwdEpoch(env, account.id) : 0
-  return signToken({ t: 'user', aid: account.id, pe, exp: userTokenExpiry(account.expires_at) }, secret)
+  return signToken({ t: 'user', aid: account.id, pe, exp: userTokenExpiry() }, secret)
 }
 
 export async function issueAdminToken(secret) {
@@ -167,16 +158,12 @@ export async function requireUser(request, env) {
   const payload = await verifyToken(token, env.AUTH_SECRET)
   if (!payload || payload.t !== 'user') return { error: errorJson('登录已失效，请重新登录', 401, 'BAD_TOKEN') }
   const acc = await env.DB.prepare(
-    'SELECT id, username, password_hash, expires_at, disabled, created_at, last_login FROM accounts WHERE id = ?',
+    'SELECT id, username, contact, disabled, created_at, last_login FROM accounts WHERE id = ?',
   )
     .bind(payload.aid)
     .first()
   if (!acc) return { error: errorJson('账户不存在', 401, 'NO_ACCOUNT') }
   if (acc.disabled) return { error: errorJson('账户已被停用，请联系管理员', 403, 'DISABLED') }
-  // 宽限期内仍放行（客户端进入只读）；超过宽限期才彻底拒绝
-  if (Date.now() > acc.expires_at + GRACE_MS) {
-    return { error: errorJson('您的账户已到期，请联系管理员续费', 403, 'EXPIRED') }
-  }
   // 改密吊销：令牌签发时的密码纪元与当前不一致即失效（未迁移时两侧均为 0，自动放行）
   const currentEpoch = await getPwdEpoch(env, payload.aid)
   if ((payload.pe ?? 0) !== currentEpoch) {
@@ -195,7 +182,7 @@ export async function requireAdmin(request, env) {
   return {}
 }
 
-// ———— 账号生成 ————
+// ———— 随机串（管理员重置密码时生成临时密码）————
 
 const UNAMBIGUOUS = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
 
@@ -206,19 +193,43 @@ export function randomString(len, charset = UNAMBIGUOUS) {
   return s
 }
 
-export function cardDays(body) {
-  if (body.cardType && CARD_TYPES[body.cardType]) return CARD_TYPES[body.cardType].days
-  const d = Number(body.days)
-  if (Number.isInteger(d) && d >= 1 && d <= 3650) return d
-  return null
+// ———— 注册参数校验 ————
+
+export const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/
+export const MIN_PASSWORD = 8
+
+/** 校验并归一化注册参数。返回 {ok, value} 或 {ok:false, message, field}。 */
+export function validateRegistration(body) {
+  const username = String(body?.username ?? '').trim()
+  const password = String(body?.password ?? '')
+  const contact = String(body?.contact ?? '').trim()
+
+  if (!username) return { ok: false, field: 'username', message: '请填写用户名' }
+  if (!USERNAME_RE.test(username)) {
+    return {
+      ok: false,
+      field: 'username',
+      message: '用户名需为 3~20 位字母、数字或下划线',
+    }
+  }
+  if (password.length < MIN_PASSWORD) {
+    return { ok: false, field: 'password', message: `密码至少 ${MIN_PASSWORD} 位` }
+  }
+  if (password.length > 200) {
+    return { ok: false, field: 'password', message: '密码过长' }
+  }
+  if (contact.length > 120) {
+    return { ok: false, field: 'contact', message: '联系方式过长' }
+  }
+  return { ok: true, value: { username, password, contact: contact || null } }
 }
 
 export function publicAccount(row) {
   return {
     id: row.id,
     username: row.username,
+    contact: row.contact ?? null,
     createdAt: row.created_at,
-    expiresAt: row.expires_at,
     disabled: !!row.disabled,
     lastLogin: row.last_login ?? null,
   }

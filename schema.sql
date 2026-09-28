@@ -6,11 +6,11 @@ CREATE TABLE IF NOT EXISTS accounts (
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   salt TEXT NOT NULL DEFAULT '',
-  expires_at INTEGER NOT NULL,          -- 到期时间戳（毫秒）
-  disabled INTEGER NOT NULL DEFAULT 0,  -- 1=已停用
+  disabled INTEGER NOT NULL DEFAULT 0,  -- 1=已停用（管理员封禁）
   created_at INTEGER NOT NULL,
   last_login INTEGER,
-  pwd_epoch INTEGER NOT NULL DEFAULT 0  -- 密码纪元：改密时 +1，用于吊销旧令牌
+  pwd_epoch INTEGER NOT NULL DEFAULT 0,  -- 密码纪元：改密时 +1，用于吊销旧令牌
+  contact TEXT                          -- 自助注册时可选填写的联系方式（邮箱/微信）
 );
 
 CREATE INDEX IF NOT EXISTS idx_accounts_username ON accounts(username);

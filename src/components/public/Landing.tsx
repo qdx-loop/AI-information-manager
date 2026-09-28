@@ -119,7 +119,6 @@ export default function Landing() {
           </Space>
           <nav className="lp-nav">
             <button className="lp-nav-link" onClick={() => scrollTo('features')}>{t('landing.nav.features')}</button>
-            <button className="lp-nav-link" onClick={() => scrollTo('price')}>{t('landing.nav.price')}</button>
             <button className="lp-nav-link" onClick={() => scrollTo('faq')}>{t('landing.nav.faq')}</button>
             <button className="lp-nav-link" onClick={() => scrollTo('contact')}>{t('landing.nav.contact')}</button>
             <button className="lp-nav-link" onClick={() => navigate('/help')}>{t('landing.nav.help')}</button>
@@ -146,9 +145,6 @@ export default function Landing() {
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Button type="primary" size="large" icon={<LoginOutlined />} onClick={goLogin}>
               {t('landing.hero.cta')}
-            </Button>
-            <Button size="large" onClick={() => scrollTo('price')}>
-              {t('landing.hero.cta2')}
             </Button>
             <Button size="large" type="dashed" href="/app/infodesk.apk" download="信息管理.apk">
               {t('landing.hero.downloadApk')}
@@ -188,51 +184,6 @@ export default function Landing() {
               </div>
             ))}
           </div>
-        </section>
-
-        {/* ===== 价格 ===== */}
-        <section id="price" style={{ paddingTop: 88 }}>
-          <h2 style={{ fontSize: 28, textAlign: 'center', marginBottom: 8 }}>{t('landing.price.title')}</h2>
-          <p style={{ textAlign: 'center', color: '#64748B', marginBottom: 36 }}>{t('landing.price.sub')}</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, alignItems: 'stretch' }}>
-            {SITE.prices.map((p) => {
-              const popular = p.note === '热门'
-              const name = lang === 'en' ? (p as { nameEn?: string }).nameEn ?? p.name : p.name
-              const price = lang === 'en' ? (p as { priceEn?: string }).priceEn ?? p.price : p.price
-              return (
-                <div
-                  key={p.name}
-                  style={{
-                    position: 'relative',
-                    border: popular ? '2px solid #0D9488' : '1px solid #E2E8F0',
-                    borderRadius: 16,
-                    padding: '22px 18px',
-                    textAlign: 'center',
-                    background: popular ? '#F0FDFA' : '#fff',
-                  }}
-                >
-                  {popular && (
-                    <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: '#0D9488', color: '#fff', fontSize: 12, padding: '2px 10px', borderRadius: 999 }}>
-                      {t('landing.price.popular')}
-                    </span>
-                  )}
-                  <div style={{ fontWeight: 600, marginBottom: 8 }}>{name}</div>
-                  <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em' }}>{price}</div>
-                  <div style={{ color: '#94A3B8', fontSize: 13, marginTop: 4 }}>
-                    {t(`landing.days.${p.days}`) !== `landing.days.${p.days}` ? t(`landing.days.${p.days}`) : p.days}
-                  </div>
-                  {p.note && !popular && (
-                    <div style={{ marginTop: 8 }}>
-                      <span style={{ fontSize: 12, color: '#0D9488', background: '#F0FDFA', border: '1px solid #99F6E4', borderRadius: 999, padding: '2px 10px', display: 'inline-block' }}>
-                        {t(`landing.note.${p.note}`) !== `landing.note.${p.note}` ? t(`landing.note.${p.note}`) : p.note}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: 13, marginTop: 16 }}>{t('landing.price.customNote')}</p>
         </section>
 
         {/* ===== FAQ ===== */}

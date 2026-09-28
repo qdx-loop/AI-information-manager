@@ -50,7 +50,6 @@ import { SYSTEM_PROMPT } from '@/ai/contextBuilder'
 import { importLegacyMemory, listMemory, replaceAllMemory, clearMemory } from '@/ai/memory'
 import FaceToFaceSyncModal from '@/components/settings/FaceToFaceSyncModal'
 import { useI18n } from '@/i18n'
-import { getSubStatus } from '@/utils/subscription'
 
 const { Text } = Typography
 
@@ -109,8 +108,6 @@ function AccountTab() {
     }
   }
 
-  const daysLeft = account?.expiresAt ? Math.floor((account.expiresAt - Date.now()) / 86400000) : null
-
   return (
     <div>
       {account && (
@@ -119,17 +116,14 @@ function AccountTab() {
             <span>
               {t('settings.account.current')}<Text strong>{account.username}</Text>
             </span>
-            {account.expiresAt && (
+            {account.contact && (
               <span>
-                {t('settings.account.validUntil')}
-                <Tag color={daysLeft !== null && daysLeft <= 3 ? 'orange' : 'green'}>
-                  {dayjs(account.expiresAt).format('YYYY-MM-DD HH:mm')}
-                  {daysLeft !== null && daysLeft >= 0 ? t('settings.account.daysLeft', { n: daysLeft }) : ''}
-                </Tag>
+                {t('settings.account.contact')}
+                <Text strong>{account.contact}</Text>
               </span>
             )}
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {t('settings.account.expireHint')}
+              {t('settings.account.freeForeverHint')}
             </Text>
           </Space>
         </Card>
@@ -769,11 +763,6 @@ function BackupTab() {
       okType: 'danger',
       onOk: async () => {
         try {
-          // 只读宽限期内禁止导入（导入会整包改写数据，绕过 libraryStore 的只读守卫）
-          if (account?.expiresAt != null && getSubStatus(account.expiresAt) === 'grace') {
-            message.warning(t('sub.readonly.error'))
-            return
-          }
           const text = await file.text()
           const blob = JSON.parse(text)
           // 导入前自动拍一张快照，便于回溯（失败不阻断导入）

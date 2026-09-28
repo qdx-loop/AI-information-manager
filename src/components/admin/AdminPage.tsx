@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   Card,
   Segmented,
@@ -7,33 +7,30 @@ import {
   Tag,
   Space,
   Input,
-  InputNumber,
   Modal,
-  Select,
   App,
   Typography,
   Popconfirm,
   Statistic,
   Alert,
+  Descriptions,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   KeyOutlined,
-  PlusOutlined,
   ReloadOutlined,
-  ClockCircleOutlined,
   StopOutlined,
   CheckCircleOutlined,
   DeleteOutlined,
   CopyOutlined,
   DownloadOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useI18n } from '@/i18n'
 import {
   adminLogin,
   adminListAccounts,
-  adminCreateAccount,
   adminAccountOp,
   adminListAudit,
   adminGetStats,
@@ -45,20 +42,14 @@ import {
 
 const { Text } = Typography
 
-// 卡种选项随语言生成；与后端 CARD_TYPES 保持一致
-export const buildCardOptions = (t: (k: string) => string) => [
-  { value: 'trial', label: t('admin.cardTypes.trial') },
-  { value: 'month', label: t('admin.cardTypes.month') },
-  { value: 'quarter', label: t('admin.cardTypes.quarter') },
-  { value: 'halfYear', label: t('admin.cardTypes.halfYear') },
-  { value: 'year', label: t('admin.cardTypes.year') },
-]
-const CUSTOM_DAYS = '__custom__'
-
-function normalizeDays(days: number | null): number | null {
-  return days !== null && Number.isInteger(days) && days >= 1 && days <= 3650 ? days : null
-}
-
+/**
+ * 管理后台：产品改为「自助注册 + 永久免费」后的运营面板。
+ *
+ * 不再有卖卡/续费。这里的能力围绕另外三件事：
+ *   1. 看清谁在用（注册量、活跃、行为分布）
+ *   2. 处理异常（停用违规账户、删除垃圾账户）
+ *   3. 帮用户找回入口（重置密码——用户自己设的密码，忘记后只能靠管理员）
+ */
 export default function AdminPage() {
   const { message } = App.useApp()
   const t = useI18n()
@@ -70,19 +61,19 @@ export default function AdminPage() {
   const [loadingList, setLoadingList] = useState(false)
   const [logs, setLogs] = useState<AuditEntry[]>([])
   const [stats, setStats] = useState<OpsStats | null>(null)
-  const [filterKey, setFilterKey] = useState<'all' | 'expiring' | 'expired' | 'disabled' | 'inactive'>('all')
-  const [createOpen, setCreateOpen] = useState(false)
-  const [cardType, setCardType] = useState('month')
-  const [customDays, setCustomDays] = useState<number | null>(null)
-  const [creating, setCreating] = useState(false)
-  const [issuedCreds, setIssuedCreds] = useState<{ username: string; password: string; days: number } | null>(null)
-  const [renewFor, setRenewFor] = useState<AdminAccountRow | null>(null)
-  const [renewType, setRenewType] = useState('month')
-  const [renewCustomDays, setRenewCustomDays] = useState<number | null>(null)
+  const [filterKey, setFilterKey] = useState<'all' | 'active' | 'disabled' | 'inactive'>('all')
+  const [keyword, setKeyword] = useState('')
+  const [tab, setTab] = useState<'accounts' | 'audit'>('accounts')
+
+  // 重置密码
+  const [resetFor, setResetFor] = useState<AdminAccountRow | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [resetting, setResetting] = useState(false)
+  const [resetDone, setResetDone] = useState<{ username: string; password: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoadingList(true)
-    // 审计日志独立容错：未执行迁移的旧部署没有该表时静默降级
+    // 审计日志与概览独立容错：未执行迁移的旧部署没有该表时静默降级
     adminListAudit().then(setLogs).catch(() => setLogs([]))
     adminGetStats().then(setStats).catch(() => setStats(null))
     try {
@@ -113,35 +104,6 @@ export default function AdminPage() {
     }
   }
 
-  // 组装生成账号的请求体：固定卡种传 cardType；自定义传 days
-  const buildCreatePayload = (): { cardType?: string; days?: number } | null => {
-    if (cardType === CUSTOM_DAYS) {
-      const days = normalizeDays(customDays)
-      return days ? { days } : null
-    }
-    return { cardType }
-  }
-
-  const handleCreate = async () => {
-    const payload = buildCreatePayload()
-    if (!payload) {
-      message.warning(t('admin.customDays.invalid'))
-      return
-    }
-    setCreating(true)
-    try {
-      const r = await adminCreateAccount(payload)
-      setIssuedCreds({ ...r.credentials, days: r.days })
-      setCreateOpen(false)
-      load()
-    } catch (e) {
-      message.error((e as Error).message)
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  // 返回是否成功，供调用方决定是否关闭弹窗
   const handleOp = async (
     accountId: string,
     payload: Parameters<typeof adminAccountOp>[1],
@@ -158,10 +120,33 @@ export default function AdminPage() {
     }
   }
 
-  const copyCreds = () => {
-    if (!issuedCreds) return
-    navigator.clipboard.writeText(`${t('admin.create.username')} ${issuedCreds.username}\n${t('admin.create.password')} ${issuedCreds.password}`)
-    message.success(t('admin.create.copied'))
+  const openReset = (row: AdminAccountRow) => {
+    setResetFor(row)
+    setNewPassword('')
+    setResetDone(null)
+  }
+
+  const submitReset = async () => {
+    if (!resetFor) return
+    setResetting(true)
+    try {
+      const r = await adminAccountOp(resetFor.id, {
+        op: 'resetPassword',
+        ...(newPassword.trim() ? { newPassword: newPassword.trim() } : {}),
+      })
+      setResetDone({ username: resetFor.username, password: r.password || newPassword.trim() })
+      setNewPassword('')
+      load()
+    } catch (e) {
+      message.error((e as Error).message)
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  const copyText = (text: string, tip: string) => {
+    navigator.clipboard.writeText(text)
+    message.success(tip)
   }
 
   if (!logged) {
@@ -189,7 +174,7 @@ export default function AdminPage() {
             />
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#134E4A' }}>{t('admin.title')}</h2>
             <p style={{ color: '#475569', fontSize: 12, marginTop: 4, marginBottom: 0 }}>
-              {t('admin.cardOnly')}
+              {t('admin.consoleHint')}
             </p>
           </div>
           <Input.Password
@@ -215,134 +200,103 @@ export default function AdminPage() {
     )
   }
 
-  const activeCount = accounts.filter((a) => !a.disabled && a.expiresAt && a.expiresAt > Date.now()).length
+  const DAY = 86400000
+  const now = Date.now()
+  const activeCount = accounts.filter((a) => !a.disabled).length
+  const registeredToday = accounts.filter((a) => now - (a.createdAt ?? 0) < DAY).length
 
-  const cardOptions = useMemo(() => buildCardOptions(t), [t])
-  const daySelectOptions = useMemo(
-    () => [...cardOptions, { value: CUSTOM_DAYS, label: t('admin.cardTypes.custom') }],
-    [cardOptions, t],
-  )
-  function expiryTag(row: AdminAccountRow) {
-    if (!row.expiresAt) return <Text type="secondary">—</Text>
-    const days = Math.floor((row.expiresAt - Date.now()) / 86400000)
-    if (row.disabled)
-      return <Tag color="default">{t('admin.tag.disabledUntil', { date: dayjs(row.expiresAt).format('YYYY-MM-DD') })}</Tag>
-    if (days <= 0) return <Tag color="red">{t('admin.tag.expired')}</Tag>
-    if (days <= 3) return <Tag color="orange">{t('app.daysLeft', { n: days })}</Tag>
-    return (
-      <Tag color="green">
-        {t('admin.tag.until', { date: dayjs(row.expiresAt).format('YYYY-MM-DD'), n: days })}
-      </Tag>
-    )
-  }
-
-  const EVENT_LABELS = () => ({
-    login: t('admin.ev.login'),
-    library_created: t('admin.ev.library_created'),
-    item_created: t('admin.ev.item_created'),
-    items_imported: t('admin.ev.items_imported'),
-    ai_message_sent: t('admin.ev.ai_message_sent'),
-    demo_created: t('admin.ev.demo_created'),
-  })
-
-  // —— 到期提醒自动化：7 天内到期的账号，一键复制催续费话术 ——
-  const expiringSoon = accounts.filter((a) => {
-    if (a.disabled || !a.expiresAt) return false
-    const days = Math.floor((a.expiresAt - Date.now()) / 86400000)
-    return days >= 0 && days <= 7
-  })
-  // —— 流失预警：仍有效但已超过 14 天未登录的账号（曾用过、现在沉默）——
-  const INACTIVE_DAYS = 14
-  const churnRisk = accounts.filter(
-    (a) =>
-      !a.disabled &&
-      a.expiresAt &&
-      a.expiresAt > Date.now() &&
-      a.lastLogin &&
-      a.lastLogin < Date.now() - INACTIVE_DAYS * 86400000,
-  )
-  const exportAccountsCsv = () => {
-    const esc = (v: string) => (/^[=+@\t\r]|^-[^0-9.]/.test(v) ? `'${v}` : v)
-    const head = '用户名,状态,到期时间,最近登录'
-    const rows = accounts.map((a) =>
-      [
-        a.username,
-        a.disabled ? '停用' : a.expiresAt && a.expiresAt < Date.now() ? '已到期' : '正常',
-        a.expiresAt ? dayjs(a.expiresAt).format('YYYY-MM-DD') : '',
-        a.lastLogin ? dayjs(a.lastLogin).format('YYYY-MM-DD HH:mm') : '从未',
-      ]
-        .map((c) => esc(String(c)))
-        .join(','),
-    )
-    const blob = new Blob([`\uFEFF${[head, ...rows].join('\n')}`], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `账号列表_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
-    link.click()
-    // 移动端/WebView 下载异步启动，延迟 revoke 防空文件
-    setTimeout(() => URL.revokeObjectURL(url), 60_000)
-    message.success('已导出')
-  }
-
-  const copyRenewScripts = () => {
-    if (expiringSoon.length === 0) return
-    const lines = expiringSoon.map(
-      (a) =>
-        `【续费提醒】您好！您的账号 ${a.username} 将于 ${dayjs(a.expiresAt).format('YYYY-MM-DD')} 到期，如需继续使用请回复本消息办理续费哦~`,
-    )
-    navigator.clipboard.writeText(lines.join('\n\n'))
-    message.success(t('admin.expiry.copied', { n: lines.length }))
-  }
-
-  // 表格筛选
-  const filteredAccounts = accounts.filter((a) => {
-    if (filterKey === 'all') return true
-    if (filterKey === 'disabled') return !!a.disabled
-    if (filterKey === 'inactive') return churnRisk.some((c) => c.id === a.id)
-    if (!a.expiresAt) return false
-    const days = Math.floor((a.expiresAt - Date.now()) / 86400000)
-    if (filterKey === 'expiring') return !a.disabled && days >= 0 && days <= 7
-    if (filterKey === 'expired') return !a.disabled && days < 0
+  const filtered = accounts.filter((a) => {
+    if (filterKey === 'disabled' && !a.disabled) return false
+    if (filterKey === 'active') {
+      if (a.disabled) return false
+      return now - (a.lastLogin ?? a.createdAt ?? 0) <= 7 * DAY
+    }
+    if (filterKey === 'inactive') {
+      if (a.disabled) return false
+      return now - (a.lastLogin ?? a.createdAt ?? 0) > 30 * DAY
+    }
     return true
   })
+  const kw = keyword.trim().toLowerCase()
+  const shown = kw
+    ? filtered.filter(
+        (a) =>
+          a.username.toLowerCase().includes(kw) || (a.contact ?? '').toLowerCase().includes(kw),
+      )
+    : filtered
 
+  function lastSeenTag(row: AdminAccountRow) {
+    if (row.disabled) return <Tag color="default">{t('admin.status.disabled')}</Tag>
+    const at = row.lastLogin ?? row.createdAt ?? 0
+    const days = Math.floor((now - at) / DAY)
+    if (days <= 0) return <Tag color="green">{t('admin.seen.today')}</Tag>
+    if (days <= 7) return <Tag color="green">{t('admin.seen.days', { n: days })}</Tag>
+    if (days <= 30) return <Tag color="orange">{t('admin.seen.days', { n: days })}</Tag>
+    return <Tag>{t('admin.seen.days', { n: days })}</Tag>
+  }
 
-  const columns: ColumnsType<AdminAccountRow> = [
-    { title: t('admin.tbl.username'), dataIndex: 'username', key: 'username', render: (v) => <Text code>{v}</Text> },
-    { title: t('admin.tbl.validity'), key: 'expiry', render: (_, r) => expiryTag(r) },
+  function exportCsv() {
+    const head = ['username', 'contact', 'status', 'created', 'lastLogin']
+    const lines = [head.join(',')]
+    for (const a of accounts) {
+      const cells = [
+        a.username,
+        a.contact ?? '',
+        a.disabled ? 'disabled' : 'active',
+        a.createdAt ? dayjs(a.createdAt).format('YYYY-MM-DD HH:mm') : '',
+        a.lastLogin ? dayjs(a.lastLogin).format('YYYY-MM-DD HH:mm') : '',
+      ].map((v) => {
+        const s = String(v)
+        // 防 CSV 公式注入 + 逗号/引号转义
+        const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
+        return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+      })
+      lines.push(cells.join(','))
+    }
+    const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const el = document.createElement('a')
+    el.href = url
+    el.download = `accounts-${dayjs().format('YYYYMMDD')}.csv`
+    el.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const accountColumns: ColumnsType<AdminAccountRow> = [
     {
-      title: t('admin.tbl.status'),
-      dataIndex: 'disabled',
-      key: 'disabled',
-      width: 80,
-      render: (v: boolean) => (v ? <Tag color="default">{t('admin.status.disabled')}</Tag> : <Tag color="green">{t('admin.status.normal')}</Tag>),
+      title: t('admin.col.username'),
+      dataIndex: 'username',
+      key: 'username',
+      render: (v: string) => <Text strong>{v}</Text>,
     },
     {
-      title: t('admin.tbl.lastLogin'),
-      dataIndex: 'lastLogin',
-      key: 'lastLogin',
-      render: (v?: number | null) => (v ? dayjs(v).format('MM-DD HH:mm') : t('admin.never')),
+      title: t('admin.col.contact'),
+      dataIndex: 'contact',
+      key: 'contact',
+      render: (v: string | null) => (v ? <Text style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text>),
     },
     {
-      title: t('admin.tbl.op'),
-      key: 'op',
-      width: 300,
+      title: t('admin.col.status'),
+      key: 'status',
+      render: (_, r) => lastSeenTag(r),
+    },
+    {
+      title: t('admin.col.registered'),
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (v?: number) => (v ? <Text type="secondary">{dayjs(v).format('YYYY-MM-DD')}</Text> : '—'),
+    },
+    {
+      title: t('admin.col.actions'),
+      key: 'ops',
       render: (_, r) => (
-        <Space wrap size={4}>
-          <Button
-            size="small"
-            icon={<ClockCircleOutlined />}
-            onClick={() => {
-              setRenewFor(r)
-              setRenewType('month')
-              setRenewCustomDays(null)
-            }}
-          >
-            {t('admin.op.renew')}
+        <Space size={4} wrap>
+          <Button type="link" size="small" icon={<SafetyCertificateOutlined />} onClick={() => openReset(r)}>
+            {t('admin.op.resetPwd')}
           </Button>
           {r.disabled ? (
             <Button
+              type="link"
               size="small"
               icon={<CheckCircleOutlined />}
               onClick={() => handleOp(r.id, { op: 'enable' }, t('admin.enabled', { name: r.username }))}
@@ -355,292 +309,203 @@ export default function AdminPage() {
               description={t('admin.disableConfirm.body')}
               onConfirm={() => handleOp(r.id, { op: 'disable' }, t('admin.disabled', { name: r.username }))}
             >
-              <Button size="small" icon={<StopOutlined />}>
-                停用
+              <Button type="link" size="small" danger icon={<StopOutlined />}>
+                {t('admin.op.disable')}
               </Button>
             </Popconfirm>
           )}
           <Popconfirm
             title={t('admin.deleteConfirm.title', { name: r.username })}
             description={t('admin.deleteConfirm.body')}
-            okText={t('common.delete')}
             okType="danger"
             onConfirm={() => handleOp(r.id, { op: 'delete' }, t('admin.deleted', { name: r.username }))}
           >
-            <Button size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              {t('admin.op.delete')}
+            </Button>
           </Popconfirm>
         </Space>
       ),
     },
   ]
 
+  const auditColumns: ColumnsType<AuditEntry> = [
+    { title: t('admin.col.time'), dataIndex: 'created_at', key: 't', render: (v: number) => dayjs(v).format('YYYY-MM-DD HH:mm') },
+    { title: t('admin.col.action'), dataIndex: 'action', key: 'a', render: (v: string) => <Tag>{v}</Tag> },
+    { title: t('admin.col.target'), dataIndex: 'target', key: 'target' },
+    { title: t('admin.col.detail'), dataIndex: 'detail', key: 'd', render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v || '—'}</Text> },
+    { title: 'IP', dataIndex: 'ip', key: 'ip', render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text> },
+  ]
+
   return (
-    <div style={{ minHeight: '100vh', padding: 24, background: '#F0FDFA' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Card>
-            <Space size="large" align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Space size="large">
-                <Statistic title={t('admin.stat.total')} value={accounts.length} />
-                <Statistic title={t('admin.stat.active')} value={activeCount} valueStyle={{ color: '#3f8600' }} />
-              </Space>
-              <Space>
-                <Button icon={<ReloadOutlined />} onClick={load} loading={loadingList}>
-                  {t('common.refresh')}
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setCreateOpen(true)}
-                >
-                  {t('admin.btn.create')}
-                </Button>
-                <Button icon={<DownloadOutlined />} onClick={exportAccountsCsv} disabled={accounts.length === 0}>
-                  {t('admin.btn.exportCsv')}
-                </Button>
-                <Button
-                  danger
-                  onClick={() => {
-                    sessionStorage.removeItem('info-mgmt-admin-token')
-                    setAccounts([])
-                    setLogged(false)
-                  }}
-                >
-                  {t('admin.btn.logout')}
-                </Button>
-              </Space>
-            </Space>
-          </Card>
+    <div style={{ minHeight: '100vh', background: '#F0FDFA', padding: 16 }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
+          <Space align="center">
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: '#0D9488', display: 'inline-block' }} />
+            <span style={{ fontWeight: 700, fontSize: 16, color: '#134E4A' }}>{t('admin.title')}</span>
+          </Space>
+          <Space>
+            <Button icon={<DownloadOutlined />} onClick={exportCsv}>
+              {t('admin.export')}
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={load} loading={loadingList}>
+              {t('admin.refresh')}
+            </Button>
+          </Space>
+        </Space>
 
-          {expiringSoon.length > 0 && (
-            <Alert
-              type="warning"
-              showIcon
-              message={t('admin.expiry.alert', { n: expiringSoon.length, names: expiringSoon.map((a) => a.username).join(', ') })}
-              action={
-                <Button size="small" type="primary" onClick={copyRenewScripts}>
-                  {t('admin.expiry.copyBtn')}
-                </Button>
-              }
-              style={{ marginBottom: 16 }}
-            />
-          )}
+        <Card size="small" style={{ marginBottom: 16, border: '1px solid #99F6E4' }}>
+          <Space size={32} wrap>
+            <Statistic title={t('admin.stat.total')} value={stats?.totalAccounts ?? accounts.length} valueStyle={{ color: '#3F8600' }} />
+            <Statistic title={t('admin.stat.active')} value={activeCount} />
+            <Statistic title={t('admin.stat.today')} value={registeredToday} />
+            <Statistic title={t('admin.stat.active7')} value={stats?.activeUsers7 ?? 0} />
+            <Statistic title={t('admin.stat.signups7')} value={stats?.signups7 ?? 0} />
+            <Statistic title={t('admin.stat.disabled')} value={stats?.disabledAccounts ?? 0} valueStyle={{ color: (stats?.disabledAccounts ?? 0) > 0 ? '#FA8C16' : undefined }} />
+          </Space>
+        </Card>
 
-          {churnRisk.length > 0 && (
-            <Alert
-              type="info"
-              showIcon
-              message={t('admin.churn.alert', { n: churnRisk.length, days: INACTIVE_DAYS, names: churnRisk.map((a) => a.username).join(', ') })}
-              action={
-                <Button size="small" onClick={() => setFilterKey('inactive')}>
-                  {t('admin.churn.view')}
-                </Button>
-              }
-              style={{ marginBottom: 16 }}
-            />
-          )}
-
-          <Card title={t('admin.stats.title')} size="small" style={{ marginBottom: 16 }}>
-            <Space size="large" wrap align="center">
-              <Statistic title={t('admin.stats.active7')} value={stats?.activeUsers7 ?? 0} valueStyle={{ color: '#3f8600' }} />
-              <Statistic title={t('admin.stats.signups')} value={stats?.signups7 ?? 0} />
-              {(stats?.events7 ?? []).slice(0, 6).map((e) => (
-                <Statistic key={e.name} title={EVENT_LABELS()[e.name as keyof ReturnType<typeof EVENT_LABELS>] ?? e.name} value={e.count} />
+        {stats && stats.events7.length > 0 && (
+          <Card size="small" title={t('admin.events.title')} style={{ marginBottom: 16 }}>
+            <Space size={16} wrap>
+              {stats.events7.map((e) => (
+                <Tag key={e.name}>
+                  {e.name} · {e.count}
+                </Tag>
               ))}
             </Space>
-            {/* —— 续费漏斗（近 30 天；旧部署无数据时隐藏）—— */}
-            {stats?.renewCount30 != null && (
-              <Alert
-                type={stats.renewCount30 > 0 ? 'success' : 'warning'}
-                showIcon
-                style={{ marginTop: 12 }}
-                message={t('admin.funnel.title')}
-                description={t('admin.funnel.body', {
-                  renew: stats.renewCount30,
-                  expiring: stats.expiredCount30 ?? 0,
-                  rate: (stats.expiredCount30 ?? 0) > 0
-                    ? Math.round((stats.renewCount30 / (stats.expiredCount30 || 1)) * 100)
-                    : 0,
-                  trialRate: (stats.trialTotal ?? 0) > 0
-                    ? Math.round(((stats.trialRenewed ?? 0) / (stats.trialTotal || 1)) * 100)
-                    : 0,
-                  trialRenewed: stats.trialRenewed ?? 0,
-                  trialTotal: stats.trialTotal ?? 0,
-                })}
-              />
-            )}
           </Card>
+        )}
 
-          <Card
-            title={t('admin.tbl.accounts')}
-            size="small"
-            extra={
-              <Segmented
-                value={filterKey}
-                onChange={(v) => setFilterKey(v as typeof filterKey)}
-                options={[
-                  { label: t('admin.filter.all'), value: 'all' },
-                  { label: t('admin.filter.expiring', { n: expiringSoon.length }), value: 'expiring' },
-                  { label: t('admin.filter.expired'), value: 'expired' },
-                  { label: t('admin.filter.inactive', { n: churnRisk.length }), value: 'inactive' },
-                  { label: t('admin.filter.disabled'), value: 'disabled' },
-                ]}
+        <Card
+          size="small"
+          title={
+            <Segmented
+              value={tab}
+              onChange={(v) => setTab(v as 'accounts' | 'audit')}
+              options={[
+                { label: t('admin.tab.accounts'), value: 'accounts' },
+                { label: t('admin.tab.audit'), value: 'audit' },
+              ]}
+            />
+          }
+        >
+          {tab === 'accounts' ? (
+            <>
+              <Space style={{ marginBottom: 12 }} wrap>
+                <Segmented
+                  value={filterKey}
+                  onChange={(v) => setFilterKey(v as typeof filterKey)}
+                  options={[
+                    { label: t('admin.filter.all'), value: 'all' },
+                    { label: t('admin.filter.active'), value: 'active' },
+                    { label: t('admin.filter.inactive'), value: 'inactive' },
+                    { label: t('admin.filter.disabled'), value: 'disabled' },
+                  ]}
+                />
+                <Input.Search
+                  allowClear
+                  placeholder={t('admin.searchPlaceholder')}
+                  style={{ width: 220 }}
+                  onChange={(e) => setKeyword(e.target.value)}
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {t('admin.count', { n: shown.length })}
+                </Text>
+              </Space>
+              <Table
+                rowKey="id"
+                size="small"
+                columns={accountColumns}
+                dataSource={shown}
+                loading={loadingList}
+                pagination={{ pageSize: 20, showSizeChanger: false }}
+                scroll={{ x: 'max-content' }}
               />
-            }
-          >
-            <Table rowKey="id" columns={columns} dataSource={filteredAccounts} loading={loadingList} pagination={{ pageSize: 15 }} size="middle" />
-          </Card>
-
-          <Card title={t('admin.audit.title')} size="small">
+            </>
+          ) : (
             <Table
               rowKey={(r) => `${r.created_at}-${r.action}-${r.target}`}
-              columns={[
-                {
-                  title: t('admin.audit.col.time'),
-                  key: 'time',
-                  width: 150,
-                  render: (_, r) => dayjs(r.created_at).format('MM-DD HH:mm:ss'),
-                },
-                {
-                  title: t('admin.tbl.op'),
-                  key: 'action',
-                  width: 90,
-                  render: (_, r) =>
-                    ({ login: t('admin.audit.act.login'), create: t('admin.audit.act.create'), renew: t('admin.audit.act.renew'), disable: t('admin.audit.act.disable'), enable: t('admin.audit.act.enable'), delete: t('admin.audit.act.delete') } as Record<string, string>)[r.action] ?? r.action,
-                },
-                { title: t('admin.audit.col.target'), dataIndex: 'target', key: 'target', width: 170, render: (v) => <Text code>{v}</Text> },
-                { title: t('admin.audit.col.detail'), dataIndex: 'detail', key: 'detail', ellipsis: true },
-                { title: t('admin.audit.col.ip'), dataIndex: 'ip', key: 'ip', width: 130 },
-              ]}
-              dataSource={logs}
-              pagination={{ pageSize: 8 }}
               size="small"
-            />
-          </Card>
-
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            提示：生成账号后弹出的用户名/密码只显示这一次，请当场复制发给买家。
-          </Text>
-        </Space>
-      </div>
-
-      {/* 生成账号 */}
-      <Modal
-        title={t('admin.create.modalTitle')}
-        open={createOpen}
-        onCancel={() => setCreateOpen(false)}
-        onOk={handleCreate}
-        confirmLoading={creating}
-        okText={t('admin.create.okText')}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Select
-            options={daySelectOptions}
-            value={cardType}
-            onChange={(v) => {
-              setCardType(v)
-              if (v !== CUSTOM_DAYS) setCustomDays(null)
-            }}
-            style={{ width: '100%' }}
-            size="large"
-          />
-          {cardType === CUSTOM_DAYS && (
-            <InputNumber
-              min={1}
-              max={3650}
-              precision={0}
-              value={customDays}
-              onChange={(v) => setCustomDays(v)}
-              placeholder={t('admin.customDays.placeholder')}
-              addonAfter={t('admin.customDays.unit')}
-              style={{ width: '100%' }}
-              size="large"
-              autoFocus
+              columns={auditColumns}
+              dataSource={logs}
+              pagination={{ pageSize: 20, showSizeChanger: false }}
+              scroll={{ x: 'max-content' }}
             />
           )}
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {t('admin.create.auto')}
-          </Text>
-        </Space>
-      </Modal>
+        </Card>
 
-      {/* 新账号凭证（只显示一次） */}
-      <Modal open={!!issuedCreds} footer={null} onCancel={() => setIssuedCreds(null)} title={t('admin.create.doneTitle')}>
-        {issuedCreds && (
-          <div style={{ fontSize: 16, lineHeight: 2 }}>
-            <div>
-              {t('admin.create.cardType')}<b>{cardOptions.find((c) => c.value === cardType)?.label ?? `${issuedCreds.days}${t('admin.customDays.unit')}`}</b>
-            </div>
-            <div>
-              {t('admin.create.username')}<Text code copyable style={{ fontSize: 18 }}>{issuedCreds.username}</Text>
-            </div>
-            <div>
-              {t('admin.create.password')}<Text code copyable style={{ fontSize: 18 }}>{issuedCreds.password}</Text>
-            </div>
-            <Button block type="primary" ghost icon={<CopyOutlined />} style={{ marginTop: 12 }} onClick={copyCreds}>
-              {t('admin.create.copyAll')}
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginTop: 16 }}
+          message={t('admin.tips.title')}
+          description={t('admin.tips.body')}
+        />
+      </div>
+
+      {/* 重置密码 */}
+      <Modal
+        open={!!resetFor}
+        title={t('admin.reset.title', { name: resetFor?.username ?? '' })}
+        onCancel={() => setResetFor(null)}
+        footer={
+          resetDone ? (
+            <Button type="primary" onClick={() => setResetFor(null)}>
+              {t('common.close')}
             </Button>
+          ) : (
+            <Space>
+              <Button onClick={() => setResetFor(null)}>{t('common.cancel')}</Button>
+              <Button type="primary" loading={resetting} onClick={submitReset}>
+                {t('admin.reset.submit')}
+              </Button>
+            </Space>
+          )
+        }
+      >
+        {resetDone ? (
+          <>
             <Alert
               type="warning"
               showIcon
-              style={{ marginTop: 12 }}
-              message={t('admin.create.warning')}
+              style={{ marginBottom: 12 }}
+              message={t('admin.reset.onceWarn')}
             />
-          </div>
+            <Descriptions bordered size="small" column={1}>
+              <Descriptions.Item label={t('auth.username')}>
+                <Text strong>{resetDone.username}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label={t('auth.password')}>
+                <Space>
+                  <Text strong>{resetDone.password}</Text>
+                  <Button
+                    size="small"
+                    icon={<CopyOutlined />}
+                    onClick={() => copyText(resetDone.password, t('admin.reset.copied'))}
+                  >
+                    {t('common.copy')}
+                  </Button>
+                </Space>
+              </Descriptions.Item>
+            </Descriptions>
+            <p style={{ fontSize: 12, color: '#64748B', marginTop: 12, marginBottom: 0 }}>
+              {t('admin.reset.afterHint')}
+            </p>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: '#475569', marginTop: 0 }}>{t('admin.reset.body')}</p>
+            <Input.Password
+              placeholder={t('admin.reset.placeholder')}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              maxLength={200}
+            />
+            <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 0 }}>{t('admin.reset.blankHint')}</p>
+          </>
         )}
-      </Modal>
-
-      {/* 续费 */}
-      <Modal
-        title={t('admin.renew.title', { name: renewFor?.username ?? '' })}
-        open={!!renewFor}
-        onCancel={() => setRenewFor(null)}
-        onOk={async () => {
-          if (!renewFor) return
-          let ok = false
-          if (renewType === CUSTOM_DAYS) {
-            const days = normalizeDays(renewCustomDays)
-            if (!days) {
-              message.warning(t('admin.customDays.invalid'))
-              return Promise.reject()
-            }
-            ok = await handleOp(renewFor.id, { op: 'renew', days }, t('admin.renew.success'))
-          } else {
-            ok = await handleOp(renewFor.id, { op: 'renew', cardType: renewType }, t('admin.renew.success'))
-          }
-          if (ok) setRenewFor(null)
-          else return Promise.reject()
-        }}
-        okText={t('admin.renew.ok')}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Select
-            options={daySelectOptions}
-            value={renewType}
-            onChange={(v) => {
-              setRenewType(v)
-              if (v !== CUSTOM_DAYS) setRenewCustomDays(null)
-            }}
-            style={{ width: '100%' }}
-            size="large"
-          />
-          {renewType === CUSTOM_DAYS && (
-            <InputNumber
-              min={1}
-              max={3650}
-              precision={0}
-              value={renewCustomDays}
-              onChange={(v) => setRenewCustomDays(v)}
-              placeholder={t('admin.customDays.placeholder')}
-              addonAfter={t('admin.customDays.unit')}
-              style={{ width: '100%' }}
-              size="large"
-            />
-          )}
-          <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-            {t('admin.renew.hint')}
-          </Text>
-        </Space>
       </Modal>
     </div>
   )

@@ -1,4 +1,4 @@
-import { Layout, Menu, Button, Badge, Input, App, Dropdown, Tag } from 'antd'
+import { Layout, Menu, Button, Badge, Input, App, Dropdown } from 'antd'
 import {
   AppstoreOutlined,
   DeleteOutlined,
@@ -21,7 +21,6 @@ import { syncNow } from '@/utils/autoSync'
 import { getProvider } from '@/db/providerFactory'
 import { copyTemplateToLibrary } from '@/utils/libraryTemplates'
 import { useI18n } from '@/i18n'
-import dayjs from 'dayjs'
 
 const { Sider } = Layout
 
@@ -319,31 +318,6 @@ function SidebarBody({
           background: isDark ? '#141414' : '#fff',
         }}
       >
-        {!collapsed && account?.expiresAt != null && (
-          <div
-            style={{
-              fontSize: 12,
-              marginBottom: 8,
-              color: 'var(--ant-color-text-secondary)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <span>{t('app.expiresAt', { date: dayjs(account.expiresAt).format('YYYY-MM-DD') })}</span>
-            {(() => {
-              const days = Math.floor((account.expiresAt! - Date.now()) / 86400000)
-              if (days <= 3) {
-                return (
-                  <Tag color={days < 0 ? 'red' : 'orange'} style={{ marginRight: 0 }}>
-                    {days < 0 ? t('app.expired') : t('app.daysLeft', { n: days })}
-                  </Tag>
-                )
-              }
-              return null
-            })()}
-          </div>
-        )}
         <Button ref={aiRef} icon={<RobotOutlined />} block onClick={onOpenPanel} style={{ marginBottom: 8 }}>
           {collapsed ? '' : t('app.aiAssistant')}
         </Button>

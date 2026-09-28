@@ -1,42 +1,87 @@
-import { useState, useEffect } from 'react'
-import { Form, Input, Button, Checkbox, App } from 'antd'
+import { useState, useEffect, useCallback } from 'react'
+import { Form, Input, Button, Checkbox, App, Tabs, Alert } from 'antd'
 import {
   UserOutlined,
   LockOutlined,
   MessageOutlined,
   DatabaseOutlined,
   BarChartOutlined,
+  MailOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/store/authStore'
+import { apiRegistrationOpen } from '@/lib/serverApi'
 import { useI18n } from '@/i18n'
 import { useNavigate } from 'react-router-dom'
-import dayjs from 'dayjs'
 
 const BRAND = '#0D9488'
+
+type Mode = 'login' | 'register'
+
+interface RegisterValues {
+  username: string
+  password: string
+  confirm: string
+  contact?: string
+}
 
 export default function AuthPage() {
   const { message } = App.useApp()
   const navigate = useNavigate()
-  const { login, account } = useAuthStore()
+  const { login, register, account } = useAuthStore()
+  const [mode, setMode] = useState<Mode>('login')
   const [loading, setLoading] = useState(false)
   const [remember, setRemember] = useState(false)
-  const [form] = Form.useForm<{ username: string; password: string }>()
+  const [loginForm] = Form.useForm<{ username: string; password: string }>()
+  const [regForm] = Form.useForm<RegisterValues>()
   const t = useI18n()
+  const [regOpen, setRegOpen] = useState<boolean | null>(null)
 
   // 如果 init() 在跳转到 /login 后才完成恢复，自动跳回主页
   useEffect(() => {
     if (account) navigate('/', { replace: true })
   }, [account, navigate])
 
-  const onFinish = async (values: { username: string; password: string }) => {
+  // 注册开关由服务端决定（管理员被灌水时可紧急关闭）
+  useEffect(() => {
+    let alive = true
+    apiRegistrationOpen()
+      .then((open) => alive && setRegOpen(open))
+      .catch(() => alive && setRegOpen(true))
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const switchMode = useCallback(
+    (next: Mode) => {
+      setMode(next)
+      loginForm.resetFields()
+      regForm.resetFields()
+    },
+    [loginForm, regForm],
+  )
+
+  const onLogin = async (values: { username: string; password: string }) => {
     setLoading(true)
     try {
-      const acc = await login(values.username, values.password, remember)
-      message.success(
-        acc.expiresAt
-          ? t('auth.ok.expires', { time: dayjs(acc.expiresAt).format('YYYY-MM-DD HH:mm') })
-          : t('auth.ok.plain'),
+      await login(values.username, values.password, remember)
+      message.success(t('auth.ok.plain'))
+      navigate('/')
+    } catch (e) {
+      message.error((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const onRegister = async (values: RegisterValues) => {
+    setLoading(true)
+    try {
+      await register(
+        { username: values.username.trim(), password: values.password, contact: values.contact?.trim() },
+        remember,
       )
+      message.success(t('auth.reg.ok'))
       navigate('/')
     } catch (e) {
       message.error((e as Error).message)
@@ -50,6 +95,143 @@ export default function AuthPage() {
     { icon: <DatabaseOutlined />, text: t('auth.f2') },
     { icon: <BarChartOutlined />, text: t('auth.f3') },
   ]
+
+  const loginPane = (
+    <Form
+      form={loginForm}
+      onFinish={onLogin}
+      layout="vertical"
+      size="large"
+      validateTrigger={['onSubmit', 'onChange']}
+      requiredMark={false}
+    >
+      <Form.Item name="username" rules={[{ required: true, message: t('auth.err.username') }]}>
+        <Input
+          prefix={<UserOutlined style={{ color: '#94a3b8' }} />}
+          placeholder={t('auth.username')}
+          autoComplete="username"
+          aria-label={t('auth.username')}
+        />
+      </Form.Item>
+      <Form.Item
+        name="password"
+        rules={[
+          { required: true, message: t('auth.err.password') },
+          { min: 6, message: t('auth.err.passwordMin') },
+        ]}
+      >
+        <Input.Password
+          prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
+          placeholder={t('auth.password')}
+          autoComplete="current-password"
+          aria-label={t('auth.password')}
+        />
+      </Form.Item>
+      <Form.Item style={{ marginBottom: 16 }}>
+        <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
+          <span style={{ fontSize: 13, color: '#475569' }}>{t('auth.remember')}</span>
+        </Checkbox>
+      </Form.Item>
+
+      <Button type="primary" htmlType="submit" block loading={loading} style={{ fontWeight: 600 }}>
+        {t('auth.login')}
+      </Button>
+    </Form>
+  )
+
+  const registerPane = (
+    <>
+      {regOpen === false && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={t('auth.reg.closedTitle')}
+          description={t('auth.reg.closedBody')}
+        />
+      )}
+      <Form
+        form={regForm}
+        onFinish={onRegister}
+        layout="vertical"
+        size="large"
+        validateTrigger={['onSubmit', 'onChange']}
+        requiredMark={false}
+        disabled={regOpen === false}
+      >
+        <Form.Item
+          name="username"
+          rules={[
+            { required: true, message: t('auth.err.username') },
+            {
+              pattern: /^[A-Za-z0-9_]{3,20}$/,
+              message: t('auth.err.usernamePattern'),
+            },
+          ]}
+        >
+          <Input
+            prefix={<UserOutlined style={{ color: '#94a3b8' }} />}
+            placeholder={t('auth.reg.username')}
+            autoComplete="username"
+            aria-label={t('auth.reg.username')}
+          />
+        </Form.Item>
+        <Form.Item
+          name="password"
+          rules={[
+            { required: true, message: t('auth.err.password') },
+            { min: 8, message: t('auth.err.passwordMin8') },
+          ]}
+        >
+          <Input.Password
+            prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
+            placeholder={t('auth.reg.password')}
+            autoComplete="new-password"
+            aria-label={t('auth.reg.password')}
+          />
+        </Form.Item>
+        <Form.Item
+          name="confirm"
+          dependencies={['password']}
+          rules={[
+            { required: true, message: t('auth.err.confirm') },
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value || getFieldValue('password') === value) return Promise.resolve()
+                return Promise.reject(new Error(t('auth.err.confirmMismatch')))
+              },
+            }),
+          ]}
+        >
+          <Input.Password
+            prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
+            placeholder={t('auth.reg.confirm')}
+            autoComplete="new-password"
+            aria-label={t('auth.reg.confirm')}
+          />
+        </Form.Item>
+        <Form.Item
+          name="contact"
+          rules={[{ max: 120, message: t('auth.err.contactMax') }]}
+          style={{ marginBottom: 16 }}
+        >
+          <Input
+            prefix={<MailOutlined style={{ color: '#94a3b8' }} />}
+            placeholder={t('auth.reg.contact')}
+            autoComplete="email"
+            aria-label={t('auth.reg.contact')}
+          />
+        </Form.Item>
+
+        <Button type="primary" htmlType="submit" block loading={loading} style={{ fontWeight: 600 }}>
+          {t('auth.reg.submit')}
+        </Button>
+        <p style={{ marginTop: 12, marginBottom: 0, fontSize: 12, color: '#64748B', lineHeight: 1.7 }}>
+          {t('auth.reg.privacy')}
+        </p>
+      </Form>
+    </>
+  )
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#F0FDFA' }}>
@@ -104,60 +286,28 @@ export default function AuthPage() {
       {/* 右侧表单区 */}
       <div className="login-form-side">
         <div style={{ width: '100%', maxWidth: 320, padding: '0 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 36 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: BRAND, display: 'inline-block' }} />
             <span style={{ fontWeight: 700, fontSize: 15, color: '#134E4A' }}>{t('auth.brand')}</span>
           </div>
 
           <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px', color: '#134E4A' }}>{t('auth.welcome')}</h2>
-          <p style={{ color: '#475569', fontSize: 13, margin: '0 0 28px' }}>
-            {t('auth.hint')}
-          </p>
+          <p style={{ color: '#475569', fontSize: 13, margin: '0 0 20px' }}>{t('auth.hint')}</p>
 
-          <Form
-            form={form}
-            onFinish={onFinish}
-            layout="vertical"
-            size="large"
-            validateTrigger={['onSubmit', 'onChange']}
-            requiredMark={false}
-          >
-            <Form.Item name="username" rules={[{ required: true, message: t('auth.err.username') }]}>
-              <Input
-                prefix={<UserOutlined style={{ color: '#94a3b8' }} />}
-                placeholder={t('auth.username')}
-                autoComplete="username"
-                aria-label={t('auth.username')}
-              />
-            </Form.Item>
-            <Form.Item
-              name="password"
-              rules={[
-                { required: true, message: t('auth.err.password') },
-                { min: 6, message: t('auth.err.passwordMin') },
-              ]}
-            >
-              <Input.Password
-                prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
-                placeholder={t('auth.password')}
-                autoComplete="current-password"
-                aria-label={t('auth.password')}
-              />
-            </Form.Item>
-            <Form.Item style={{ marginBottom: 16 }}>
-              <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
-                <span style={{ fontSize: 13, color: '#475569' }}>{t('auth.remember')}</span>
-              </Checkbox>
-            </Form.Item>
+          <Tabs
+            activeKey={mode}
+            onChange={(k) => switchMode(k as Mode)}
+            centered
+            style={{ marginBottom: 8 }}
+            items={[
+              { key: 'login', label: t('auth.tab.login'), children: null },
+              { key: 'register', label: t('auth.tab.register'), children: null },
+            ]}
+          />
 
-            <Button type="primary" htmlType="submit" block loading={loading} style={{ fontWeight: 600 }}>
-              {t('auth.login')}
-            </Button>
-          </Form>
+          {mode === 'login' ? loginPane : registerPane}
 
-          <p style={{ textAlign: 'center', marginTop: 28, color: '#475569', fontSize: 12, lineHeight: 1.8 }}>
-            {t('auth.noAccount')}
-            <br />
+          <p style={{ textAlign: 'center', marginTop: 24, color: '#475569', fontSize: 12, lineHeight: 1.8 }}>
             <a
               href="/"
               onClick={(e) => {
