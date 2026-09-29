@@ -7,6 +7,7 @@ import {
   MobileOutlined,
   MailOutlined,
   CheckOutlined,
+  UserAddOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '@/i18n'
@@ -144,6 +145,9 @@ export default function Landing() {
             {t('landing.hero.sub')}
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button type="primary" size="large" icon={<UserAddOutlined />} onClick={goRegister}>
+              {t('landing.hero.cta')}
+            </Button>
             <Button size="large" type="dashed" href="/app/infodesk.apk" download="信息管理.apk">
               {t('landing.hero.downloadApk')}
             </Button>
