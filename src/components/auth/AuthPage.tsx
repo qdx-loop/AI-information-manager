@@ -14,6 +14,7 @@ import { apiRegistrationOpen } from '@/lib/serverApi'
 import { useI18n } from '@/i18n'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTurnstile } from './useTurnstile'
+import { isAndroidApp } from '@/utils/platform'
 
 const BRAND = '#0D9488'
 
@@ -39,6 +40,7 @@ export default function AuthPage() {
   const [regForm] = Form.useForm<RegisterValues>()
   const t = useI18n()
   const [regOpen, setRegOpen] = useState<boolean | null>(null)
+  const inApp = isAndroidApp()
   // Turnstile token：拿不到时留空，服务端会按故障降级逻辑处理
   const [tsToken, setTsToken] = useState('')
   const onTsToken = useCallback((tok: string) => setTsToken(tok), [])
@@ -365,16 +367,21 @@ export default function AuthPage() {
           {mode === 'login' ? loginPane : registerPane}
 
           <p style={{ textAlign: 'center', marginTop: 24, color: '#475569', fontSize: 12, lineHeight: 1.8 }}>
-            <a
-              href="/"
-              onClick={(e) => {
-                e.preventDefault()
-                navigate('/')
-              }}
-            >
-              {t('auth.backHome')}
-            </a>
-            <br />
+            {/* App 里 `/` 会被分流回登录页，这个链接点了没反应，所以在壳内隐藏 */}
+            {!inApp && (
+              <>
+                <a
+                  href="/"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    navigate('/')
+                  }}
+                >
+                  {t('auth.backHome')}
+                </a>
+                <br />
+              </>
+            )}
             {t('auth.cloudHint')}
           </p>
         </div>

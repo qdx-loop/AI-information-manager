@@ -1,6 +1,7 @@
 import { Tooltip } from 'antd'
 import { PhoneOutlined, MailOutlined, LinkOutlined } from '@ant-design/icons'
 import type { FieldDef, FieldValue } from '@/types'
+import { isAndroidApp } from '@/utils/platform'
 
 // 识别纯值是否可交互（电话 / 邮箱 / 网址），返回可点击链接信息
 export interface SmartLink {
@@ -42,9 +43,9 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
           rel="noreferrer"
           onClick={(e) => {
             e.stopPropagation()
-            // TWA/APK（referrer 带 android-app://，PWA 主屏快捷方式无此标记）：
+            // App 壳内（TWA 或纯 WebView，由 UA 标记识别）：
             // target=_blank 会跳出应用到系统浏览器，改为当前环境内打开
-            const inTwa = typeof document !== 'undefined' && document.referrer.includes('android-app://')
+            const inTwa = isAndroidApp()
             if (inTwa && link.href.startsWith('http')) {
               e.preventDefault()
               window.open(link.href, '_self')

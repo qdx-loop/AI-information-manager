@@ -53,6 +53,13 @@ public class MainActivity extends Activity {
 
     private static final String LAUNCH_URL = "https://aiim.de5.net";
     private static final String HOST = "aiim.de5.net";
+    /**
+     * 追加到 User-Agent 末尾，让网页能认出「我在 App 壳里」。
+     * 网页侧对应 src/utils/platform.ts 的 APP_UA_TOKEN，两边必须一致。
+     * 以前用的是 document.referrer 里的 android-app://（TWA 时代特征），
+     * 换成纯 WebView 后 referrer 恒为空，那个判断就永远失效了。
+     */
+    private static final String APP_UA_TOKEN = "InfoDeskApp/1.1.3";
     private static final int REQ_FILE = 1001;
 
     private WebView webView;
@@ -78,6 +85,12 @@ public class MainActivity extends Activity {
         s.setLoadWithOverviewMode(false);
         s.setUseWideViewPort(false);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
+        // 打上 App 身份标记（见 APP_UA_TOKEN 注释）。用系统 UA 追加而不是整串写死，
+        // 这样原生组件/服务端按 UA 做的兼容判断不会因为我们改写而失效。
+        String ua = s.getUserAgentString();
+        if (ua != null && !ua.contains(APP_UA_TOKEN)) {
+            s.setUserAgentString(ua + " " + APP_UA_TOKEN);
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             s.setSafeBrowsingEnabled(false); // 局域网/CN 网络下误判率高，误伤主站
         }

@@ -3,13 +3,14 @@
 import type { Library, Item } from '@/types'
 import { getProvider } from '@/db/providerFactory'
 import { getReminderAt, getReminderRepeat, nextOccurrence, type ReminderRepeat } from './reminder'
+import { isAndroidApp } from './platform'
 
 const DEDUP_PREFIX = 'info-mgmt-notified-'
 
 export function notificationSupported(): boolean {
   if (typeof window === 'undefined' || !('Notification' in window)) return false
-  // TWA/APK 启动特征：referrer 带 android-app://（PWA 添加到主屏没有此标记，通知功能完好）
-  if (typeof document !== 'undefined' && document.referrer.includes('android-app://')) return false
+  // App 壳内不支持通知（PWA 添加到主屏没有 UA 标记，通知功能完好）
+  if (isAndroidApp()) return false
   return true
 }
 
