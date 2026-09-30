@@ -19,7 +19,7 @@ export default function HelpPage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F0FDFA', padding: '48px 16px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--app-canvas)', padding: '48px 16px' }}>
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
         <Card>
           <Title level={3} style={{ marginTop: 0 }}>{t('help.title')}</Title>

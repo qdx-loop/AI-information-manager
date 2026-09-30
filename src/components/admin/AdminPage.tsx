@@ -157,10 +157,10 @@ export default function AdminPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#F0FDFA',
+          background: 'var(--app-canvas)',
         }}
       >
-        <Card style={{ width: '100%', maxWidth: 360, margin: '0 12px', border: '1px solid #99F6E4' }}>
+        <Card style={{ width: '100%', maxWidth: 360, margin: '0 12px', border: '1px solid var(--app-glaze)' }}>
           <div style={{ textAlign: 'center', marginBottom: 20 }}>
             <span
               style={{
@@ -338,7 +338,7 @@ export default function AdminPage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F0FDFA', padding: 16 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--app-canvas)', padding: 16 }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
           <Space align="center">
@@ -355,7 +355,7 @@ export default function AdminPage() {
           </Space>
         </Space>
 
-        <Card size="small" style={{ marginBottom: 16, border: '1px solid #99F6E4' }}>
+        <Card size="small" style={{ marginBottom: 16, border: '1px solid var(--app-glaze)' }}>
           <Space size={32} wrap>
             <Statistic title={t('admin.stat.total')} value={stats?.totalAccounts ?? accounts.length} valueStyle={{ color: '#3F8600' }} />
             <Statistic title={t('admin.stat.active')} value={activeCount} />

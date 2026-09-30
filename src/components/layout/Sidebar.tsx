@@ -281,7 +281,7 @@ function SidebarBody({
   aiRef?: React.Ref<HTMLButtonElement>
 }) {
   const t = useI18n()
-  const { account, isDark, menuItems, selectedKey, handleClick, handleLogout, loggingOut } = state
+  const { account, menuItems, selectedKey, handleClick, handleLogout, loggingOut } = state
   return (
     <>
       <div
@@ -292,7 +292,7 @@ function SidebarBody({
           alignItems: 'center',
           gap: 8,
           fontWeight: 600,
-          color: '#0D9488',
+          color: 'var(--app-glaze)',
           cursor: 'pointer',
         }}
       >
@@ -314,8 +314,8 @@ function SidebarBody({
           bottom: 0,
           width: '100%',
           padding: 12,
-          borderTop: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
-          background: isDark ? '#141414' : '#fff',
+          borderTop: '1px solid var(--app-border-soft)',
+          background: 'var(--app-surface)',
         }}
       >
         <Button ref={aiRef} icon={<RobotOutlined />} block onClick={onOpenPanel} style={{ marginBottom: 8 }}>
@@ -366,10 +366,9 @@ export default function Sidebar({
 // 移动端侧边栏内容（用于 Drawer 内）
 export function SidebarContent({ onOpenPanel }: { onOpenPanel: () => void }) {
   const state = useSidebarState()
-  const { isDark } = state
 
   return (
-    <div style={{ height: '100vh', overflow: 'auto', background: isDark ? '#141414' : '#fff' }}>
+    <div style={{ height: '100vh', overflow: 'auto', background: 'var(--app-surface)' }}>
       <SidebarBody state={state} collapsed={false} onOpenPanel={onOpenPanel} />
     </div>
   )

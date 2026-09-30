@@ -75,7 +75,7 @@ export default function ConfirmActionModal({
       width={560}
     >
       {action.reason && (
-        <p style={{ background: '#f6ffed', padding: 12, borderRadius: 6, marginBottom: 16 }}>
+        <p style={{ background: 'var(--app-surface-sunken)', padding: 12, borderRadius: 6, marginBottom: 16 }}>
           <strong>{t('ai.confirm.reason')}</strong>
           {action.reason}
         </p>

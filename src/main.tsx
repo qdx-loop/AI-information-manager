@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { ConfigProvider, App as AntdApp, theme as antdTheme } from 'antd'
+import { ConfigProvider, App as AntdApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import enUS from 'antd/locale/en_US'
 import dayjs from 'dayjs'
@@ -10,6 +10,7 @@ import App from './App'
 import { initFromSettings } from '@/db/providerFactory'
 import { useAppStore } from '@/store/appStore'
 import { autoSyncManager } from '@/utils/autoSync'
+import { buildTheme } from '@/theme'
 import './styles/index.css'
 
 dayjs.locale(useAppStore.getState().settings.language === 'en' ? 'en' : 'zh-cn')
@@ -42,25 +43,16 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     dayjs.locale(lang === 'en' ? 'en' : 'zh-cn')
   }, [lang])
+  // 把主题写到 <html> 上，纯 CSS（状态行底色、点击区）才能跟着切换
+  useEffect(() => {
+    const el = document.documentElement
+    el.setAttribute('data-theme', themeMode === 'dark' ? 'dark' : 'light')
+    el.style.colorScheme = themeMode === 'dark' ? 'dark' : 'light'
+  }, [themeMode])
   return (
       <ConfigProvider
         locale={lang === 'en' ? enUS : zhCN}
-        theme={{
-          algorithm: themeMode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-          // 开启 CSS 变量：业务代码可用 var(--ant-color-*) 跟随主题，替代写死的灰阶
-          cssVar: true,
-          token: {
-            // 设计系统：Flat Design · 蓝绿主色 + 橙色行动色（ui-ux-pro-max 生成）
-            colorPrimary: '#0D9488',
-            colorInfo: '#0D9488',
-            colorLink: '#0D9488',
-            colorBgLayout: '#F0FDFA',
-            colorBorderSecondary: '#CCEBE6',
-            borderRadius: 8,
-            fontFamily:
-              "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
-          },
-        }}
+        theme={buildTheme(themeMode === 'dark' ? 'dark' : 'light')}
       >
       <AntdApp>{children}</AntdApp>
     </ConfigProvider>

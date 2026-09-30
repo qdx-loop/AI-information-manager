@@ -58,5 +58,10 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
       </Tooltip>
     )
   }
-  return <span style={{ wordBreak: 'break-all' }}>{str}</span>
+  const num = field.type === 'number' || field.type === 'date'
+  return (
+    <span className={num ? 'num' : undefined} style={{ wordBreak: 'break-all' }}>
+      {str}
+    </span>
+  )
 }

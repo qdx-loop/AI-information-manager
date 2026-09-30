@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 
 // 输入防抖：大数据量下每键击全量过滤会卡顿
 function useDebounced<T>(value: T, delay = 250): T {
@@ -22,18 +22,24 @@ import {
   Empty,
   Switch,
   Modal,
+  Dropdown,
+  Grid,
 } from 'antd'
 import {
   PlusOutlined,
   SearchOutlined,
   SettingOutlined,
   ImportOutlined,
+  CopyOutlined,
+  MoreOutlined,
+  FileTextOutlined,
+  FileExcelOutlined,
 } from '@ant-design/icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import LibraryTable from './LibraryTable'
 import ItemEditor from './ItemEditor'
 import TemplateEditor from './TemplateEditor'
-import ImportExport from './ImportExport'
+import ImportExport, { type ImportExportHandle } from './ImportExport'
 import type { Item, FieldValue } from '@/types'
 import { useI18n } from '@/i18n'
 import { track } from '@/utils/track'
@@ -43,6 +49,8 @@ const { Title, Text } = Typography
 export default function LibraryView() {
   const { id } = useParams()
   const { message, modal } = App.useApp()
+  const narrow = !Grid.useBreakpoint().md
+  const ioRef = useRef<ImportExportHandle>(null)
   const {
     libraries,
     currentLibraryId,
@@ -199,29 +207,76 @@ export default function LibraryView() {
 
   return (
     <div style={{ padding: 16, height: '100%' }}>
-      <Card
-        styles={{ body: { padding: 16 } }}
-        style={{ marginBottom: 12 }}
+      {/* 页面头：不再套一层 Card。原来的「卡片里再套卡片」让界面多出两层边框，
+          研究结论是「需要描边的话，多半是需要更多留白」——用留白分层即可。 */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+          marginBottom: 16,
+        }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <Space wrap>
-            <Title level={4} style={{ margin: 0 }}>
-              {lib?.name ?? '管理库'}
-            </Title>
-            {lib && <Tag color="green">{lib.category}</Tag>}
-            <Text type="secondary">{t('common.totalItems', { n: items.length })}</Text>
-          </Space>
-          <Space wrap size="small">
-            <Button icon={<PlusOutlined />} type="primary" onClick={handleNew}>{t('lib.new')}</Button>
-            <Button icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>{t('lib.template')}</Button>
-            <Button icon={<ImportOutlined />} onClick={handleClone} disabled={fields.length === 0}>{t('lib.clone')}
-            </Button>
-            <ImportExport fields={fields} items={items} onImport={handleImport} />
-          </Space>
-        </div>
-      </Card>
+        <Space wrap size={8} style={{ minWidth: 0 }}>
+          <Title level={4} style={{ margin: 0, fontSize: 19 }}>
+            {lib?.name ?? t('lib.untitled')}
+          </Title>
+          {lib?.category && <Tag color="teal">{lib.category}</Tag>}
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            {t('lib.total', { n: items.length })}
+          </Text>
+        </Space>
+
+        {/* 「新建」是这页唯一的主操作。桌面端把工具按钮平铺（便于发现），
+            窄屏收进一个「⋯」，避免五个按钮在手机上折成三行、挤掉数据区。
+            对应飞书多维表格「搭建与使用分离」：设置项不与主流程并排争夺注意力。 */}
+        <Space size={8} wrap>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
+            {t('lib.new')}
+          </Button>
+          {narrow ? (
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: [
+                  { key: 'tpl', icon: <SettingOutlined />, label: t('lib.menu.template'), onClick: () => setTemplateOpen(true) },
+                  { key: 'clone', icon: <CopyOutlined />, label: t('lib.menu.clone'), disabled: fields.length === 0, onClick: handleClone },
+                  { type: 'divider' },
+                  { key: 'imp', icon: <ImportOutlined />, label: t('lib.menu.import'), onClick: () => ioRef.current?.openImport() },
+                  { key: 'csv', icon: <FileTextOutlined />, label: t('lib.menu.exportCsv'), onClick: () => ioRef.current?.exportAs('csv') },
+                  { key: 'xls', icon: <FileExcelOutlined />, label: t('lib.menu.exportExcel'), onClick: () => ioRef.current?.exportAs('excel') },
+                ],
+              }}
+            >
+              <Button icon={<MoreOutlined />} aria-label={t('lib.menu.more')} className="tap" />
+            </Dropdown>
+          ) : (
+            <>
+              <Button icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>
+                {t('lib.template')}
+              </Button>
+              <Button icon={<CopyOutlined />} onClick={handleClone} disabled={fields.length === 0}>
+                {t('lib.clone')}
+              </Button>
+              <ImportExport ref={ioRef} fields={fields} items={items} onImport={handleImport} />
+            </>
+          )}
+          {/* 窄屏把工具收进「⋯」菜单，但 ImportExport 必须始终挂载：
+              菜单里的导入 / 导出 CSV / 导出 Excel 通过 ioRef 命令式触发该实例的
+              上传框与 Blob 下载，卸载后 ref 为 null，菜单会静默失效。 */}
+          {narrow && (
+            <div hidden>
+              <ImportExport ref={ioRef} fields={fields} items={items} onImport={handleImport} />
+            </div>
+          )}
+        </Space>
+      </div>
 
       <Card styles={{ body: { padding: 12 } }}>
+        {/* 还没有字段时，搜索/筛选/排序全是无效控件（选项为空），只留空状态引导去配模板 */}
+        {fields.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
           <Input
             prefix={<SearchOutlined />}
@@ -267,11 +322,75 @@ export default function LibraryView() {
           <Button type="link" onClick={() => { setKeywordInput(''); setFilterField(''); setFilterValue(''); setSortField('') }}>{t('lib.clear')}
           </Button>
         </div>
+        )}
 
         {processed.length === 0 ? (
-          <Empty description={items.length === 0 ? t('lib.empty.none') : t('lib.empty.noMatch')}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>{t('lib.empty.cta')}</Button>
-          </Empty>
+          <div style={{ padding: '32px 16px 40px' }}>
+            {items.length === 0 && fields.length === 0 ? (
+              // 一个字段都没有时，「新建条目」是无效动作——先去配模板
+              <Empty
+                image={<SettingOutlined style={{ fontSize: 44, color: 'var(--app-ink-faint)' }} />}
+                description={
+                  <span style={{ display: 'block', maxWidth: 380, margin: '0 auto' }}>
+                    <span style={{ display: 'block', fontWeight: 600, marginBottom: 6, color: 'var(--ant-color-text)' }}>
+                      {t('lib.empty.noFields.title')}
+                    </span>
+                    {t('lib.empty.noFields.body')}
+                  </span>
+                }
+              >
+                <Button type="primary" icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>
+                  {t('lib.empty.noFields.cta')}
+                </Button>
+              </Empty>
+            ) : items.length === 0 ? (
+              // 首次使用：空状态是这里最好的新手引导位，要说清「这里将来会放什么」
+              <Empty
+                image={<PlusOutlined style={{ fontSize: 44, color: 'var(--app-ink-faint)' }} />}
+                description={
+                  <span style={{ display: 'block', maxWidth: 400, margin: '0 auto' }}>
+                    <span style={{ display: 'block', fontWeight: 600, marginBottom: 6, color: 'var(--ant-color-text)' }}>
+                      {t('lib.empty.none.title')}
+                    </span>
+                    {t('lib.empty.none.body', { name: lib?.name ?? t('lib.untitled') })}
+                  </span>
+                }
+              >
+                <Space direction="vertical" size={10} style={{ alignItems: 'center' }}>
+                  <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
+                    {t('lib.empty.cta')}
+                  </Button>
+                  <Text type="secondary" style={{ fontSize: 12.5 }}>
+                    {t('lib.empty.none.hint')}
+                  </Text>
+                </Space>
+              </Empty>
+            ) : (
+              // 筛选无结果：给出退路，而不是死路
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <span style={{ display: 'block', maxWidth: 380, margin: '0 auto' }}>
+                    <span style={{ display: 'block', fontWeight: 600, marginBottom: 6, color: 'var(--ant-color-text)' }}>
+                      {t('lib.empty.noMatch.title')}
+                    </span>
+                    {t('lib.empty.noMatch.body')}
+                  </span>
+                }
+              >
+                <Space direction="vertical" size={10} style={{ alignItems: 'center' }}>
+                  <Button
+                    onClick={() => { setKeywordInput(''); setFilterField(''); setFilterValue(''); setSortField('') }}
+                  >
+                    {t('lib.clear')}
+                  </Button>
+                  <Text type="secondary" style={{ fontSize: 12.5 }}>
+                    {t('lib.total', { n: items.length })}
+                  </Text>
+                </Space>
+              </Empty>
+            )}
+          </div>
         ) : (
           <LibraryTable
             fields={fields}

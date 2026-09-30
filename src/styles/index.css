@@ -167,22 +167,23 @@ input {
   }
 }
 
-/* LibraryTable 焦点行高亮和置顶行样式 */
+/* LibraryTable 焦点行高亮和置顶行样式
+   改用主题变量：之前写死浅色，暗色模式下是一条刺眼的浅黄带 */
 .focus-row td {
-  background: #fff7e6 !important;
-  box-shadow: inset 3px 0 0 #fa8c16;
+  background: var(--app-kiln-wash) !important;
+  box-shadow: inset 3px 0 0 var(--app-kiln);
 }
 .pinned-row td {
-  background: #fffbe6;
+  background: var(--app-pinned-wash);
 }
 
 /* 移动端卡片列表的同款状态样式 */
 .focus-card {
-  background: #fff7e6 !important;
-  box-shadow: inset 3px 0 0 #fa8c16;
+  background: var(--app-kiln-wash) !important;
+  box-shadow: inset 3px 0 0 var(--app-kiln);
 }
 .pinned-card {
-  background: #fffbe6;
+  background: var(--app-pinned-wash);
 }
 
 /* ———— 公开落地页（Landing）专用 ———— */
@@ -275,4 +276,110 @@ input {
   border-radius: 4px 4px 0 0;
   background: linear-gradient(180deg, #14b8a6, #0d9488);
   width: 26px;
+}
+
+/* ==========================================================================
+   应用级语义变量
+   antd 的 token 只能通过 JS 消费；这里给纯 CSS 场景（内联样式、状态条、
+   移动端点击区）提供同源变量。data-theme 由 ThemeProvider 写在 <html> 上。
+   ========================================================================== */
+
+:root {
+  --app-surface: #ffffff;
+  --app-surface-sunken: #f7f9fa;
+  --app-canvas: #f5f7f8;
+  --app-border: #dde3e8;
+  --app-border-soft: #e9edf0;
+  --app-glaze: #0d9488;
+  --app-glaze-soft: #e6f4f1;
+  --app-kiln: #fa8c16;
+  --app-kiln-wash: #fff7e6;
+  --app-pinned-wash: #fffbe6;
+  --app-success: #3f8600;
+  --app-ink-soft: #5b6470;
+  --app-ink-faint: #8a94a0;
+
+  /* 间距节拍：4 的倍数 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+}
+
+[data-theme='dark'] {
+  --app-surface: #171a1d;
+  --app-surface-sunken: #1b1f23;
+  --app-canvas: #0e1113;
+  --app-border: #2b3137;
+  --app-border-soft: #23282d;
+  --app-glaze: #2dd4bf;
+  --app-glaze-soft: rgba(45, 212, 191, 0.14);
+  --app-kiln: #fbbf24;
+  --app-kiln-wash: rgba(251, 191, 36, 0.1);
+  --app-pinned-wash: rgba(251, 191, 36, 0.06);
+  --app-success: #5baf3a;
+  --app-ink-soft: #a3acb6;
+  --app-ink-faint: #727c87;
+}
+
+/* 移动端点击区：研究一致建议触控目标不小于 44×44。
+   antd 的 size="small" 只有 24px 高，手机上拇指点不准。 */
+@media (pointer: coarse) {
+  .tap {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* 表格行与卡片里的链接型图标按钮 */
+  .tap-action.ant-btn-link {
+    min-width: 40px;
+    min-height: 40px;
+    padding-inline: 8px;
+  }
+}
+
+/* 数字用等宽数位，纵向扫读时不会左右跳 */
+.num,
+.ant-table td .num,
+.ant-statistic-content-value,
+.ant-table-cell.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+/* 数值与日期右对齐，便于纵向比较 */
+.align-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.align-date {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 落地页在暗色模式下也要能用（之前整页写死亮色） */
+[data-theme='dark'] .lp-header,
+[data-theme='dark'] .lp-nav-link,
+[data-theme='dark'] .lp-nav-link:hover {
+  color: inherit;
+}
+
+/* 表格里的标识列：第一列是「这一行是谁」，给足视觉权重 */
+.ant-table .cell-primary {
+  font-weight: 600;
+  color: var(--ant-color-text);
+}
+/* 数字/日期列由 onCell 内联 text-align 控制（内联优先级高于 antd 的运行时样式），
+   这里只负责数字字形。 */
+.ant-table .cell-num,
+.ant-table td:has(.num) {
+  font-variant-numeric: tabular-nums;
+}
+.ant-table-thead > tr > th {
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }

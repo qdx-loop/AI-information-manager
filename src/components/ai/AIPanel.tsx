@@ -1298,7 +1298,7 @@ export default function AIPanel() {
     return (
       <div style={{ padding: 24, height: '100%' }}>
         <Empty
-          image={<RobotOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
+          image={<RobotOutlined style={{ fontSize: 48, color: 'var(--app-ink-faint)' }} />}
           description={t('ai.notConfigured')}
         >
           <Text type="secondary">

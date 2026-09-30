@@ -101,7 +101,7 @@ export default function ConfirmLibActionModal({
       width={520}
     >
       {(libAction || tplAction)!.reason && (
-        <p style={{ background: '#f6ffed', padding: 12, borderRadius: 6, marginBottom: 16 }}>
+        <p style={{ background: 'var(--app-surface-sunken)', padding: 12, borderRadius: 6, marginBottom: 16 }}>
           <strong>{t('ai.confirm.reason')}</strong>
           {(libAction || tplAction)!.reason}
         </p>

@@ -293,7 +293,7 @@ export default function AuthPage() {
   )
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: '#F0FDFA' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--app-canvas)' }}>
       {/* 左侧品牌区（≥900px 显示） */}
       <div className="login-brand">
         <div style={{ maxWidth: 420 }}>

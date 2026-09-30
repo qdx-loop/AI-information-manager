@@ -1,8 +1,8 @@
-import { Layout, Drawer, Button, Tooltip, Spin, Tour } from 'antd'
+import { Layout, Drawer, Button, Tooltip, Spin, Tour, Dropdown, Avatar } from 'antd'
 import type { TourProps } from 'antd'
 import { lazy, Suspense, useState, useEffect, useRef } from 'react'
-import { Outlet } from 'react-router-dom'
-import { MoonOutlined, SunOutlined, MenuOutlined } from '@ant-design/icons'
+import { Outlet, useNavigate } from 'react-router-dom'
+import { MoonOutlined, SunOutlined, MenuOutlined, SearchOutlined, LogoutOutlined } from '@ant-design/icons'
 import Sidebar, { SidebarContent } from './Sidebar'
 import GlobalSearch from '@/components/common/GlobalSearch'
 import { useAppStore } from '@/store/appStore'
@@ -40,7 +40,11 @@ export default function AppShell() {
   }, [])
 
   // —— 首次登录引导 Tour（仅桌面端，每账号一次）——
-  const { account } = useAuthStore()
+  const { account, logout } = useAuthStore()
+  const navigate = useNavigate()
+  const libraries = useLibraryStore((s) => s.libraries)
+  const currentLibraryId = useLibraryStore((s) => s.currentLibraryId)
+  const currentLib = libraries.find((l) => l.id === currentLibraryId) ?? null
   const siderRef = useRef<HTMLDivElement>(null)
   const aiRef = useRef<HTMLButtonElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -122,35 +126,133 @@ export default function AppShell() {
       <Layout>
         <Header
           style={{
-            padding: '0 16px',
-            background: isDark ? '#141414' : '#fff',
+            height: 52,
+            lineHeight: '52px',
+            padding: '0 12px',
+            background: 'var(--app-surface)',
             display: 'flex',
-            justifyContent: isMobile ? 'space-between' : 'flex-end',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+            gap: 8,
+            borderBottom: '1px solid var(--app-border-soft)',
           }}
         >
-          {isMobile && (
-            <Button
-              type="text"
-              icon={<MenuOutlined />}
-              onClick={() => setSidebarOpen(true)}
-            />
-          )}
-          <Tooltip title={settings.language === 'zh' ? 'English' : '中文'}>
-            <Button type="text" onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}>
-              {settings.language === 'zh' ? 'EN' : '中'}
-            </Button>
-          </Tooltip>
-          <Tooltip title={isDark ? t('app.theme.light') : t('app.theme.dark')}>
-            <Button
-              type="text"
-              icon={isDark ? <SunOutlined /> : <MoonOutlined />}
-              onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            />
-          </Tooltip>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, flex: 1 }}>
+            {isMobile && (
+              <Button
+                type="text"
+                aria-label={t('nav.menu')}
+                icon={<MenuOutlined />}
+                onClick={() => setSidebarOpen(true)}
+              />
+            )}
+            {/* 当前位置：分类 / 库名。用户任何时候都知道自己在哪个库里，
+                不必回头看侧边栏；没有选中库时回落到产品名。 */}
+            <span
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
+                color: 'var(--app-ink)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                minWidth: 0,
+              }}
+            >
+              {currentLib ? currentLib.name : t('app.brand')}
+            </span>
+            {currentLib?.category && !isMobile && (
+              <span style={{ fontSize: 12.5, color: 'var(--app-ink-faint)', flexShrink: 0 }}>
+                {currentLib.category}
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            {!isMobile && (
+              <Button
+                size="small"
+                onClick={() => setSearchOpen(true)}
+                style={{
+                  height: 30,
+                  width: 200,
+                  justifyContent: 'flex-start',
+                  gap: 6,
+                  color: 'var(--app-ink-faint)',
+                  fontWeight: 400,
+                  background: 'var(--app-canvas)',
+                }}
+                icon={<SearchOutlined />}
+              >
+                {t('app.search')}
+                <kbd
+                  style={{
+                    marginLeft: 'auto',
+                    fontSize: 11,
+                    lineHeight: '16px',
+                    padding: '0 4px',
+                    borderRadius: 4,
+                    border: '1px solid var(--app-border)',
+                    color: 'var(--app-ink-faint)',
+                  }}
+                >
+                  ⌘K
+                </kbd>
+              </Button>
+            )}
+            {isMobile && (
+              <Button
+                type="text"
+                aria-label={t('app.search')}
+                icon={<SearchOutlined />}
+                onClick={() => setSearchOpen(true)}
+              />
+            )}
+            <Tooltip title={isDark ? t('app.theme.light') : t('app.theme.dark')}>
+              <Button
+                type="text"
+                aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
+                icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+                onClick={() => setTheme(isDark ? 'light' : 'dark')}
+              />
+            </Tooltip>
+            <Tooltip title={settings.language === 'zh' ? 'English' : '中文'}>
+              <Button
+                type="text"
+                aria-label="language"
+                onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}
+              >
+                {settings.language === 'zh' ? 'EN' : '中'}
+              </Button>
+            </Tooltip>
+            {/* 用户菜单：手机上侧边栏收在抽屉里，退出登录/账号信息必须在头部可达 */}
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: [
+                  { key: 'who', label: account?.username ?? '', disabled: true },
+                  { type: 'divider' },
+                  {
+                    key: 'logout',
+                    icon: <LogoutOutlined />,
+                    label: t('app.signOut'),
+                    onClick: () => {
+                      logout()
+                      navigate('/login')
+                    },
+                  },
+                ],
+              }}
+            >
+              <Button type="text" className="tap" aria-label={t('app.signOut')}>
+                <Avatar size={26} style={{ background: 'var(--app-glaze)' }}>
+                  {(account?.username ?? '?').slice(0, 1).toUpperCase()}
+                </Avatar>
+              </Button>
+            </Dropdown>
+          </div>
         </Header>
-        <Content ref={contentRef} style={{ flex: 1, overflow: 'auto', background: isDark ? '#141414' : '#f5f5f5' }}>
+        <Content ref={contentRef} style={{ flex: 1, overflow: 'auto', background: 'var(--app-canvas)' }}>
           <Outlet />
         </Content>
       </Layout>

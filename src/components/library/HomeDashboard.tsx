@@ -116,7 +116,7 @@ export default function HomeDashboard() {
                   focusItem(a.itemId)
                   navigate(`/library/${a.libId}`)
                 }}
-                actions={[<RightOutlined key="go" style={{ color: '#bbb' }} />]}
+                actions={[<RightOutlined key="go" style={{ color: 'var(--app-ink-faint)' }} />]}
               >
                 <List.Item.Meta
                   title={<Space>{dateTag(a.at)}<Text>{a.title}</Text></Space>}

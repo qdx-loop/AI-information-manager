@@ -1,6 +1,6 @@
-import { Button, Dropdown, Upload, Modal, Select, App } from 'antd'
+import { Button, Dropdown, Modal, Select, App } from 'antd'
 import { ImportOutlined, ExportOutlined } from '@ant-design/icons'
-import { useState } from 'react'
+import { useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import type { MenuProps } from 'antd'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import { itemsToCSV, parseCSV, downloadCSV } from '@/utils/csv'
@@ -8,13 +8,31 @@ import { itemsToExcel, parseExcel } from '@/utils/excel'
 import { downloadBlob } from '@/utils/csv'
 import { useI18n } from '@/i18n'
 
+/** 窄屏时工具栏把这些动作收进「⋯」菜单，需要父组件能命令式触发。
+ *  导出直接给两种格式，而不是命令式打开一个二级菜单——嵌套菜单在手机上很难点准。 */
+export interface ImportExportHandle {
+  openImport: () => void
+  exportAs: (kind: 'csv' | 'excel') => void
+}
+
 interface Props {
   fields: FieldDef[]
   items: Item[]
   onImport: (rows: Record<string, FieldValue>[]) => Promise<void>
 }
 
-export default function ImportExport({ fields, items, onImport }: Props) {
+const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport(
+  { fields, items, onImport },
+  ref,
+) {
+  // 不复用 antd <Upload> 的 ref：antd 5.29 的 imperative handle 只暴露
+  // upload/nativeElement 等，没有 click / openFileDialog，命令式打开文件框会抛
+  // "click is not a function"。这里自持一个隐藏 input，桌面按钮和窄屏菜单共用。
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  useImperativeHandle(ref, () => ({
+    openImport: () => fileInputRef.current?.click(),
+    exportAs: (kind) => handleExport(kind),
+  }))
   const { message } = App.useApp()
   const t = useI18n()
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([])
@@ -98,9 +116,21 @@ export default function ImportExport({ fields, items, onImport }: Props) {
 
   return (
     <>
-      <Upload beforeUpload={handleFile} showUploadList={false} accept=".csv,.xlsx,.xls">
-        <Button icon={<ImportOutlined />}>{t('lib.importExport.import')}</Button>
-      </Upload>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.xlsx,.xls"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          // 选完同一个文件要能再次触发 change
+          e.target.value = ''
+          if (f) void handleFile(f)
+        }}
+      />
+      <Button icon={<ImportOutlined />} onClick={() => fileInputRef.current?.click()}>
+        {t('lib.importExport.import')}
+      </Button>
       <Dropdown menu={exportMenu}>
         <Button icon={<ExportOutlined />}>{t('lib.importExport.export')}</Button>
       </Dropdown>
@@ -133,7 +163,7 @@ export default function ImportExport({ fields, items, onImport }: Props) {
       </Modal>
     </>
   )
-}
+})
 
 function coerceValue(type: FieldDef['type'], raw: unknown): FieldValue {
   if (raw === null || raw === undefined || raw === '') return null
@@ -152,3 +182,5 @@ function coerceValue(type: FieldDef['type'], raw: unknown): FieldValue {
       return String(raw)
   }
 }
+
+export default ImportExport

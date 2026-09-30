@@ -162,13 +162,13 @@ function FieldRow({
     flexWrap: 'wrap',
     gap: 8,
     padding: '8px 12px',
-    background: '#fafafa',
+    background: 'var(--app-surface-sunken)',
     borderRadius: 6,
-    border: '1px solid #f0f0f0',
+    border: '1px solid var(--app-border-soft)',
   }
   return (
     <div ref={setNodeRef} style={style}>
-      <span {...attributes} {...listeners} style={{ cursor: 'grab', color: '#bbb' }}>
+      <span {...attributes} {...listeners} style={{ cursor: 'grab', color: 'var(--app-ink-faint)' }}>
         <HolderOutlined />
       </span>
       <Input

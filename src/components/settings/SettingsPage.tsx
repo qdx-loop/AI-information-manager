@@ -821,7 +821,7 @@ function BackupTab() {
             {snapshots.map((s) => (
               <div
                 key={s.id}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f0f0f0', gap: 8 }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--app-border-soft)', gap: 8 }}
               >
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <Text style={{ fontSize: 13, display: 'block' }}>{dayjs(s.createdAt).format('YYYY-MM-DD HH:mm')}</Text>

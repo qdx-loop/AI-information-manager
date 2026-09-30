@@ -121,7 +121,7 @@ export default function GettingStarted() {
   return (
     <Card
       size="small"
-      style={{ marginBottom: 16, border: '1px solid #99F6E4' }}
+      style={{ marginBottom: 16, border: '1px solid var(--app-glaze)' }}
       title={
         <Space>
           <RocketOutlined style={{ color: '#0D9488' }} />
@@ -146,7 +146,7 @@ export default function GettingStarted() {
               <span
                 style={{
                   width: 18, height: 18, borderRadius: '50%', marginTop: 3, flexShrink: 0,
-                  border: '1px solid #d9d9d9', color: '#8c8c8c', fontSize: 12,
+                  border: '1px solid var(--app-border)', color: 'var(--app-ink-faint)', fontSize: 12,
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
