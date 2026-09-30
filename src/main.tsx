@@ -10,7 +10,7 @@ import App from './App'
 import { initFromSettings } from '@/db/providerFactory'
 import { useAppStore } from '@/store/appStore'
 import { autoSyncManager } from '@/utils/autoSync'
-import { buildTheme } from '@/theme'
+import { buildTheme, semanticOf } from '@/theme'
 import './styles/index.css'
 
 dayjs.locale(useAppStore.getState().settings.language === 'en' ? 'en' : 'zh-cn')
@@ -45,9 +45,35 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [lang])
   // 把主题写到 <html> 上，纯 CSS（状态行底色、点击区）才能跟着切换
   useEffect(() => {
+    const mode = themeMode === 'dark' ? 'dark' : 'light'
     const el = document.documentElement
-    el.setAttribute('data-theme', themeMode === 'dark' ? 'dark' : 'light')
-    el.style.colorScheme = themeMode === 'dark' ? 'dark' : 'light'
+    el.setAttribute('data-theme', mode)
+    el.style.colorScheme = mode
+    // --app-* 变量直接由语义层注入，CSS 里不再重复写死色值，
+    // 避免「TS 里改了、忘记同步 CSS」这种漂移。
+    const c = semanticOf(mode)
+    const vars: Record<string, string> = {
+      '--app-surface': c.surface,
+      '--app-surface-sunken': c.surfaceSunken,
+      '--app-canvas': c.canvas,
+      '--app-overlay': c.overlay,
+      '--app-ink': c.ink,
+      '--app-ink-soft': c.inkSoft,
+      '--app-ink-faint': c.inkFaint,
+      '--app-border': c.border,
+      '--app-border-soft': c.borderSoft,
+      '--app-glaze': c.glaze,
+      '--app-glaze-text': c.glazeText,
+      '--app-glaze-soft': c.glazeSoft,
+      '--app-kiln': c.kiln,
+      '--app-kiln-text': c.kilnText,
+      '--app-kiln-wash': c.kilnWash,
+      '--app-pinned-wash': c.kilnWashed,
+      '--app-success': c.success,
+      '--app-danger': c.danger,
+    }
+    for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v)
+    c.series.forEach((col, i) => el.style.setProperty(`--app-series-${i}`, col))
   }, [themeMode])
   return (
       <ConfigProvider

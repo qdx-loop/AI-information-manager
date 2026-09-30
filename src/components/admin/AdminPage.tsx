@@ -167,7 +167,7 @@ export default function AdminPage() {
                 width: 12,
                 height: 12,
                 borderRadius: 3,
-                background: '#0D9488',
+                background: 'var(--app-glaze)',
                 display: 'inline-block',
                 marginBottom: 10,
               }}
@@ -342,7 +342,7 @@ export default function AdminPage() {
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
           <Space align="center">
-            <span style={{ width: 12, height: 12, borderRadius: 3, background: '#0D9488', display: 'inline-block' }} />
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--app-glaze)', display: 'inline-block' }} />
             <span style={{ fontWeight: 700, fontSize: 16, color: '#134E4A' }}>{t('admin.title')}</span>
           </Space>
           <Space>
@@ -362,7 +362,7 @@ export default function AdminPage() {
             <Statistic title={t('admin.stat.today')} value={registeredToday} />
             <Statistic title={t('admin.stat.active7')} value={stats?.activeUsers7 ?? 0} />
             <Statistic title={t('admin.stat.signups7')} value={stats?.signups7 ?? 0} />
-            <Statistic title={t('admin.stat.disabled')} value={stats?.disabledAccounts ?? 0} valueStyle={{ color: (stats?.disabledAccounts ?? 0) > 0 ? '#FA8C16' : undefined }} />
+            <Statistic title={t('admin.stat.disabled')} value={stats?.disabledAccounts ?? 0} valueStyle={{ color: (stats?.disabledAccounts ?? 0) > 0 ? 'var(--app-kiln-text)' : undefined }} />
           </Space>
         </Card>
 

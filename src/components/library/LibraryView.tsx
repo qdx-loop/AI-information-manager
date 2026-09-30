@@ -149,7 +149,9 @@ export default function LibraryView() {
 
   const handleSave = async (values: Record<string, FieldValue>) => {
     if (editing) {
-      await updateItem({ ...editing, fields: values })
+      // 必须合并而不是替换：编辑表单只注册了「可见字段」，
+      // 整体替换会把被隐藏字段的历史数据静默清空（用户以为只是改了个备注）。
+      await updateItem({ ...editing, fields: { ...editing.fields, ...values } })
       message.success(t('lib.saved.item'))
     } else {
       await createItem(values)
@@ -168,15 +170,46 @@ export default function LibraryView() {
       okType: 'danger',
       cancelText: t('common.cancel'),
       onOk: async () => {
-        await deleteItem(item.id)
-        message.success(t('lib.del.done'))
+        try {
+          await deleteItem(item.id)
+          message.success(t('lib.del.done'))
+        } catch (e) {
+          // 之前没有 catch：失败时 antd 只把按钮复位，没有任何提示，
+          // 用户看到的就是「点了没反应」
+          message.error(t('lib.del.failed', { msg: (e as Error).message }))
+          throw e // 让弹窗保持打开状态
+        }
       },
     })
   }
 
   const handleImport = async (rows: Record<string, FieldValue>[]) => {
-    for (const r of rows) {
-      await createItem(r)
+    if (rows.length === 0) return
+    // 大批量导入是「点了没反应」的重灾区：串行写入且毫无反馈。
+    // 用 message 报进度，中途失败要说清已经导了多少。
+    const key = 'lib.import.progress'
+    let done = 0
+    message.loading({ content: t('lib.import.progress', { n: 0, total: rows.length }), key, duration: 0 })
+    try {
+      for (const r of rows) {
+        await createItem(r)
+        done++
+        if (done % 20 === 0 || done === rows.length) {
+          message.loading({
+            content: t('lib.import.progress', { n: done, total: rows.length }),
+            key,
+            duration: 0,
+          })
+        }
+      }
+      message.success({ content: t('lib.import.done', { n: rows.length }), key })
+    } catch (e) {
+      message.error({
+        content: t('lib.import.partial', { n: done, total: rows.length, msg: (e as Error).message }),
+        key,
+        duration: 6,
+      })
+      throw e
     }
     if (rows.length > 0) track('items_imported', { count: rows.length })
   }
@@ -422,7 +455,7 @@ export default function LibraryView() {
           await saveTemplate(id!, fs)
           await refreshCurrent()
           setTemplateOpen(false)
-          message.success('模板已保存')
+          message.success(t('lib.tpl.saved'))
         }}
       />
       <Modal

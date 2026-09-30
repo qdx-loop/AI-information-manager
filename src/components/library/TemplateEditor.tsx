@@ -198,7 +198,14 @@ function FieldRow({
         <Switch size="small" checked={field.required} onChange={(v) => onChange({ required: v })} />
         <span style={{ fontSize: 12 }}>{t('common.visible')}</span>
         <Switch size="small" checked={field.visible} onChange={(v) => onChange({ visible: v })} />
-        <Button type="text" danger icon={<DeleteOutlined />} onClick={onRemove} />
+        <Button
+          type="text"
+          danger
+          aria-label={t('tpl.field.remove')}
+          title={t('tpl.field.remove')}
+          icon={<DeleteOutlined />}
+          onClick={onRemove}
+        />
       </Space>
     </div>
   )

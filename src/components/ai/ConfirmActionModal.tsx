@@ -106,7 +106,7 @@ export default function ConfirmActionModal({
                             {String(oldVal ?? '-')}
                           </span>
                           <span style={{ margin: '0 4px' }}>→</span>
-                          <span style={{ color: '#fa8c16', fontWeight: 500 }}>
+                          <span style={{ color: 'var(--app-kiln-text)', fontWeight: 500 }}>
                             {String(newVal ?? '-')}
                           </span>
                         </>

@@ -60,7 +60,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
         const v = it.fields[f.key]
         if (v != null && String(v).trim() !== '') return renderCellValue(f, v)
       }
-      return '(无内容)'
+      return t('common.emptyValue')
     },
     [visibleFields],
   )
@@ -95,28 +95,54 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
               data-item-id={it.id}
               className={it.id === focusItemId ? 'focus-card' : it.pinned ? 'pinned-card' : ''}
               title={
-                <Tooltip title={it.pinned ? '取消置顶' : '置顶'}>
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={
-                      it.pinned ? <PushpinFilled style={{ color: '#faad14' }} /> : <PushpinOutlined />
-                    }
-                    onClick={() => onPin(it, !it.pinned)}
-                    className="tap-action"
-                    style={{ marginInlineEnd: 4 }}
-                  />
-                  {primaryOf(it)}
-                </Tooltip>
+                // Tooltip 只包住「置顶」这一个按钮。原来它连标题文字一起包住，
+                // 读屏会把这张卡片的标题念成「取消置顶」；长标题也不会被 Tooltip 处理。
+                <span style={{ display: 'inline-flex', alignItems: 'center', minWidth: 0 }}>
+                  <Tooltip title={it.pinned ? t('common.unpinned') : t('common.pinned')}>
+                    <Button
+                      type="text"
+                      size="small"
+                      aria-label={it.pinned ? t('common.unpinned') : t('common.pinned')}
+                      icon={
+                        it.pinned ? (
+                          <PushpinFilled style={{ color: 'var(--app-kiln)' }} />
+                        ) : (
+                          <PushpinOutlined />
+                        )
+                      }
+                      onClick={() => onPin(it, !it.pinned)}
+                      className="tap-action"
+                      style={{ marginInlineEnd: 4 }}
+                    />
+                  </Tooltip>
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {primaryOf(it)}
+                  </span>
+                </span>
               }
               extra={
                 <Space size={0}>
-                  <Button type="link" size="small" className="tap-action" icon={<EditOutlined />} onClick={() => onEdit(it)} />
+                  <Button
+                    type="link"
+                    size="small"
+                    className="tap-action"
+                    aria-label={t('common.edit')}
+                    icon={<EditOutlined />}
+                    onClick={() => onEdit(it)}
+                  />
                   <Button
                     type="link"
                     size="small"
                     className="tap-action"
                     danger
+                    aria-label={t('common.delete')}
                     icon={<DeleteOutlined />}
                     onClick={() => onDelete(it)}
                   />
@@ -189,11 +215,19 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
       dataIndex: 'pinned',
       width: 48,
       render: (_, record) => (
-        <Tooltip title={record.pinned ? '取消置顶' : '置顶'}>
+        <Tooltip title={record.pinned ? t('common.unpinned') : t('common.pinned')}>
           <Button
             type="text"
             size="small"
-            icon={record.pinned ? <PushpinFilled style={{ color: '#faad14' }} /> : <PushpinOutlined />}
+            className="tap-action"
+            aria-label={record.pinned ? t('common.unpinned') : t('common.pinned')}
+            icon={
+              record.pinned ? (
+                <PushpinFilled style={{ color: 'var(--app-kiln)' }} />
+              ) : (
+                <PushpinOutlined />
+              )
+            }
             onClick={() => onPin(record, !record.pinned)}
           />
         </Tooltip>

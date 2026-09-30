@@ -1,7 +1,19 @@
 // AI 生成图表的规范化与校验：把模型的自由输出收敛为安全的 ECharts 配置。
 // 不合格……返回 null，由调用方告知 AI 重试（形成自我纠错闭环）。
 
-const PALETTE = ['#0D9488', '#0EA5E9', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981']
+// 图表画在 canvas 上，CSS 变量不会被解析，必须给具体色值。
+// 色值取自设计系统语义层的分类色（--app-series-*），跟着亮/暗主题切换；
+// 首位是品牌釉色，保证图表和界面是同一套视觉。
+function seriesColors(): string[] {
+  try {
+    const cs = getComputedStyle(document.documentElement)
+    return Array.from({ length: 8 }, (_, i) =>
+      (cs.getPropertyValue(`--app-series-${i}`) || '').trim(),
+    ).filter(Boolean)
+  } catch {
+    return ['#0F766E', '#2F6FD0', '#C96A06', '#A63D9B', '#2E8B3D', '#6B4FD8', '#D14B4B', '#0E7490']
+  }
+}
 
 interface SeriesLike {
   type?: string
@@ -29,7 +41,7 @@ export function normalizeChartOption(raw: unknown): Record<string, unknown> | nu
     if (!hasCategories) return null
   }
 
-  if (!opt.color) opt.color = PALETTE
+  if (!opt.color) opt.color = seriesColors()
   if (!opt.tooltip) opt.tooltip = { trigger: isPie ? 'item' : 'axis' }
 
   return opt

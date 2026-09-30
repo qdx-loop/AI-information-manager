@@ -84,12 +84,12 @@ export default function HomeDashboard() {
           <Card size="small"><Statistic title={t('dash.stat.items')} value={data?.totalItems ?? 0} prefix={<ProfileOutlined />} /></Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small"><Statistic title={t('dash.stat.week')} value={data?.itemsThisWeek ?? 0} prefix={<RiseOutlined />} valueStyle={{ color: '#0D9488' }} /></Card>
+          <Card size="small"><Statistic title={t('dash.stat.week')} value={data?.itemsThisWeek ?? 0} prefix={<RiseOutlined />} valueStyle={{ color: 'var(--app-glaze)' }} /></Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" hoverable onClick={() => setTplOpen(true)} style={{ cursor: 'pointer', textAlign: 'center' }}>
             <Space direction="vertical" size={2}>
-              <AppstoreAddOutlined style={{ fontSize: 20, color: '#0D9488' }} />
+              <AppstoreAddOutlined style={{ fontSize: 20, color: 'var(--app-glaze)' }} />
               <Text style={{ fontSize: 13 }}>{t('tpl.center.entry')}</Text>
             </Space>
           </Card>

@@ -14,7 +14,7 @@ export default function TrashBin() {
   const t = useI18n()
 
   useEffect(() => {
-    loadTrash().catch((e) => message.error('加载回收站失败：' + (e as Error).message))
+    loadTrash().catch((e) => message.error(t('lib.trash.loadFailed', { msg: (e as Error).message })))
   }, [loadTrash, message])
 
   const handleRestore = async (entry: TrashEntry) => {

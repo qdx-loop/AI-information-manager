@@ -7,6 +7,7 @@ import Sidebar, { SidebarContent } from './Sidebar'
 import AIDock from './AIDock'
 import AIFab from './AIFab'
 import { useAiUiStore, aiPanelVisible } from '@/store/aiUiStore'
+import { resetSession } from '@/store/session'
 import GlobalSearch from '@/components/common/GlobalSearch'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
@@ -38,7 +39,7 @@ export default function AppShell() {
   }, [])
 
   // —— 首次登录引导 Tour（仅桌面端，每账号一次）——
-  const { account, logout } = useAuthStore()
+  const { account } = useAuthStore()
   const navigate = useNavigate()
   const libraries = useLibraryStore((s) => s.libraries)
   const currentLibraryId = useLibraryStore((s) => s.currentLibraryId)
@@ -167,7 +168,10 @@ export default function AppShell() {
           width={260}
           styles={{ body: { padding: 0 } }}
         >
-          <SidebarContent onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }} />
+          <SidebarContent
+            onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }}
+            onNavigate={() => setSidebarOpen(false)}
+          />
         </Drawer>
       ) : (
         <Sidebar onOpenPanel={() => setAiOpen(true)} siderRef={siderRef} aiRef={aiRef} />
@@ -176,9 +180,13 @@ export default function AppShell() {
       <Layout>
         <Header
           style={{
-            height: 52,
+            // 高度要把顶部安全区算进去，否则刘海机型下内容会被挤到状态栏后面
+            height: 'calc(52px + env(safe-area-inset-top, 0px))',
             lineHeight: '52px',
-            padding: '0 12px',
+            // 顶部安全区：iPhone 灵动岛/刘海会把标题栏压住
+            paddingTop: 'env(safe-area-inset-top, 0px)',
+            paddingLeft: '12px',
+            paddingRight: '12px',
             background: 'var(--app-surface)',
             display: 'flex',
             justifyContent: 'space-between',
@@ -269,7 +277,7 @@ export default function AppShell() {
             <Tooltip title={settings.language === 'zh' ? 'English' : '中文'}>
               <Button
                 type="text"
-                aria-label="language"
+                aria-label={t('app.language')}
                 onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}
               >
                 {settings.language === 'zh' ? 'EN' : '中'}
@@ -286,8 +294,9 @@ export default function AppShell() {
                     key: 'logout',
                     icon: <LogoutOutlined />,
                     label: t('app.signOut'),
-                    onClick: () => {
-                      logout()
+                    onClick: async () => {
+                      // 与侧边栏走同一条路径：退出前同步 + 清空上一个账号的库数据
+                      await resetSession()
                       navigate('/login')
                     },
                   },

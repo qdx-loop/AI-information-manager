@@ -124,7 +124,7 @@ export default function GettingStarted() {
       style={{ marginBottom: 16, border: '1px solid var(--app-glaze)' }}
       title={
         <Space>
-          <RocketOutlined style={{ color: '#0D9488' }} />
+          <RocketOutlined style={{ color: 'var(--app-glaze)' }} />
           <span>{t('ob.title')}</span>
           <Tag color="teal">{doneCount}/{steps.length}</Tag>
         </Space>
@@ -135,7 +135,7 @@ export default function GettingStarted() {
         </Button>
       }
     >
-      <Progress percent={pct} size="small" showInfo={false} strokeColor="#0D9488" style={{ marginBottom: 14 }} />
+      <Progress percent={pct} size="small" showInfo={false} strokeColor="var(--app-glaze)" style={{ marginBottom: 14 }} />
 
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         {steps.map((s, idx) => (

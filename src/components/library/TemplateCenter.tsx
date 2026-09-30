@@ -88,7 +88,7 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
                   size="small"
                   hoverable
                   title={tpl.name}
-                  extra={<AppstoreAddOutlined style={{ color: '#0D9488' }} />}
+                  extra={<AppstoreAddOutlined style={{ color: 'var(--app-glaze)' }} />}
                   onClick={() => useTemplate(tpl)}
                   style={{ cursor: 'pointer' }}
                 >

@@ -18,7 +18,8 @@ import { SITE } from '@/config/site'
 const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=__iiTurnstileOnload'
 const LOAD_TIMEOUT_MS = 6000
 
-export type TurnstileStatus = 'loading' | 'ready' | 'passed' | 'failed' | 'unavailable'
+/** idle = 宿主节点还没渲染（用户还停在登录页签），此时不该去加载脚本 */
+export type TurnstileStatus = 'idle' | 'loading' | 'ready' | 'passed' | 'failed' | 'unavailable'
 
 interface TurnstileApi {
   render: (
@@ -76,13 +77,25 @@ function loadScript(): Promise<TurnstileApi | null> {
   return scriptPromise
 }
 
-export function useTurnstile(onToken: (token: string) => void) {
+/**
+ * @param enabled 宿主节点是否已经渲染。注册表单在「注册」页签里才挂载，
+ *   从 /login 进入时 hostRef.current 是 null。如果 effect 只依赖 onToken，
+ *   它在登录页签下跑完就结束了，之后切到注册页签也不会重跑 ——
+ *   widget 永远渲染不出来，注册按钮永久禁用（曾导致自助注册 100% 不可用）。
+ *   所以把 enabled 一起放进依赖，切页签时重跑一次。
+ */
+export function useTurnstile(onToken: (token: string) => void, enabled = true) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const widgetIdRef = useRef<string | undefined>(undefined)
-  const [status, setStatus] = useState<TurnstileStatus>('loading')
+  const [status, setStatus] = useState<TurnstileStatus>(enabled ? 'loading' : 'idle')
 
   useEffect(() => {
+    if (!enabled) {
+      setStatus('idle')
+      return
+    }
     let alive = true
+    setStatus('loading')
     loadScript().then((api) => {
       if (!alive) return
       if (!api || !hostRef.current) {
@@ -122,7 +135,7 @@ export function useTurnstile(onToken: (token: string) => void) {
       widgetIdRef.current = undefined
     }
     // onToken 由父组件用 useCallback 固定，避免每次渲染重建 widget
-  }, [onToken])
+  }, [onToken, enabled])
 
   /** 提交后重置，让用户可以再试一次（token 是一次性的，不能复用） */
   const reset = useCallback(() => {

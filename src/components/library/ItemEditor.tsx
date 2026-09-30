@@ -1,6 +1,6 @@
 import { Modal, Form, App, DatePicker, Divider, Select } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import dayjs from 'dayjs'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import FieldRenderer from '@/components/fields/FieldRenderer'
@@ -36,7 +36,11 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
     }
   }, [open, fields, item, form])
 
+  const [saving, setSaving] = useState(false)
+
   const handleOk = async () => {
+    if (saving) return
+    setSaving(true)
     try {
       const values = (await form.validateFields()) as Record<string, unknown>
       // 提醒控件值为 dayjs，落库前转为时间戳；未设置则一并移除重复规则
@@ -51,6 +55,8 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
       await onSave(values as Record<string, FieldValue>)
     } catch (e) {
       if ((e as Error).message) message.error((e as Error).message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -65,6 +71,8 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
         onCancel()
       }}
       onOk={handleOk}
+      confirmLoading={saving}
+      okText={t('common.save')}
       width="90%"
       style={{ maxWidth: 560 }}
       destroyOnHidden
@@ -75,7 +83,9 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
             key={f.key}
             name={f.key}
             label={f.label}
-            rules={f.required ? [{ required: true, message: `请填写${f.label}` }] : []}
+            // 打开后直接可以打字，少按一次 Tab
+            {...(f === visibleFields[0] ? { autoFocus: true } : {})}
+            rules={f.required ? [{ required: true, message: t('common.requiredField', { name: f.label }) }] : []}
           >
             <FieldRenderer field={f} value={null} onChange={() => {}} />
           </Form.Item>
@@ -88,7 +98,7 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
           name={REMINDER_FIELD_KEY}
           label={
             <span>
-              <BellOutlined style={{ marginRight: 6, color: '#0D9488' }} />
+              <BellOutlined style={{ marginRight: 6, color: 'var(--app-glaze)' }} />
               {t('reminder.label')}
             </span>
           }

@@ -284,20 +284,44 @@ input {
    移动端点击区）提供同源变量。data-theme 由 ThemeProvider 写在 <html> 上。
    ========================================================================== */
 
+   应用级语义变量
+   ⚠ 这些值只是「首屏兜底」。真正的定义在 src/theme/index.ts 的语义层，
+   ThemeProvider 启动时会用 semanticOf(mode) 覆盖到 <html> 上。
+   改色请改 theme/index.ts，这里保持同步即可，不要在这里单独调色。
+   ========================================================================== */
+
 :root {
+  /* 兜底 = 亮色语义层（NEUTRAL_L / GLAZE / KILN） */
   --app-surface: #ffffff;
-  --app-surface-sunken: #f7f9fa;
+  --app-surface-sunken: #f5f7f8;
   --app-canvas: #f5f7f8;
-  --app-border: #dde3e8;
-  --app-border-soft: #e9edf0;
-  --app-glaze: #0d9488;
-  --app-glaze-soft: #e6f4f1;
+  --app-overlay: rgba(28, 33, 38, 0.44);
+  --app-ink: #1f2328;
+  --app-ink-soft: #4e5866;
+  /* 旧的 #8a94a0 只有 2.86:1，说明文字读不清；改 600 档 4.62:1 */
+  --app-ink-faint: #66717e;
+  --app-border: #d3d9de;
+  --app-border-soft: #e3e8ec;
+  --app-glaze: #0f766e;
+  --app-glaze-text: #0f766e;
+  --app-glaze-soft: #f0faf8;
   --app-kiln: #fa8c16;
-  --app-kiln-wash: #fff7e6;
-  --app-pinned-wash: #fffbe6;
-  --app-success: #3f8600;
-  --app-ink-soft: #5b6470;
-  --app-ink-faint: #8a94a0;
+  /* 琥珀当文字用必须用 700 档（亮画布上 4.67:1），亮琥珀只在填充/指示时用 */
+  --app-kiln-text: #b45309;
+  --app-kiln-wash: #fff3e0;
+  --app-pinned-wash: #fff8ec;
+  --app-success: #3f7a21;
+  --app-danger: #c5351f;
+
+  /* 图表分类色（数据工具的图表是核心输出） */
+  --app-series-0: #0f766e;
+  --app-series-1: #2f6fd0;
+  --app-series-2: #c96a06;
+  --app-series-3: #a63d9b;
+  --app-series-4: #2e8b3d;
+  --app-series-5: #6b4fd8;
+  --app-series-6: #d14b4b;
+  --app-series-7: #0e7490;
 
   /* 间距节拍：4 的倍数 */
   --sp-1: 4px;
@@ -306,22 +330,6 @@ input {
   --sp-4: 16px;
   --sp-5: 20px;
   --sp-6: 24px;
-}
-
-[data-theme='dark'] {
-  --app-surface: #171a1d;
-  --app-surface-sunken: #1b1f23;
-  --app-canvas: #0e1113;
-  --app-border: #2b3137;
-  --app-border-soft: #23282d;
-  --app-glaze: #2dd4bf;
-  --app-glaze-soft: rgba(45, 212, 191, 0.14);
-  --app-kiln: #fbbf24;
-  --app-kiln-wash: rgba(251, 191, 36, 0.1);
-  --app-pinned-wash: rgba(251, 191, 36, 0.06);
-  --app-success: #5baf3a;
-  --app-ink-soft: #a3acb6;
-  --app-ink-faint: #727c87;
 }
 
 /* 移动端点击区：研究一致建议触控目标不小于 44×44。
@@ -335,7 +343,7 @@ input {
     justify-content: center;
   }
   /* 表格行与卡片里的链接型图标按钮 */
-  .tap-action.ant-btn-link {
+  .tap-action {
     min-width: 40px;
     min-height: 40px;
     padding-inline: 8px;
@@ -404,40 +412,64 @@ input {
   min-width: 0;
 }
 
-/* ── 桌面停靠列 ── */
-.ai-dock {
+/* ── 单一宿主节点：形态只由 class 决定 ──
+   桌面是右侧停靠列（把内容推开），手机是底部抽屉（只占下半屏）。
+   两种形态共用同一个 DOM，跨越 768px 时不会卸载 AIPanel、不会打断任务。 */
+.ai-host {
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
-  height: 100%;
   background: var(--app-surface);
-  border-left: 1px solid var(--app-border-soft);
   min-width: 0;
+  overflow: hidden;
 }
-.ai-dock-resizer {
-  width: 5px;
-  margin-left: -3px;
-  cursor: col-resize;
+.ai-host-dock {
+  height: 100%;
   flex-shrink: 0;
-  z-index: 5;
-  background: transparent;
-  transition: background 0.15s;
+  border-left: 1px solid var(--app-border-soft);
 }
-.ai-dock-resizer:hover {
-  background: var(--app-glaze);
+.ai-host-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 900;
+  border-top: 1px solid var(--app-border-soft);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.16);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  /* 避开安卓手势条 / 底部 Home 指示条 */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+[data-theme='dark'] .ai-host-sheet {
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.5);
 }
 
-/* 画中画：收成一条窄边，内容区完全让出来 */
-.ai-dock-collapsed {
+/* 关闭态：保持挂载（任务要继续在后台跑），只是移出视野。
+   桌面用 display:none；手机用位移+visibility，好让关闭有过渡。 */
+.ai-host-dock.is-hidden {
+  display: none;
+}
+.ai-host-sheet.is-hidden {
+  transform: translateY(101%);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ai-sheet-bar {
+  padding: 7px 0 3px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 0;
-  width: 48px;
+  justify-content: center;
   flex-shrink: 0;
-  background: var(--app-surface);
-  border-left: 1px solid var(--app-border-soft);
+  touch-action: none;
+}
+.ai-sheet-grip {
+  width: 38px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--app-border);
+}
+.ai-host-sheet .ai-dock-head {
+  height: 44px;
 }
 
 /* ── 公共头部 / 主体 ── */
@@ -483,43 +515,6 @@ input {
   padding: 40px 0;
   color: var(--app-ink-faint);
   font-size: 13px;
-}
-
-/* ── 手机底部抽屉 ── */
-.ai-sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 900;
-  display: flex;
-  flex-direction: column;
-  background: var(--app-surface);
-  border-top: 1px solid var(--app-border-soft);
-  border-radius: 16px 16px 0 0;
-  box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.16);
-  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-  /* 避开安卓手势条 / 底部 Home 指示条 */
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-[data-theme='dark'] .ai-sheet {
-  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.5);
-}
-.ai-sheet-bar {
-  padding: 7px 0 3px;
-  display: flex;
-  justify-content: center;
-  cursor: grab;
-  flex-shrink: 0;
-}
-.ai-sheet-grip {
-  width: 38px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--app-border);
-}
-.ai-sheet .ai-dock-head {
-  height: 44px;
 }
 
 /* 收起时露出来的一小条 */
@@ -580,7 +575,8 @@ input {
 }
 .ai-fab.is-running {
   border-color: var(--app-kiln);
-  color: var(--app-kiln);
+  /* 文字要用可读档：亮琥珀在亮画布上只有 2.21:1 */
+  color: var(--app-kiln-text);
 }
 /* 圆形紧凑态（手机） */
 .ai-fab-compact {

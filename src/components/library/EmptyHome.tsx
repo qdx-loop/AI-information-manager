@@ -118,7 +118,7 @@ export default function EmptyHome() {
         {libraries.length > 0 ? (
           <>
             <Result
-              icon={<AppstoreAddOutlined style={{ color: '#0D9488' }} />}
+              icon={<AppstoreAddOutlined style={{ color: 'var(--app-glaze)' }} />}
               title={t('home.greeting', { name: account?.username ?? '' })}
               subTitle={t('home.pick')}
               style={{ paddingBottom: 12 }}
@@ -128,7 +128,7 @@ export default function EmptyHome() {
         ) : (
           <>
             <Result
-              icon={<AppstoreAddOutlined style={{ color: '#0D9488' }} />}
+              icon={<AppstoreAddOutlined style={{ color: 'var(--app-glaze)' }} />}
               title={t('home.greeting', { name: account?.username ?? '' })}
               subTitle={t('home.empty')}
               extra={

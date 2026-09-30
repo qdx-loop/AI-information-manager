@@ -18,6 +18,7 @@ import { useAppStore } from '@/store/appStore'
 import { useEffect, useMemo, useState } from 'react'
 import type { Library } from '@/types'
 import { syncNow } from '@/utils/autoSync'
+import { resetSession } from '@/store/session'
 import { getProvider } from '@/db/providerFactory'
 import { copyTemplateToLibrary } from '@/utils/libraryTemplates'
 import { useI18n } from '@/i18n'
@@ -26,11 +27,11 @@ const { Sider } = Layout
 
 // 共享的侧边栏逻辑：库列表、菜单项、点击/重命名/删除/退出等操作
 // 桌面端 Sidebar（Sider，可折叠）和移动端 SidebarContent（Drawer 内 div）共用此 hook
-function useSidebarState() {
+function useSidebarState(onNavigate?: () => void) {
   const { message, modal } = App.useApp()
   const navigate = useNavigate()
   const location = useLocation()
-  const { account, logout } = useAuthStore()
+  const { account } = useAuthStore()
   const {
     libraries,
     currentLibraryId,
@@ -129,7 +130,7 @@ function useSidebarState() {
       onOk: async () => {
         await deleteLibrary(lib.id)
         if (currentLibraryId === lib.id) navigate('/')
-        message.success('已移入回收站')
+        message.success(t('app.lib.deleted'))
       },
     })
   }
@@ -231,9 +232,13 @@ function useSidebarState() {
   const handleClick = (key: string) => {
     if (key === 'new-library') {
       handleNewLibrary()
+      onNavigate?.()
       return
     }
     navigate(key)
+    // 移动端侧边栏是全屏抽屉：点了库必须自动收起，否则导航已经发生、
+    // 抽屉却还盖在全屏上，用户会以为应用卡住了（曾是很高频的抱怨）
+    onNavigate?.()
     if (key.startsWith('/library/')) {
       const id = key.replace('/library/', '')
       selectLibrary(id).catch((e) => message.error(t('app.loadLibFailed', { msg: (e as Error).message })))
@@ -252,15 +257,8 @@ function useSidebarState() {
     } finally {
       setLoggingOut(false)
     }
-    logout()
-    useLibraryStore.setState({
-      libraries: [],
-      currentLibraryId: null,
-      fields: [],
-      items: [],
-      trash: [],
-      focusItemId: null,
-    })
+    // 统一收口：同步 + 清库数据 + 清 token（authStore.logout 内部会触发 libraryStore 清理）
+    await resetSession({ syncFirst: false })
     navigate('/login')
   }
 
@@ -296,7 +294,7 @@ function SidebarBody({
           cursor: 'pointer',
         }}
       >
-        <Badge color="#0D9488" />
+        <Badge color="var(--app-glaze)" />
         {!collapsed && <span>{t('app.brand')}</span>}
       </div>
 
@@ -364,8 +362,14 @@ export default function Sidebar({
 }
 
 // 移动端侧边栏内容（用于 Drawer 内）
-export function SidebarContent({ onOpenPanel }: { onOpenPanel: () => void }) {
-  const state = useSidebarState()
+export function SidebarContent({
+  onOpenPanel,
+  onNavigate,
+}: {
+  onOpenPanel: () => void
+  onNavigate?: () => void
+}) {
+  const state = useSidebarState(onNavigate)
 
   return (
     <div style={{ height: '100vh', overflow: 'auto', background: 'var(--app-surface)' }}>

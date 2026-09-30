@@ -14,7 +14,7 @@ import {
   Space,
   theme as antdTheme,
 } from 'antd'
-import { SendOutlined, RobotOutlined, UserOutlined, ReloadOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { SendOutlined, RobotOutlined, UserOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
@@ -1377,7 +1377,25 @@ export default function AIPanel() {
           </Button>
         </Dropdown>
         <Text type="secondary" style={{ fontSize: 12, flex: 1 }}>{t('ai.allLibraries')}</Text>
-        <Button size="small" icon={<ReloadOutlined />} onClick={handleClear} type="text" />
+        <Button
+          size="small"
+          // 原来用 ReloadOutlined（刷新）表示「清空会话」，语义完全不对，
+          // 而且一键抹掉整段对话没有任何确认
+          icon={<DeleteOutlined />}
+          onClick={() =>
+            modal.confirm({
+              title: t('ai.session.clearTitle'),
+              content: t('ai.session.delConfirm'),
+              okText: t('common.confirm'),
+              okType: 'danger',
+              cancelText: t('common.cancel'),
+              onOk: handleClear,
+            })
+          }
+          type="text"
+          aria-label={t('ai.session.clearTitle')}
+          title={t('ai.session.clearTitle')}
+        />
       </div>
 
       <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', padding: 12 }}>
@@ -1406,7 +1424,7 @@ export default function AIPanel() {
                   width: 28,
                   height: 28,
                   borderRadius: '50%',
-                  background: m.role === 'user' ? '#0D9488' : token.colorFillSecondary,
+                  background: m.role === 'user' ? 'var(--app-glaze)' : token.colorFillSecondary,
                   color: m.role === 'user' ? '#fff' : token.colorTextSecondary,
                   display: 'flex',
                   alignItems: 'center',
@@ -1418,7 +1436,7 @@ export default function AIPanel() {
               </div>
               <div
                 style={{
-                  background: m.role === 'user' ? '#0D9488' : token.colorFillTertiary,
+                  background: m.role === 'user' ? 'var(--app-glaze)' : token.colorFillTertiary,
                   color: m.role === 'user' ? '#fff' : token.colorText,
                   padding: '8px 12px',
                   borderRadius: 8,
@@ -1458,7 +1476,7 @@ export default function AIPanel() {
                     }}
                     items={[{
                       key: 'steps',
-                      label: <span style={{ fontSize: 12, color: '#0D9488' }}>{t('ai.steps', { n: m.steps.length })}</span>,
+                      label: <span style={{ fontSize: 12, color: 'var(--app-glaze)' }}>{t('ai.steps', { n: m.steps.length })}</span>,
                       children: (
                         <div style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>
                           {m.steps.map((s, si) => (
@@ -1487,7 +1505,7 @@ export default function AIPanel() {
                       gap: 10,
                     }}
                   >
-                    <BarChartOutlined style={{ fontSize: 18, color: '#0D9488' }} />
+                    <BarChartOutlined style={{ fontSize: 18, color: 'var(--app-glaze)' }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 13, color: token.colorText }}>{m.chart.title}</div>
                       <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
@@ -1550,15 +1568,30 @@ export default function AIPanel() {
               return false
             }}
           >
-            <Button size="small" icon={<PaperClipOutlined />} loading={parsingFile} title={t('ai.upload.tooltip')} />
+            <Button
+              size="small"
+              icon={<PaperClipOutlined />}
+              loading={parsingFile}
+              title={t('ai.upload.tooltip')}
+              aria-label={t('ai.upload.tooltip')}
+            />
           </Upload>
-          <Input
+          {/* 必须是多行：占位符宣传的是「粘贴 Excel 交给 AI 录入」，
+              单行 Input 会把粘贴来的 20 行压成一行、且无法换行补说明。
+              Enter 发送、Shift+Enter 换行，是聊天输入的通用约定。 */}
+          <Input.TextArea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onPressEnter={handleSend}
+            onPressEnter={(e) => {
+              if (e.shiftKey || e.nativeEvent.isComposing) return
+              e.preventDefault()
+              handleSend()
+            }}
             placeholder={t('ai.inputPlaceholder')}
             disabled={loading}
-            style={{ flex: 1 }}
+            autoSize={{ minRows: 1, maxRows: 6 }}
+            style={{ flex: 1, resize: 'none' }}
+            aria-label={t('ai.inputPlaceholder')}
           />
           <Button
             type="primary"
@@ -1566,6 +1599,7 @@ export default function AIPanel() {
             onClick={handleSend}
             loading={loading}
             disabled={!input.trim()}
+            aria-label={t('ai.send')}
           />
         </div>
         {loading && (

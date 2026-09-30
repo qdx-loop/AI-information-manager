@@ -16,7 +16,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTurnstile } from './useTurnstile'
 import { isAndroidApp } from '@/utils/platform'
 
-const BRAND = '#0D9488'
+const BRAND = 'var(--app-glaze)'
 
 type Mode = 'login' | 'register'
 
@@ -44,7 +44,11 @@ export default function AuthPage() {
   // Turnstile token：拿不到时留空，服务端会按故障降级逻辑处理
   const [tsToken, setTsToken] = useState('')
   const onTsToken = useCallback((tok: string) => setTsToken(tok), [])
-  const { hostRef: tsHost, status: tsStatus, reset: tsReset } = useTurnstile(onTsToken)
+  // 只在注册页签下才挂载 Turnstile 宿主；enabled 变化会让 hook 重跑并重新 render widget
+  const { hostRef: tsHost, status: tsStatus, reset: tsReset } = useTurnstile(
+    onTsToken,
+    mode === 'register',
+  )
 
   // 人机验证没过 / 加载失败都禁用提交。
   // 关键：不能因为「脚本没加载出来」就放行——那等于给机器人发通行证。
@@ -255,19 +259,26 @@ export default function AuthPage() {
             </div>
           )}
           {tsStatus === 'failed' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#FA8C16' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--app-kiln-text)' }}>
               <SafetyOutlined />
               {t('auth.reg.ts.failed')}
             </div>
           )}
           {tsStatus === 'unavailable' && (
-            <div style={{ fontSize: 12, color: '#FA8C16', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: 'var(--app-kiln-text)', lineHeight: 1.6 }}>
               {t('auth.reg.ts.unavailable')}
               <Button
                 type="link"
                 size="small"
                 style={{ padding: '0 0 0 6px', fontSize: 12 }}
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  // 当前 URL 可能是 /login（没有 mode 参数），直接 reload 会再次
+                  // 停在登录页签、再次失败。先把 mode=register 补进地址栏。
+                  const u = new URL(window.location.href)
+                  u.searchParams.set('mode', 'register')
+                  window.history.replaceState(null, '', u.toString())
+                  window.location.reload()
+                }}
               >
                 {t('auth.reg.ts.retry')}
               </Button>

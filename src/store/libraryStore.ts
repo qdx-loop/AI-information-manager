@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { Library, FieldDef, Item, TrashEntry } from '@/types'
 import { getProvider } from '@/db/providerFactory'
-import { useAuthStore } from './authStore'
+import { useAuthStore, registerSessionResetter } from './authStore'
 import { newId } from '@/utils/id'
 import { track } from '@/utils/track'
 import { scheduleAutoSync } from '@/utils/autoSync'
@@ -257,3 +257,16 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     set((s) => ({ dataVersion: s.dataVersion + 1 }))
   },
 }))
+
+// 退登时清空本 store。由 authStore 通过回调调用，以避开 authStore ←→ libraryStore
+// 的循环依赖（libraryStore 已经 import 了 authStore）。
+registerSessionResetter(() => {
+  useLibraryStore.setState({
+    libraries: [],
+    currentLibraryId: null,
+    fields: [],
+    items: [],
+    trash: [],
+    focusItemId: null,
+  })
+})

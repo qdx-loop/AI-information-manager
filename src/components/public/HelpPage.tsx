@@ -11,10 +11,10 @@ export default function HelpPage() {
   const navigate = useNavigate()
 
   const items = [
-    { key: 'data', label: <Space><SafetyOutlined style={{ color: '#0D9488' }} />{t('help.q.data')}</Space>, children: <Paragraph style={{ marginBottom: 0 }}>{t('help.a.data')}</Paragraph> },
-    { key: 'password', label: <Space><KeyOutlined style={{ color: '#0D9488' }} />{t('help.q.password')}</Space>, children: <Paragraph style={{ marginBottom: 0 }}>{t('help.a.password')}</Paragraph> },
-    { key: 'sync', label: <Space><SyncOutlined style={{ color: '#0D9488' }} />{t('help.q.sync')}</Space>, children: <Paragraph style={{ marginBottom: 0 }}>{t('help.a.sync')}</Paragraph> },
-    { key: 'cloud', label: <Space><CloudOutlined style={{ color: '#0D9488' }} />{t('help.q.cloud')}</Space>, children: <Paragraph style={{ marginBottom: 0 }}>{t('help.a.cloud')}</Paragraph> },
+    { key: 'data', label: <Space><SafetyOutlined style={{ color: 'var(--app-glaze)' }} />{t('help.q.data')}</Space>, children: <Paragraph style={{ marginBottom: 0 }}>{t('help.a.data')}</Paragraph> },
+    { key: 'password', label: <Space><KeyOutlined style={{ color: 'var(--app-glaze)' }} />{t('help.q.password')}</Space>, children: <Paragraph style={{ marginBottom: 0 }}>{t('help.a.password')}</Paragraph> },
+    { key: 'sync', label: <Space><SyncOutlined style={{ color: 'var(--app-glaze)' }} />{t('help.q.sync')}</Space>, children: <Paragraph style={{ marginBottom: 0 }}>{t('help.a.sync')}</Paragraph> },
+    { key: 'cloud', label: <Space><CloudOutlined style={{ color: 'var(--app-glaze)' }} />{t('help.q.cloud')}</Space>, children: <Paragraph style={{ marginBottom: 0 }}>{t('help.a.cloud')}</Paragraph> },
     { key: 'tips', label: t('help.q.tips'), children: <Paragraph style={{ marginBottom: 0 }}>{t('help.a.tips')}</Paragraph> },
   ]
 

@@ -95,7 +95,7 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
       onCancel={onClose}
       footer={null}
       width={520}
-      title={<Text><SearchOutlined style={{ marginRight: 8, color: '#0D9488' }} />{t('gsearch.title')}</Text>}
+      title={<Text><SearchOutlined style={{ marginRight: 8, color: 'var(--app-glaze)' }} />{t('gsearch.title')}</Text>}
       styles={{ body: { paddingTop: 8 } }}
     >
       <Input
@@ -124,7 +124,7 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
                 onClick={() => go(h)}
               >
                 <List.Item.Meta
-                  avatar={<AppstoreOutlined style={{ fontSize: 18, color: '#0D9488', marginTop: 4 }} />}
+                  avatar={<AppstoreOutlined style={{ fontSize: 18, color: 'var(--app-glaze)', marginTop: 4 }} />}
                   title={<Text>{h.item.fields[Object.keys(h.item.fields)[0]] ?? '—'}</Text>}
                   description={
                     <Text type="secondary" style={{ fontSize: 12 }}>

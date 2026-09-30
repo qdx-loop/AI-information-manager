@@ -30,7 +30,9 @@ import {
   PlusOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
+import { resetSession } from '@/store/session'
 import { useAppStore } from '@/store/appStore'
 import { useLibraryStore } from '@/store/libraryStore'
 import { pushLocalToCloud, mergeCloudToLocal, syncBidirectional } from '@/db/syncService'
@@ -75,7 +77,8 @@ export default function SettingsPage() {
 function AccountTab() {
   const { message } = App.useApp()
   const t = useI18n()
-  const { account, logout } = useAuthStore()
+  const navigate = useNavigate()
+  const { account } = useAuthStore()
   const [pwdOpen, setPwdOpen] = useState(false)
   const [oldPwd, setOldPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
@@ -133,7 +136,13 @@ function AccountTab() {
         <Button icon={<UserOutlined />} onClick={() => setPwdOpen(true)} disabled={!account}>
           {t('settings.account.changePwd')}
         </Button>
-        <Button danger onClick={() => logout()}>
+        <Button
+          onClick={async () => {
+            // 走统一收口：退出前同步 + 清空库数据（之前这里只清了 token）
+            await resetSession()
+            navigate('/login')
+          }}
+        >
           {t('settings.account.logout')}
         </Button>
       </Space>
@@ -303,7 +312,7 @@ function StorageTab() {
       />
 
       <Form layout="vertical">
-        <Form.Item label="Supabase Project URL">
+        <Form.Item label={t('settings.storage.url')}>
           <Input
             placeholder="https://xxxx.supabase.co"
             value={settings.cloud.url}
@@ -311,7 +320,7 @@ function StorageTab() {
             disabled={settings.storageMode === 'cloud'}
           />
         </Form.Item>
-        <Form.Item label="anon public key">
+        <Form.Item label={t('settings.storage.key')}>
           <Input.Password
             placeholder="eyJhbGci..."
             value={settings.cloud.anonKey}
@@ -563,7 +572,7 @@ function AITab() {
         </Form.Item>
         <Space>
           <Button icon={<RobotOutlined />} onClick={handleTest}>
-            测试连接
+            {t('settings.ai.test')}
           </Button>
           <Button type="primary" onClick={() => message.success(t('settings.ai.saved'))}>
             保存

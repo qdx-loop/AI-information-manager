@@ -3,6 +3,43 @@ import { apiLogin, apiMe, apiRegister, clearToken, getToken, ApiError } from '@/
 import { track } from '@/utils/track'
 
 const SESSION_KEY = 'info-mgmt-account-id'
+// 账号缓存：断网时也要能显示用户名，否则无网启动会被当成未登录
+const ACCOUNT_CACHE_KEY = 'info-mgmt-account-cache'
+
+/**
+ * 退出/被踢时需要清空 libraryStore，但 libraryStore 已经 import 了本文件，
+ * 反向静态 import 会形成循环依赖。用「注册回调」打破：
+ * libraryStore 在模块加载时把清理函数注册进来。
+ */
+type SessionResetter = () => void
+let sessionResetter: SessionResetter | null = null
+export function registerSessionResetter(fn: SessionResetter) {
+  sessionResetter = fn
+}
+function runSessionReset() {
+  try {
+    sessionResetter?.()
+  } catch (e) {
+    console.error('[auth] 清理登录态失败:', e)
+  }
+}
+
+function readCachedAccount(): SessionAccount | null {
+  try {
+    const raw = localStorage.getItem(ACCOUNT_CACHE_KEY)
+    return raw ? (JSON.parse(raw) as SessionAccount) : null
+  } catch {
+    return null
+  }
+}
+function writeCachedAccount(a: SessionAccount | null) {
+  try {
+    if (a) localStorage.setItem(ACCOUNT_CACHE_KEY, JSON.stringify(a))
+    else localStorage.removeItem(ACCOUNT_CACHE_KEY)
+  } catch {
+    /* 隐私模式写不进去，忽略 */
+  }
+}
 
 export interface SessionAccount {
   id: string
@@ -54,6 +91,8 @@ function startWatcher(get: () => AuthState, set: (p: Partial<AuthState>) => void
     if (!get().account) return
     clearToken()
     clearStoredId()
+    writeCachedAccount(null)
+    runSessionReset()
     set({ account: null, logoutReason: reason })
   }
 
@@ -88,15 +127,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     try {
       const acc = await apiMe()
+      writeCachedAccount(acc)
       set({ account: acc, loading: false })
     } catch (e) {
-      clearStoredId()
-      if (!(e instanceof ApiError)) clearToken()
-      set({
-        loading: false,
-        logoutReason:
-          e instanceof ApiError && (e.status === 401 || e.status === 403) ? e.message : null,
-      })
+      const denied = e instanceof ApiError && (e.status === 401 || e.status === 403)
+      if (denied) {
+        // 服务端明确拒绝：真的该登出
+        clearStoredId()
+        clearToken()
+        writeCachedAccount(null)
+        runSessionReset()
+        set({ loading: false, logoutReason: (e as ApiError).message })
+      } else {
+        // 网络不可用（本地优先的产品在仓库/门店/地下环境很常见）：
+        // 绝不能因为断网就抹掉「记住登录状态」。用缓存的账号信息先进入应用，
+        // 本地数据照常可用；联网后 watcher 会再校验一次。
+        const cached = readCachedAccount()
+        set({
+          account: cached,
+          loading: false,
+          logoutReason: null,
+        })
+      }
     }
   },
 
@@ -104,6 +156,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const acc = await apiLogin(username, password, remember)
     track('login')
     writeStoredId(acc.id, remember)
+    writeCachedAccount(acc)
     set({ account: acc, loading: false, logoutReason: null })
     return acc
   },
@@ -112,6 +165,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const acc = await apiRegister(input, remember)
     track('login')
     writeStoredId(acc.id, remember)
+    writeCachedAccount(acc)
     set({ account: acc, loading: false, logoutReason: null })
     return acc
   },
@@ -119,6 +173,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout(reason) {
     clearToken()
     clearStoredId()
+    writeCachedAccount(null)
+    // 关键：同时清空 libraryStore，否则会残留上一个账号的库/条目
+    runSessionReset()
     set({ account: null, logoutReason: reason ?? null })
   },
 

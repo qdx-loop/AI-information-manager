@@ -40,8 +40,6 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [modalOpen, setModalOpen] = useState(false)
 
-  const visibleFields = fields.filter((f) => f.visible)
-
   const handleExport = (kind: 'csv' | 'excel') => {
     if (items.length === 0) {
       message.warning(t('lib.importExport.nothing'))
@@ -54,7 +52,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
       const blob = itemsToExcel(items, fields)
       downloadBlob(`导出_${Date.now()}.xlsx`, blob)
     }
-    message.success('已导出')
+    message.success(t('lib.importExport.exported'))
   }
 
   const exportMenu: MenuProps = {
@@ -84,7 +82,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
       // 自动匹配：列名 === 字段 label 或 key
       const auto: Record<string, string> = {}
       hs.forEach((h) => {
-        const matched = visibleFields.find((f) => f.label === h || f.key === h)
+        const matched = fields.find((f) => f.label === h || f.key === h)
         auto[h] = matched ? matched.key : ''
       })
       setMapping(auto)
@@ -101,7 +99,9 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
       const obj: Record<string, FieldValue> = {}
       Object.entries(mapping).forEach(([header, fieldKey]) => {
         if (!fieldKey) return
-        const f = visibleFields.find((x) => x.key === fieldKey)
+        // 用全部字段而非 visibleFields：文件里可能含有当前被隐藏的列，
+        // 静默丢掉整列是用户不会察觉的数据损失。
+        const f = fields.find((x) => x.key === fieldKey)
         if (!f) return
         const raw = r[header]
         obj[fieldKey] = coerceValue(f.type, raw)
@@ -154,7 +154,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
               onChange={(v) => setMapping({ ...mapping, [h]: v })}
               options={[
                 { label: t('lib.importExport.skip'), value: '' },
-                ...visibleFields.map((f) => ({ label: f.label, value: f.key })),
+                ...fields.map((f) => ({ label: f.label, value: f.key })),
               ]}
               allowClear
             />

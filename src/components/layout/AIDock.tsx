@@ -13,7 +13,7 @@ import { useI18n } from '@/i18n'
 // AI 面板依赖 xlsx / papaparse / react-markdown 等重包，只有真正打开过才下载
 const AIPanel = lazy(() => import('@/components/ai/AIPanel'))
 
-const SHEET_H = 0.68 // 手机底部抽屉默认高度（占视口比例）
+const SHEET_RATIO = 0.68 // 手机底部抽屉默认高度（占视口比例）
 
 /**
  * AI 助手的承载外壳。
@@ -23,11 +23,11 @@ const SHEET_H = 0.68 // 手机底部抽屉默认高度（占视口比例）
  * 调研（微软 Copilot UX 指南、Wiley《UX for AI》）的结论一致：
  * 常驻助手应该是「把内容推到左边」，而不是盖住内容，另外给一个画中画形态。
  *
- * 所以：
- * - 桌面：右侧停靠列，flex 参与布局，内容区自动变窄，可用
- * - 手机：底部抽屉，只占下半屏，上面的内容还能看能滚
- * - 两者都不带遮罩；收起时是一条 44px 窄边（画中画）
- * - 打开过一次就常驻挂载，关掉只是隐藏，任务继续在后台跑
+ * 关键实现约束：**只渲染一份 DOM**。
+ * 之前桌面（右侧停靠列）和手机（底部抽屉）是两个独立的 JSX 分支，
+ * 跨越 768px 缩放窗口时分支切换会把 AIPanel 整个卸载重建 ——
+ * abortRef 丢失、正在跑的任务被静默中断。现在两种形态共用同一个节点，
+ * 只靠 class 切换外观，任务跨形态、跨断点都能存活。
  */
 export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
   const t = useI18n()
@@ -36,12 +36,19 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
   const mounted = useAiUiStore((s) => s.mounted)
   const running = useAiUiStore((s) => s.running)
   const width = useAiUiStore((s) => s.width)
+  const unseen = useAiUiStore((s) => s.unseen)
   const setOpen = useAiUiStore((s) => s.setOpen)
   const setCollapsed = useAiUiStore((s) => s.setCollapsed)
   const setWidth = useAiUiStore((s) => s.setWidth)
+  const markSeen = useAiUiStore((s) => s.markSeen)
 
   const [sheetFull, setSheetFull] = useState(false)
   const dragRef = useRef<{ startX: number; startW: number } | null>(null)
+
+  // 面板真正可见时清掉未读红点（之前 markSeen 全项目无人调用，红点永远不消）
+  useEffect(() => {
+    if (open && !collapsed) markSeen()
+  }, [open, collapsed, markSeen])
 
   // 拖拽调宽（桌面）。宽度存到 localStorage，下次还在。
   const onResizeStart = useCallback(
@@ -64,11 +71,29 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
     [width, setWidth],
   )
 
-  // Esc 收起（桌面）；手机上 Esc 在软键盘里，不劫持
+  // 底部抽屉下滑关闭
+  const sheetTouch = useRef<{ startY: number } | null>(null)
+  const onSheetTouchStart = (e: React.TouchEvent) => {
+    sheetTouch.current = { startY: e.touches[0].clientY }
+  }
+  const onSheetTouchEnd = (e: React.TouchEvent) => {
+    const start = sheetTouch.current?.startY
+    sheetTouch.current = null
+    if (start == null) return
+    const dy = e.changedTouches[0].clientY - start
+    if (dy > 60) setCollapsed(true) // 往下拖 = 收成小条
+    else setSheetFull((v) => !v) // 轻点/上推 = 切换高度
+  }
+
+  // Esc 关闭。只在没有模态层时接管，否则在 AI 的确认弹窗里按 Esc
+  // 会把弹窗和整个 AI 面板一起关掉，任务虽然在跑但用户失去了上下文。
   useEffect(() => {
     if (variant !== 'dock') return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && useAiUiStore.getState().open) setOpen(false)
+      if (e.key !== 'Escape') return
+      if (!useAiUiStore.getState().open) return
+      if (document.querySelector('.ant-modal-wrap, .ant-drawer-open')) return
+      setOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -77,65 +102,35 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
   if (!mounted) return null
 
   const hidden = !open
+  const isSheet = variant === 'sheet'
 
-  if (variant === 'sheet') {
-    // ── 手机：底部抽屉 ──────────────────────────────────────────
-    const h = sheetFull ? 0.92 : SHEET_H
-    return (
-      <>
-        {collapsed && (
-          <button type="button" className="ai-sheet-peek" onClick={() => setCollapsed(false)}>
-            <RobotOutlined />
-            <span>{t('app.aiAssistant')}</span>
-            {running && <LoadingOutlined spin />}
-            {running ? <span className="ai-pulse" /> : <span className="ai-peek-open">{t('ai.open')}</span>}
-          </button>
-        )}
-        <section
-          className="ai-sheet"
-          style={{
-            height: `${h * 100}dvh`,
-            transform: hidden ? 'translateY(101%)' : 'translateY(0)',
-            visibility: hidden ? 'hidden' : 'visible',
-          }}
-          aria-hidden={hidden}
-        >
-          <div className="ai-sheet-bar" onClick={() => setSheetFull((v) => !v)}>
-            <span className="ai-sheet-grip" />
-          </div>
-          <DockHeader
-            title={t('app.aiAssistant')}
-            running={running}
-            collapseIcon={<DownOutlined />}
-            onCollapse={() => setCollapsed(true)}
-            onClose={() => setOpen(false)}
-          />
-          <div className="ai-dock-body">
-            <Suspense fallback={<PanelLoading label={t('ai.loadingPanel')} />}>
-              <AIPanel />
-            </Suspense>
-          </div>
-        </section>
-      </>
-    )
-  }
-
-  // ── 桌面：右侧停靠列 ─────────────────────────────────────────
-  // 注意：关闭时不能用 `return null` —— 那会把 AIPanel 一起卸载，
-  // 正在跑的任务会被连带杀掉，「关掉面板继续在后台跑」就落空了。
-  // 这里保持挂载，只用 display:none 移出布局。
+  // ── 画中画：一条窄边（桌面）/ 一个药丸（手机） ──
   if (collapsed) {
-    return (
+    return isSheet ? (
+      <button type="button" className="ai-sheet-peek" onClick={() => setCollapsed(false)}>
+        <RobotOutlined />
+        <span>{t('app.aiAssistant')}</span>
+        {running ? <LoadingOutlined spin /> : <span className="ai-peek-open">{t('ai.open')}</span>}
+      </button>
+    ) : (
       <aside className="ai-dock-collapsed" aria-label={t('app.aiAssistant')}>
-        <Button type="text" className="tap" onClick={() => setCollapsed(false)} aria-label={t('ai.open')}>
+        <Button
+          type="text"
+          className="tap"
+          onClick={() => setCollapsed(false)}
+          aria-label={t('ai.open')}
+          title={t('ai.open')}
+        >
           <RobotOutlined />
         </Button>
         {running && <span className="ai-pulse" title={t('ai.runningInBackground')} />}
+        {!running && unseen && <span className="ai-fab-dot" aria-hidden />}
         <Button
           type="text"
           className="tap"
           onClick={() => setOpen(false)}
           aria-label={t('common.close')}
+          title={t('common.close')}
         >
           <CloseOutlined />
         </Button>
@@ -143,83 +138,97 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
     )
   }
 
+  // ── 展开态：单一 DOM，靠 class 切形态 ──
+  const cls = [
+    'ai-host',
+    isSheet ? 'ai-host-sheet' : 'ai-host-dock',
+    hidden ? 'is-hidden' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <>
-      {!hidden && (
+      {!isSheet && !hidden && (
         <div
           className="ai-dock-resizer"
           onPointerDown={onResizeStart}
           role="separator"
           aria-orientation="vertical"
+          aria-label={t('ai.resize')}
+          aria-valuenow={width}
+          aria-valuemin={AI_DOCK_MIN}
+          aria-valuemax={AI_DOCK_MAX}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            // 拖拽条也要能用键盘调
+            if (e.key === 'ArrowLeft') setWidth(width + 24)
+            if (e.key === 'ArrowRight') setWidth(width - 24)
+          }}
           title={t('ai.resize')}
         />
       )}
       <aside
-        className="ai-dock"
-        style={hidden ? { display: 'none' } : { width }}
+        className={cls}
+        style={isSheet ? { height: `${(sheetFull ? 0.92 : SHEET_RATIO) * 100}dvh` } : { width }}
         aria-label={t('app.aiAssistant')}
+        aria-hidden={hidden}
       >
-        <DockHeader
-          title={t('app.aiAssistant')}
-          running={running}
-          onCollapse={() => setCollapsed(true)}
-          onClose={() => setOpen(false)}
-        />
+        {isSheet && (
+          <div
+            className="ai-sheet-bar"
+            onClick={() => setSheetFull((v) => !v)}
+            onTouchStart={onSheetTouchStart}
+            onTouchEnd={onSheetTouchEnd}
+          >
+            <span className="ai-sheet-grip" />
+          </div>
+        )}
+        <header className="ai-dock-head">
+          <RobotOutlined className="ai-dock-icon" />
+          <span className="ai-dock-title">{t('app.aiAssistant')}</span>
+          {running && (
+            <span className="ai-dock-running" title={t('ai.runningInBackground')}>
+              <LoadingOutlined spin />
+              <span className="ai-dock-running-text">{t('ai.running')}</span>
+            </span>
+          )}
+          <span style={{ flex: 1 }} />
+          <Tooltip title={t('ai.collapse')}>
+            <Button
+              type="text"
+              size="small"
+              onClick={() => setCollapsed(true)}
+              aria-label={t('ai.collapse')}
+            >
+              {isSheet ? <DownOutlined /> : <VerticalLeftOutlined />}
+            </Button>
+          </Tooltip>
+          <Tooltip title={t('common.close')}>
+            <Button
+              type="text"
+              size="small"
+              onClick={() => setOpen(false)}
+              aria-label={t('common.close')}
+            >
+              <CloseOutlined />
+            </Button>
+          </Tooltip>
+        </header>
         <div className="ai-dock-body">
-          <Suspense fallback={<PanelLoading label={t('ai.loadingPanel')} />}>
+          <Suspense
+            fallback={
+              <div className="ai-panel-loading">
+                <Spin size="small" />
+                <span>{t('ai.loadingPanel')}</span>
+              </div>
+            }
+          >
             <AIPanel />
           </Suspense>
         </div>
       </aside>
     </>
-  )
-}
-
-function DockHeader({
-  title,
-  running,
-  collapseIcon,
-  onCollapse,
-  onClose,
-}: {
-  title: string
-  running: boolean
-  collapseIcon?: React.ReactNode
-  onCollapse: () => void
-  onClose: () => void
-}) {
-  const t = useI18n()
-  return (
-    <header className="ai-dock-head">
-      <RobotOutlined className="ai-dock-icon" />
-      <span className="ai-dock-title">{title}</span>
-      {running && (
-        <span className="ai-dock-running" title={t('ai.runningInBackground')}>
-          <LoadingOutlined spin />
-          <span className="ai-dock-running-text">{t('ai.running')}</span>
-        </span>
-      )}
-      <span style={{ flex: 1 }} />
-      <Tooltip title={t('ai.collapse')}>
-        <Button type="text" size="small" onClick={onCollapse} aria-label={t('ai.collapse')}>
-          {collapseIcon ?? <VerticalLeftOutlined />}
-        </Button>
-      </Tooltip>
-      <Tooltip title={t('common.close')}>
-        <Button type="text" size="small" onClick={onClose} aria-label={t('common.close')}>
-          <CloseOutlined />
-        </Button>
-      </Tooltip>
-    </header>
-  )
-}
-
-function PanelLoading({ label }: { label: string }) {
-  return (
-    <div className="ai-panel-loading">
-      <Spin size="small" />
-      <span>{label}</span>
-    </div>
   )
 }
 

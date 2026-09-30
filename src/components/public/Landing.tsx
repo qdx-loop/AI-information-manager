@@ -47,7 +47,7 @@ function ProductDemo() {
       </div>
       <div style={{ padding: '18px 16px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{ background: '#0D9488', color: '#fff', borderRadius: '12px 12px 2px 12px', padding: '8px 12px', fontSize: 14 }}>
+          <div style={{ background: 'var(--app-glaze)', color: '#fff', borderRadius: '12px 12px 2px 12px', padding: '8px 12px', fontSize: 14 }}>
             {t('landing.demo.userMsg')}
           </div>
         </div>
@@ -116,7 +116,7 @@ export default function Landing() {
       >
         <div className="lp-header">
           <Space align="center" className="lp-brand" style={{ cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <span style={{ width: 14, height: 14, borderRadius: 4, background: '#0D9488', display: 'inline-block' }} />
+            <span style={{ width: 14, height: 14, borderRadius: 4, background: 'var(--app-glaze)', display: 'inline-block' }} />
             <Text strong style={{ fontSize: 16 }}>{SITE.brand}</Text>
           </Space>
           <nav className="lp-nav">
@@ -171,7 +171,7 @@ export default function Landing() {
                     height: 40,
                     borderRadius: 10,
                     background: '#F0FDFA',
-                    color: '#0D9488',
+                    color: 'var(--app-glaze)',
                     fontSize: 18,
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -194,7 +194,7 @@ export default function Landing() {
           {faqs.map(([q, a]) => (
             <div key={q} style={{ borderBottom: '1px solid #EEF2F6', padding: '18px 4px' }}>
               <div style={{ fontWeight: 600, marginBottom: 8, display: 'flex', gap: 8 }}>
-                <CheckOutlined style={{ color: '#0D9488', marginTop: 3 }} />
+                <CheckOutlined style={{ color: 'var(--app-glaze)', marginTop: 3 }} />
                 {q}
               </div>
               <div style={{ color: '#64748B', fontSize: 14, lineHeight: 1.75, paddingLeft: 22 }}>{a}</div>
@@ -215,7 +215,7 @@ export default function Landing() {
 
         {/* ===== 联系方式（邮箱） ===== */}
         <section id="contact" style={{ paddingTop: 64, textAlign: 'center' }}>
-          <MailOutlined style={{ fontSize: 26, color: '#0D9488' }} />
+          <MailOutlined style={{ fontSize: 26, color: 'var(--app-glaze)' }} />
           <h3 style={{ fontSize: 20, margin: '10px 0 6px' }}>{t('landing.contact.title')}</h3>
           <p style={{ color: '#64748B', marginBottom: 14 }}>{t('landing.contact.note')}</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
