@@ -645,3 +645,25 @@ input {
     min-height: 40px;
   }
 }
+
+/* 说明书目录：桌面固定在左侧，手机上收起成横向滚动条 */
+@media (max-width: 900px) {
+  .manual-toc {
+    position: static !important;
+    width: 100% !important;
+    display: flex !important;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .manual-toc > div:first-child {
+    display: none;
+  }
+  .manual-toc a {
+    white-space: nowrap;
+    flex-shrink: 0;
+    border: 1px solid var(--app-border-soft);
+  }
+}

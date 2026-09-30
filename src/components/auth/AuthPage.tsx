@@ -402,20 +402,11 @@ export default function AuthPage() {
               </>
             )}
             {t('auth.cloudHint')}
-            <br />
-            {/* /admin 之前全站没有任何入口，只能手敲 URL。
-                管理员不会去用户侧边栏里找，所以把入口放在登录页这里。 */}
-            <a
-              href="/admin"
-              onClick={(e) => {
-                e.preventDefault()
-                navigate('/admin')
-              }}
-              style={{ color: 'var(--app-ink-faint)' }}
-            >
-              {t('admin.entry')}
-            </a>
           </p>
+          {/* 注意：这里刻意不放「管理员入口」。
+              /admin 是后台控制台，按需从书签/直链访问；
+              任何出现在用户界面里的入口都会让普通用户误点进去后看到
+              「无权访问」，反而制造困惑。管理员由运营方单独告知地址。 */}
         </div>
       </div>
     </div>
