@@ -383,3 +383,269 @@ input {
   font-weight: 600;
   letter-spacing: 0.01em;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   AI 助手外壳
+   以前是 antd <Drawer>，mask 默认 true —— 一打开整页加遮罩，底下什么都点不了；
+   而且它盖在内容上。现在改成「把内容推开」的停靠列 / 底部抽屉，都不带遮罩。
+   参考：微软 Copilot UX 指南（side panel without obstructing content）、
+   Wiley《UX for AI》（push the page left, don't overlay）。
+   ══════════════════════════════════════════════════════════════ */
+
+.app-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+/* antd 的 Layout 是 flex:auto（min-width:auto），不肯收缩到内容宽度以下，
+   会把右侧停靠的 AI 面板挤出视口。必须显式 min-width:0。 */
+.app-main > .ant-layout {
+  min-width: 0;
+}
+
+/* ── 桌面停靠列 ── */
+.ai-dock {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100%;
+  background: var(--app-surface);
+  border-left: 1px solid var(--app-border-soft);
+  min-width: 0;
+}
+.ai-dock-resizer {
+  width: 5px;
+  margin-left: -3px;
+  cursor: col-resize;
+  flex-shrink: 0;
+  z-index: 5;
+  background: transparent;
+  transition: background 0.15s;
+}
+.ai-dock-resizer:hover {
+  background: var(--app-glaze);
+}
+
+/* 画中画：收成一条窄边，内容区完全让出来 */
+.ai-dock-collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  width: 48px;
+  flex-shrink: 0;
+  background: var(--app-surface);
+  border-left: 1px solid var(--app-border-soft);
+}
+
+/* ── 公共头部 / 主体 ── */
+.ai-dock-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 52px;
+  padding: 0 6px 0 14px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--app-border-soft);
+  font-size: 14px;
+}
+.ai-dock-icon {
+  color: var(--app-glaze);
+  font-size: 15px;
+}
+.ai-dock-title {
+  font-weight: 600;
+  color: var(--app-ink);
+  white-space: nowrap;
+}
+.ai-dock-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--app-glaze);
+  white-space: nowrap;
+}
+.ai-dock-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ai-panel-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 0;
+  color: var(--app-ink-faint);
+  font-size: 13px;
+}
+
+/* ── 手机底部抽屉 ── */
+.ai-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-surface);
+  border-top: 1px solid var(--app-border-soft);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.16);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  /* 避开安卓手势条 / 底部 Home 指示条 */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+[data-theme='dark'] .ai-sheet {
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.5);
+}
+.ai-sheet-bar {
+  padding: 7px 0 3px;
+  display: flex;
+  justify-content: center;
+  cursor: grab;
+  flex-shrink: 0;
+}
+.ai-sheet-grip {
+  width: 38px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--app-border);
+}
+.ai-sheet .ai-dock-head {
+  height: 44px;
+}
+
+/* 收起时露出来的一小条 */
+.ai-sheet-peek {
+  position: fixed;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 899;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--app-glaze);
+  background: var(--app-surface);
+  color: var(--app-glaze);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.14);
+  cursor: pointer;
+}
+.ai-peek-open {
+  color: var(--app-ink-faint);
+  font-size: 12px;
+}
+
+/* ── 全局悬浮入口 ── */
+.ai-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 850;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--app-glaze);
+  background: var(--app-surface);
+  color: var(--app-glaze);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.16);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+[data-theme='dark'] .ai-fab {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+}
+.ai-fab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.2);
+}
+.ai-fab:active {
+  transform: translateY(0);
+}
+.ai-fab.is-running {
+  border-color: var(--app-kiln);
+  color: var(--app-kiln);
+}
+/* 圆形紧凑态（手机） */
+.ai-fab-compact {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  width: 46px;
+  padding: 0;
+  justify-content: center;
+  height: 46px;
+}
+.ai-fab-compact:hover {
+  transform: translateX(-50%) translateY(-1px);
+}
+/* 有任务跑着：呼吸提示，但别刺眼 */
+.ai-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--app-kiln);
+  animation: ai-pulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes ai-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+/* 做完了但还没看 */
+.ai-fab-dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--app-kiln);
+  border: 2px solid var(--app-surface);
+}
+
+.ai-done-link {
+  background: none;
+  border: none;
+  color: var(--ant-color-link);
+  cursor: pointer;
+  font: inherit;
+  padding: 0 4px;
+}
+
+@media (max-width: 768px) {
+  .ai-fab-text {
+    display: none;
+  }
+  /* 触控设备上所有图标按钮至少 44px */
+  .ai-dock-head .ant-btn,
+  .ai-dock-collapsed .ant-btn,
+  .ai-sheet-peek {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}

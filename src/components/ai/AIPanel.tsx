@@ -18,6 +18,7 @@ import { SendOutlined, RobotOutlined, UserOutlined, ReloadOutlined, UndoOutlined
 import { useNavigate } from 'react-router-dom'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
+import { useAiUiStore } from '@/store/aiUiStore'
 import { useAuthStore } from '@/store/authStore'
 import { markObStep } from '@/utils/onboarding'
 import {
@@ -200,6 +201,9 @@ export default function AIPanel() {
     fields: FieldDef[]
   } | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  // 任务运行状态提到全局：面板关掉/收起时，外壳照样知道「后台还在跑」
+  const beginRun = useAiUiStore((x) => x.beginRun)
+  const endRun = useAiUiStore((x) => x.endRun)
   // 流截断自动重试：每条用户消息只重试一次；重试时复用同一份会话构造
   const retryDoneRef = useRef(false)
   const chatMessagesRef = useRef<ChatMessage[] | null>(null)
@@ -279,6 +283,8 @@ export default function AIPanel() {
     setMessages((m) => [...m, userMsg, assistantMsg])
 
     setLoading(true)
+    beginRun()
+    let failed = false
     abortRef.current = new AbortController()
 
     try {
@@ -326,6 +332,7 @@ export default function AIPanel() {
         return
       }
       const errMsg = err.message ?? ''
+      failed = true
       const isStreamCut = errMsg.includes('响应中断') || errMsg.includes('参数不完整') || errMsg.includes('流被提前断开')
       // 流被异常截断（上游断流/网关中断）：静默自动重试一次，用户无感知恢复。
       // 仅重试一次且仅对此类瞬时故障——避免把真实错误（限流/未配置）反复请求。
@@ -373,6 +380,8 @@ export default function AIPanel() {
       setLoading(false)
       abortRef.current = null
       retryDoneRef.current = false
+      // 通知外壳任务结束：面板关着的话会弹提示 + 在入口上点红点
+      endRun(failed ? t('ai.doneFailed') : t('ai.doneOk'))
       // 会话首轮对话完成 → AI 自动命名（后台静默，失败降级到截取式标题）
       void maybeAutoTitle()
     }
@@ -1296,14 +1305,23 @@ export default function AIPanel() {
 
   if (!aiConfigured) {
     return (
-      <div style={{ padding: 24, height: '100%' }}>
+      // 说明文字是长句，必须是块级并限宽，否则在停靠面板里会横向溢出被裁掉
+      <div style={{ padding: 24, height: '100%', minWidth: 0, overflow: 'auto' }}>
         <Empty
           image={<RobotOutlined style={{ fontSize: 48, color: 'var(--app-ink-faint)' }} />}
           description={t('ai.notConfigured')}
         >
-          <Text type="secondary">
+          <div
+            style={{
+              maxWidth: 320,
+              margin: '0 auto',
+              lineHeight: 1.75,
+              fontSize: 13,
+              color: 'var(--app-ink-faint)',
+            }}
+          >
             {t('ai.notConfiguredHint')}
-          </Text>
+          </div>
         </Empty>
       </div>
     )

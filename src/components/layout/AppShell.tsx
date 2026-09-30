@@ -1,9 +1,12 @@
-import { Layout, Drawer, Button, Tooltip, Spin, Tour, Dropdown, Avatar } from 'antd'
+import { Layout, Drawer, Button, Tooltip, Tour, Dropdown, Avatar, App as AntApp } from 'antd'
 import type { TourProps } from 'antd'
-import { lazy, Suspense, useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { MoonOutlined, SunOutlined, MenuOutlined, SearchOutlined, LogoutOutlined } from '@ant-design/icons'
 import Sidebar, { SidebarContent } from './Sidebar'
+import AIDock from './AIDock'
+import AIFab from './AIFab'
+import { useAiUiStore, aiPanelVisible } from '@/store/aiUiStore'
 import GlobalSearch from '@/components/common/GlobalSearch'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
@@ -13,14 +16,9 @@ import { sweepTrashOncePerDay } from '@/utils/trashSweep'
 import { isTourDone, markTourDone } from '@/utils/onboarding'
 import { startReminderWatcher } from '@/utils/reminderNotify'
 
-// AI 面板懒加载：xlsx/papaparse/react-markdown 等重依赖只在首次打开抽屉时下载，
-// 显著缩小首屏主包（红队报告 P10）
-const AIPanel = lazy(() => import('@/components/ai/AIPanel'))
-
 const { Content, Header } = Layout
 
 export default function AppShell() {
-  const [aiOpen, setAiOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { settings, setTheme, setLanguage } = useAppStore()
   const t = useI18n()
@@ -68,11 +66,12 @@ export default function AppShell() {
   }, [account, isMobile])
 
   // 供新手清单等处通过自定义事件打开 AI 面板
+  const setAiOpen = useAiUiStore((s) => s.setOpen)
   useEffect(() => {
     const open = () => setAiOpen(true)
     window.addEventListener('open-ai-panel', open)
     return () => window.removeEventListener('open-ai-panel', open)
-  }, [])
+  }, [setAiOpen])
 
   // —— 全局搜索：Ctrl/Cmd + K 唤起 ——
   const [searchOpen, setSearchOpen] = useState(false)
@@ -86,6 +85,56 @@ export default function AppShell() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // —— 后台任务完成提示 ——
+  // 面板关着/收起时任务照样在跑（面板常驻挂载），跑完要能通知到人，
+  // 否则用户根本不知道后台已经做完了。
+  const { notification } = AntApp.useApp()
+  const lastDoneAt = useAiUiStore((s) => s.lastDone?.at ?? 0)
+  const setDockOpen = useAiUiStore((s) => s.setOpen)
+  useEffect(() => {
+    if (!lastDoneAt) return
+    const st = useAiUiStore.getState()
+    if (aiPanelVisible(st)) return // 正在看着面板，就别弹提示抢注意力
+    const done = st.lastDone
+    if (!done) return
+    // 用 notification 而不是 message：这是「后台做完了」的一条独立事件，
+    // 需要能带一个「查看结果」按钮把人带回面板。
+    void notification.open({
+      key: `ai-done-${done.at}`,
+      message: t('ai.doneTitle'),
+      description: done.text,
+      duration: 8,
+      placement: 'bottomRight',
+      actions: (
+        <button
+          type="button"
+          className="ai-done-link"
+          onClick={() => {
+            setDockOpen(true)
+            void notification.destroy(`ai-done-${done.at}`)
+          }}
+        >
+          {t('ai.viewResult')}
+        </button>
+      ),
+    })
+    // t 变化不该重复弹
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastDoneAt, setDockOpen])
+
+  // —— ⌘/Ctrl + J：全局唤起 AI ——
+  const toggleDock = useAiUiStore((s) => s.toggle)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'j' || e.key === 'J')) {
+        e.preventDefault()
+        toggleDock()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleDock])
 
   const tourSteps: TourProps['steps'] = [
     {
@@ -109,7 +158,7 @@ export default function AppShell() {
   ]
 
   return (
-    <Layout style={{ height: '100vh' }}>
+    <Layout style={{ height: '100vh', display: 'flex' }}>
       {isMobile ? (
         <Drawer
           placement="left"
@@ -123,6 +172,7 @@ export default function AppShell() {
       ) : (
         <Sidebar onOpenPanel={() => setAiOpen(true)} siderRef={siderRef} aiRef={aiRef} />
       )}
+      <div className="app-main">
       <Layout>
         <Header
           style={{
@@ -256,24 +306,10 @@ export default function AppShell() {
           <Outlet />
         </Content>
       </Layout>
-      <Drawer
-        title="AI 助手"
-        placement="right"
-        width={isMobile ? '100%' : 460}
-        open={aiOpen}
-        onClose={() => setAiOpen(false)}
-        styles={{ body: { padding: 0 } }}
-      >
-        <Suspense
-          fallback={
-            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
-              <Spin tip="正在加载 AI 助手…" />
-            </div>
-          }
-        >
-          <AIPanel />
-        </Suspense>
-      </Drawer>
+      {/* AI 助手：桌面停靠在右侧、把内容推开；手机是底部抽屉。两者都不带遮罩 */}
+      <AIDock variant={isMobile ? 'sheet' : 'dock'} />
+      </div>
+      <AIFab compact={isMobile} />
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <Tour
         open={tourOpen}
