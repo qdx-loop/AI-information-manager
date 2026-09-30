@@ -636,16 +636,29 @@ export const manualEn: Manual = {
             {
               t: 'steps',
               items: [
-                { title: 'Put both devices on the same Wi-Fi', text: 'The same router is enough; no internet needed.' },
-                { title: 'On the old device, open it and choose Send', text: 'It will show a pairing code or QR code.' },
-                { title: 'On the new device, choose Receive and enter the code', text: '' },
-                { title: 'Confirm and start', text: 'Progress is shown during the transfer.' },
+                { title: 'Put both devices on the same Wi-Fi', text: 'The same router is enough; no internet needed. Sign in with the same account on both.' },
+                { title: 'On the device with more data, open this and tap "Initiate"', text: 'It will start waiting for the other side.' },
+                { title: 'On the other device, tap "Join sync"', text: 'No code to type — the two devices pair automatically.' },
+                { title: 'Allow microphone access when asked', text: 'This step matters: without it the browser hides the local address behind a .local name and the two devices cannot connect. The stream stops immediately; nothing is recorded.' },
+                { title: 'Wait for the transfer', text: 'Progress is shown, and the two sides merge automatically when it finishes.' },
               ],
             },
             {
               t: 'note',
               kind: 'tip',
               text: 'The easiest multi-device route by far: no third-party account, just a few taps between two devices.',
+            },
+            {
+              t: 'note',
+              kind: 'info',
+              title: 'Does my data go through your server?',
+              text: 'Only the pairing handshake does — that is just how the two devices find each other. Your actual data travels directly between them and is never stored on our side.',
+            },
+            {
+              t: 'note',
+              kind: 'warn',
+              title: 'If it will not connect',
+              text: 'You now get the specific reason, and each one has its own fix: (1) "no network address" — check this device is online; (2) "address hidden as .local" — allow the microphone and retry; (3) "router is separating devices" — turn off AP isolation / client isolation / guest network. Note that guest Wi-Fi and many corporate or campus networks block device-to-device traffic by policy.',
             },
           ],
         },

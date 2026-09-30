@@ -12,6 +12,7 @@ import { initFromSettings } from '@/db/providerFactory'
 import {
   P2PSession,
   P2PError,
+  primeMediaPermission,
   SIGNAL_PREFIX,
   b64EncodeUtf8,
   b64DecodeUtf8,
@@ -115,6 +116,27 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
       teardownSession()
     }
   }, [stopPolling, teardownSession])
+
+  /**
+   * 关键前置：先拿一次麦克风权限。
+   * 浏览器在没有录音/摄像头授权时，会把 WebRTC 的本机内网地址换成
+   * mDNS 的 .local 名字（防隐私指纹），两台同 Wi-Fi 的设备就经常连不上；
+   * Safari/iOS 在未授权时更是只有 mDNS 候选。授权之后 ICE 收集到的是
+   * 真实内网 IP，同网段直连立刻变稳。拿到的流会立即停掉，不录制任何声音。
+   */
+  const [priming, setPriming] = useState(false)
+  const [primed, setPrimed] = useState(false)
+  const ensurePrimed = useCallback(async () => {
+    if (primed || priming) return
+    setPriming(true)
+    try {
+      const ok = await primeMediaPermission()
+      // 拒绝也没关系：后续会走 mDNS，失败时提示会针对这种情况给出说明
+      setPrimed(ok)
+    } finally {
+      setPriming(false)
+    }
+  }, [primed, priming])
 
   const failWith = useCallback((code: P2PErrorCode | 'BAD_PAYLOAD' | 'SIGNAL') => {
     stopPolling()
@@ -244,6 +266,7 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
     if (!account) return
     setBusy(true)
     try {
+      await ensurePrimed()
       const session = buildSession()
       if (!session) return
       const payload = await makePayload()
@@ -301,6 +324,7 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
     if (!account || !pendingHost?.offer) return
     setBusy(true)
     try {
+      await ensurePrimed()
       const session = buildSession()
       if (!session) return
       await session.acceptOffer(pendingHost.offer)
@@ -340,6 +364,15 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
         return (
           <div>
             <Alert type="info" showIcon style={{ marginBottom: 16 }} message={t('settings.f2f.intro.title')} description={t('settings.f2f.intro.body')} />
+            {/* 提前告知会请求麦克风权限 —— 这是修复「同一 Wi-Fi 却连不上」的关键，
+                浏览器不授权就不会给出真实内网地址。不提前说会显得唐突。 */}
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message={t('settings.f2f.mic.title')}
+              description={t('settings.f2f.mic.body')}
+            />
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               <Button block size="large" type="primary" icon={<SwapOutlined />} loading={busy} onClick={() => void startInitiate()}>
                 {t('settings.f2f.choose.initiate')}
@@ -465,6 +498,9 @@ function errorKey(code: P2PErrorCode | 'BAD_PAYLOAD' | 'SIGNAL' | ''): string {
     case 'SEND_FAILED': return 'settings.f2f.err.SEND_FAILED'
     case 'NO_WEBRTC': return 'settings.f2f.err.NO_WEBRTC'
     case 'READ_ONLY': return 'settings.f2f.err.READ_ONLY'
+    case 'NO_CANDIDATE': return 'settings.f2f.err.NO_CANDIDATE'
+    case 'MDNS_ONLY': return 'settings.f2f.err.MDNS_ONLY'
+    case 'ISOLATED': return 'settings.f2f.err.ISOLATED'
     case 'BAD_PAYLOAD': return 'settings.f2f.err.BAD_PAYLOAD'
     case 'SIGNAL': return 'settings.f2f.err.SIGNAL'
     default: return 'settings.f2f.err.CONNECT_FAILED'

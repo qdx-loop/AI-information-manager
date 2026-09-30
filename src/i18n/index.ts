@@ -311,11 +311,13 @@ const zh: Dict = {
 
   // —— 面对面互传（WebRTC 点对点）——
   'settings.f2f.card.title': '局域网数据同步',
-  'settings.f2f.card.body': '两台设备登录同一账号、连同一个 Wi-Fi，即可同步全部数据（管理库、条目、AI 与云端配置），以修改时间为准自动合并。数据不经过服务器。',
+  'settings.f2f.mic.title': '下一步会请求一次麦克风权限',
+  'settings.f2f.mic.body': '浏览器为了防止网站拿到你的内网地址，会把地址藏成 .local 名字，导致同一 Wi-Fi 的两台设备连不上。授权麦克风后浏览器才会给出真实内网地址，同网段直连才稳。不会录音：权限拿到后立刻停止。',
+  'settings.f2f.card.body': '两台设备登录同一账号、连同一 Wi-Fi，即可把管理库、条目与配置在两台机器之间直接互传并自动合并（以最新修改为准）。数据全程在两台设备之间直连，不经过服务器。',
   'settings.f2f.card.btn': '开始同步',
   'settings.f2f.title': '局域网数据同步',
   'settings.f2f.intro.title': '局域网同步全部数据，自动配对',
-  'settings.f2f.intro.body': '两台设备登录同一账号、连接同一个 Wi-Fi。一方点「发起同步」，另一方点「加入同步」即可自动配对；库数据连同 AI / 云端配置一起在两台设备之间直连传输，按「修改时间为准」自动合并，不经过任何服务器。',
+  'settings.f2f.intro.body': '两台设备登录同一账号、连接同一个 Wi-Fi。一方点「发起同步」，另一方点「加入同步」即可自动配对；库数据连同 AI / 云端配置一起在两台设备之间直连传输，按「修改时间为准」自动合并。只有配对握手经过我们的服务器，你的数据本身全程设备直连、不落服务器。',
   'settings.f2f.choose.initiate': '发起同步',
   'settings.f2f.choose.initiateDesc': '在数据较全的那台设备上点这里，然后去另一台设备点「加入同步」',
   'settings.f2f.choose.join': '加入同步',
@@ -342,6 +344,14 @@ const zh: Dict = {
   'settings.f2f.err.BAD_SIGNAL': '配对信息无效或已损坏，请重新发起',
   'settings.f2f.err.ACCOUNT_MISMATCH': '两台设备登录的账号不一致，无法同步',
   'settings.f2f.err.CONNECT_FAILED': '连接失败。请确认两台设备连的是同一个 Wi-Fi，且路由器未开启"设备隔离/AP 隔离"，然后重试。',
+  // 原来只有一句笼统的「连接失败」，用户无从下手。改成按实际探测到的
+  // ICE 候选情况分类，每条都给出可执行的下一步。
+  'settings.f2f.err.NO_CANDIDATE':
+    '没能获取到任何可用的网络地址。请确认这台设备已连上 Wi-Fi 或移动数据，然后重试；如果用的是企业/校园网络或公共 Wi-Fi，可能会被禁止点对点连接。',
+  'settings.f2f.err.MDNS_ONLY':
+    '浏览器把这台设备的内网地址隐藏成了 .local 名字，另一台设备解析不了，所以连不上。请点「允许麦克风」后重试一次——授权后浏览器才会给出真实内网地址。这不是录音功能，授权后立刻就会停止。',
+  'settings.f2f.err.ISOLATED':
+    '这台设备已经拿到了真实内网地址，但仍然连不上，基本可以确定是路由器把两台设备隔开了。请在路由器管理页关闭「AP 隔离 / 客户端隔离 / 访客网络 / 无线隔离」后重试；访客 Wi-Fi 通常不允许设备互访。',
   'settings.f2f.err.SEND_FAILED': '传输中断，请重试',
   'settings.f2f.err.NO_WEBRTC': '当前浏览器不支持点对点同步，请更换现代浏览器',
   'settings.f2f.err.READ_ONLY': '本机当前无法接收合并数据。',
@@ -999,11 +1009,13 @@ Object.assign(en, {
 
   // —— Face-to-face transfer (WebRTC P2P) ——
   'settings.f2f.card.title': 'LAN data sync',
-  'settings.f2f.card.body': 'Two devices on the same account and same Wi-Fi sync everything — libraries, items and AI / cloud config — merging automatically, newest edit wins. No server involved.',
+  'settings.f2f.mic.title': 'Microphone permission is requested next',
+  'settings.f2f.mic.body': 'To stop websites from learning your local network address, browsers hide it behind a .local name — which stops two devices on the same Wi-Fi from connecting. Granting microphone access makes the browser reveal the real address, so a direct local connection is reliable. Nothing is recorded: the stream stops the moment permission is granted.',
+  'settings.f2f.card.body': 'Two devices on the same account and same Wi-Fi send libraries, items and settings directly to each other and merge automatically (newest edit wins). Your data goes device-to-device and never passes through a server.',
   'settings.f2f.card.btn': 'Start sync',
   'settings.f2f.title': 'LAN data sync',
   'settings.f2f.intro.title': 'Sync everything over LAN, auto-pairing',
-  'settings.f2f.intro.body': 'Sign in with the same account on both devices and connect to the same Wi-Fi. Tap "Initiate" on one, "Join" on the other — they pair automatically; libraries, items and AI / cloud config flow directly between the two devices and merge automatically (newest edit wins), never touching a server.',
+  'settings.f2f.intro.body': 'Sign in with the same account on both devices and connect to the same Wi-Fi. Tap "Initiate" on one, "Join" on the other — they pair automatically; libraries, items and AI / cloud config flow directly between the two devices and merge automatically (newest edit wins). Only the handshake passes through our server — your actual data goes device-to-device.',
   'settings.f2f.choose.initiate': 'Initiate sync',
   'settings.f2f.choose.initiateDesc': 'Tap on the device that has your data, then tap "Join sync" on the other device',
   'settings.f2f.choose.join': 'Join sync',
@@ -1030,6 +1042,12 @@ Object.assign(en, {
   'settings.f2f.err.BAD_SIGNAL': 'Invalid or corrupted pairing info — start again',
   'settings.f2f.err.ACCOUNT_MISMATCH': 'The two devices are signed in to different accounts — cannot sync',
   'settings.f2f.err.CONNECT_FAILED': 'Connection failed. Make sure both devices are on the same Wi-Fi and the router has no "AP/client isolation" enabled, then retry.',
+  'settings.f2f.err.NO_CANDIDATE':
+    'This device could not obtain any usable network address. Check that it is on Wi-Fi or mobile data and retry. Corporate, campus and some public Wi-Fi networks block peer-to-peer connections outright.',
+  'settings.f2f.err.MDNS_ONLY':
+    'Your browser hid this device\'s local network address behind a .local name that the other device cannot resolve. Tap "Allow microphone" and retry — browsers only reveal the real address once permission has been granted. Nothing is recorded; the stream stops immediately.',
+  'settings.f2f.err.ISOLATED':
+    'This device did get a real local address, yet the connection still failed, which almost always means the router is separating devices. Turn off "AP isolation", "client isolation", "guest network" or "wireless isolation" in your router settings and retry — guest Wi-Fi usually blocks device-to-device traffic.',
   'settings.f2f.err.SEND_FAILED': 'Transfer interrupted — please retry',
   'settings.f2f.err.NO_WEBRTC': 'This browser does not support peer-to-peer sync — use a modern browser',
   'settings.f2f.err.READ_ONLY': 'This device cannot receive merged data right now.',

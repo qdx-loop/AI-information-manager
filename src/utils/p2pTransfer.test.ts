@@ -9,6 +9,7 @@ import {
   ChunkReceiver,
   CHUNK_SIZE,
   SIGNAL_PREFIX,
+  classifyConnectFailure,
   type WireMeta,
 } from '@/utils/p2pTransfer'
 
@@ -151,5 +152,35 @@ describe('ChunkReceiver 重组', () => {
     const end = seq[seq.length - 1]
     expect(rec.feed(end)).toBeNull() // 缺块 → 拒绝返回损坏数据
     expect(rec.done).toBe(true)
+  })
+})
+
+describe('连接失败原因分类', () => {
+  const d = (o: Partial<{ realHost: number; mdnsHost: number; other: number }>) => ({
+    realHost: 0,
+    mdnsHost: 0,
+    other: 0,
+    gatherErrors: [],
+    ...o,
+  })
+
+  it('一个候选都没有 → NO_CANDIDATE', () => {
+    expect(classifyConnectFailure(d({}))).toBe('NO_CANDIDATE')
+  })
+
+  it('只有 mDNS 候选（授权前）→ MDNS_ONLY，而不是笼统的连接失败', () => {
+    expect(classifyConnectFailure(d({ mdnsHost: 2 }))).toBe('MDNS_ONLY')
+  })
+
+  it('只有 srflx/relay 候选也算 MDNS_ONLY（没有真实内网地址可用）', () => {
+    expect(classifyConnectFailure(d({ other: 1 }))).toBe('MDNS_ONLY')
+  })
+
+  it('mDNS 与真实 IP 都有 → 以真实 IP 为准，判为路由器隔离', () => {
+    expect(classifyConnectFailure(d({ realHost: 1, mdnsHost: 1 }))).toBe('ISOLATED')
+  })
+
+  it('有真实内网 IP 仍失败 → ISOLATED', () => {
+    expect(classifyConnectFailure(d({ realHost: 1 }))).toBe('ISOLATED')
   })
 })

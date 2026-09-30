@@ -138,7 +138,78 @@ export class ChunkReceiver {
 // 同局域网用主机候选即可，留空 iceServers 避免依赖境外 STUN/TURN
 const RTC_CONFIG: RTCConfiguration = { iceServers: [] }
 // ICE 收集兜底超时（主机候选通常很快）
-const ICE_GATHER_TIMEOUT_MS = 3000
+// mDNS 注册可能比较慢，3 秒容易在拿到可用候选前就放弃；放宽到 8 秒，
+// 但一旦已经收到真实 IP 的 host 候选就立即结束等待（不必再等 srflx/relay）
+const ICE_GATHER_TIMEOUT_MS = 8000
+
+/**
+ * 把「连不上」翻译成用户能采取行动的具体原因。
+ *
+ * 原来是所有情况都报同一句「连接失败，确认同一个 Wi-Fi」，
+ * 但真实原因至少有三类，处理方式完全不同：
+ *  1) 一个候选都没有 → 设备根本没拿到网络地址，或所在网络禁止 P2P
+ *  2) 只有 mDNS 候选 → 浏览器隐藏了内网地址，授权麦克风即可解决
+ *  3) 有真实 IP 仍失败 → 路由器把两台设备隔开了
+ */
+export function classifyConnectFailure(d: IceDiagnostics): P2PErrorCode {
+  if (d.realHost === 0 && d.mdnsHost === 0 && d.other === 0) return 'NO_CANDIDATE'
+  if (d.realHost === 0) return 'MDNS_ONLY'
+  return 'ISOLATED'
+}
+
+/** 本端收集到的 ICE 候选分类，用于失败时给出可行动的诊断 */
+export interface IceDiagnostics {
+  /** 真实 IP 的 host 候选（最好的情况，同网段直连） */
+  realHost: number
+  /** mDNS 混淆候选（形如 xxxx-xxxx.local），对端解析不了就连不上 */
+  mdnsHost: number
+  /** srflx / relay 候选 */
+  other: number
+  /** 收集过程中的报错（多为 mDNS 注册失败，此时候选会被直接丢弃） */
+  gatherErrors: string[]
+}
+
+function emptyDiag(): IceDiagnostics {
+  return { realHost: 0, mdnsHost: 0, other: 0, gatherErrors: [] }
+}
+
+function isMdnsCandidate(c: RTCIceCandidate): boolean {
+  const a = c.address ?? ''
+  return a.endsWith('.local') || a.endsWith('.local.')
+}
+
+/**
+ * 预热媒体权限。
+ *
+ * 这是本功能能不能用的关键：浏览器在「没有录音/摄像头权限」时，
+ * 会把 WebRTC 的本机地址替换成 mDNS 名字（.local）来保护隐私，
+ * 两台同网段的设备因此经常连不上 —— Chromium 上尤其明显，
+ * Safari/iOS 在未授权时更是只有 mDNS 候选。
+ * 一旦授权过，ICE 收集到的就是**真实内网 IP**，直连立刻变稳。
+ *
+ * 所以这里主动申请一次麦克风权限（拿到的流立刻停掉，不录制任何声音）。
+ * 用户拒绝或设备没有麦克风时静默降级，不阻断流程。
+ */
+export async function primeMediaPermission(): Promise<boolean> {
+  const md = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined
+  if (!md?.getUserMedia) return false
+  // 已经是 granted 就不用再弹窗
+  try {
+    if (navigator.permissions?.query) {
+      const st = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+      if (st.state === 'granted') return true
+    }
+  } catch {
+    /* 部分浏览器不支持查询麦克风权限，忽略 */
+  }
+  try {
+    const stream = await md.getUserMedia({ audio: true, video: false })
+    stream.getTracks().forEach((t) => t.stop())
+    return true
+  } catch {
+    return false
+  }
+}
 // 发送尾部等待缓冲清空的兜底上限，避免异常情况下无限轮询
 const FLUSH_TIMEOUT_MS = 30000
 
@@ -169,6 +240,13 @@ export type P2PErrorCode =
   | 'SEND_FAILED'
   | 'NO_WEBRTC'
   | 'READ_ONLY'
+  // —— 新增：把「连不上」拆成可行动的具体原因 ——
+  /** 一个可用候选都没收集到（SDP 是空的，100% 连不上） */
+  | 'NO_CANDIDATE'
+  /** 只收集到 mDNS 混淆候选（.local），对端解析不了 */
+  | 'MDNS_ONLY'
+  /** 有真实 IP 候选但仍然连不上 → 基本可判定是路由器做了设备隔离 */
+  | 'ISOLATED'
 
 export class P2PError extends Error {
   code: P2PErrorCode
@@ -178,7 +256,7 @@ export class P2PError extends Error {
   }
 }
 
-function waitIceComplete(pc: RTCPeerConnection): Promise<void> {
+function waitIceComplete(pc: RTCPeerConnection, diag: IceDiagnostics): Promise<void> {
   return new Promise((resolve) => {
     if (pc.iceGatheringState === 'complete') return resolve()
     let settled = false
@@ -194,6 +272,16 @@ function waitIceComplete(pc: RTCPeerConnection): Promise<void> {
       resolve()
     }
     pc.addEventListener('icegatheringstatechange', onState)
+    // 已经拿到真实内网 IP 的 host 候选就没必要再等了（我们不配 STUN/TURN，
+    // 后续只会收集到用不上的 srflx/relay），早结束可以让用户少等几秒
+    if (diag.realHost > 0) {
+      const t = setInterval(() => {
+        if (diag.realHost > 0 || pc.iceGatheringState === 'complete') {
+          clearInterval(t)
+          finish()
+        }
+      }, 120)
+    }
     timer = setTimeout(finish, ICE_GATHER_TIMEOUT_MS)
   })
 }
@@ -229,6 +317,16 @@ export class P2PSession {
   private cb: P2PSessionCallbacks
   private selfMeta: SessionMeta
   private ended = false
+  private diag: IceDiagnostics = emptyDiag()
+
+  private diagnoseConnectFailure(): P2PErrorCode {
+    return classifyConnectFailure(this.diag)
+  }
+
+  /** 供调用方展示诊断信息（连接失败时给用户看） */
+  getDiagnostics(): IceDiagnostics {
+    return { ...this.diag, gatherErrors: [...this.diag.gatherErrors] }
+  }
 
   constructor(cb: P2PSessionCallbacks, selfMeta: SessionMeta) {
     if (typeof RTCPeerConnection === 'undefined') {
@@ -238,10 +336,31 @@ export class P2PSession {
     this.selfMeta = selfMeta
     this.pc = new RTCPeerConnection(RTC_CONFIG)
 
+    // 候选收集诊断：mDNS 注册失败时浏览器会直接丢弃该候选（IETF
+    // draft-ietf-rtcweb-mdns-ice-candidates 明确规定），这会让 SDP 里
+    // 一个可用候选都没有 —— 必须把它记下来才能解释失败原因。
+    this.pc.onicecandidateerror = (ev) => {
+      // 注意：这里不读 ev.error 的具体文案，避免在日志里泄露地址
+      // errorCode 是数字枚举，统一转成字符串存
+      const code = (ev as RTCPeerConnectionIceErrorEvent).errorCode
+      this.diag.gatherErrors.push(code == null ? 'unknown' : String(code))
+    }
+    this.pc.onicecandidate = (ev) => {
+      const c = ev.candidate
+      if (!c) return // null 表示收集结束
+      if (c.type === 'host') {
+        if (isMdnsCandidate(c)) this.diag.mdnsHost++
+        else this.diag.realHost++
+      } else {
+        this.diag.other++
+      }
+    }
     this.pc.onconnectionstatechange = () => {
       const st = this.pc.connectionState
-      if ((st === 'failed' || st === 'disconnected' || st === 'closed') && !this.ended) {
-        this.fail(new P2PError('CONNECT_FAILED'))
+      // 'disconnected' 是可恢复的中间态（ICE 可能自己重连），
+      // 当成硬失败会导致大量误报。只认 failed / closed。
+      if ((st === 'failed' || st === 'closed') && !this.ended) {
+        this.fail(new P2PError(this.diagnoseConnectFailure()))
       }
     }
     // 加入方通过此回调接收发起方创建的数据通道
@@ -257,7 +376,12 @@ export class P2PSession {
     this.bindChannel(ch)
     const offer = await this.pc.createOffer()
     await this.pc.setLocalDescription(offer)
-    await waitIceComplete(this.pc)
+    await waitIceComplete(this.pc, this.diag)
+    // 收集不到任何候选时立刻失败并说清原因，
+    // 否则用户会拿到一段完全没用的配对码，白白复制粘贴两遍
+    if (this.diag.realHost === 0 && this.diag.mdnsHost === 0 && this.diag.other === 0) {
+      throw new P2PError('NO_CANDIDATE')
+    }
     return encodeSignal(this.pc.localDescription ?? { type: 'offer', sdp: '' })
   }
 
@@ -278,7 +402,10 @@ export class P2PSession {
     this.sendMsgs = buildSendSequence(payload, this.selfMeta)
     const answer = await this.pc.createAnswer()
     await this.pc.setLocalDescription(answer)
-    await waitIceComplete(this.pc)
+    await waitIceComplete(this.pc, this.diag)
+    if (this.diag.realHost === 0 && this.diag.mdnsHost === 0 && this.diag.other === 0) {
+      throw new P2PError('NO_CANDIDATE')
+    }
     return encodeSignal(this.pc.localDescription ?? { type: 'answer', sdp: '' })
   }
 
