@@ -28,6 +28,7 @@ export default function HelpPage() {
           <div style={{ marginTop: 24, textAlign: 'center' }}>
             <Space>
               <Button type="primary" onClick={() => navigate('/')}>{t('help.backHome')}</Button>
+              <Button onClick={() => navigate('/admin')}>{t('admin.entry')}</Button>
             </Space>
           </div>
         </Card>

@@ -9,6 +9,10 @@ import {
   MoreOutlined,
   EditOutlined,
   HomeOutlined,
+  TagsOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -40,6 +44,8 @@ function useSidebarState(onNavigate?: () => void) {
     createLibrary,
     renameLibrary,
     deleteLibrary,
+    setLibraryCategory,
+    reorderLibraries,
   } = useLibraryStore()
   const isDark = useAppStore((s) => s.settings.theme === 'dark')
   const [loggingOut, setLoggingOut] = useState(false)
@@ -135,20 +141,95 @@ function useSidebarState(onNavigate?: () => void) {
     })
   }
 
+  // 改分类：setLibraryCategory 早就存在，但只有 AI 能调，
+  // 导致用户建的库一律落进「默认」分组，侧边栏永远只有一组。
+  const handleCategory = (lib: Library) => {
+    let value = lib.category ?? ''
+    const existing = Array.from(new Set(libraries.map((l) => l.category).filter(Boolean)))
+    modal.confirm({
+      title: t('app.lib.categoryTitle'),
+      content: (
+        <div>
+          <Input
+            defaultValue={lib.category ?? ''}
+            placeholder={t('app.lib.categoryPlaceholder')}
+            onChange={(e) => (value = e.target.value)}
+            onPressEnter={() => {}}
+          />
+          {existing.length > 0 && (
+            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {existing.map((c) => (
+                <Button key={c} size="small" onClick={() => { value = c }}>
+                  {c}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+      okText: t('common.save'),
+      cancelText: t('common.cancel'),
+      onOk: async () => {
+        try {
+          await setLibraryCategory(lib.id, value.trim())
+        } catch (e) {
+          message.error(t('app.lib.categoryFailed', { msg: (e as Error).message }))
+          throw e
+        }
+      },
+    })
+  }
+
+  // 手动排序：reorderLibraries 同样是死代码，补上「上移/下移」即可，
+  // 比拖拽更可靠（侧边栏是 antd Menu，拖拽排序要另外接 dnd 上下文）
+  const move = async (lib: Library, dir: -1 | 1) => {
+    const ids = libraries.map((l) => l.id)
+    const i = ids.indexOf(lib.id)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= ids.length) return
+    ;[ids[i], ids[j]] = [ids[j], ids[i]]
+    try {
+      await reorderLibraries(ids)
+    } catch (e) {
+      message.error(t('app.lib.reorderFailed', { msg: (e as Error).message }))
+    }
+  }
+
   // 单个库的「⋯」下拉菜单
-  const libActions = (lib: Library): MenuProps => ({
+  const libActions = (lib: Library): MenuProps => {
+    const idx = libraries.findIndex((l) => l.id === lib.id)
+    return {
     items: [
       { key: 'child', label: t('app.newChild'), icon: <PlusOutlined /> },
       { key: 'rename', label: t('common.rename'), icon: <EditOutlined /> },
+      { key: 'category', label: t('app.lib.category'), icon: <TagsOutlined /> },
+      { type: 'divider' },
+      {
+        key: 'up',
+        label: t('app.lib.moveUp'),
+        icon: <ArrowUpOutlined />,
+        disabled: idx <= 0,
+      },
+      {
+        key: 'down',
+        label: t('app.lib.moveDown'),
+        icon: <ArrowDownOutlined />,
+        disabled: idx < 0 || idx >= libraries.length - 1,
+      },
+      { type: 'divider' },
       { key: 'delete', label: t('common.delete'), icon: <DeleteOutlined />, danger: true },
     ],
     onClick: ({ key, domEvent }) => {
       domEvent.stopPropagation()
       if (key === 'child') handleNewChild(lib)
       else if (key === 'rename') handleRename(lib)
+      else if (key === 'category') handleCategory(lib)
+      else if (key === 'up') void move(lib, -1)
+      else if (key === 'down') void move(lib, 1)
       else if (key === 'delete') handleDelete(lib)
     },
-  })
+  }
+  }
 
   // 单个库的菜单项（含子库递归）
   const buildLibItems = useMemo(
@@ -218,6 +299,9 @@ function useSidebarState(onNavigate?: () => void) {
       children: [
         { key: '/trash', label: t('app.trash'), icon: <DeleteOutlined /> },
         { key: '/settings', label: t('app.settings'), icon: <SettingOutlined /> },
+        // /help 之前在应用内完全进不去（唯一入口是落地页导航），
+        // 新手遇到问题只能出去找官网
+        { key: '/help', label: t('app.help'), icon: <QuestionCircleOutlined /> },
       ],
     },
   ]
@@ -225,7 +309,7 @@ function useSidebarState(onNavigate?: () => void) {
   const selectedKey =
     location.pathname === '/' || location.pathname === '/trash' || location.pathname === '/settings'
       ? location.pathname
-      : currentLibraryId
+      : currentLibraryId && location.pathname.startsWith('/library/')
         ? `/library/${currentLibraryId}`
         : location.pathname
 

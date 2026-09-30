@@ -377,7 +377,15 @@ export default function AuthPage() {
 
           {mode === 'login' ? loginPane : registerPane}
 
-          <p style={{ textAlign: 'center', marginTop: 24, color: '#475569', fontSize: 12, lineHeight: 1.8 }}>
+          <p
+            style={{
+              textAlign: 'center',
+              marginTop: 24,
+              color: 'var(--app-ink-faint)',
+              fontSize: 12,
+              lineHeight: 1.8,
+            }}
+          >
             {/* App 里 `/` 会被分流回登录页，这个链接点了没反应，所以在壳内隐藏 */}
             {!inApp && (
               <>
@@ -394,6 +402,19 @@ export default function AuthPage() {
               </>
             )}
             {t('auth.cloudHint')}
+            <br />
+            {/* /admin 之前全站没有任何入口，只能手敲 URL。
+                管理员不会去用户侧边栏里找，所以把入口放在登录页这里。 */}
+            <a
+              href="/admin"
+              onClick={(e) => {
+                e.preventDefault()
+                navigate('/admin')
+              }}
+              style={{ color: 'var(--app-ink-faint)' }}
+            >
+              {t('admin.entry')}
+            </a>
           </p>
         </div>
       </div>

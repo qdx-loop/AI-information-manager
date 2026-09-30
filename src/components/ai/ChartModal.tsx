@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Modal, Button, Space, Spin, App } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useI18n, tNow } from '@/i18n'
+import { styleChart } from '@/ai/chartStyle'
+import { useAppStore } from '@/store/appStore'
 
 // 按需加载图表库（UMD 版），多个 CDN 依次回退，保证国内外网络环境可用
 let echartsPromise: Promise<unknown> | null = null
@@ -77,6 +79,16 @@ export default function ChartModal({
     if (!payload) setReady(false)
   }, [payload])
 
+  // 切换亮/暗主题时重画：图表颜色是从 CSS 变量读的，不重画会停留在旧主题
+  const themeMode = useAppStore((s) => s.settings.theme)
+  useEffect(() => {
+    if (!payload || !chartRef.current) return
+    chartRef.current.setOption(
+      styleChart(payload.option, themeMode === 'dark'),
+      true,
+    )
+  }, [themeMode, payload])
+
   useEffect(() => {
     if (!payload || !ready || !chartDivRef.current) return
     let disposed = false
@@ -91,12 +103,12 @@ export default function ChartModal({
         // 双保险：init 前再校验一次容器尺寸，异常环境（如容器仍为 0）时推迟到 resize
         const el = chartDivRef.current
         const chart = echarts.init(el)
-        const option = {
-          ...payload.option,
-          tooltip: payload.option.tooltip ?? { trigger: 'auto' },
-          title: payload.option.title ?? { text: payload.title, left: 'center' },
-        }
-        chart.setOption(option)
+        // 关键：AI 只负责「给什么数据」，长什么样由 house style 统一决定。
+        // 同时把当前主题传进去 —— 之前的实现完全不感知亮/暗，
+        // 暗色模式下图表是白底黑字的一小块，跟界面完全脱节。
+        const dark = useAppStore.getState().settings.theme === 'dark'
+        const option = styleChart(payload.option, dark)
+        chart.setOption(option, true)
         // init 完成后若容器尺寸与画布不一致（时序竞态兜底），立即修正
         requestAnimationFrame(() => {
           if (!disposed && chartRef.current) chartRef.current.resize()
@@ -124,7 +136,7 @@ export default function ChartModal({
     const url = canvas.toDataURL('image/png')
     const a = document.createElement('a')
     a.href = url
-    a.download = `${payload?.title || '统计图'}.png`
+    a.download = `${payload?.title || t('ai.chart.defaultName')}.png`
     a.click()
     message.success(t('ai.chart.downloaded'))
   }
@@ -132,8 +144,9 @@ export default function ChartModal({
   return (
     <Modal
       open={!!payload}
-      title={`📊 ${payload?.title ?? ''}`}
-      width={720}
+      // 标题已在弹窗头部显示，ECharts 里不再重复画一遍
+      title={payload?.title ?? ''}
+      width={860}
       onCancel={onClose}
       afterOpenChange={(open) => open && setReady(true)}
       footer={
@@ -145,8 +158,8 @@ export default function ChartModal({
         </Space>
       }
     >
-      <div style={{ position: 'relative', minHeight: 420 }}>
-        <div ref={chartDivRef} style={{ width: '100%', height: 420 }} />
+      <div style={{ position: 'relative', minHeight: 460 }}>
+        <div ref={chartDivRef} style={{ width: '100%', height: 460 }} />
         {loading && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Spin tip={t('ai.chart.loading')} />

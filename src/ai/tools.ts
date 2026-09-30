@@ -125,21 +125,44 @@ export const SAVE_MEMORY_TOOL = {
   },
 }
 
-// 图表生成工具：AI 构建图表配置（本质是让 AI 写声明式配置代码），前端渲染并可下载
+// 图表生成工具：AI 只负责「给什么数据」，外观由前端的 house style 统一处理，
+// 所以这里的描述要引导 AI 给出「语义正确」的数据，而不是纠结样式。
 export const CREATE_CHART_TOOL = {
   type: 'function' as const,
   function: {
     name: 'create_chart',
-    description:
-      '根据数据生成统计图表（柱状图、折线图、饼图、散点图等），渲染给用户查看，用户可以下载为图片。适合展示统计、对比、趋势类结果。调用前先用统计工具拿到准确数据。',
+    description: [
+      '根据数据生成统计图表，渲染给用户查看，用户可以下载为图片。',
+      '调用前先用统计工具拿到准确数据。',
+      '',
+      '你只需要提供数据与语义，配色/字体/网格线等样式由系统统一套用，',
+      '不要自己写 color、itemStyle、label、grid、tooltip 等样式字段（写了也会被覆盖）。',
+      '',
+      '选图规则：',
+      '- 分类之间的对比 → 柱状图；随时间变化的趋势 → 折线图；',
+      '  构成占比（类别不超过 5 个）→ 饼图；两个连续变量的相关性 → 散点图。',
+      '- 类目超过 12 个时不要画图，改用文字列出或只画 Top 8。',
+      '',
+      '务必遵守：',
+      '- 数值一律用纯数字（不要带单位、货币符号、千分位），单位写在 yAxis.name 上。',
+      '- 类目名要短（6 个字以内）；需要更详细的说明写进标题。',
+      '- 时间趋势必须按时间先后排序。',
+      '- 占比对比优先给出数值本身，前端会自动算百分比。',
+      '- 如果数据量很小（少于 4 个数值），直接用文字回答，不要画图。',
+    ].join('\n'),
     parameters: {
       type: 'object',
       properties: {
-        title: { type: 'string', description: '图表标题（同时用作下载文件名）' },
+        title: { type: 'string', description: '图表标题（同时用作下载文件名），要能独立看懂，例如「各城市客户数（2026 年 9 月）」' },
         option: {
           type: 'object',
-          description:
-            '图表配置对象。常见写法：柱状/折线 {"xAxis":{"type":"category","data":["一月","二月"]},"yAxis":{"type":"value"},"series":[{"type":"bar","data":[100,200]}]}；饼图 {"series":[{"type":"pie","data":[{"name":"男","value":10},{"name":"女","value":8}]}]}。可加 legend、color 等美化字段。不要包含 tooltip 以外的交互项。',
+          description: [
+            '图表数据配置。',
+            '柱状/折线：{"xAxis":{"type":"category","data":["北京","上海"],"name":"城市"},"yAxis":{"type":"value","name":"客户数"},"series":[{"type":"bar","name":"客户数","data":[12,8]}]}',
+            '饼图：{"series":[{"type":"pie","name":"占比","data":[{"name":"已成交","value":12},{"name":"待跟进","value":8}]}]}',
+            '多系列对比：series 数组放多个对象，每个带 name。',
+            '只需要提供 data / name / type 这些数据字段。',
+          ].join('\n'),
           additionalProperties: true,
         },
       },
