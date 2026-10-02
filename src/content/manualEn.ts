@@ -311,7 +311,7 @@ export const manualEn: Manual = {
               t: 'note',
               kind: 'warn',
               title: 'Emptied after 30 days',
-              text: 'Anything in the Trash for more than 30 days is permanently deleted and cannot be recovered. Restore anything you want to keep.',
+              text: 'Anything in the Trash for more than 30 days is permanently deleted and cannot be recovered. Restore anything you want to keep. The deletion is permanent: even if another device still holds an older copy, it will not sync the content back.',
             },
             { t: 'note', kind: 'warn', title: 'Permanent delete is final', text: 'There is no second chance once you choose it.' },
           ],

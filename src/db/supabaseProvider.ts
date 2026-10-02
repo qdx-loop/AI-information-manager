@@ -345,9 +345,13 @@ export class SupabaseDataProvider implements DataProvider {
     const lib = await this.client.from('libraries').select('account_id').eq('id', id).maybeSingle()
     const accountId = (lib.data as LibraryRow | null)?.account_id
     const ids = accountId ? await this.collectDescendantIds(accountId, id) : [id]
-    await this.client.from('items').delete().in('library_id', ids)
-    await this.client.from('fields').delete().in('library_id', ids)
-    await this.client.from('libraries').delete().in('id', ids)
+    // 保留墓碑行、只清空内容（理由见 purgeExpiredTrash）
+    await this.client.from('items').update({ fields: {} }).in('library_id', ids)
+    await this.client
+      .from('fields')
+      .update({ key: '', label: '', options: [] })
+      .in('library_id', ids)
+    await this.client.from('libraries').update({ name: '', category: '' }).in('id', ids)
   }
 
   async reorderLibraries(accountId: string, orderedIds: string[]): Promise<void> {
@@ -473,8 +477,9 @@ export class SupabaseDataProvider implements DataProvider {
     if (error) throw new Error(error.message)
   }
 
+  /** 同 purgeExpiredTrash：清空内容并保留墓碑行，而不是删行 */
   async purgeItem(id: string): Promise<void> {
-    const { error } = await this.client.from('items').delete().eq('id', id)
+    const { error } = await this.client.from('items').update({ fields: {} }).eq('id', id)
     if (error) throw new Error(error.message)
   }
 
@@ -514,9 +519,26 @@ export class SupabaseDataProvider implements DataProvider {
   }
 
   /** 回收站自动清理：彻底删除软删时间超过 N 天的库（连同其模板与全部条目）和独立软删的过期条目 */
+  /**
+   * 过期软删 → 彻底删除。
+   *
+   * 云端**不删行**，只清空内容、保留 id 与 deleted_at 作为「已永久删除」的标记。
+   *
+   * 原来是真 DELETE 云端行，于是彻底删除会被撤销：
+   *   A 保留期满后把云端行也删了 → B 还留着这份数据（没同步到删除，
+   *   或同步时 A 已经删完）→ B 一上传把数据带回云端 → A 一拉，本地没有该 id
+   *   → 合并逻辑的「本地没有就插入」分支把它插回来 → **已删数据完整复活**。
+   *
+   * 保留一行空壳（id + deleted_at，约几十字节）后，云端就有了这条删除的
+   * 永久凭据；配合合并侧「本地没有 + 对端是墓碑 → 不插入」，
+   * 删除就不会再被撤销。而用户的实际内容已经不在任何地方了。
+   *
+   * deleted_at 保持原值，所以「30 天从第一次删除算起」的语义不变，
+   * 且本方法是幂等的（重复执行只是再清一次空壳）。
+   */
   async purgeExpiredTrash(accountId: string, olderThanDays: number): Promise<void> {
     const cutoff = Date.now() - olderThanDays * 86400000
-    // 1) 过期软删的库 → 连同其字段与全部条目彻底删除
+    // 1) 过期软删的库 → 连同其字段与全部条目清空内容
     const deadLibs = await this.client
       .from('libraries')
       .select('id')
@@ -526,14 +548,17 @@ export class SupabaseDataProvider implements DataProvider {
     if (deadLibs.error) throw new Error(deadLibs.error.message)
     const ids = ((deadLibs.data ?? []) as Array<{ id: string }>).map((r) => r.id)
     if (ids.length) {
-      await this.client.from('items').delete().in('library_id', ids)
-      await this.client.from('fields').delete().in('library_id', ids)
-      await this.client.from('libraries').delete().in('id', ids)
+      await this.client.from('items').update({ fields: {} }).in('library_id', ids)
+      await this.client
+        .from('fields')
+        .update({ key: '', label: '', options: [] })
+        .in('library_id', ids)
+      await this.client.from('libraries').update({ name: '', category: '' }).in('id', ids)
     }
     // 2) 独立软删且过期的条目（父库仍存在）
     await this.client
       .from('items')
-      .delete()
+      .update({ fields: {} })
       .eq('account_id', accountId)
       .not('deleted_at', 'is', null)
       .lt('deleted_at', cutoff)

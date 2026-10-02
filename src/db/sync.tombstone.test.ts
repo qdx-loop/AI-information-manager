@@ -209,3 +209,149 @@ describe('saveTemplate：删除变成可同步的墓碑', () => {
     expect((await db.items.get('i1'))!.fields.k_f1).toBe('重要数据')
   })
 })
+
+/**
+ * 彻底删除（purge）后的复活。
+ *
+ * 原来 purge 是真的把云端行 DELETE 掉，于是 30 天到期（或用户手动彻底删除）后：
+ *   A 云端行已删 → B 还留着数据 → B 一上传把数据带回云端
+ *   → A 一拉，本地没有该 id → 合并的「本地没有就插入」分支插回来
+ *   → **已删数据完整复活**
+ *
+ * 现在云端 purge 改成「清空内容、保留 id 与 deleted_at 作为墓碑」，
+ * 合并侧再补一条规则：本地没有 + 对端是墓碑 → 不插入。
+ * 本地缺失本身就等于「不存在」，墓碑不必再写一遍。
+ */
+const DAY = 86400000
+/** 保留期内的墓碑（刚刚删掉） */
+const fresh = () => Date.now() - 2 * DAY
+/** 已过保留期的墓碑（该被彻底清除了） */
+const stale = () => Date.now() - 40 * DAY
+
+describe('彻底删除后不会被另一台设备复活', () => {
+  it('条目：本地已清空 + 云端墓碑 → 不再插回来', async () => {
+    // A 已经把 X 彻底删除（本地没有这一行了）
+    expect(await db.items.get('i1')).toBeUndefined()
+    const r = await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1')],
+      fields: [],
+      items: [itm('i1', 'L1', { deletedAt: 1000, updatedAt: 1000, fields: {} })],
+    })
+    expect(await db.items.get('i1')).toBeUndefined()
+    expect(r.addedItems).toBe(0)
+  })
+
+  it('管理库：本地已清空 + 云端墓碑 → 不再插回来', async () => {
+    expect(await db.libraries.get('L1')).toBeUndefined()
+    const r = await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1', { deletedAt: 1000, updatedAt: 1000 })],
+      fields: [], items: [],
+    })
+    expect(await db.libraries.get('L1')).toBeUndefined()
+    expect(r.addedLibraries).toBe(0)
+  })
+
+  it('字段：本地已清空 + 云端墓碑 → 不再插回来（列不会重新长出来）', async () => {
+    const r = await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1', { updatedAt: 1 })],
+      fields: [fld('f1', 'L1', { deletedAt: 1000, updatedAt: 1000 })],
+      items: [],
+    })
+    expect(await db.fields.get('f1')).toBeUndefined()
+    expect(r.addedFields).toBe(0)
+  })
+
+  it('但不误伤正常新增：本地没有 + 云端是活记录 → 照常插入', async () => {
+    // 这条规则不能把「另一台设备新建的条目/库」也挡掉
+    const r = await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1', { updatedAt: 100 })],
+      fields: [fld('f1', 'L1', { updatedAt: 100 })],
+      items: [itm('i1', 'L1', { updatedAt: 100, fields: { name: '新建的' } })],
+    })
+    expect(r.addedLibraries).toBe(1)
+    expect(r.addedFields).toBe(1)
+    expect(r.addedItems).toBe(1)
+    expect((await db.items.get('i1'))!.fields.name).toBe('新建的')
+  })
+
+  it('另一台设备仍持有活副本时，会被云端墓碑纠正为已删（而不是它把删除推回去）', async () => {
+    // B 从没同步到删除，本地还是活的
+    await db.items.put(itm('i1', 'L1', { updatedAt: 50, deletedAt: null }))
+    // 云端是 A 的墓碑（payload 已清空）
+    await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1', { updatedAt: 1 })],
+      fields: [],
+      items: [itm('i1', 'L1', { deletedAt: 1000, updatedAt: 1000, fields: {} })],
+    })
+    const got = await db.items.get('i1')
+    expect(got!.deletedAt).toBe(1000) // B 被纠正为已删
+  })
+
+  it('彻底删除是幂等的：重复收到同一条墓碑不会报错也不会插回来', async () => {
+    const payload = {
+      libraries: [lib('L1', { updatedAt: 1 })],
+      fields: [],
+      items: [itm('i1', 'L1', { deletedAt: 1000, updatedAt: 1000, fields: {} })],
+    }
+    await mergeNativeIntoLocal(ACC, payload)
+    await mergeNativeIntoLocal(ACC, payload)
+    await mergeNativeIntoLocal(ACC, payload)
+    expect(await db.items.get('i1')).toBeUndefined()
+  })
+})
+
+/**
+ * 反向用例：跳过规则不能一刀切。
+ * 保留期内的墓碑仍然要落地本地 —— 否则「在另一台设备删掉的东西」
+ * 就不会出现在本机回收站里，用户也永远没法从另一台设备恢复它。
+ */
+describe('保留期内的删除仍然同步到各设备（可恢复）', () => {
+  it('条目：刚删掉的条目会出现在本机', async () => {
+    await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1', { updatedAt: 1 })],
+      fields: [],
+      items: [itm('i1', 'L1', { deletedAt: fresh(), updatedAt: fresh() })],
+    })
+    const got = await db.items.get('i1')
+    expect(got).toBeTruthy()
+    expect(got!.deletedAt).not.toBe(null) // 是墓碑，回收站里可见
+  })
+
+  it('管理库：刚删掉的库会出现在本机', async () => {
+    await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1', { deletedAt: fresh(), updatedAt: fresh() })],
+      fields: [], items: [],
+    })
+    expect(await db.libraries.get('L1')).toBeTruthy()
+  })
+
+  it('字段：刚删掉的字段在本机仍标记为墓碑', async () => {
+    await db.libraries.put(lib('L1', { updatedAt: 1 }))
+    await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1', { updatedAt: 1 })],
+      fields: [fld('f1', 'L1', { deletedAt: fresh(), updatedAt: fresh() })],
+      items: [],
+    })
+    expect((await db.fields.get('f1'))!.deletedAt).not.toBe(null)
+    expect((await p.getTemplate('L1')).length).toBe(0) // 但界面上看不到这一列
+  })
+
+  it('超过保留期（40 天）→ 不落地', async () => {
+    await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1', { updatedAt: 1 })],
+      fields: [],
+      items: [itm('i1', 'L1', { deletedAt: stale(), updatedAt: stale() })],
+    })
+    expect(await db.items.get('i1')).toBeUndefined()
+  })
+
+  it('判定基准是删除时刻，不是最后修改时刻', async () => {
+    // 删了 40 天，之后又有人改过一次（updatedAt 是现在）→ 仍按删除时刻算，已过保留期
+    await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1', { updatedAt: 1 })],
+      fields: [],
+      items: [itm('i1', 'L1', { deletedAt: stale(), updatedAt: Date.now() })],
+    })
+    expect(await db.items.get('i1')).toBeUndefined()
+  })
+})

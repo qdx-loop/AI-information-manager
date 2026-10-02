@@ -4,7 +4,7 @@ import { scheduleAutoSync } from '@/utils/autoSync'
 
 const KEY = 'info-mgmt-trash-swept-at'
 const DAY_MS = 24 * 3600 * 1000
-const TRASH_RETENTION_DAYS = 30
+import { TRASH_RETENTION_DAYS } from '@/utils/retentionDays'
 
 /**
  * 回收站自动清理：软删除超过 30 天的内容被彻底删除。

@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { TRASH_RETENTION_DAYS } from "@/utils/retentionDays"
 import type { FieldDef, Item, Library } from "@/types"
 import { db } from "./dexie"
 import { friendlyDbError } from "@/utils/dbErrors"
@@ -15,6 +16,23 @@ export interface MergeResult {
   updatedFields: number
   addedItems: number
   updatedItems: number
+}
+
+/**
+ * 判断一条墓碑是否已经「过了保留期」。
+ *
+ * 云端 purge 改成保留空壳行（id + deleted_at）之后，这条判定就决定了
+ * 一台设备遇到墓碑时该做什么：
+ *   - 还在保留期内 → 正常插入本地，于是这条删除在**所有设备**的回收站里
+ *     都看得见、可以恢复（和删除前一致）
+ *   - 已过保留期   → 说明它早该被彻底清除了，绝不能重新落地本地
+ *
+ * 判断基准用 deletedAt（第一次删除的时刻），而不是 updatedAt：
+ * 保留期承诺的是「删除后 30 天」，与后续有没有人改过它无关。
+ */
+function isPastRetention(deletedAt: number | null | undefined, now: number): boolean {
+  if (deletedAt == null) return false
+  return deletedAt + TRASH_RETENTION_DAYS * 86400000 < now
 }
 
 function makeClient(cloud: CloudConfig): SupabaseClient {
@@ -130,6 +148,12 @@ export async function mergeNativeIntoLocal(accountId: string, incoming: Incoming
     const local = localLibMap.get(inc.id)
     const incomingLib: Library = { ...inc, accountId }
     if (!local) {
+      // 本地没有 + 对端是已过保留期的墓碑 → 不插入。
+      // 云端 purge 现在保留空壳行，所以墓碑会一直存在；无条件插入的话，
+      // 「本机已彻底删除」和「本机从没见过」成了同一件事，
+      // 另一台设备一推，删掉的数据就整条回来了。
+      // 保留期内的墓碑仍然插入（见 isPastRetention 的说明）。
+      if (inc.deletedAt != null && isPastRetention(inc.deletedAt, Date.now())) continue
       result.addedLibraries++
       await db.libraries.put(incomingLib)
       continue
@@ -165,6 +189,9 @@ export async function mergeNativeIntoLocal(accountId: string, incoming: Incoming
     if (!libIdSet.has(inc.libraryId)) continue // 字段所属库不属于该账号，跳过脏数据
     const local = await db.fields.get(inc.id)
     if (!local) {
+      // 同上：已过保留期的墓碑不重新落地；保留期内的照常插入，
+      // 这样「在别的设备删掉的东西」仍然会出现在本机回收站里，可以恢复
+      if (inc.deletedAt != null && isPastRetention(inc.deletedAt, Date.now())) continue
       result.addedFields++
       await db.fields.put({ ...inc })
       continue
@@ -202,6 +229,8 @@ export async function mergeNativeIntoLocal(accountId: string, incoming: Incoming
     const local = await db.items.get(inc.id)
     const incomingItem: Item = { ...inc, accountId }
     if (!local) {
+      // 同 libraries：已过保留期的墓碑不重新落地；保留期内的照常插入
+      if (inc.deletedAt != null && isPastRetention(inc.deletedAt, Date.now())) continue
       result.addedItems++
       await db.items.put(incomingItem)
       continue
