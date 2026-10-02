@@ -128,7 +128,17 @@ export interface IncomingData {
 }
 
 export async function mergeNativeIntoLocal(accountId: string, incoming: IncomingData): Promise<MergeResult> {
-  const result: MergeResult = {
+  // 整个合并放进一个事务。
+  //
+  // 原来是逐条 await db.*.put，没有任何事务边界。合并是 read-then-write 的
+  // 逐条循环，写到第 N 条失败（QuotaExceededError、DataCloneError、用户直接关窗）
+  // 就留下一个「部分应用」的库：前半段是对端的数据，后半段还是本地的，
+  // 而用户只看到一个笼统的「对端数据格式不对」，完全不知道自己的库已经被改了一半。
+  //
+  // 有了事务，中途失败会整体回滚，本地保持合并前的状态 ——
+  // 要么全成功，要么什么都没有。
+  return db.transaction('rw', db.libraries, db.fields, db.items, async () => {
+    const result: MergeResult = {
     addedLibraries: 0, updatedLibraries: 0,
     addedFields: 0, updatedFields: 0,
     addedItems: 0, updatedItems: 0,
@@ -270,7 +280,8 @@ export async function mergeNativeIntoLocal(accountId: string, incoming: Incoming
     // 其余情况保留本地
   }
 
-  return result
+    return result
+  })
 }
 
 // ——————————————————————————————

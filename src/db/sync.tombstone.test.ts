@@ -355,3 +355,61 @@ describe('保留期内的删除仍然同步到各设备（可恢复）', () => {
     expect(await db.items.get('i1')).toBeUndefined()
   })
 })
+
+/**
+ * 合并的原子性。
+ *
+ * 原来逐条 await db.*.put，没有任何事务边界。写到第 N 条失败
+ * （配额满、用户直接关掉弹窗）就留下一个「部分应用」的库：
+ * 前半段是对端的数据，后半段还是本地的，而用户只看到一个笼统的
+ * 「对端数据格式不对」，根本不知道自己的库已经被改了一半。
+ */
+describe('合并是原子的', () => {
+  it('中途抛错时整体回滚，不留下写了一半的数据', async () => {
+    await db.libraries.put(lib('L1', { updatedAt: 1 }))
+    await db.items.put(itm('keep', 'L1', { updatedAt: 1, fields: { name: '原有' } }))
+
+    // 造一批数据，在第 3 条上抛出（模拟配额满 / 用户关窗）
+    const items = [
+      itm('x1', 'L1', { updatedAt: 200 }),
+      itm('x2', 'L1', { updatedAt: 200 }),
+      itm('boom', 'L1', { updatedAt: 200 }),
+      itm('x4', 'L1', { updatedAt: 200 }),
+      itm('x5', 'L1', { updatedAt: 200 }),
+    ]
+    const originalPut = db.items.put.bind(db.items)
+    let n = 0
+    // @ts-expect-error 仅为注入故障
+    db.items.put = async (item: Item) => {
+      n++
+      if (item.id === 'boom') throw new Error('QuotaExceededError')
+      return originalPut(item)
+    }
+    try {
+      await expect(
+        mergeNativeIntoLocal(ACC, { libraries: [lib('L1', { updatedAt: 1 })], fields: [], items }),
+      ).rejects.toThrow('QuotaExceededError')
+    } finally {
+      db.items.put = originalPut
+    }
+
+    // 一条都不能留下
+    for (const id of ['x1', 'x2', 'x4', 'x5', 'boom']) {
+      expect(await db.items.get(id)).toBeUndefined()
+    }
+    // 原有数据完好
+    expect((await db.items.get('keep'))!.fields.name).toBe('原有')
+  })
+
+  it('全部成功时照常写入', async () => {
+    await db.libraries.put(lib('L1', { updatedAt: 1 }))
+    const r = await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1', { updatedAt: 1 })],
+      fields: [],
+      items: [itm('x1', 'L1', { updatedAt: 200 }), itm('x2', 'L1', { updatedAt: 200 })],
+    })
+    expect(r.addedItems).toBe(2)
+    expect(await db.items.get('x1')).toBeTruthy()
+    expect(await db.items.get('x2')).toBeTruthy()
+  })
+})

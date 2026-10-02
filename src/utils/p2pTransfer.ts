@@ -53,6 +53,16 @@ export function decodeSignal(code: string): SignalPayload | null {
 // ——————————————————————————————
 export const CHUNK_SIZE = 16 * 1024
 
+/**
+ * 单次互传的分块数上限。
+ *
+ * `expected` 直接取自对端发来的 meta.chunks，没有任何上限，
+ * 于是 `new Array(expected)` 遇到一个恶意/损坏的数值就能把标签页打崩。
+ * 按 CHUNK_SIZE 16KB 算，这个上限对应约 256MB 负载 ——
+ * 对「导出全部数据做面对面互传」这个场景绰绰有余。
+ */
+const MAX_CHUNKS = 16_384
+
 export interface WireMeta { t: 'meta'; accountId: string; username: string; chunks: number; bytes: number }
 export interface WireChunk { t: 'chunk'; i: number; data: string }
 export interface WireEnd { t: 'end' }
@@ -84,12 +94,15 @@ export function buildSendSequence(payload: string, meta: SendMeta): string[] {
  */
 export class ChunkReceiver {
   private chunks: string[] = []
-  private expected = 0
-  private received = 0
+  /** 读出来仅为测试断言（分块数在合法负载下等于 meta.chunks） */
+  expected = 0
+  received = 0
   meta: WireMeta | null = null
   done = false
   /** 收到 end 但仍有缺块时的缺失序号，供重发与超时判定使用 */
   missing: number[] = []
+  /** meta 的 chunks 数非法或超限：拒绝本次负载 */
+  invalid = false
 
   /** 喂入一条原始消息；若由此凑齐完整负载则返回它，否则返回 null */
   feed(raw: string): string | null {
@@ -103,14 +116,33 @@ export class ChunkReceiver {
     if (!msg || typeof msg !== 'object') return null
 
     if (msg.t === 'meta') {
+      // 先校验再分配。`msg.chunks | 0` 对 NaN/undefined/负数/小数都会得到
+      // 一个「看起来合法」的值（NaN→0），而 0 分块会让 feed() 在收到 end 时
+      // 返回空字符串而不是 null —— 把「元数据损坏」降级成了「合法的空负载」，
+      // 用户看到的是 BAD_PAYLOAD，而真实原因是负载信息不可信。
+      // 必须要求原始类型就是 number：JSON.stringify({chunks: NaN}) 得到的是
+      // null，而 Number(null) === 0 —— 那样 NaN 会被当成合法的「0 分块」，
+      // 于是损坏的负载被降级成空负载，上层 JSON.parse('') 报出一个误导性的错。
+      const raw = (msg as unknown as Record<string, unknown>).chunks
+      if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0) {
+        this.invalid = true
+        return null
+      }
+      const n = raw
+      if (n > MAX_CHUNKS) {
+        this.invalid = true
+        return null
+      }
       this.meta = msg
-      this.expected = Math.max(0, msg.chunks | 0)
-      this.chunks = new Array<string>(this.expected).fill('')
+      this.expected = n
+      this.chunks = new Array<string>(n).fill('')
       this.received = 0
+      this.invalid = false
       // 0 分块（空负载）时，meta 之后收到 end 即完成
       return null
     }
     if (msg.t === 'chunk') {
+      if (!Number.isInteger(msg.i)) return null
       if (msg.i >= 0 && msg.i < this.expected && this.chunks[msg.i] === '') {
         this.chunks[msg.i] = msg.data
         this.received++
@@ -118,6 +150,7 @@ export class ChunkReceiver {
       return null
     }
     if (msg.t === 'end') {
+      if (this.invalid || this.meta == null) return null // 负载信息不可信：拒绝返回
       // 防御：可靠有序通道下不应缺块。缺块时**不**置 done ——
       // 原来这里是 `this.done = true` 然后再 return null，而 feed() 开头
       // 就是 `if (this.done) return null`。于是任何一次缺块/乱序都会让接收器

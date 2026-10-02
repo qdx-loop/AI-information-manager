@@ -205,3 +205,58 @@ describe('连接失败原因分类', () => {
     expect(classifyConnectFailure(d({ realHost: 1 }))).toBe('ISOLATED')
   })
 })
+
+/**
+ * meta 的 chunks 数不可信时的行为。
+ *
+ * `expected` 直接取自对端发来的 meta.chunks，原来没有任何上限，
+ * `new Array(expected)` 遇到一个损坏的数值就能把标签页打崩；
+ * 而且 `msg.chunks | 0` 对 NaN/undefined 都得到 0，
+ * 0 分块会让 feed() 在收到 end 时返回空字符串而不是 null ——
+ * 把「元数据损坏」降级成了「合法的空负载」，用户只看到 BAD_PAYLOAD。
+ */
+describe('ChunkReceiver：拒绝不可信的 meta', () => {
+  it('chunks 为 NaN 时不分配、不当成空负载', () => {
+    const rec = new ChunkReceiver()
+    rec.feed(JSON.stringify({ t: 'meta', accountId: 'a', username: 'u', chunks: NaN, bytes: 10 }))
+    expect(rec.invalid).toBe(true)
+    // 收尾时必须拒绝，而不是返回 '' 让上层去 JSON.parse('') 报一个误导性的错
+    expect(rec.feed(JSON.stringify({ t: 'end' }))).toBeNull()
+  })
+
+  it('chunks 缺失 / 非整数 / 负数都判为非法', () => {
+    for (const bad of [undefined, 'abc', -5, 1.5, null]) {
+      const rec = new ChunkReceiver()
+      rec.feed(JSON.stringify({ t: 'meta', accountId: 'a', chunks: bad }))
+      expect(rec.invalid).toBe(true)
+      expect(rec.feed(JSON.stringify({ t: 'end' }))).toBeNull()
+    }
+  })
+
+  it('chunks 超上限时拒绝，不会 new Array(超大值) 把内存打爆', () => {
+    const rec = new ChunkReceiver()
+    rec.feed(JSON.stringify({ t: 'meta', accountId: 'a', username: 'u', chunks: 1e9, bytes: 0 }))
+    expect(rec.invalid).toBe(true)
+    expect(rec.expected).toBe(0)
+    expect(rec.feed(JSON.stringify({ t: 'end' }))).toBeNull()
+  })
+
+  it('合法 meta（含 0 分块的空负载）仍然正常工作', () => {
+    const rec = new ChunkReceiver()
+    rec.feed(JSON.stringify({ t: 'meta', accountId: 'a', username: 'u', chunks: 0, bytes: 0 }))
+    expect(rec.invalid).toBe(false)
+    expect(rec.feed(JSON.stringify({ t: 'end' }))).toBe('')
+  })
+
+  it('chunk 的 i 不是整数时忽略，不写入数组', () => {
+    const rec = new ChunkReceiver()
+    rec.feed(JSON.stringify({ t: 'meta', accountId: 'a', username: 'u', chunks: 2, bytes: 4 }))
+    rec.feed(JSON.stringify({ t: 'chunk', i: 0.5, data: 'AAAA' }))
+    expect(rec.received).toBe(0)
+  })
+
+  it('未收到 meta 就收到 end → 拒绝', () => {
+    const rec = new ChunkReceiver()
+    expect(rec.feed(JSON.stringify({ t: 'end' }))).toBeNull()
+  })
+})
