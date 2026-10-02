@@ -73,7 +73,7 @@ export default function TrashBin() {
         <Space>
           <Button size="small" icon={<UndoOutlined />} onClick={() => handleRestore(entry)}>{t('lib.trash.restore')}
           </Button>
-          <Popconfirm title={t('lib.trash.purgeConfirm')} okText={t('lib.trash.purgeOk')} okType="danger" onConfirm={() => handlePurge(entry)}>
+          <Popconfirm title={t('lib.trash.purgeConfirm')} okText={t('lib.trash.purgeOk')} okButtonProps={{ danger: true }} onConfirm={() => handlePurge(entry)}>
             <Button size="small" danger icon={<DeleteOutlined />}>
               {t('lib.trash.purgeOk')}
             </Button>

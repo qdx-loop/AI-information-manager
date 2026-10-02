@@ -8,6 +8,7 @@ type Dict = Record<string, string>
 const zh: Dict = {
   // —— 通用 ——
   'common.save': '保存',
+  'app.offline': '当前离线：新建和编辑照常可用，数据已存在本机；恢复联网后会自动同步。',
   'common.cancel': '取消',
   'common.confirm': '确认',
   'common.delete': '删除',
@@ -174,6 +175,9 @@ const zh: Dict = {
   'lib.needTemplate.go': '去配置',
   'lib.editor.newTitle': '新建条目',
   'lib.editor.editTitle': '编辑条目',
+  'item.conflict.title': '这条数据在别处被改过',
+  'item.conflict.body': '你打开编辑器之后，这条记录在 {{at}} 被修改过（可能来自另一台设备或另一个标签页）。继续保存会用你的版本覆盖那次修改。',
+  'item.conflict.overwrite': '仍然覆盖',
   'lib.editor.noFields': '当前管理库尚未配置字段，请先在「字段模板」中添加字段。',
   'lib.saved.item': '已更新',
   'lib.created.item': '已新建',
@@ -204,6 +208,7 @@ const zh: Dict = {
   'lib.clone.none': '没有其他管理库可复用',
   'lib.clone.pickRequired': '请选择目标',
   'lib.clone.done': '已复用到 {n} 个管理库',
+  'lib.patch.requiredMissing': '「{{names}}」是必填的，不能清空',
   'lib.importExport.exportCsv': '导出 CSV',
   'lib.importExport.exportExcel': '导出 Excel',
   'lib.importExport.nothing': '没有可导出的数据',
@@ -730,6 +735,7 @@ Object.assign(zh as Dict, {
 const en: Dict = {
   // —— Common ——
   'common.save': 'Save',
+  'app.offline': 'Offline: creating and editing still work, and your data is stored on this device. It will sync automatically when the connection returns.',
   'common.cancel': 'Cancel',
   'common.confirm': 'Confirm',
   'common.delete': 'Delete',
@@ -895,6 +901,9 @@ const en: Dict = {
   'lib.needTemplate.go': 'Configure',
   'lib.editor.newTitle': 'New item',
   'lib.editor.editTitle': 'Edit item',
+  'item.conflict.title': 'This item was changed elsewhere',
+  'item.conflict.body': 'Since you opened the editor, this record was modified at {{at}} (possibly from another device or tab). Saving will overwrite that change with your version.',
+  'item.conflict.overwrite': 'Overwrite anyway',
   'lib.editor.noFields': 'No fields configured yet. Add fields in the field template first.',
   'lib.saved.item': 'Updated',
   'lib.created.item': 'Created',
@@ -925,6 +934,7 @@ const en: Dict = {
   'lib.clone.none': 'No other libraries to reuse into',
   'lib.clone.pickRequired': 'Please pick a target',
   'lib.clone.done': 'Reused into {n} libraries',
+  'lib.patch.requiredMissing': '{{names}} is required and cannot be left blank',
   'lib.importExport.exportCsv': 'Export CSV',
   'lib.importExport.exportExcel': 'Export Excel',
   'lib.importExport.nothing': 'Nothing to export',

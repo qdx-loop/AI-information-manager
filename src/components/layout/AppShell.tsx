@@ -2,7 +2,7 @@ import { Layout, Drawer, Button, Tooltip, Tour, Dropdown, Avatar, App as AntApp 
 import type { TourProps } from 'antd'
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
-import { MoonOutlined, SunOutlined, MenuOutlined, SearchOutlined, LogoutOutlined } from '@ant-design/icons'
+import { MoonOutlined, SunOutlined, MenuOutlined, SearchOutlined, LogoutOutlined, WifiOutlined } from '@ant-design/icons'
 import Sidebar, { SidebarContent } from './Sidebar'
 import AIDock from './AIDock'
 import AIFab from './AIFab'
@@ -161,11 +161,35 @@ export default function AppShell() {
     },
   ]
 
+  /**
+   * 离线状态此前完全不可见。这个应用是本地优先的：断网时新建、编辑、
+   * 删除都照常工作，数据就在本机 IndexedDB 里。
+   * 所以提示不该用红色的「错误」语气 —— 那会让人以为东西丢了，
+   * 反而不敢继续操作。要说清的是：数据没丢，只是暂时同步不了。
+   */
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
+  useEffect(() => {
+    const up = () => setOnline(true)
+    const down = () => setOnline(false)
+    window.addEventListener('online', up)
+    window.addEventListener('offline', down)
+    return () => {
+      window.removeEventListener('online', up)
+      window.removeEventListener('offline', down)
+    }
+  }, [])
+
   useBackButtonLayer(sidebarOpen, () => setSidebarOpen(false))
   useBackButtonLayer(tourOpen, () => setTourOpen(false))
 
   return (
     <Layout style={{ height: '100vh', display: 'flex' }}>
+      {!online && (
+        <div className="offline-bar" role="status">
+          <WifiOutlined />
+          <span>{t('app.offline')}</span>
+        </div>
+      )}
       {isMobile ? (
         <Drawer
           placement="left"

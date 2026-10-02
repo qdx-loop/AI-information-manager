@@ -1387,7 +1387,7 @@ export default function AIPanel() {
               title: t('ai.session.clearTitle'),
               content: t('ai.session.delConfirm'),
               okText: t('common.confirm'),
-              okType: 'danger',
+              okButtonProps: { danger: true },
               cancelText: t('common.cancel'),
               onOk: handleClear,
             })

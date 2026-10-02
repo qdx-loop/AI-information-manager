@@ -1,12 +1,13 @@
 import { Modal, Form, App, DatePicker, Divider, Select } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import dayjs from 'dayjs'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import FieldRenderer from '@/components/fields/FieldRenderer'
 import { useI18n } from '@/i18n'
 import { REMINDER_FIELD_KEY, REMINDER_REPEAT_KEY, getReminderAt, getReminderRepeat } from '@/utils/reminder'
 import { useAuthStore } from '@/store/authStore'
+import { useLibraryStore } from '@/store/libraryStore'
 import { markObStep } from '@/utils/onboarding'
 
 interface Props {
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export default function ItemEditor({ open, fields, item, onCancel, onSave }: Props) {
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const [form] = Form.useForm()
   const t = useI18n()
   const { account } = useAuthStore()
@@ -37,9 +38,42 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
   }, [open, fields, item, form])
 
   const [saving, setSaving] = useState(false)
+  /**
+   * 打开编辑器时的 updatedAt 快照。
+   *
+   * 同步是 last-write-wins：用户在 A 设备打开条目，编辑器开着不动，
+   * B 设备（或同浏览器另一个标签页）改同一条并同步过来，
+   * 用户在 A 上点保存 —— 那次修改被静默覆盖，没有任何提示。
+   * 这里记下打开时的版本，保存前比一次，变了就问一句。
+   */
+  const baseUpdatedAt = useRef<number | null>(null)
+  useEffect(() => {
+    if (open) baseUpdatedAt.current = item?.updatedAt ?? null
+  }, [open, item?.id])
 
   const handleOk = async () => {
     if (saving) return
+
+    // 先做冲突检查再 validateFields：否则用户填完一屏表单，
+    // 点保存却被一个「是否覆盖」的弹窗打断，填的东西还在但不明显。
+    if (item) {
+      const latest = useLibraryStore.getState().items.find((x) => x.id === item.id)
+      if (latest && baseUpdatedAt.current != null && latest.updatedAt !== baseUpdatedAt.current) {
+        const go = await new Promise<boolean>((resolve) => {
+          modal.confirm({
+            title: t('item.conflict.title'),
+            content: t('item.conflict.body', { at: dayjs(latest.updatedAt).format('MM-DD HH:mm') }),
+            okText: t('item.conflict.overwrite'),
+            okButtonProps: { danger: true },
+            cancelText: t('common.cancel'),
+            onOk: () => resolve(true),
+            onCancel: () => resolve(false),
+          })
+        })
+        if (!go) return
+      }
+    }
+
     setSaving(true)
     try {
       const values = (await form.validateFields()) as Record<string, unknown>

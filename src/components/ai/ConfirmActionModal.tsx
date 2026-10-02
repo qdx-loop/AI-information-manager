@@ -74,7 +74,7 @@ export default function ConfirmActionModal({
       onOk={handleOk}
       okText={t('ai.confirm.ok')}
       cancelText={t('common.cancel')}
-      okType={action.action === 'delete' ? 'danger' : 'primary'}
+      okButtonProps={{ danger: action.action === 'delete' }}
       confirmLoading={loading}
       width={560}
     >

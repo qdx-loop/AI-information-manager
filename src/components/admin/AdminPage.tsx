@@ -319,7 +319,7 @@ export default function AdminPage() {
           <Popconfirm
             title={t('admin.deleteConfirm.title', { name: r.username })}
             description={t('admin.deleteConfirm.body')}
-            okType="danger"
+            okButtonProps={{ danger: true }}
             onConfirm={() => handleOp(r.id, { op: 'delete' }, t('admin.deleted', { name: r.username }))}
           >
             <Button type="link" size="small" danger icon={<DeleteOutlined />}>

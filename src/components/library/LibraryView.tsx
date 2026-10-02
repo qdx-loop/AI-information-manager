@@ -46,6 +46,7 @@ import { useI18n } from '@/i18n'
 import { track } from '@/utils/track'
 
 import { useBackButtonLayer } from '@/utils/backButton'
+import { isBlankFieldValue } from '@/utils/fieldValue'
 import PageSkeleton from '@/components/common/PageSkeleton'
 
 const { Title, Text } = Typography
@@ -179,7 +180,7 @@ export default function LibraryView() {
       title: t('lib.del.title'),
       content: t('lib.del.content'),
       okText: t('lib.del.ok'),
-      okType: 'danger',
+      okButtonProps: { danger: true },
       cancelText: t('common.cancel'),
       onOk: async () => {
         try {
@@ -195,8 +196,23 @@ export default function LibraryView() {
     })
   }
 
-  /** 表格内联编辑落库。刻意不弹 toast：连续录入时 toast 会盖住正在编辑的单元格 */
+  /**
+   * 表格内联编辑落库。
+   *
+   * 刻意不弹成功 toast：连续录入时 toast 会盖住正在编辑的单元格。
+   *
+   * 但必填校验不能省。条目弹窗里有 `rules={[{required:true}]`，
+   * 而这条内联路径直接落库，于是同一份数据有两个入口两套规则：
+   * 用户可以在表格里把「客户名称」清空并保存，弹窗却不让这么干。
+   * 清空之后表格里那一格显示「（无内容）」，而库模板要求的字段没了。
+   */
   const handlePatch = async (item: Item, nextFields: Item['fields']) => {
+    const missing = fields.filter((f) => f.required && isBlankFieldValue(nextFields[f.key]))
+    if (missing.length > 0) {
+      message.error(t('lib.patch.requiredMissing', { names: missing.map((f) => f.label).join('、') }))
+      // 抛出去让 LibraryTable 留在编辑态：用户能看到没保存成，并能改回来
+      throw new Error('required-field-missing')
+    }
     await updateItem({ ...item, fields: nextFields })
   }
 

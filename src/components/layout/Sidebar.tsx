@@ -131,7 +131,7 @@ function useSidebarState(onNavigate?: () => void) {
       title: t('app.lib.deleteTitle', { name: lib.name }),
       content: t('app.lib.deleteContent'),
       okText: t('common.delete'),
-      okType: 'danger',
+      okButtonProps: { danger: true },
       cancelText: t('common.cancel'),
       onOk: async () => {
         await deleteLibrary(lib.id)

@@ -890,3 +890,19 @@ input {
   .stat-cell:nth-child(even) { border-left: 1px solid var(--app-border); }
   .stat-cell:nth-child(n + 3) { border-top: 1px solid var(--app-border); }
 }
+
+/* ── 离线提示条 ────────────────────────────────────────────────
+   本地优先：断网时增删改都照常工作。所以用中性底色而不是红色，
+   红色会让人以为操作失败、数据丢失，反而不敢继续用。 */
+.offline-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--app-kiln-text);
+  background: var(--app-kiln-wash);
+  border-bottom: 1px solid var(--app-border);
+}

@@ -785,7 +785,7 @@ function BackupTab() {
       title: t('settings.snap.restore.title'),
       content: t('settings.snap.restore.body', { time: dayjs(s.createdAt).format('YYYY-MM-DD HH:mm') }),
       okText: t('settings.snap.restore.ok'),
-      okType: 'danger',
+      okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await restoreSnapshot(account.id, s.id)
@@ -804,7 +804,7 @@ function BackupTab() {
       title: t('settings.snap.delete.title'),
       content: t('settings.snap.delete.body'),
       okText: t('settings.snap.delete.ok'),
-      okType: 'danger',
+      okButtonProps: { danger: true },
       onOk: async () => {
         await deleteSnapshot(account.id, s.id)
         await refreshSnapshots()
@@ -832,7 +832,7 @@ function BackupTab() {
       title: t('settings.backup.confirm.title'),
       content: t('settings.backup.confirm.body'),
       okText: t('settings.backup.confirm.ok'),
-      okType: 'danger',
+      okButtonProps: { danger: true },
       onOk: async () => {
         try {
           const text = await file.text()
