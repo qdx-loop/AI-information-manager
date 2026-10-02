@@ -1,4 +1,4 @@
-import { Modal, Form, App, DatePicker, Divider, Select } from 'antd'
+import { Alert, Modal, Form, App, DatePicker, Divider, Select } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
 import { useEffect, useRef, useState } from 'react'
 import dayjs from 'dayjs'
@@ -9,6 +9,7 @@ import { REMINDER_FIELD_KEY, REMINDER_REPEAT_KEY, getReminderAt, getReminderRepe
 import { useAuthStore } from '@/store/authStore'
 import { useLibraryStore } from '@/store/libraryStore'
 import { markObStep } from '@/utils/onboarding'
+import { notificationSupported } from '@/utils/reminderNotify'
 
 interface Props {
   open: boolean
@@ -23,6 +24,17 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
   const [form] = Form.useForm()
   const t = useI18n()
   const { account } = useAuthStore()
+
+  /**
+   * 这个环境到底能不能弹提醒。分三种「不能」：
+   * unsupported = 安卓 App 壳等没有 Notification API 的环境
+   * denied      = 浏览器支持但用户此前拒绝过授权
+   */
+  const notifyState: 'ok' | 'unsupported' | 'denied' = (() => {
+    if (!notificationSupported()) return 'unsupported'
+    if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return 'denied'
+    return 'ok'
+  })()
 
   useEffect(() => {
     if (open) {
@@ -140,6 +152,22 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
         >
           <DatePicker style={{ width: '100%' }} placeholder={t('reminder.placeholder')} allowClear />
         </Form.Item>
+        {/*
+          提醒依赖浏览器 Notification API。在安卓 App 壳（WebView）里
+          window.Notification 根本不存在，notificationSupported() 恒为 false，
+          checkAndNotify() 直接 return 0 —— 也就是说设了日期、显示保存成功，
+          但永远不会有任何通知。
+          之前界面上完全看不出这一点，用户只能自己发现「提醒从来没响过」。
+          所以在设置提醒的地方直接说明它在这个环境里会不会生效。
+        */}
+        {notifyState !== 'ok' && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message={t(`reminder.unavailable.${notifyState}`)}
+          />
+        )}
         <Form.Item noStyle shouldUpdate={(a, b) => a[REMINDER_FIELD_KEY] !== b[REMINDER_FIELD_KEY]}>
           {() => {
             const picked = form.getFieldValue(REMINDER_FIELD_KEY)

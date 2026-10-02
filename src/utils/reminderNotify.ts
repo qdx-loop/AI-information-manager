@@ -114,9 +114,18 @@ export function startReminderWatcher(accountId: () => string, getLibraries: () =
   const run = () => {
     const accId = accountId()
     if (!accId) return
-    void checkAndNotify(accId, getLibraries()).catch(() => {})
+    // 不要静默吞掉：检查失败 = 用户当天收不到提醒，而界面上完全看不出原因。
+    // 和首页概览那处是同一类问题。
+    void checkAndNotify(accId, getLibraries()).catch((e: unknown) => {
+      console.warn('[reminder] 检查提醒失败:', e)
+    })
   }
   const timer = setInterval(run, 30 * 60_000) // 每 30 分钟检查一次
-  setTimeout(run, 4000) // 启动 4 秒后先跑一次（等库列表加载）
-  return () => clearInterval(timer)
+  const kickoff = setTimeout(run, 4000) // 启动 4 秒后先跑一次（等库列表加载）
+  // 两个都要清。原来只清了 interval：组件在 4 秒内卸载（快速切换页面、
+  // 立刻登出）时，这次 kickoff 仍会带着旧的 getLibraries 闭包执行。
+  return () => {
+    clearInterval(timer)
+    clearTimeout(kickoff)
+  }
 }
