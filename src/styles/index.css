@@ -862,3 +862,31 @@ input {
   font-size: 11.5px;
   color: var(--app-ink-faint);
 }
+
+/* ── 首页指标条 ──────────────────────────────────────────────────
+   原来是 4 个 <Card>，而页面外层已经有容器，视觉上出现「卡片套卡片」：
+   三层边框把数字挤在中间，四块指标看着像四张互不相干的卡片。
+   改成单个描边容器 + 竖分隔线，表达「这是一组指标」而不是四张卡片。 */
+.stat-strip {
+  display: flex;
+  margin-bottom: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface);
+  overflow: hidden;
+}
+.stat-cell {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 12px 16px;
+}
+.stat-cell + .stat-cell {
+  border-left: 1px solid var(--app-border);
+}
+@media (max-width: 560px) {
+  .stat-strip { flex-wrap: wrap; }
+  .stat-cell { flex: 1 1 50%; }
+  .stat-cell + .stat-cell { border-left: none; }
+  .stat-cell:nth-child(even) { border-left: 1px solid var(--app-border); }
+  .stat-cell:nth-child(n + 3) { border-top: 1px solid var(--app-border); }
+}

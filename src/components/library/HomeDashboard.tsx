@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Card, Row, Col, Statistic, List, Tag, Empty, Spin, Space, Typography } from 'antd'
+import { Alert, Button, Card, List, Space, Statistic, Tag, Typography } from 'antd'
+import { InlineSkeleton, EmptyState } from '@/components/common/PageSkeleton'
 import {
   AppstoreOutlined,
   ProfileOutlined,
@@ -40,18 +41,29 @@ export default function HomeDashboard() {
   const accountId = useAuthStore((s) => s.account?.id ?? '')
   const [data, setData] = useState<InsightData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const [tplOpen, setTplOpen] = useState(false)
   const dateTag = useDateTag()
 
   useEffect(() => {
     let alive = true
     setLoading(true)
+    setError(null)
     gatherInsights(libraries, { accountId, dataVersion })
       .then((d) => { if (alive) setData(d) })
-      .catch(() => { /* 概览失败不阻塞首页 */ })
+      // 原来这里是 `.catch(() => {})`：失败后 data 保持 null，
+      // 于是 Statistic 落到 `?? 0`，首页显示「0 条数据」，
+      // 提醒区显示「没有提醒」。用户完全看不出是加载失败，
+      // 只会以为自己的数据没了 —— 而数据其实好好地在本机。
+      // 失败必须说出来，并且能重试。
+      .catch((e: unknown) => {
+        if (!alive) return
+        setError(e instanceof Error ? e.message : String(e))
+      })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [libraries, accountId, dataVersion])
+  }, [libraries, accountId, dataVersion, retryKey])
 
   const alerts = [
     ...(data?.reminders ?? []).map((r) => ({
@@ -76,35 +88,61 @@ export default function HomeDashboard() {
 
   return (
     <div>
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={6}>
-          <Card size="small"><Statistic title={t('dash.stat.libs')} value={data?.totalLibs ?? libraries.length} prefix={<AppstoreOutlined />} /></Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small"><Statistic title={t('dash.stat.items')} value={data?.totalItems ?? 0} prefix={<ProfileOutlined />} /></Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small"><Statistic title={t('dash.stat.week')} value={data?.itemsThisWeek ?? 0} prefix={<RiseOutlined />} valueStyle={{ color: 'var(--app-glaze)' }} /></Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small" hoverable onClick={() => setTplOpen(true)} style={{ cursor: 'pointer', textAlign: 'center' }}>
-            <Space direction="vertical" size={2}>
-              <AppstoreAddOutlined style={{ fontSize: 20, color: 'var(--app-glaze)' }} />
-              <Text style={{ fontSize: 13 }}>{t('tpl.center.entry')}</Text>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+      {/*
+        原来 4 个数字各包一层 <Card>，页面外层已经有容器和卡片，
+        于是首页出现「卡片里套卡片」：一层边框套一层边框再套一层，
+        数字被挤到中间，四块内容看起来是四张互不相干的卡片而不是一组指标。
+        改成单个描边容器 + 竖分隔线：一组指标，一个外框。
+        「模板中心」是导航不是指标，从指标行里拿出来。
+      */}
+      <div className="stat-strip">
+        <div className="stat-cell">
+          <Statistic title={t('dash.stat.libs')} value={loading ? '—' : data?.totalLibs ?? libraries.length} prefix={<AppstoreOutlined />} />
+        </div>
+        <div className="stat-cell">
+          <Statistic title={t('dash.stat.items')} value={loading || error ? '—' : data?.totalItems ?? 0} prefix={<ProfileOutlined />} />
+        </div>
+        <div className="stat-cell">
+          <Statistic
+            title={t('dash.stat.week')}
+            value={loading || error ? '—' : data?.itemsThisWeek ?? 0}
+            prefix={<RiseOutlined />}
+            valueStyle={{ color: 'var(--app-glaze)' }}
+          />
+        </div>
+      </div>
 
       <Card
         size="small"
         title={<Space><BellOutlined />{t('dash.alerts.title')}</Space>}
-        extra={<Text type="secondary" style={{ fontSize: 12 }}>{t('dash.alerts.hint')}</Text>}
+        extra={
+          <Space size={8}>
+            <Text type="secondary" style={{ fontSize: 12 }}>{t('dash.alerts.hint')}</Text>
+            <Button size="small" icon={<AppstoreAddOutlined />} onClick={() => setTplOpen(true)}>
+              {t('tpl.center.entry')}
+            </Button>
+          </Space>
+        }
       >
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
+        {error ? (
+          <Alert
+            type="error"
+            showIcon
+            message={t('dash.loadFailed')}
+            description={<Space direction="vertical" size={4}>
+              <Text style={{ fontSize: 12 }}>{error}</Text>
+              <Button size="small" onClick={() => setRetryKey((n) => n + 1)}>{t('dash.retry')}</Button>
+            </Space>}
+          />
+        ) : loading ? (
+          <InlineSkeleton rows={4} />
         ) : alerts.length === 0 ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('dash.alerts.empty')} />
+          <EmptyState
+            compact
+            title={t('dash.alerts.empty')}
+            body={libraries.length === 0 ? t('dash.alerts.emptyNoLib') : t('dash.alerts.emptyHint')}
+            icon={<BellOutlined style={{ fontSize: 26 }} />}
+          />
         ) : (
           <List
             size="small"
