@@ -393,6 +393,20 @@ function StorageTab() {
         </Form.Item>
       </Form>
 
+      <Alert
+        type="warning"
+        showIcon
+        style={{ marginBottom: 12 }}
+        message={t('settings.storage.sqlMigrateTitle')}
+        description={
+          <pre style={{ fontSize: 11, maxHeight: 160, overflow: 'auto', margin: '8px 0 0' }}>
+{`-- 已经建过表的话，在 Supabase SQL Editor 里再跑一次这三句补列
+alter table libraries add column if not exists updated_at bigint default 0;
+alter table fields   add column if not exists updated_at bigint default 0;
+alter table fields   add column if not exists deleted_at bigint;`}
+          </pre>
+        }
+      />
       <Card size="small" title={t('settings.storage.sqlTitle')} style={{ marginTop: 8 }}>
         <pre style={{ fontSize: 11, maxHeight: 200, overflow: 'auto', margin: 0 }}>
 {`create table accounts (
@@ -409,14 +423,17 @@ create table libraries (
   category text,
   sort_order int,
   deleted_at bigint,
-  parent_id uuid
+  parent_id uuid,
+  updated_at bigint default 0   -- 多设备合并靠它裁决改名/分类/排序
 );
 create table fields (
   id uuid primary key,
   library_id uuid not null,
   key text, label text, type text,
   options jsonb, required bool, visible bool,
-  sort_order int
+  sort_order int,
+  updated_at bigint default 0,  -- 同上
+  deleted_at bigint             -- 字段删除的墓碑；没有它删掉的列会在别的设备上复活
 );
 create table items (
   id uuid primary key,

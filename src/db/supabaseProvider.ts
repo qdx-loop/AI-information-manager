@@ -29,6 +29,8 @@ interface LibraryRow {
   sort_order: number
   deleted_at: number | null
   parent_id?: string | null
+  /** 多设备合并靠它裁决改名/分类/排序；旧表可能没有该列 */
+  updated_at?: number | null
 }
 interface FieldRow {
   id: string
@@ -40,6 +42,8 @@ interface FieldRow {
   required: boolean
   visible: boolean
   sort_order: number
+  updated_at?: number | null
+  deleted_at?: number | null
 }
 interface ItemRow {
   id: string
@@ -53,14 +57,29 @@ interface ItemRow {
   deleted_at: number | null
 }
 
+/** 云端数值列兜底：timestamptz 会返回 ISO 字符串，Number() 得到 NaN。
+ *  NaN 参与比较恒为 false，会让该记录永久冻结，所以这里必须挡住。 */
+const num = (v: unknown): number => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string') {
+    const n = Number(v)
+    if (Number.isFinite(n)) return n
+    const t = Date.parse(v)
+    if (Number.isFinite(t)) return t
+  }
+  if (v instanceof Date) return v.getTime()
+  return 0
+}
+
 const libFromRow = (r: LibraryRow): Library => ({
   id: r.id,
   accountId: r.account_id,
   name: r.name,
   category: r.category,
   sortOrder: r.sort_order,
-  deletedAt: r.deleted_at,
+  deletedAt: r.deleted_at ?? null,
   parentId: r.parent_id ?? null,
+  updatedAt: num(r.updated_at),
 })
 const libToRow = (l: Library): Omit<LibraryRow, never> => ({
   id: l.id,
@@ -70,6 +89,7 @@ const libToRow = (l: Library): Omit<LibraryRow, never> => ({
   sort_order: l.sortOrder,
   deleted_at: l.deletedAt,
   parent_id: l.parentId ?? null,
+  updated_at: l.updatedAt ?? 0,
 })
 
 const fieldFromRow = (r: FieldRow): FieldDef => ({
@@ -82,6 +102,8 @@ const fieldFromRow = (r: FieldRow): FieldDef => ({
   required: !!r.required,
   visible: r.visible !== false,
   sortOrder: r.sort_order,
+  updatedAt: num(r.updated_at),
+  deletedAt: r.deleted_at ?? null,
 })
 const fieldToRow = (f: FieldDef): FieldRow => ({
   id: f.id,
@@ -93,6 +115,8 @@ const fieldToRow = (f: FieldDef): FieldRow => ({
   required: f.required,
   visible: f.visible,
   sort_order: f.sortOrder,
+  updated_at: f.updatedAt ?? 0,
+  deleted_at: f.deletedAt ?? null,
 })
 
 const itemFromRow = (r: ItemRow): Item => ({
@@ -343,6 +367,7 @@ export class SupabaseDataProvider implements DataProvider {
       .from('fields')
       .select('*')
       .eq('library_id', libraryId)
+      .is('deleted_at', null)
       .order('sort_order')
     if (error) throw new Error(error.message)
     return (data as FieldRow[]).map(fieldFromRow)
@@ -359,12 +384,22 @@ export class SupabaseDataProvider implements DataProvider {
     if (fields.length) {
       const { error } = await this.client
         .from('fields')
-        .upsert(fields.map((f) => fieldToRow({ ...f, libraryId })))
+        // 复活墓碑：用户把删掉的字段加回来时，deleted_at 要清掉
+        .upsert(fields.map((f) => fieldToRow({ ...f, libraryId, deletedAt: null })))
       if (error) throw new Error(friendlyDbError(error.message))
     }
+    // 被移除的字段标成墓碑，而不是硬删。
+    // 硬删的话云端不留任何痕迹：另一台设备（它本地还有这个字段）下次同步时
+    // 从云端拉不到它，而它本地存在 → 保留本地 → 删除永远传不过去；
+    // 反向更糟：云端有、本地没有的旧行会被当新字段插回来。
+    // 墓碑让删除成为可同步的事实，purgeLibrary 时才真正硬删。
     const stale = [...existingIds].filter((id) => !nextIds.has(id))
     if (stale.length) {
-      const { error } = await this.client.from('fields').delete().in('id', stale)
+      const now = Date.now()
+      const { error } = await this.client
+        .from('fields')
+        .update({ deleted_at: now, updated_at: now })
+        .in('id', stale)
       if (error) throw new Error(friendlyDbError(error.message))
     }
   }

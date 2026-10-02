@@ -104,16 +104,20 @@ export class LocalDataProvider implements DataProvider {
   }
 
   async createLibrary(lib: Library): Promise<Library> {
-    await db.libraries.add(lib)
-    return lib
+    const rec: Library = { ...lib, updatedAt: lib.updatedAt ?? Date.now() }
+    await db.libraries.add(rec)
+    return rec
   }
 
+  // 下面这几个方法都必须刷新 updatedAt：跨设备的改名/分类/排序靠它来裁决，
+  // 不刷新的话这些改动在合并时一律被判为「本地没变」，然后被对方覆盖。
+
   async renameLibrary(id: string, name: string): Promise<void> {
-    await db.libraries.update(id, { name })
+    await db.libraries.update(id, { name, updatedAt: Date.now() })
   }
 
   async setLibraryCategory(id: string, category: string): Promise<void> {
-    await db.libraries.update(id, { category })
+    await db.libraries.update(id, { category, updatedAt: Date.now() })
   }
 
   async deleteLibrary(id: string): Promise<void> {
@@ -127,13 +131,13 @@ export class LocalDataProvider implements DataProvider {
       const affected = collectDescendants(all, id)
 
       for (const l of affected) {
-        await db.libraries.update(l.id, { deletedAt: now })
+        await db.libraries.update(l.id, { deletedAt: now, updatedAt: now })
         // 只级联删除尚未被单独删除的条目，保留已回收条目的原始 deletedAt
         const items = await db.items.where('libraryId').equals(l.id).toArray()
         await Promise.all(
           items
             .filter((it) => it.deletedAt === null)
-            .map((it) => db.items.update(it.id, { deletedAt: now })),
+            .map((it) => db.items.update(it.id, { deletedAt: now, updatedAt: now })),
         )
       }
     })
@@ -147,13 +151,14 @@ export class LocalDataProvider implements DataProvider {
       const all = await db.libraries.where('accountId').equals(lib.accountId).toArray()
       // 恢复该库及其子孙库（仅恢复与父库同时被级联删除的子孙）
       const affected = collectDescendants(all, id, libDeletedAt)
+      const now = Date.now()
       for (const l of affected) {
-        await db.libraries.update(l.id, { deletedAt: null })
+        await db.libraries.update(l.id, { deletedAt: null, updatedAt: now })
         const items = await db.items.where('libraryId').equals(l.id).toArray()
         await Promise.all(
           items
             .filter((it) => it.deletedAt === libDeletedAt)
-            .map((it) => db.items.update(it.id, { deletedAt: null })),
+            .map((it) => db.items.update(it.id, { deletedAt: null, updatedAt: now })),
         )
       }
     })
@@ -176,20 +181,52 @@ export class LocalDataProvider implements DataProvider {
 
   async reorderLibraries(_accountId: string, orderedIds: string[]): Promise<void> {
     await db.transaction('rw', db.libraries, async () => {
-      await Promise.all(orderedIds.map((id, idx) => db.libraries.update(id, { sortOrder: idx })))
+      const now = Date.now()
+      await Promise.all(
+        orderedIds.map((id, idx) => db.libraries.update(id, { sortOrder: idx, updatedAt: now })),
+      )
     })
   }
 
   // —————— 字段模板 ——————
   async getTemplate(libraryId: string): Promise<FieldDef[]> {
-    const fields = await db.fields.where('libraryId').equals(libraryId).toArray()
+    const fields = await db.fields
+      .where('libraryId')
+      .equals(libraryId)
+      .and((f) => (f as FieldDef).deletedAt == null)
+      .toArray()
     return fields.sort((a, b) => a.sortOrder - b.sortOrder)
   }
 
+  /**
+   * 保存字段模板。
+   *
+   * 原来是「全删再全插」（delete where libraryId + bulkAdd）。这在单设备上没问题，
+   * 但同步时删除无处可传：云端旧行还在（上传只 upsert 从不 delete），
+   * 另一台设备下次同步会把这个字段当新字段插回来 —— 删掉的列重新长出来。
+   *
+   * 改为：按 id upsert 在册字段（顺带复活墓碑），并把本次不在册的字段标成墓碑。
+   * 墓碑让删除能被同步出去，purgeLibrary 时才真正硬删。
+   */
   async saveTemplate(libraryId: string, fields: FieldDef[]): Promise<void> {
+    const now = Date.now()
     await db.transaction('rw', db.fields, async () => {
-      await db.fields.where('libraryId').equals(libraryId).delete()
-      await db.fields.bulkAdd(fields.map((f) => ({ ...f, libraryId })))
+      const existing = await db.fields.where('libraryId').equals(libraryId).toArray()
+      const keepIds = new Set(fields.map((f) => f.id))
+      for (const f of fields) {
+        await db.fields.put({
+          ...f,
+          libraryId,
+          updatedAt: now,
+          deletedAt: null,
+        })
+      }
+      for (const old of existing) {
+        if (keepIds.has(old.id)) continue
+        const cur = await db.fields.get(old.id)
+        if (!cur || (cur as FieldDef).deletedAt != null) continue // 已是墓碑，不动它
+        await db.fields.update(old.id, { deletedAt: now, updatedAt: now })
+      }
     })
   }
 
@@ -328,7 +365,13 @@ export class LocalDataProvider implements DataProvider {
       db.items.where('accountId').equals(accountId).toArray(),
     ])
     const libIds = libraries.map((l) => l.id)
-    const fields = await db.fields.where('libraryId').anyOf(libIds).toArray()
+    // 备份不含字段墓碑：用户导出的是「我现在的字段」，
+    // 墓碑只是同步用的内部状态，对备份没有意义。
+    const fields = await db.fields
+      .where('libraryId')
+      .anyOf(libIds)
+      .and((f) => (f as FieldDef).deletedAt == null)
+      .toArray()
     return {
       version: 1,
       exportedAt: Date.now(),

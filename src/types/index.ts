@@ -22,6 +22,17 @@ export interface Library {
   sortOrder: number
   deletedAt: number | null
   parentId?: string | null   // 父管理库 ID；空=顶级库（支持子库层级）
+  /**
+   * 最后修改时间。
+   *
+   * 合并冲突判定必须靠它。之前这个字段根本不存在，于是合并对库只能
+   * 「一律保留本地」（怕覆盖离线改名），紧接着的上传又拿本地值覆盖云端：
+   * A 设备改名 → B 设备同步（丢弃）→ 再上传（B 的旧名字写回云端）
+   * → A 下次同步又拉回旧名。改名被彻底抹掉，而且三方一致地错。
+   *
+   * 可选是为了兼容旧数据：老库里没有这个字段，按 0（最旧）处理。
+   */
+  updatedAt?: number
 }
 
 // 字段定义（模板）
@@ -35,6 +46,16 @@ export interface FieldDef {
   required: boolean
   visible: boolean
   sortOrder: number
+  /** 同 Library.updatedAt：字段的改名/改类型/改选项靠它才能正确合并 */
+  updatedAt?: number
+  /**
+   * 软删墓碑。
+   *
+   * 以前 saveTemplate 是「全删再全插」，被删掉的字段在云端没有留下任何痕迹，
+   * 别的设备下次同步会把它当新字段重新插回来 —— 删掉的列在另一台设备上
+   * 重新长出来。改成墓碑后删除才能传播出去。
+   */
+  deletedAt?: number | null
 }
 
 // 条目

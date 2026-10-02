@@ -1,6 +1,6 @@
 import type { Library, Item } from '@/types'
 import { getProvider } from '@/db/providerFactory'
-import { getReminderAt, getReminderRepeat, nextOccurrence } from './reminder'
+import { getReminderAt, getReminderRepeat, nextOccurrence, todayLocalISO, isoToLocalTs } from './reminder'
 
 const DAY = 86400000
 
@@ -32,10 +32,28 @@ export interface InsightData {
 }
 
 // 日期字段值可能是时间戳或 'YYYY-MM-DD' 字符串，统一解析为毫秒时间戳
+/**
+ * 日期字段值 → 时间戳。
+ *
+ * 日期字段存的是 'YYYY-MM-DD'，语义是「某个日历日」。
+ * 但 Date.parse 按 ES 规范把 date-only 字符串解析成 **UTC 午夜**，
+ * 于是在 UTC-5 的设备上 dayjs 渲染出的是前一天 ——
+ * 结果同一个字段值，表格里显示 10-05、提醒列表里显示 10-04。
+ * 改为按本地午夜解析，与 FieldRenderer 的展示口径一致。
+ */
+/** 导出仅为测试：日期解析的口径直接影响「表格显示」与「提醒列表显示」是否一致 */
+export const parseDateValueForTest = parseDateValue
+
 function parseDateValue(v: unknown): number | null {
   if (typeof v === 'number' && v > 0) return v
   if (typeof v === 'string' && v.trim()) {
-    const t = Date.parse(v.trim())
+    const s = v.trim()
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+    if (m) {
+      const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+      return Number.isNaN(dt.getTime()) ? null : dt.getTime()
+    }
+    const t = Date.parse(s)
     return Number.isNaN(t) ? null : t
   }
   return null
@@ -82,6 +100,10 @@ async function computeInsights(
   const now = Date.now()
   const weekAgo = now - 7 * DAY
   const horizon = now + daysAhead * DAY
+  // 提醒日期是日历日（'YYYY-MM-DD'），比较也必须在日历日层面做，
+  // 否则时区会让「未来 7 天」的边界差一天。
+  const todayISO = todayLocalISO(now)
+  const horizonISO = todayLocalISO(horizon)
 
   let totalItems = 0
   let itemsThisWeek = 0
@@ -103,9 +125,14 @@ async function computeInsights(
       if (it.createdAt >= weekAgo) itemsThisWeek++
       const r = getReminderAt(it)
       if (r != null) {
-        // 重复提醒（每天/每周/每月）按规则递进到最近一次触发，提醒列表始终可见
-        const occ = nextOccurrence(r, getReminderRepeat(it), now)
-        if (occ <= horizon) reminders.push({ item: it, libraryId: lib.id, libraryName: lib.name, at: occ })
+        // 重复提醒（每天/每周/每月）按规则递进到最近一次触发，提醒列表始终可见。
+        // 提醒日期是 'YYYY-MM-DD' 日历日，与「日期字段」不同：
+        // 日期字段走 parseDateValue → 时间戳（用于和 horizon 比）。
+        const occ = nextOccurrence(r, getReminderRepeat(it), todayISO)
+        // horizon 只用来限制「7 天内」，这里换算成日历日上限再比
+        if (occ <= horizonISO) {
+          reminders.push({ item: it, libraryId: lib.id, libraryName: lib.name, at: isoToLocalTs(occ) })
+        }
       }
       for (const df of dateFieldLabels) {
         const ts = parseDateValue(it.fields[df.key])

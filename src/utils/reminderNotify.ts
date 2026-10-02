@@ -2,7 +2,7 @@
 // 纯浏览器 Notification API，无推送服务依赖（关闭网页不会推送——这一定位与「本地优先」架构一致）。
 import type { Library, Item } from '@/types'
 import { getProvider } from '@/db/providerFactory'
-import { getReminderAt, getReminderRepeat, nextOccurrence, type ReminderRepeat } from './reminder'
+import { getReminderAt, getReminderRepeat, nextOccurrence, todayLocalISO, type ReminderRepeat } from './reminder'
 import { isAndroidApp } from './platform'
 
 const DEDUP_PREFIX = 'info-mgmt-notified-'
@@ -20,22 +20,25 @@ export async function requestNotifyPermission(): Promise<NotificationPermission>
   return Notification.requestPermission()
 }
 
-function dayKey(at: number): string {
-  const d = new Date(at)
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-}
+/**
+ * 去重键。
+ *
+ * 原来从「触发时刻」取本地年月日。现在触发本身就是一个日历日
+ * （'YYYY-MM-DD'），直接用它当键即可 —— 这样两台处在不同时区的设备
+ * 算出的是同一个键，不会一台弹过另一台又弹一次。
+ */
 
-function alreadyNotifiedToday(accountId: string, itemId: string, occAt: number): boolean {
+function alreadyNotifiedToday(accountId: string, itemId: string, occDate: string): boolean {
   try {
-    return localStorage.getItem(`${DEDUP_PREFIX}${accountId}-${itemId}`) === dayKey(occAt)
+    return localStorage.getItem(`${DEDUP_PREFIX}${accountId}-${itemId}`) === occDate
   } catch {
     return false
   }
 }
 
-function markNotifiedToday(accountId: string, itemId: string, occAt: number): void {
+function markNotifiedToday(accountId: string, itemId: string, occDate: string): void {
   try {
-    localStorage.setItem(`${DEDUP_PREFIX}${accountId}-${itemId}`, dayKey(occAt))
+    localStorage.setItem(`${DEDUP_PREFIX}${accountId}-${itemId}`, occDate)
   } catch {
     /* 忽略 */
   }
@@ -53,15 +56,17 @@ export interface DueReminder {
   item: Item
   libraryId: string
   libraryName: string
-  occAt: number
+  /** 本次触发的日历日 'YYYY-MM-DD'，同时用作去重键 */
+  occDate: string
   repeat: ReminderRepeat
 }
 
 /** 找出今天应触发（含已逾期未处理）的提醒 */
 export async function collectDueReminders(libraries: Library[], now = Date.now()): Promise<DueReminder[]> {
   const out: DueReminder[] = []
-  const endOfDay = new Date(now)
-  endOfDay.setHours(23, 59, 59, 999)
+  // 全部比较都在日历日层面做。用「今天及更早」判定，而不是
+  // 「今天 23:59 之前」—— 后者在跨时区场景下会把边界差一天。
+  const todayISO = todayLocalISO(now)
   for (const lib of libraries) {
     let items: Item[] = []
     try {
@@ -73,10 +78,10 @@ export async function collectDueReminders(libraries: Library[], now = Date.now()
       const r = getReminderAt(it)
       if (r == null) continue
       const repeat = getReminderRepeat(it)
-      const occ = nextOccurrence(r, repeat, now)
-      // 当天到期、或（重复提醒的）下次触发在今天内 → 应提醒
-      if (occ <= endOfDay.getTime()) {
-        out.push({ item: it, libraryId: lib.id, libraryName: lib.name, occAt: occ, repeat })
+      const occ = nextOccurrence(r, repeat, todayISO)
+      // 触发日 <= 今天 → 应提醒（含逾期未处理的）
+      if (occ <= todayISO) {
+        out.push({ item: it, libraryId: lib.id, libraryName: lib.name, occDate: occ, repeat })
       }
     }
   }
@@ -89,7 +94,7 @@ export async function checkAndNotify(accountId: string, libraries: Library[], no
   const due = await collectDueReminders(libraries, now)
   let sent = 0
   for (const d of due) {
-    if (alreadyNotifiedToday(accountId, d.item.id, d.occAt)) continue
+    if (alreadyNotifiedToday(accountId, d.item.id, d.occDate)) continue
     try {
       const n = new Notification('信息管理 · 今日提醒', {
         body: `「${d.libraryName}」${titleOf(d.item)}${d.repeat === 'none' ? '' : '（重复提醒）'}`,
@@ -99,7 +104,7 @@ export async function checkAndNotify(accountId: string, libraries: Library[], no
         window.focus()
         n.close()
       }
-      markNotifiedToday(accountId, d.item.id, d.occAt)
+      markNotifiedToday(accountId, d.item.id, d.occDate)
       sent++
       if (sent >= 5) break // 防止提醒风暴
     } catch {

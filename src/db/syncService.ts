@@ -10,7 +10,9 @@ export interface CloudConfig {
 
 export interface MergeResult {
   addedLibraries: number
+  updatedLibraries: number
   addedFields: number
+  updatedFields: number
   addedItems: number
   updatedItems: number
 }
@@ -46,6 +48,9 @@ export async function pushLocalToCloud(accountId: string, cloud: CloudConfig): P
         id: l.id, account_id: l.accountId, name: l.name,
         category: l.category, sort_order: l.sortOrder, deleted_at: l.deletedAt,
         parent_id: l.parentId ?? null,
+        // 必带：合并裁决靠它。不带的话对端拿不到「这个库在什么时候被改过」，
+        // 改名/分类/排序就只能靠本地猜，结果是互相覆盖。
+        updated_at: l.updatedAt ?? 0,
       })),
     )
     if (error) throw new Error(friendlyDbError(`上传管理库失败：${error.message}`))
@@ -53,6 +58,9 @@ export async function pushLocalToCloud(accountId: string, cloud: CloudConfig): P
 
   const libIds = libs.map((l) => l.id)
   if (libIds.length) {
+    // 注意这里**包含墓碑行**。以前只上传在册字段（或干脆只 upsert 不删），
+    // 于是被删掉的字段在云端永远留着旧行，下一台设备同步时它本地不存在
+    // → 被当成新字段插入 → 删掉的列在另一台设备上重新长出来。
     const fields = await db.fields.where("libraryId").anyOf(libIds).toArray()
     if (fields.length) {
       const { error } = await client.from("fields").upsert(
@@ -60,6 +68,7 @@ export async function pushLocalToCloud(accountId: string, cloud: CloudConfig): P
           id: f.id, library_id: f.libraryId, key: f.key, label: f.label,
           type: f.type, options: f.options, required: f.required,
           visible: f.visible, sort_order: f.sortOrder,
+          updated_at: f.updatedAt ?? 0, deleted_at: f.deletedAt ?? null,
         })),
       )
       if (error) throw new Error(friendlyDbError(`上传字段模板失败：${error.message}`))
@@ -101,31 +110,80 @@ export interface IncomingData {
 }
 
 export async function mergeNativeIntoLocal(accountId: string, incoming: IncomingData): Promise<MergeResult> {
-  const result: MergeResult = { addedLibraries: 0, addedFields: 0, addedItems: 0, updatedItems: 0 }
+  const result: MergeResult = {
+    addedLibraries: 0, updatedLibraries: 0,
+    addedFields: 0, updatedFields: 0,
+    addedItems: 0, updatedItems: 0,
+  }
 
-  // —— 管理库：并集 + 墓碑 ——
+  // —— 管理库：墓碑感知 + 新者胜 ——
+  //
+  // 原来是「并集 + 只传播删除，其余一律保留本地」。保留本地是为了不覆盖离线改名，
+  // 但 Library 当时根本没有 updatedAt，改名/分类/排序在时间轴上不可见，
+  // 于是这个保护变成了「对端的改名永远输」：
+  //   A 改名 → B 同步（丢弃）→ 上传又用 B 的旧名字覆盖云端
+  //   → A 下次同步拉回旧名。改名被彻底抹掉，三方一致地错。
+  // 现在有了 updatedAt，就按和条目一致的四情况规则裁决。
   const localLibs = await db.libraries.where("accountId").equals(accountId).toArray()
   const localLibMap = new Map(localLibs.map((l) => [l.id, l]))
   for (const inc of incoming.libraries) {
     const local = localLibMap.get(inc.id)
+    const incomingLib: Library = { ...inc, accountId }
     if (!local) {
       result.addedLibraries++
-      await db.libraries.put({ ...inc, accountId })
-    } else if (inc.deletedAt != null && local.deletedAt == null) {
-      // 外部已删、本地还在 → 传播软删除
-      await db.libraries.put({ ...local, deletedAt: inc.deletedAt })
+      await db.libraries.put(incomingLib)
+      continue
     }
-    // 其余情况保留本地（避免覆盖离线期间本地的重命名/分类修改）
+    const incAlive = inc.deletedAt == null
+    const localAlive = local.deletedAt == null
+    const incNewer = (inc.updatedAt ?? 0) > (local.updatedAt ?? 0)
+
+    if (!localAlive && !incAlive) {
+      // 两边都是墓碑：取更早的删除时间，保证 30 天保留期从第一次删除算起
+      if ((inc.deletedAt ?? 0) < (local.deletedAt ?? 0)) await db.libraries.put(incomingLib)
+    } else if (!localAlive && incAlive) {
+      // 本地已删、对方说还活着 → 保留墓碑（理由同条目，见下）
+    } else if (localAlive && !incAlive) {
+      if ((inc.updatedAt ?? inc.deletedAt ?? 0) > (local.updatedAt ?? 0)) {
+        await db.libraries.put(incomingLib)
+      }
+    } else if (incNewer) {
+      // 都活着：新者胜 —— 这一条让改名/分类/排序终于能跨设备生效
+      result.updatedLibraries++
+      await db.libraries.put(incomingLib)
+    }
   }
 
-  // —— 字段模板：并集（只为属于本账号可见库的缺失字段插入）——
+  // —— 字段模板：墓碑感知 + 新者胜 ——
+  //
+  // 原来只做并集插入，所以：改 label/type/options 对端永远看不到；
+  // 删掉字段则会在对端「重新长出来」（上传只 upsert，云端旧行还在，
+  // 对端同步时它不存在于本地 → 被当新字段插入）。
   const libIdSet = new Set<string>(localLibs.map((l) => l.id))
   for (const inc of incoming.libraries) libIdSet.add(inc.id)
   for (const inc of incoming.fields) {
     if (!libIdSet.has(inc.libraryId)) continue // 字段所属库不属于该账号，跳过脏数据
-    const exists = await db.fields.get(inc.id)
-    if (!exists) {
+    const local = await db.fields.get(inc.id)
+    if (!local) {
       result.addedFields++
+      await db.fields.put({ ...inc })
+      continue
+    }
+    const incAlive = inc.deletedAt == null
+    const localAlive = local.deletedAt == null
+    const incNewer = (inc.updatedAt ?? 0) > (local.updatedAt ?? 0)
+
+    if (!localAlive && !incAlive) {
+      if ((inc.deletedAt ?? 0) < (local.deletedAt ?? 0)) await db.fields.put({ ...inc })
+    } else if (!localAlive && incAlive) {
+      // 本地已删、对方说还在 → 保留墓碑，不复活
+    } else if (localAlive && !incAlive) {
+      if ((inc.updatedAt ?? inc.deletedAt ?? 0) > (local.updatedAt ?? 0)) {
+        result.updatedFields++
+        await db.fields.put({ ...inc })
+      }
+    } else if (incNewer) {
+      result.updatedFields++
       await db.fields.put({ ...inc })
     }
   }
@@ -192,6 +250,40 @@ export async function mergeNativeIntoLocal(accountId: string, incoming: Incoming
 
 const PAGE = 1000
 
+/**
+ * 把云端行里的数值安全地转成 number。
+ *
+ * 原来的 `Number(row.updated_at)` 有个很难查的坑：PostgREST 对 **timestamptz**
+ * 列返回的是 ISO 字符串（"2026-10-02T09:15:00+00:00"），Number() 得到 NaN。
+ * 而 `NaN > 任何数字` 恒为 false —— 该条目的云端更新**永远不会下拉**；
+ * 更糟的是首次插入分支会把 NaN 写进 IndexedDB，从此该记录在本设备永久冻结，
+ * 还会把 NaN 推回云端污染所有设备。
+ *
+ * 用户自己建表时把时间列建成 timestamptz 是 Postgres 里的默认直觉选法，
+ * 所以这里必须兜住。无法解析时回落到 row.created_at，再回落到 now。
+ */
+function num(row: Record<string, unknown>, key: string, fallback = 0): number {
+  const v = row[key]
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string') {
+    // 纯数字串
+    const n = Number(v)
+    if (Number.isFinite(n)) return n
+    // ISO 时间串 → 取毫秒
+    const t = Date.parse(v)
+    if (Number.isFinite(t)) return t
+  }
+  if (v instanceof Date) return v.getTime()
+  return fallback
+}
+
+/** 可空数值（deleted_at 允许 null） */
+function nullableNum(row: Record<string, unknown>, key: string): number | null {
+  const v = row[key]
+  if (v === null || v === undefined) return null
+  return num(row, key, 0)
+}
+
 async function fetchAllRows(
   client: SupabaseClient,
   table: string,
@@ -236,10 +328,22 @@ export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): 
   ])
   let cloudFieldRows: Array<Record<string, unknown>> = []
   if (visibleLibIds.size > 0) {
-    const fieldsRes = await client.from("fields").select("*").in("library_id", [...visibleLibIds])
-    if (fieldsRes.error)
-      throw new Error(friendlyDbError(`读取云端字段模板失败：${fieldsRes.error.message}`))
-    cloudFieldRows = fieldsRes.data ?? []
+    // 分页：fields 同样有 1000 行上限，而且一个库的模板列数通常远不到，
+    // 但多库累积起来会超。带墓碑行也要拉，否则删除传播不出去。
+    const ids = [...visibleLibIds]
+    for (let from = 0; ; from += PAGE) {
+      const res = await client
+        .from("fields")
+        .select("*")
+        .in("library_id", ids)
+        .order("id", { ascending: true })
+        .range(from, from + PAGE - 1)
+      if (res.error)
+        throw new Error(friendlyDbError(`读取云端字段模板失败：${res.error.message}`))
+      const rows = (res.data ?? []) as Array<Record<string, unknown>>
+      cloudFieldRows.push(...rows)
+      if (rows.length < PAGE) break
+    }
   }
 
   // 映射为本地原生类型，交给统一合并核心
@@ -248,9 +352,10 @@ export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): 
     accountId,
     name: String(row.name ?? "未命名"),
     category: String(row.category ?? ""),
-    sortOrder: Number(row.sort_order ?? 0),
-    deletedAt: (row.deleted_at as number | null) ?? null,
+    sortOrder: num(row, "sort_order", 0),
+    deletedAt: nullableNum(row, "deleted_at"),
     parentId: (row.parent_id as string | null) ?? null,
+    updatedAt: num(row, "updated_at", 0),
   }))
 
   const fields: FieldDef[] = cloudFieldRows.map((row) => ({
@@ -262,7 +367,9 @@ export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): 
     options: Array.isArray(row.options) ? (row.options as string[]) : [],
     required: !!row.required,
     visible: row.visible !== false,
-    sortOrder: Number(row.sort_order ?? 0),
+    sortOrder: num(row, "sort_order", 0),
+    updatedAt: num(row, "updated_at", 0),
+    deletedAt: nullableNum(row, "deleted_at"),
   }))
 
   const items: Item[] = itemRows.map((row) => ({
@@ -271,10 +378,10 @@ export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): 
     accountId,
     fields: (row.fields as Item["fields"]) ?? {},
     pinned: !!row.pinned,
-    sortOrder: Number(row.sort_order ?? 0),
-    createdAt: Number(row.created_at ?? Date.now()),
-    updatedAt: Number(row.updated_at ?? row.created_at ?? Date.now()),
-    deletedAt: (row.deleted_at as number | null) ?? null,
+    sortOrder: num(row, "sort_order", 0),
+    createdAt: num(row, "created_at", Date.now()),
+    updatedAt: num(row, "updated_at", num(row, "created_at", Date.now())),
+    deletedAt: nullableNum(row, "deleted_at"),
   }))
 
   return mergeNativeIntoLocal(accountId, { libraries, fields, items })

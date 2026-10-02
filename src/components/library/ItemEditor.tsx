@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import FieldRenderer from '@/components/fields/FieldRenderer'
 import { useI18n } from '@/i18n'
-import { REMINDER_FIELD_KEY, REMINDER_REPEAT_KEY, getReminderAt, getReminderRepeat } from '@/utils/reminder'
+import { REMINDER_FIELD_KEY, REMINDER_REPEAT_KEY, getReminderAt, getReminderRepeat, isoToLocalTs } from '@/utils/reminder'
 import { useAuthStore } from '@/store/authStore'
 import { getProvider } from '@/db/providerFactory'
 import { markObStep } from '@/utils/onboarding'
@@ -42,8 +42,9 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
       fields.forEach((f) => {
         init[f.key] = item?.fields[f.key] ?? null
       })
+      // 提醒存的是日历日字符串 'YYYY-MM-DD'，DatePicker 需要 dayjs
       const reminder = item ? getReminderAt(item) : null
-      init[REMINDER_FIELD_KEY] = reminder != null ? dayjs(reminder) : null
+      init[REMINDER_FIELD_KEY] = reminder != null ? dayjs(isoToLocalTs(reminder)) : null
       init[REMINDER_REPEAT_KEY] = item ? getReminderRepeat(item) : 'none'
       form.setFieldsValue(init)
     }
@@ -98,10 +99,13 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
     setSaving(true)
     try {
       const values = (await form.validateFields()) as Record<string, unknown>
-      // 提醒控件值为 dayjs，落库前转为时间戳；未设置则一并移除重复规则
+      // 提醒控件值为 dayjs，落库前转成 **日历日字符串**。
+      // 原来存的是 startOf('day').valueOf()（本地零点时间戳），
+      // 而提醒的语义是「某个日历日」不是「某个瞬间」——
+      // 换一台时区不同的设备打开就会显示成前一天。
       const reminder = values[REMINDER_FIELD_KEY]
       if (reminder && dayjs.isDayjs(reminder)) {
-        values[REMINDER_FIELD_KEY] = reminder.startOf('day').valueOf()
+        values[REMINDER_FIELD_KEY] = reminder.format('YYYY-MM-DD')
         if (account) markObStep(account.id, 'reminder')
       } else {
         delete values[REMINDER_FIELD_KEY]
