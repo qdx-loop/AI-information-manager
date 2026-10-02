@@ -2,8 +2,8 @@ import { Table, Button, Space, Tooltip, Card, Pagination } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { EditOutlined, DeleteOutlined, PushpinOutlined, PushpinFilled } from '@ant-design/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FieldDef, Item } from '@/types'
-import { renderCellValue } from '@/components/fields/FieldRenderer'
+import type { FieldDef, FieldValue, Item } from '@/types'
+import FieldRenderer, { renderCellValue } from '@/components/fields/FieldRenderer'
 import type { FieldType } from '@/types'
 import { useI18n } from '@/i18n'
 import SmartValue from '@/components/fields/SmartValue'
@@ -17,6 +17,8 @@ interface Props {
   onEdit: (item: Item) => void
   onDelete: (item: Item) => void
   onPin: (item: Item, pinned: boolean) => void
+  /** 内联编辑：只传变化后的整份 fields（已合并），由父组件落库 */
+  onPatch: (item: Item, fields: Item['fields']) => Promise<void> | void
 }
 
 function useIsMobile(): boolean {
@@ -29,7 +31,7 @@ function useIsMobile(): boolean {
   return isMobile
 }
 
-export default function LibraryTable({ fields, items, focusItemId, onEdit, onDelete, onPin }: Props) {
+export default function LibraryTable({ fields, items, focusItemId, onEdit, onDelete, onPin, onPatch }: Props) {
   const t = useI18n()
   const tableRef = useRef<HTMLDivElement>(null)
   const focusItem = useLibraryStore((s) => s.focusItem)
@@ -84,7 +86,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
     const start = (page - 1) * PAGE_SIZE
     const paged = items.slice(start, start + PAGE_SIZE)
     return (
-      <div ref={tableRef}>
+      <div ref={tableRef} className="lib-grid">
         {/* 手机上一屏能看到的记录数就是效率：卡片内字段行压到 ~26px/行，
             4 个字段的卡片从 ~200px 降到 ~165px，且仍留 24px 以上的可点区域。 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -208,6 +210,80 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
     )
   }
 
+  // ── 单元格内联编辑 ────────────────────────────────────────────
+  // 改造前：改一个字段 = 点铅笔 → 弹窗 → 找那个字段 → 改 → 点确定 = 4 次点击 + 一次开合。
+  // 键盘约定采用全行业一致的一套（ArcGIS Pro / JMP / GraphPad / Budibase / Esko 相同）：
+  //   Enter 或 F2  进入编辑      Enter  保存并下移      Tab  保存并右移
+  //   Esc          取消并还原    方向键  在单元格间移动（编辑中不劫持）
+  const [editCell, setEditCell] = useState<{ row: number; key: string } | null>(null)
+  const [draft, setDraft] = useState<FieldValue>(null)
+  const [savingCell, setSavingCell] = useState(false)
+  const gridRef = useRef<HTMLTableElement | null>(null)
+
+  const beginEdit = (rowIndex: number, f: FieldDef) => {
+    setEditCell({ row: rowIndex, key: f.key })
+    setDraft(items[rowIndex]?.fields[f.key] ?? null)
+  }
+
+  const cancelEdit = () => {
+    setEditCell(null)
+    setDraft(null)
+  }
+
+  const commitEdit = async (move: 'down' | 'right' | 'none' = 'none') => {
+    if (!editCell) return
+    const target = items[editCell.row]
+    const f = visibleFields.find((x) => x.key === editCell.key)
+    if (!target || !f) return cancelEdit()
+    const original = target.fields[f.key] ?? null
+    const same = String(original ?? '') === String(draft ?? '')
+    if (same) {
+      cancelEdit()
+      if (move !== 'none') focusNeighbour(move)
+      return
+    }
+    setSavingCell(true)
+    try {
+      // 只改这一个字段，绝不整体替换 fields —— 否则隐藏字段会被清空
+      await onPatch(target, { ...target.fields, [f.key]: draft })
+      cancelEdit()
+      if (move !== 'none') focusNeighbour(move)
+    } catch {
+      // 留在编辑态，让用户看到失败并重试，不要静默吞掉改动
+    } finally {
+      setSavingCell(false)
+    }
+  }
+
+  /** 提交/取消后把下一个单元格聚焦，进入连续录入 */
+  const focusNeighbour = (move: 'down' | 'right') => {
+    const next =
+      move === 'down'
+        ? { row: Math.min((editCell?.row ?? 0) + 1, items.length - 1), col: editCell ? visibleFields.findIndex((x) => x.key === editCell.key) : 0 }
+        : { row: editCell?.row ?? 0, col: Math.min((editCell ? visibleFields.findIndex((x) => x.key === editCell.key) : 0) + 1, visibleFields.length - 1) }
+    window.setTimeout(() => {
+      const el = gridRef.current?.querySelector<HTMLElement>(
+        `[data-cell="${next.row}-${next.col}"]`,
+      )
+      el?.focus()
+    }, 20)
+  }
+
+  /** 导航态的方向键移动：不进入编辑，只移动焦点（与 Excel 一致） */
+  const onGridKeyDown = (e: React.KeyboardEvent, row: number, col: number) => {
+    if (editCell) return
+    let r = row
+    let c = col
+    if (e.key === 'ArrowDown') r = Math.min(row + 1, items.length - 1)
+    else if (e.key === 'ArrowUp') r = Math.max(row - 1, 0)
+    else if (e.key === 'ArrowRight') c = Math.min(col + 1, visibleFields.length - 1)
+    else if (e.key === 'ArrowLeft') c = Math.max(col - 1, 0)
+    else return
+    e.preventDefault()
+    const el = gridRef.current?.querySelector<HTMLElement>(`[data-cell="${r}-${c}"]`)
+    el?.focus()
+  }
+
   // ———— 桌面端：表格 ————
   const columns: ColumnsType<Item> = [
     {
@@ -245,7 +321,43 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
       onCell: () => ({ style: { textAlign: alignOf(f.type) } }),
       className: i === 0 ? 'cell-primary' : undefined,
       width: i === 0 ? 220 : undefined,
-      render: (_: unknown, record: Item) => <SmartValue field={f} value={record.fields[f.key]} />,
+      render: (_: unknown, record: Item, rowIndex: number) => {
+        const isEditing = editCell?.row === rowIndex && editCell.key === f.key
+        if (isEditing) {
+          return (
+            <div className={`cell-editing${savingCell ? ' is-saving' : ''}`} onKeyDown={(e) => {
+              if (e.key === 'Escape') { e.stopPropagation(); cancelEdit() }
+              else if (e.key === 'Enter' && !e.shiftKey && f.type !== 'textarea') {
+                e.preventDefault(); e.stopPropagation(); void commitEdit('down')
+              } else if (e.key === 'Tab') {
+                e.preventDefault(); void commitEdit('right')
+              }
+            }}>
+              <FieldRenderer field={f} value={draft} onChange={setDraft} autoFocus compact />
+            </div>
+          )
+        }
+        return (
+          <div
+            tabIndex={0}
+            role="button"
+            data-cell={`${rowIndex}-${i}`}
+            className="cell-edit"
+            aria-label={`${record.fields[visibleFields[0]?.key ?? ''] ?? ''} · ${f.label}`}
+            title={t('lib.cell.editHint')}
+            onClick={() => beginEdit(rowIndex, f)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'F2') {
+                e.preventDefault(); beginEdit(rowIndex, f)
+              } else {
+                onGridKeyDown(e, rowIndex, i)
+              }
+            }}
+          >
+            <SmartValue field={f} value={record.fields[f.key]} />
+          </div>
+        )
+      },
     })),
     {
       title: t('lib.col.createdAt'),

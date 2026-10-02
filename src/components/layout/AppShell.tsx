@@ -6,6 +6,7 @@ import { MoonOutlined, SunOutlined, MenuOutlined, SearchOutlined, LogoutOutlined
 import Sidebar, { SidebarContent } from './Sidebar'
 import AIDock from './AIDock'
 import AIFab from './AIFab'
+import MobileTabBar from './MobileTabBar'
 import { useAiUiStore, aiPanelVisible } from '@/store/aiUiStore'
 import { resetSession } from '@/store/session'
 import GlobalSearch from '@/components/common/GlobalSearch'
@@ -311,14 +312,26 @@ export default function AppShell() {
             </Dropdown>
           </div>
         </Header>
-        <Content ref={contentRef} style={{ flex: 1, overflow: 'auto', background: 'var(--app-canvas)' }}>
+        <Content
+          ref={contentRef}
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            background: 'var(--app-canvas)',
+            // 手机上给底部标签栏让出位置，否则最后一屏内容被永久遮挡
+            paddingBottom: isMobile ? 'calc(56px + env(safe-area-inset-bottom, 0px))' : 0,
+          }}
+        >
           <Outlet />
         </Content>
       </Layout>
       {/* AI 助手：桌面停靠在右侧、把内容推开；手机是底部抽屉。两者都不带遮罩 */}
       <AIDock variant={isMobile ? 'sheet' : 'dock'} />
       </div>
-      <AIFab compact={isMobile} />
+      {/* 桌面：右下角悬浮 AI 入口。手机：AI 已经是底部标签之一，
+          再放一个悬浮按钮既重复又会和标签栏抢位置。 */}
+      {!isMobile && <AIFab />}
+      {isMobile && <MobileTabBar />}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <Tour
         open={tourOpen}

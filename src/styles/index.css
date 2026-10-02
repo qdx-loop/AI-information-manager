@@ -665,3 +665,200 @@ input {
     border: 1px solid var(--app-border-soft);
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   移动端底部标签栏
+   调研依据：NN/g 实测「可见导航」任务成功率 86%，汉堡菜单仅 57%；
+   Android 设计指南也指出抽屉在紧凑屏幕上不理想，因为要伸手够顶栏。
+   把 4 个最高频目的地钉进拇指区，汉堡降级为完整库树的次级入口。
+   ══════════════════════════════════════════════════════════════ */
+.mobile-tabs {
+  display: none;
+}
+@media (max-width: 768px) {
+  .mobile-tabs {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 880;
+    background: var(--app-surface);
+    border-top: 1px solid var(--app-border-soft);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .mobile-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    /* 触控目标不小于 56px：标签栏是拇指区，宁可高一点 */
+    min-height: 56px;
+    padding: 6px 4px;
+    border: none;
+    background: none;
+    color: var(--app-ink-faint);
+    font: inherit;
+    cursor: pointer;
+  }
+  .mobile-tab.is-active {
+    color: var(--app-glaze-text);
+  }
+  .mobile-tab-icon {
+    font-size: 19px;
+    line-height: 1;
+  }
+  .mobile-tab-label {
+    font-size: 11px;
+    line-height: 1.2;
+    /* 中文四个标签最长 4 个字，必须放得下 */
+    white-space: nowrap;
+  }
+  .mobile-tab.is-active .mobile-tab-icon {
+    /* 选中用品牌色的浅底 + 自身颜色双通道，不只靠颜色区分 */
+    background: var(--app-glaze-soft);
+    border-radius: 999px;
+    padding: 4px 14px;
+    margin: -4px 0;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   表格单元格内联编辑
+   改造前改一个字段要 4 次点击 + 一次弹窗开合；现在点一下直接改。
+   键盘约定与 ArcGIS Pro / JMP / GraphPad / Budibase 一致：
+   Enter 保存并下移，Tab 保存并右移，Esc 取消并还原，方向键在单元格间移动。
+   ══════════════════════════════════════════════════════════════ */
+.cell-edit {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  /* 平时完全透明：不让整张表看起来像一堆输入框，
+     悬停/聚焦才显形，可发现性靠鼠标指针 + 手型光标 + tooltip */
+  padding: 2px 6px;
+  margin: -2px -6px;
+  cursor: text;
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+}
+.cell-edit:hover {
+  background: var(--app-glaze-soft);
+  border-color: var(--app-border-soft);
+}
+.cell-edit:focus-visible {
+  outline: none;
+  background: var(--app-glaze-soft);
+  border-color: var(--app-glaze);
+  box-shadow: 0 0 0 2px var(--app-glaze-soft);
+}
+.cell-editing {
+  padding: 2px 0;
+  position: relative;
+}
+.cell-editing.is-saving {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.cell-editing .ant-select,
+.cell-editing .ant-picker {
+  width: 100%;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   全局命令面板（Ctrl/⌘ + K）
+   不只是搜索框：导航、去任意库、跨库搜条目、常用操作都在这里，
+   分组 + 全键盘操作 + combobox 语义（读屏可播报当前选中项）。
+   ══════════════════════════════════════════════════════════════ */
+.palette {
+  display: flex;
+  flex-direction: column;
+  max-height: 68vh;
+}
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--app-border-soft);
+}
+.palette-input .ant-input {
+  font-size: 15px;
+}
+.palette-kbd {
+  font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--app-ink-faint);
+  border: 1px solid var(--app-border);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+.palette-list {
+  overflow-y: auto;
+  padding: 6px;
+  flex: 1;
+  min-height: 120px;
+}
+.palette-group {
+  font-size: 11.5px;
+  color: var(--app-ink-faint);
+  padding: 10px 10px 5px;
+  letter-spacing: 0.3px;
+}
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 44px; /* 触控目标 */
+}
+.palette-row.is-active {
+  background: var(--app-glaze-soft);
+}
+.palette-icon {
+  width: 22px;
+  text-align: center;
+  color: var(--app-ink-faint);
+  flex-shrink: 0;
+  font-size: 15px;
+}
+.palette-row.is-active .palette-icon {
+  color: var(--app-glaze-text);
+}
+.palette-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.palette-label {
+  color: var(--app-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.palette-sub {
+  font-size: 12px;
+  color: var(--app-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.palette-hint {
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--app-ink-faint);
+  font-size: 13px;
+}
+.palette-foot {
+  display: flex;
+  gap: 16px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--app-border-soft);
+  font-size: 11.5px;
+  color: var(--app-ink-faint);
+}

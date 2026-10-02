@@ -9,7 +9,7 @@ function useDebounced<T>(value: T, delay = 250): T {
   }, [value, delay])
   return debounced
 }
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import {
   Button,
   Input,
@@ -34,6 +34,7 @@ import {
   MoreOutlined,
   FileTextOutlined,
   FileExcelOutlined,
+  FolderOpenOutlined,
 } from '@ant-design/icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import LibraryTable from './LibraryTable'
@@ -85,9 +86,17 @@ export default function LibraryView() {
   const [filterField, setFilterField] = useState<string>('')
   const [filterValue, setFilterValue] = useState<string>('')
   const [sortField, setSortField] = useState<string>('')
+  const navigate = useNavigate()
   const [sortDesc, setSortDesc] = useState(false)
 
   const lib = libraries.find((l) => l.id === id)
+  /**
+   * 库不存在 / 已被删除（含 AI 删除当前库后没有导航的情况）。
+   * 之前这里只把 `lib` 当成 undefined 继续渲染：标题显示「未命名管理库」、
+   * 总数 0，还照常显示「新建条目」—— 点下去会把数据写进一个已软删的库，
+   * 用户在回收站里也永远看不到。要挡住所有写入口并给出明确出口。
+   */
+  const libMissing = !lib
 
   // 搜索 + 筛选 + 排序
   const processed = useMemo(() => {
@@ -183,6 +192,11 @@ export default function LibraryView() {
     })
   }
 
+  /** 表格内联编辑落库。刻意不弹 toast：连续录入时 toast 会盖住正在编辑的单元格 */
+  const handlePatch = async (item: Item, nextFields: Item['fields']) => {
+    await updateItem({ ...item, fields: nextFields })
+  }
+
   const handleImport = async (rows: Record<string, FieldValue>[]) => {
     if (rows.length === 0) return
     // 大批量导入是「点了没反应」的重灾区：串行写入且毫无反馈。
@@ -237,6 +251,35 @@ export default function LibraryView() {
   }
 
   if (loading) return <div style={{ padding: 24 }}>{t('lib.view.loading')}</div>
+
+  // 库不存在/已删除：只给「回到首页 / 去回收站」两个出口，不提供任何写入口
+  if (libMissing) {
+    return (
+      <div style={{ padding: '48px 16px' }}>
+        <Card>
+          <Empty
+            image={<FolderOpenOutlined style={{ fontSize: 44, color: 'var(--app-ink-faint)' }} />}
+            description={
+              <div style={{ maxWidth: 400, margin: '0 auto' }}>
+                <div style={{ fontWeight: 600, color: 'var(--app-ink)', marginBottom: 6 }}>
+                  {t('lib.missing.title')}
+                </div>
+                <div style={{ color: 'var(--app-ink-soft)', lineHeight: 1.75, marginBottom: 16 }}>
+                  {t('lib.missing.body')}
+                </div>
+                <Space>
+                  <Button type="primary" onClick={() => navigate('/')}>
+                    {t('lib.missing.backHome')}
+                  </Button>
+                  <Button onClick={() => navigate('/trash')}>{t('lib.missing.toTrash')}</Button>
+                </Space>
+              </div>
+            }
+          />
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: 16, height: '100%' }}>
@@ -432,6 +475,7 @@ export default function LibraryView() {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onPin={(item, pinned) => pinItem(item.id, pinned)}
+            onPatch={handlePatch}
           />
         )}
       </Card>

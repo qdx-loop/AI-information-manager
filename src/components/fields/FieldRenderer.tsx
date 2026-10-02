@@ -7,18 +7,23 @@ interface Props {
   field: FieldDef
   value: FieldValue
   onChange: (v: FieldValue) => void
+  /** 表格内联编辑时自动聚焦，省掉一次点击 */
+  autoFocus?: boolean
+  /** 内联编辑用紧凑尺寸，避免把表格行撑高 */
+  compact?: boolean
 }
 
 // 字段输入渲染器：按 type 渲染对应输入控件
-export default function FieldRenderer({ field, value, onChange }: Props) {
+export default function FieldRenderer({ field, value, onChange, autoFocus, compact }: Props) {
+  const sz = compact ? ('small' as const) : ('middle' as const)
   const t = useI18n()
   switch (field.type) {
     case 'text':
-      return <Input value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={t('field.inputPlaceholder', { name: field.label })} />
+      return <Input size={sz} autoFocus={autoFocus} value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={t('field.inputPlaceholder', { name: field.label })} />
     case 'textarea':
-      return <Input.TextArea value={(value as string) ?? ''} rows={3} onChange={(e) => onChange(e.target.value)} placeholder={t('field.inputPlaceholder', { name: field.label })} />
+      return <Input.TextArea size={sz} autoFocus={autoFocus} value={(value as string) ?? ''} rows={compact ? 2 : 3} onChange={(e) => onChange(e.target.value)} placeholder={t('field.inputPlaceholder', { name: field.label })} />
     case 'number':
-      return <InputNumber value={value as number} onChange={(v) => onChange(v ?? null)} style={{ width: '100%' }} placeholder={t('field.numberPlaceholder')} />
+      return <InputNumber size={sz} autoFocus={autoFocus} value={value as number} onChange={(v) => onChange(v ?? null)} style={{ width: '100%' }} placeholder={t('field.numberPlaceholder')} />
     case 'date':
       return (
         <DatePicker
@@ -30,6 +35,9 @@ export default function FieldRenderer({ field, value, onChange }: Props) {
     case 'select':
       return (
         <Select
+          size={sz}
+          autoFocus={autoFocus}
+          style={{ width: '100%' }}
           value={(value as string) ?? undefined}
           onChange={(v) => onChange(v ?? null)}
           options={field.options.map((o) => ({ label: o, value: o }))}
@@ -38,9 +46,9 @@ export default function FieldRenderer({ field, value, onChange }: Props) {
         />
       )
     case 'checkbox':
-      return <Checkbox checked={!!value} onChange={(e) => onChange(e.target.checked)}>{t('field.yes')}</Checkbox>
+      return <Checkbox autoFocus={autoFocus} checked={!!value} onChange={(e) => onChange(e.target.checked)}>{t('field.yes')}</Checkbox>
     case 'rating':
-      return <Rate value={(value as number) ?? 0} onChange={(v) => onChange(v)} />
+      return <Rate style={{ fontSize: compact ? 14 : 18 }} value={(value as number) ?? 0} onChange={(v) => onChange(v)} />
     default:
       return <Input value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} />
   }
