@@ -381,6 +381,13 @@ export class SupabaseDataProvider implements DataProvider {
   }
 
   // —————— 条目 ——————
+  async getItem(id: string): Promise<Item | null> {
+    const { data, error } = await this.client.from('items').select('*').eq('id', id).maybeSingle()
+    if (error) throw new Error(error.message)
+    if (!data) return null
+    return itemFromRow(data as ItemRow)
+  }
+
   async listItems(libraryId: string): Promise<Item[]> {
     const { data, error } = await this.client
       .from('items')
@@ -402,10 +409,11 @@ export class SupabaseDataProvider implements DataProvider {
     return item
   }
 
+  /** 只写字段内容；deleted_at / pinned 等各有专用方法，理由见 localProvider.updateItem */
   async updateItem(item: Item): Promise<void> {
     const { error } = await this.client
       .from('items')
-      .update({ ...itemToRow(item), updated_at: Date.now() })
+      .update({ fields: item.fields, updated_at: Date.now() })
       .eq('id', item.id)
     if (error) throw new Error(error.message)
   }

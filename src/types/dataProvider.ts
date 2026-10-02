@@ -36,6 +36,14 @@ export interface DataProvider {
 
   // —— 条目 ——
   listItems(libraryId: string): Promise<Item[]>
+  /**
+   * 按 id 取单条，包含已软删的记录。
+   *
+   * 编辑器保存前需要它做冲突检测：如果条目在这期间被删了，
+   * store 的 items 数组里已经没有它（deleteItem 会 filter 掉），
+   * 查内存数组会得到 undefined，于是「最该被拦下的情况」恰好被漏掉。
+   */
+  getItem(id: string): Promise<Item | null>
   createItem(item: Item): Promise<Item>
   updateItem(item: Item): Promise<void>
   deleteItem(id: string): Promise<void>            // 软删除 → 回收站

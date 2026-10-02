@@ -176,6 +176,8 @@ const zh: Dict = {
   'lib.editor.newTitle': '新建条目',
   'lib.editor.editTitle': '编辑条目',
   'item.conflict.title': '这条数据在别处被改过',
+  'item.conflict.deletedTitle': '这条数据已被删除',
+  'item.conflict.deletedBody': '你打开编辑器之后，这条记录已被删除（可能在另一台设备或另一个标签页）。改动没有保存，请重新打开条目。',
   'item.conflict.body': '你打开编辑器之后，这条记录在 {{at}} 被修改过（可能来自另一台设备或另一个标签页）。继续保存会用你的版本覆盖那次修改。',
   'item.conflict.overwrite': '仍然覆盖',
   'lib.editor.noFields': '当前管理库尚未配置字段，请先在「字段模板」中添加字段。',
@@ -376,6 +378,7 @@ const zh: Dict = {
   'settings.f2f.err.ISOLATED':
     '这台设备已经拿到了真实内网地址，但仍然连不上，基本可以确定是路由器把两台设备隔开了。请在路由器管理页关闭「AP 隔离 / 客户端隔离 / 访客网络 / 无线隔离」后重试；访客 Wi-Fi 通常不允许设备互访。',
   'settings.f2f.err.SEND_FAILED': '传输中断，请重试',
+  'settings.f2f.err.STALLED': '传输长时间没有进展，已中断。两台设备离得太远或网络不稳定时容易发生，请靠近一些后重试。',
   'settings.f2f.err.NO_WEBRTC': '当前浏览器不支持点对点同步，请更换现代浏览器',
   'settings.f2f.err.READ_ONLY': '本机当前无法接收合并数据。',
   'settings.f2f.err.BAD_PAYLOAD': '收到的数据无法识别，请重试',
@@ -904,6 +907,8 @@ const en: Dict = {
   'lib.editor.newTitle': 'New item',
   'lib.editor.editTitle': 'Edit item',
   'item.conflict.title': 'This item was changed elsewhere',
+  'item.conflict.deletedTitle': 'This item was deleted',
+  'item.conflict.deletedBody': 'This record was deleted after you opened the editor (possibly on another device or tab). Your changes were not saved — reopen the item.',
   'item.conflict.body': 'Since you opened the editor, this record was modified at {{at}} (possibly from another device or tab). Saving will overwrite that change with your version.',
   'item.conflict.overwrite': 'Overwrite anyway',
   'lib.editor.noFields': 'No fields configured yet. Add fields in the field template first.',
@@ -1106,6 +1111,7 @@ Object.assign(en, {
   'settings.f2f.err.ISOLATED':
     'This device did get a real local address, yet the connection still failed, which almost always means the router is separating devices. Turn off "AP isolation", "client isolation", "guest network" or "wireless isolation" in your router settings and retry — guest Wi-Fi usually blocks device-to-device traffic.',
   'settings.f2f.err.SEND_FAILED': 'Transfer interrupted — please retry',
+  'settings.f2f.err.STALLED': 'The transfer stopped making progress and was cancelled. This often happens when the devices are too far apart or the network is unstable — move closer and try again.',
   'settings.f2f.err.NO_WEBRTC': 'This browser does not support peer-to-peer sync — use a modern browser',
   'settings.f2f.err.READ_ONLY': 'This device cannot receive merged data right now.',
   'settings.f2f.err.BAD_PAYLOAD': 'Received data could not be read — please retry',

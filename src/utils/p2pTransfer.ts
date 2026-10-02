@@ -225,6 +225,18 @@ export async function primeMediaPermission(): Promise<boolean> {
 }
 // 发送尾部等待缓冲清空的兜底上限，避免异常情况下无限轮询
 const FLUSH_TIMEOUT_MS = 30000
+/**
+ * 传输停滞看门狗：传输开始后，若 STALL_TIMEOUT 内 sent/recv 都没有推进，
+ * 就判定失败并报错。
+ *
+ * 为什么需要它：`onconnectionstatechange` 只认 failed / closed
+ * （'disconnected' 被有意当成可恢复的中间态）。但「disconnected 之后
+ * 再也没有恢复、也永远不 failed」在移动端切网/锁屏时是会发生的，
+ * 此时既不报错也不结束 —— 界面上是两条永远不动的进度条，
+ * 用户能做的只有手动关窗。分块缺块/乱序现在也能恢复接收，
+ * 但对端干脆不再发数据时仍然没有兜底。
+ */
+const STALL_TIMEOUT_MS = 45_000
 
 export interface SessionMeta { accountId: string; username: string }
 
@@ -251,6 +263,7 @@ export type P2PErrorCode =
   | 'ACCOUNT_MISMATCH'
   | 'CONNECT_FAILED'
   | 'SEND_FAILED'
+  | 'STALLED'
   | 'NO_WEBRTC'
   | 'READ_ONLY'
   // —— 新增：把「连不上」拆成可行动的具体原因 ——
@@ -327,6 +340,9 @@ export class P2PSession {
   private receiver = new ChunkReceiver()
   private sendMsgs: string[] = []
   private sentIndex = 0
+  private stallTimer: ReturnType<typeof setTimeout> | null = null
+  private lastStallSent = -1
+  private lastStallRecv = -1
   private cb: P2PSessionCallbacks
   private selfMeta: SessionMeta
   private ended = false
@@ -425,6 +441,7 @@ export class P2PSession {
   /** 主动结束并释放资源（关闭弹窗/出错时调用） */
   close(): void {
     this.ended = true
+    this.clearStallWatchdog()
     try { this.channel?.close() } catch { /* ignore */ }
     try { this.pc.close() } catch { /* ignore */ }
   }
@@ -472,7 +489,7 @@ export class P2PSession {
         ) {
           await waitForLowBuffer(ch)
         }
-        if (this.ended || ch.readyState !== 'open') return
+        if (this.ended || ch.readyState !== 'open') break
         ch.send(this.sendMsgs[i])
         this.sentIndex = i + 1
         this.emitProgress()
@@ -487,7 +504,15 @@ export class P2PSession {
       ) {
         await new Promise((r) => setTimeout(r, 50))
       }
-      if (this.ended || ch.readyState !== 'open') return
+      if (this.ended) return
+      if (ch.readyState !== 'open') {
+        // 原来这里是静默 return：既不 onSentComplete 也不 onError。
+        // 通道中途 disconnected（移动端切网/锁屏最常见的路径）时，
+        // sentDone 永远为 false → 弹窗永远停在「传输中」，
+        // fail() 也永不触发。用户只能手动关窗。
+        this.fail(new P2PError('SEND_FAILED'))
+        return
+      }
       this.emitProgress()
       this.cb.onSentComplete?.()
     } catch (e) {
@@ -498,11 +523,33 @@ export class P2PSession {
   private emitProgress(): void {
     const sent = this.sendMsgs.length > 0 ? this.sentIndex / this.sendMsgs.length : 0
     this.cb.onProgress?.({ sent: Math.min(1, sent), recv: this.receiver.progress })
+    this.armStallWatchdog(sent, this.receiver.progress)
+  }
+
+  /** 每次有推进就重新计时；只有进度真的变了才算「活着」 */
+  private armStallWatchdog(sent: number, recv: number): void {
+    if (this.ended) return
+    if (sent === this.lastStallSent && recv === this.lastStallRecv) return
+    this.lastStallSent = sent
+    this.lastStallRecv = recv
+    if (this.stallTimer) clearTimeout(this.stallTimer)
+    this.stallTimer = setTimeout(() => {
+      if (this.ended) return
+      this.fail(new P2PError('STALLED'))
+    }, STALL_TIMEOUT_MS)
+  }
+
+  private clearStallWatchdog(): void {
+    if (this.stallTimer) {
+      clearTimeout(this.stallTimer)
+      this.stallTimer = null
+    }
   }
 
   private fail(err: P2PError): void {
     if (this.ended) return
     this.ended = true
+    this.clearStallWatchdog()
     this.close()
     this.cb.onError?.(err)
   }

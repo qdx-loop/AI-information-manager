@@ -206,6 +206,11 @@ export class LocalDataProvider implements DataProvider {
   }
 
   // —————— 条目 ——————
+  async getItem(id: string): Promise<Item | null> {
+    const it = await db.items.get(id)
+    return it ?? null
+  }
+
   async listItems(libraryId: string): Promise<Item[]> {
     const items = await db.items
       .where('libraryId')
@@ -223,8 +228,19 @@ export class LocalDataProvider implements DataProvider {
     return item
   }
 
+  /**
+   * updateItem 只负责「改字段内容」。
+   *
+   * 原来写的是 `{ ...item }` —— 整条覆盖，deleted_at 也在里面。而调用方
+   * （条目编辑器、表格内联编辑、AI 恢复）传进来的是**打开界面那一刻**的快照：
+   *   用户打开条目 X 的编辑器 → 另一标签页/另一台设备把 X 删了 →
+   *   用户点保存 → deletedAt: null 被写回去 → X 复活，回收站里也看不到墓碑了
+   *
+   * 所以这里只写 caller 真正有权改的字段；deletedAt / pinned / sortOrder /
+   * createdAt / accountId / libraryId 都各有专用方法，不接受调用方传入。
+   */
   async updateItem(item: Item): Promise<void> {
-    await db.items.update(item.id, { ...item, updatedAt: Date.now() })
+    await db.items.update(item.id, { fields: item.fields, updatedAt: Date.now() })
   }
 
   async deleteItem(id: string): Promise<void> {

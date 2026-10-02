@@ -287,7 +287,13 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
           const r = await apiSignalPoll(deviceIdRef.current)
           if (r.pending && r.signal?.answer && r.signal.status === 'done') {
             stopPolling()
-            void session.acceptAnswer(r.signal.answer)
+            // 必须 catch。原来是 `void session.acceptAnswer(...)`：
+            // 轮询已经停了，这个 promise 再失败就没有第二次机会，
+            // rejection 变成 unhandledrejection（无声），
+            // 弹窗永远停在「等待连接」0%，用户只能手动关窗。
+            session.acceptAnswer(r.signal.answer).catch((e: unknown) => {
+              failWith(e instanceof P2PError ? e.code : 'BAD_SIGNAL')
+            })
           }
         } catch {
           /* 单次轮询失败忽略，下轮重试 */
@@ -500,6 +506,7 @@ function errorKey(code: P2PErrorCode | 'BAD_PAYLOAD' | 'SIGNAL' | ''): string {
     case 'ACCOUNT_MISMATCH': return 'settings.f2f.err.ACCOUNT_MISMATCH'
     case 'CONNECT_FAILED': return 'settings.f2f.err.CONNECT_FAILED'
     case 'SEND_FAILED': return 'settings.f2f.err.SEND_FAILED'
+    case 'STALLED': return 'settings.f2f.err.STALLED'
     case 'NO_WEBRTC': return 'settings.f2f.err.NO_WEBRTC'
     case 'READ_ONLY': return 'settings.f2f.err.READ_ONLY'
     case 'NO_CANDIDATE': return 'settings.f2f.err.NO_CANDIDATE'

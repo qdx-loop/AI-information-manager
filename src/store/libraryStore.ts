@@ -216,7 +216,13 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   async updateItem(item) {
     await getProvider().updateItem(item)
-    set({ items: get().items.map((i) => (i.id === item.id ? { ...item, updatedAt: Date.now() } : i)) })
+    // 内存副本同样只合并字段。整条替换会把调用方的过期快照带进来
+    // （尤其是 deletedAt），让前端状态和数据库分叉。
+    set({
+      items: get().items.map((i) =>
+        i.id === item.id ? { ...i, fields: item.fields, updatedAt: Date.now() } : i,
+      ),
+    })
     touchData()
   },
 

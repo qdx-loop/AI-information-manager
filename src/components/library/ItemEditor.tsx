@@ -7,7 +7,7 @@ import FieldRenderer from '@/components/fields/FieldRenderer'
 import { useI18n } from '@/i18n'
 import { REMINDER_FIELD_KEY, REMINDER_REPEAT_KEY, getReminderAt, getReminderRepeat } from '@/utils/reminder'
 import { useAuthStore } from '@/store/authStore'
-import { useLibraryStore } from '@/store/libraryStore'
+import { getProvider } from '@/db/providerFactory'
 import { markObStep } from '@/utils/onboarding'
 import { notificationSupported } from '@/utils/reminderNotify'
 
@@ -69,8 +69,17 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
     // 先做冲突检查再 validateFields：否则用户填完一屏表单，
     // 点保存却被一个「是否覆盖」的弹窗打断，填的东西还在但不明显。
     if (item) {
-      const latest = useLibraryStore.getState().items.find((x) => x.id === item.id)
-      if (latest && baseUpdatedAt.current != null && latest.updatedAt !== baseUpdatedAt.current) {
+      // 必须查数据库，不能查 useLibraryStore.items：
+      // store 的 deleteItem 会把条目从数组里 filter 掉，
+      // 于是「已删除」这个最该被拦下的情况恰好变成 latest === undefined，
+      // 被 `if (latest && ...)` 短路掉，冲突提示根本不弹。
+      const latest = await getProvider().getItem(item.id)
+      if (!latest) {
+        // 打开编辑器之后这条被删了。不拦的话用户会以为保存成功，
+        // 而 updateItem 只写 fields，实际上一条都存不进去。
+        message.error(t('item.conflict.deletedBody'))
+        return
+      } else if (baseUpdatedAt.current != null && latest.updatedAt !== baseUpdatedAt.current) {
         const go = await new Promise<boolean>((resolve) => {
           modal.confirm({
             title: t('item.conflict.title'),
