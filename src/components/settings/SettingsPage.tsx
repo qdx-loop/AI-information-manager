@@ -39,7 +39,7 @@ import { pushLocalToCloud, mergeCloudToLocal, syncBidirectional } from '@/db/syn
 import { friendlyDbError } from '@/utils/dbErrors'
 import { initFromSettings } from '@/db/providerFactory'
 import { apiChangePassword } from '@/lib/serverApi'
-import { exportBackup, importBackup } from '@/db/backup'
+import { exportBackup, importBackup, validateBackupBlob } from '@/db/backup'
 import {
   createSnapshot,
   listSnapshots,
@@ -834,16 +834,30 @@ function BackupTab() {
       okText: t('settings.backup.confirm.ok'),
       okButtonProps: { danger: true },
       onOk: async () => {
+        const acc = account
+        if (!acc) {
+          message.error(t('common.sessionExpired'))
+          return
+        }
         try {
           const text = await file.text()
           const blob = JSON.parse(text)
-          // 导入前自动拍一张快照，便于回溯（失败不阻断导入）
+          // 结构校验必须在任何删除之前（importBackup 内部第一件事就是校验）。
+          // 结构不对的 json 会让 provider 先删光账户数据、再什么都不写，
+          // 而且不会抛错 —— 用户看到的是「导入成功」。
+          validateBackupBlob(blob)
+          // 导入前自动拍快照作为回退点。快照失败必须中止：
+          // 恢复快照那条路径的既定策略就是「破坏性操作必须确保有回退点」
+          // （snapshotService.restoreSnapshot 里写明），这里之前却只打了一条
+          // console.warn 就继续删数据。而快照失败最常见的原因恰恰是浏览器
+          // 存储配额已满 —— 正是用户最需要回退点的场景。
           try {
-            await createSnapshot(account!.id, 'import')
+            await createSnapshot(acc.id, 'import')
           } catch (e) {
-            console.warn('[backup] 导入前快照失败：', e)
+            message.error(t('settings.backup.noSnapshot', { msg: (e as Error).message }))
+            return
           }
-          await importBackup(account!.id, blob)
+          await importBackup(acc.id, blob)
           message.success(t('settings.backup.done'))
           setTimeout(() => window.location.reload(), 1000)
         } catch (e) {
