@@ -349,7 +349,7 @@ function StorageTab() {
           await useLibraryStore.getState().loadLibraries()
           useLibraryStore.getState().bumpDataVersion()
           // 切换存储模式后清空当前库选中状态（数据源已变，旧 fields/items 无意义）
-          useLibraryStore.setState({ currentLibraryId: null, fields: [], items: [], trash: [], focusItemId: null })
+          useLibraryStore.setState({ currentLibraryId: null, fields: [], items: [], trash: [], focusItemId: null, libsReady: false })
         } catch (e) {
           message.error({ content: t('settings.storage.toggleFailed', { msg: (e as Error).message }), key: 'migrate' })
         }

@@ -63,6 +63,7 @@ export default function LibraryView() {
     items,
     focusItemId,
     loading,
+    libsReady,
     selectLibrary,
     refreshCurrent,
     createItem,
@@ -100,7 +101,9 @@ export default function LibraryView() {
    * 总数 0，还照常显示「新建条目」—— 点下去会把数据写进一个已软删的库，
    * 用户在回收站里也永远看不到。要挡住所有写入口并给出明确出口。
    */
-  const libMissing = !lib
+  // 必须同时满足「已经加载过库列表」才谈得上不存在。
+  // 否则冷启动第一帧 libraries 还是空的，会闪出假报错。
+  const libMissing = libsReady && !loading && !lib
 
   // 搜索 + 筛选 + 排序
   const processed = useMemo(() => {

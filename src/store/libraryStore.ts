@@ -21,6 +21,15 @@ interface LibraryState {
   trash: TrashEntry[]
   focusItemId: string | null
   loading: boolean
+  /**
+   * 库列表是否已经拉取过。
+   *
+   * loading 初始值是 false，而 LibraryView 挂载后到 loadLibraries 完成之间
+   * libraries 是空的。仅凭 `!lib` 判断「库不存在」的话，冷启动直接访问
+   * /library/:id 的第一帧就会闪出「这个管理库不存在或已被删除」，
+   * 然后才被真实内容替换掉 —— 一个用户完全没做错任何事的假报错。
+   */
+  libsReady: boolean
   /** 每次任一数据写操作后自增；首页概览等派生计算用它做缓存失效键 */
   dataVersion: number
 
@@ -62,12 +71,20 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   trash: [],
   focusItemId: null,
   loading: false,
+  libsReady: false,
 
   async loadLibraries() {
     const acc = useAuthStore.getState().account
     if (!acc) return
-    const libs = await getProvider().listLibraries(acc.id)
-    set({ libraries: libs })
+    // finally 而不是成功后：拉取失败时也要把「已做过判定」记下来，
+    // 否则 libsReady 永远为 false，LibraryView 的骨架屏会一直转下去，
+    // 用户看不到任何可操作的东西，也没有错误提示。
+    try {
+      const libs = await getProvider().listLibraries(acc.id)
+      set({ libraries: libs })
+    } finally {
+      set({ libsReady: true })
+    }
   },
 
   async selectLibrary(id) {
@@ -263,6 +280,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 registerSessionResetter(() => {
   useLibraryStore.setState({
     libraries: [],
+    libsReady: false,
     currentLibraryId: null,
     fields: [],
     items: [],
