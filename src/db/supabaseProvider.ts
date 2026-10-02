@@ -411,12 +411,22 @@ export class SupabaseDataProvider implements DataProvider {
   }
 
   async deleteItem(id: string): Promise<void> {
-    const { error } = await this.client.from('items').update({ deleted_at: Date.now() }).eq('id', id)
+    // deleted_at 和 updated_at 一起刷新，理由见 localProvider.deleteItem：
+    // 冲突判定比的是 updated_at，只写 deleted_at 会让删除在时间轴上不可见，
+    // 被并发编辑整体覆盖，导致已删条目复活。
+    const now = Date.now()
+    const { error } = await this.client
+      .from('items')
+      .update({ deleted_at: now, updated_at: now })
+      .eq('id', id)
     if (error) throw new Error(error.message)
   }
 
   async restoreItem(id: string): Promise<void> {
-    const { error } = await this.client.from('items').update({ deleted_at: null }).eq('id', id)
+    const { error } = await this.client
+      .from('items')
+      .update({ deleted_at: null, updated_at: Date.now() })
+      .eq('id', id)
     if (error) throw new Error(error.message)
   }
 

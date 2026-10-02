@@ -151,6 +151,27 @@ describe('ChunkReceiver 重组', () => {
     rec.feed(seq[3])
     const end = seq[seq.length - 1]
     expect(rec.feed(end)).toBeNull() // 缺块 → 拒绝返回损坏数据
+    // 但**不能**因此进入永久 done。原来这里是 done=true，而 feed() 开头
+    // 就是 `if (this.done) return null`，于是接收器被永久卡死：
+    // 后续所有消息被丢弃、onReceivedPayload 永不触发、没有超时兜底，
+    // 界面上是两条永远不动的进度条。
+    expect(rec.done).toBe(false)
+    expect(rec.missing).toEqual([1])
+  })
+
+  it('缺块后补齐仍能正常完成（原来永久卡死）', () => {
+    const payload = 'E'.repeat(CHUNK_SIZE * 3)
+    const seq = buildSendSequence(payload, meta)
+    const rec = new ChunkReceiver()
+    rec.feed(seq[0]) // meta
+    rec.feed(seq[1]) // chunk 0
+    rec.feed(seq[3]) // chunk 2
+    rec.feed(seq[seq.length - 1]) // end → 缺块，记 missing
+    expect(rec.done).toBe(false)
+    // 对端重发缺失的 chunk 1
+    expect(rec.feed(seq[2])).toBeNull()
+    // 再来一次 end 才收尾
+    expect(rec.feed(seq[seq.length - 1])).toBe(payload)
     expect(rec.done).toBe(true)
   })
 })

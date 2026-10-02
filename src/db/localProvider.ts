@@ -228,11 +228,14 @@ export class LocalDataProvider implements DataProvider {
   }
 
   async deleteItem(id: string): Promise<void> {
-    await db.items.update(id, { deletedAt: Date.now() })
+    // deletedAt 和 updatedAt 必须一起刷新。同步的冲突判定比的是 updatedAt，
+    // 只写 deletedAt 的话「删除」在时间轴上不可见，会被任何一次并发编辑
+    // 整体覆盖掉 —— 用户删掉的条目在回收站里凭空复活。
+    await db.items.update(id, { deletedAt: Date.now(), updatedAt: Date.now() })
   }
 
   async restoreItem(id: string): Promise<void> {
-    await db.items.update(id, { deletedAt: null })
+    await db.items.update(id, { deletedAt: null, updatedAt: Date.now() })
   }
 
   async purgeItem(id: string): Promise<void> {

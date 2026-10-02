@@ -88,6 +88,8 @@ export class ChunkReceiver {
   private received = 0
   meta: WireMeta | null = null
   done = false
+  /** 收到 end 但仍有缺块时的缺失序号，供重发与超时判定使用 */
+  missing: number[] = []
 
   /** 喂入一条原始消息；若由此凑齐完整负载则返回它，否则返回 null */
   feed(raw: string): string | null {
@@ -116,9 +118,20 @@ export class ChunkReceiver {
       return null
     }
     if (msg.t === 'end') {
+      // 防御：可靠有序通道下不应缺块。缺块时**不**置 done ——
+      // 原来这里是 `this.done = true` 然后再 return null，而 feed() 开头
+      // 就是 `if (this.done) return null`。于是任何一次缺块/乱序都会让接收器
+      // 进入永久 done 状态：后续消息全被丢弃、onReceivedPayload 永不触发、
+      // 也没有任何超时兜底。界面上就是两条永远不动的进度条，不报错也不结束，
+      // 用户只能手动关窗。注释说的「宁可挂起」变成了「永久挂起」。
+      //
+      // 现在缺块只记 missing（供对端重发和超时判定使用），保持可继续接收。
+      if (this.received < this.expected) {
+        this.missing = []
+        for (let i = 0; i < this.expected; i++) if (!this.chunks[i]) this.missing.push(i)
+        return null
+      }
       this.done = true
-      // 防御：可靠有序通道下不应缺块；若缺块则拒绝返回损坏数据（宁可挂起也不静默错数据）
-      if (this.received < this.expected) return null
       return this.chunks.join('')
     }
     return null

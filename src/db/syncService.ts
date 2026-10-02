@@ -26,6 +26,17 @@ function makeClient(cloud: CloudConfig): SupabaseClient {
 // ——————————————————————————————
 
 export async function pushLocalToCloud(accountId: string, cloud: CloudConfig): Promise<void> {
+/**
+ * 分页拉全量行。
+ *
+ * Supabase / PostgREST 对单次 select 有 1000 行的默认上限，而且不带 ORDER BY 时
+ * 返回哪 1000 行是不确定的。原来只有一句 `.select("*").eq("account_id", ...)`，
+ * 于是账号条目一超过 1000，第 1001 条之后**永远不会下拉到任何设备**；
+ * 其中包含墓碑行，所以另一台设备删掉的条目在另一台上不会消失，看起来「删不掉」。
+ * 每次同步的结果都显示成功，用户完全无从察觉。
+ *
+ * 按主键排序保证分页边界稳定，否则翻页时会漏行/重复行。
+ */
   const client = makeClient(cloud)
 
   const libs = await db.libraries.where("accountId").equals(accountId).toArray()
@@ -119,18 +130,57 @@ export async function mergeNativeIntoLocal(accountId: string, incoming: Incoming
     }
   }
 
-  // —— 条目：新者胜 ——
+  // —— 条目：按「是否被删除」分四种情况 ——
+  //
+  // 原来只有一条 `incoming.updatedAt > local.updatedAt → 整条覆盖`。
+  // 而 deleteItem 只写 deletedAt、不刷新 updatedAt，于是：
+  //   A 删除条目 X（deletedAt=T，updatedAt 仍是旧的 U）
+  //   B 编辑条目 X（updatedAt=T+5）
+  //   合并时 T+5 > U → 整条覆盖，连 deletedAt 一起被写成 null
+  // 结果是**用户删掉的条目在回收站里凭空复活**，而且没有任何提示。
+  // deleteItem / restoreItem 现在都会刷新 updatedAt（见 localProvider），
+  // 时间比较才有意义；这里再把删除单独拿出来处理。
   for (const inc of incoming.items) {
     const local = await db.items.get(inc.id)
     const incomingItem: Item = { ...inc, accountId }
     if (!local) {
       result.addedItems++
       await db.items.put(incomingItem)
-    } else if ((inc.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
+      continue
+    }
+    const incAlive = inc.deletedAt == null
+    const localAlive = local.deletedAt == null
+    const incNewer = (inc.updatedAt ?? 0) > (local.updatedAt ?? 0)
+
+    if (!localAlive && !incAlive) {
+      // 两边都是墓碑：取更早的那个删除时间。
+      // 说明书承诺「回收站内容 30 天后自动彻底删除」，
+      // 保留期必须从**第一次**删除算起，否则两台设备反复同步会把
+      // 删除时间往后推，条目实际存活远超 30 天。
+      if ((inc.deletedAt ?? 0) < (local.deletedAt ?? 0)) await db.items.put(incomingItem)
+    } else if (!localAlive && incAlive) {
+      // 本地已删、对方说还活着 → 保留墓碑，不复活。
+      // 同步是 last-write-wins，删和改撞在一起时无法区分
+      // 「对方是在看到删除之前改的」和「对方真想把它改回来」。
+      // 选墓碑优先的两个理由：
+      //   1. 用户对「我删掉的东西又冒出来」的容忍度，远低于
+      //      「另一台设备的改动还没同步过来」——后者有 3 分钟延迟兜底且可见；
+      //   2. 墓碑优先是**收敛**的（两台设备最终都变成已删），
+      //      而单纯比时间会来回翻转。
+    } else if (localAlive && !incAlive) {
+      // 对方删了、本地还在 → 传播删除，但要比时间：
+      // restoreItem 会把 deletedAt 置空并刷新 updatedAt，
+      // 不比时间的话「A 删除 → B 恢复」会被 B 的恢复反过来盖掉删除。
+      if ((inc.updatedAt ?? inc.deletedAt ?? 0) > (local.updatedAt ?? 0)) {
+        result.updatedItems++
+        await db.items.put(incomingItem)
+      }
+    } else if (incNewer) {
+      // 都活着：新者胜
       result.updatedItems++
       await db.items.put(incomingItem)
     }
-    // 本地较新或相等 → 保留本地
+    // 其余情况保留本地
   }
 
   return result
@@ -140,17 +190,42 @@ export async function mergeNativeIntoLocal(accountId: string, incoming: Incoming
 // 合并式拉取：云端(Supabase) → 本地。先把云端行映射为本地原生类型，再走统一合并核心。
 // ——————————————————————————————
 
+const PAGE = 1000
+
+async function fetchAllRows(
+  client: SupabaseClient,
+  table: string,
+  accountId: string,
+): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = []
+  let from = 0
+  // 上限只是防呆：正常数据量下几十页就到底了
+  for (let guard = 0; guard < 1000; guard++) {
+    const res = await client
+      .from(table)
+      .select("*")
+      .eq("account_id", accountId)
+      .order("id", { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (res.error) {
+      throw new Error(friendlyDbError(`读取云端${table === 'items' ? '条目' : '管理库'}失败：${res.error.message}`))
+    }
+    const rows = (res.data ?? []) as Record<string, unknown>[]
+    out.push(...rows)
+    if (rows.length < PAGE) return out
+    from += PAGE
+  }
+  return out
+}
+
 export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): Promise<MergeResult> {
   const client = makeClient(cloud)
 
-  const [libsRes, itemsRes] = await Promise.all([
-    client.from("libraries").select("*").eq("account_id", accountId),
-    client.from("items").select("*").eq("account_id", accountId),
+  const [libs, itemRows] = await Promise.all([
+    fetchAllRows(client, "libraries", accountId),
+    fetchAllRows(client, "items", accountId),
   ])
-  if (libsRes.error) throw new Error(friendlyDbError(`读取云端管理库失败：${libsRes.error.message}`))
-  if (itemsRes.error) throw new Error(friendlyDbError(`读取云端条目失败：${itemsRes.error.message}`))
-
-  const cloudLibs = (libsRes.data ?? []) as Array<Record<string, unknown>>
+  const cloudLibs = libs
 
   // 字段只拉取本账号可见库的（云端 ∪ 本地），不再把整张 fields 表
   // （含其他账号的模板）拉进浏览器（红队报告 P2）。
@@ -190,7 +265,7 @@ export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): 
     sortOrder: Number(row.sort_order ?? 0),
   }))
 
-  const items: Item[] = ((itemsRes.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+  const items: Item[] = itemRows.map((row) => ({
     id: String(row.id),
     libraryId: String(row.library_id),
     accountId,

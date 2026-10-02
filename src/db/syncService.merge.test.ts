@@ -74,6 +74,61 @@ describe('条目：新者胜', () => {
     const got = await db.items.get('i1')
     expect(got!.deletedAt).toBe(200)
   })
+
+  /**
+   * 以下三条锁的是「删除不会被一次并发编辑撤销」。
+   *
+   * 真实 provider 删条目时会同时刷新 deletedAt 和 updatedAt（原来只刷前者，
+   * 于是删除在时间轴上不可见）。这里按真实的 provider 行为构造夹具，
+   * 不再用 updatedAt === deletedAt 那种现实中不存在的理想状态。
+   */
+  it('本地已删、对端并发编辑（updatedAt 更新）→ 保持删除，不复活', async () => {
+    // A 在 T=100 删除（deletedAt=100, updatedAt=100）
+    await db.items.put(item('i1', 'L1', 100, { deletedAt: 100 }))
+    // B 在 T=200 编辑了同一条（它还没同步到删除）
+    const r = await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1')],
+      fields: [],
+      items: [item('i1', 'L1', 200, { fields: { name: 'B改的' } })],
+    })
+    const got = await db.items.get('i1')
+    expect(got!.deletedAt).toBe(100) // 仍是已删
+    expect(got!.fields.name).toBe('i1') // 且没有把对方内容写进来
+    expect(r.updatedItems).toBe(0)
+  })
+
+  it('两边都是墓碑 → 取更早的删除时间，30 天保留期从第一次删除算起', async () => {
+    await db.items.put(item('i1', 'L1', 300, { deletedAt: 300 }))
+    await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1')],
+      fields: [],
+      items: [item('i1', 'L1', 200, { deletedAt: 200 })],
+    })
+    const got = await db.items.get('i1')
+    expect(got!.deletedAt).toBe(200)
+  })
+
+  it('本地恢复过（较新）vs 对端墓碑 → 保持恢复，不会被删除反向覆盖', async () => {
+    // A 在 T=100 删除；B 同步到后在 T=200 执行了恢复
+    await db.items.put(item('i1', 'L1', 200, { deletedAt: null }))
+    await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1')],
+      fields: [],
+      items: [item('i1', 'L1', 100, { deletedAt: 100 })],
+    })
+    const got = await db.items.get('i1')
+    expect(got!.deletedAt).toBe(null)
+  })
+
+  it('对端的删除比本地改动新 → 仍然传播删除', async () => {
+    await db.items.put(item('i1', 'L1', 100))
+    await mergeNativeIntoLocal(ACC, {
+      libraries: [lib('L1')],
+      fields: [],
+      items: [item('i1', 'L1', 200, { deletedAt: 200 })],
+    })
+    expect((await db.items.get('i1'))!.deletedAt).toBe(200)
+  })
 })
 
 describe('管理库：并集 + 墓碑', () => {

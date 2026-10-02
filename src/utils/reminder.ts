@@ -61,8 +61,23 @@ export function nextOccurrence(at: number, repeat: ReminderRepeat, now = Date.no
     while (next < now) next += 7 * DAY
     return next
   }
-  // monthly：按日历月递进（31 日等边界由 Date 归一化处理）
+  // monthly：按日历月递进。
+  //
+  // 不能直接 d.setMonth(d.getMonth() + 1)：setMonth 会把越界的日「溢出」到下个月，
+  // 于是 1/31 +1 个月 → 3/3（2 月没有 31 日），之后再每次 +1 月都停在 3 号，
+  // 用户设的「每月 31 日」从 3 月起变成「每月 3 日」，而且不会有人发现。
+  // 正确做法是逐月推进，并把日期夹到目标月最后一天。
   const d = new Date(base)
-  while (d.getTime() < now) d.setMonth(d.getMonth() + 1)
+  const day = d.getDate()
+  while (d.getTime() < now) {
+    const y = d.getFullYear()
+    const m = d.getMonth()
+    // 先归到 1 号再 +1 个月，避免 setMonth 的溢出
+    d.setDate(1)
+    d.setMonth(m + 1)
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+    d.setDate(Math.min(day, lastDay))
+    void y
+  }
   return d.getTime()
 }

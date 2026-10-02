@@ -76,6 +76,12 @@ class AutoSyncManager {
   async syncNow(): Promise<void> {
     this.clearTimers()
     if (!this.canSync()) return
+    // 必须和 doSync 一样守 isSyncing。原来只有 doSync 有这道守卫，
+    // 于是退登前的 syncNow 可以和防抖触发的 doSync 并发跑：
+    // 两个 syncBidirectional 各自「合并 → 上传」，
+    // 而合并是 read-then-write、await 之间没有锁，
+    // 两次上传会用各自读到的中间状态互相覆盖。
+    if (this.isSyncing) return
     const { settings } = useAppStore.getState()
     const acc = useAuthStore.getState().account!
     try {

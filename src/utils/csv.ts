@@ -34,8 +34,20 @@ export function downloadBlob(filename: string, blob: Blob) {
   const a = document.createElement('a')
   a.href = url
   a.download = filename
+  a.rel = 'noopener'
+  a.style.display = 'none'
+  // 必须先挂到文档里再 click：部分浏览器（Firefox 尤其如此）会忽略
+  // 未插入 DOM 的 a 元素上的 click，导致点了没反应。
+  document.body.appendChild(a)
   a.click()
-  URL.revokeObjectURL(url)
+  // revoke 不能紧跟 click 同步执行 —— 此刻浏览器可能还没开始取这个 blob，
+  // 同步 revoke 会让下载直接失败（Firefox 上「导出无反应」）。
+  // 延后一拍，并在 1 分钟后再兜底回收，避免长期泄漏。
+  setTimeout(() => {
+    URL.revokeObjectURL(url)
+    a.remove()
+  }, 0)
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
 function formatValueForExport(v: unknown): string {
