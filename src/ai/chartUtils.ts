@@ -7,11 +7,11 @@
 function seriesColors(): string[] {
   try {
     const cs = getComputedStyle(document.documentElement)
-    return Array.from({ length: 8 }, (_, i) =>
+    return Array.from({ length: 5 }, (_, i) =>
       (cs.getPropertyValue(`--app-series-${i}`) || '').trim(),
     ).filter(Boolean)
   } catch {
-    return ['#0F766E', '#2F6FD0', '#C96A06', '#A63D9B', '#2E8B3D', '#6B4FD8', '#D14B4B', '#0E7490']
+    return ['#009E73', '#0072B2', '#D55E00', '#CC79A7', '#1A1A1A']
   }
 }
 

@@ -109,6 +109,10 @@ export default function ChartModal({
         const dark = useAppStore.getState().settings.theme === 'dark'
         const option = styleChart(payload.option, dark)
         chart.setOption(option, true)
+        // 分类色只有 5 个（色盲安全要求），超出的系列会被合并，
+        // 要明确告知用户「合并了什么」，否则他会以为图表画错了
+        const meta = (option as { __meta?: { overflowNote?: string } }).__meta
+        if (meta?.overflowNote) message.info(meta.overflowNote)
         // init 完成后若容器尺寸与画布不一致（时序竞态兜底），立即修正
         requestAnimationFrame(() => {
           if (!disposed && chartRef.current) chartRef.current.resize()

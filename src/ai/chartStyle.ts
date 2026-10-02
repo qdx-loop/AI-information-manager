@@ -19,7 +19,9 @@
  * 而不是逐项覆盖 —— 这样无论 AI 写得多潦草，出来的图都是同一套样子。
  */
 
-const MAX_PIE_SLICES = 6
+const MAX_PIE_SLICES = 5
+/** 色盲安全的分类色只有 5 个（Okabe-Ito 子集），超出必须合并而不是再加颜色 */
+const MAX_SERIES = 5
 const MAX_BAR_CATEGORIES_INLINE = 14
 const BAR_LABELS_MAX = 8
 const LONG_LABEL = 7
@@ -63,7 +65,7 @@ export function readChartTokens(dark: boolean): ChartTokens {
   const cs = getComputedStyle(document.documentElement)
   const v = (n: string, fb: string) => (cs.getPropertyValue(n) || '').trim() || fb
   const series: string[] = []
-  for (let i = 0; i < 8; i++) series.push(v(`--app-series-${i}`, '#0F766E'))
+  for (let i = 0; i < 5; i++) series.push(v(`--app-series-${i}`, '#009E73'))
   return {
     ink: v('--app-ink', '#1F2328'),
     inkSoft: v('--app-ink-soft', '#4E5866'),
@@ -208,7 +210,29 @@ export function styleChart(raw: Record<string, unknown>, dark: boolean): Record<
     splitLine: { lineStyle: { color: tk.borderSoft, width: 1, type: 'solid' as const } },
   }
 
-  const styledSeries = p.series.map((s, i) => {
+  // 系列超过色盲安全色数（5）时合并尾部，而不是循环取色 ——
+  // 循环取色会让第 6 条和第 1 条同色，读者完全无法区分
+  let seriesToDraw = p.series
+  let mergedNote = ''
+  if (p.series.length > MAX_SERIES) {
+    const head = p.series.slice(0, MAX_SERIES - 1)
+    const tail = p.series.slice(MAX_SERIES - 1)
+    const mergedData: unknown[] = []
+    const len = Math.max(...tail.map((s) => s.data?.length ?? 0), 0)
+    for (let i = 0; i < len; i++) {
+      let sum = 0
+      for (const s of tail) {
+        const v = (s.data ?? [])[i]
+        const n = typeof v === 'number' ? v : Number(v) || 0
+        sum += Number.isFinite(n) ? n : 0
+      }
+      mergedData.push(sum)
+    }
+    seriesToDraw = [...head, { name: `其他（${tail.length} 项）`, type: tail[0]?.type ?? 'bar', data: mergedData }]
+    mergedNote = `已把 ${tail.length} 个次要系列合并为「其他」`
+  }
+
+  const styledSeries = seriesToDraw.map((s, i) => {
     const color = tk.series[i % tk.series.length]
     if (isBar) {
       return {
@@ -269,7 +293,7 @@ export function styleChart(raw: Record<string, unknown>, dark: boolean): Record<
 
   // 标题由外层 Modal 显示，图内不再重复画一遍
   const legend =
-    p.series.length > 1
+    seriesToDraw.length > 1
       ? {
           show: true,
           top: 0,
@@ -286,13 +310,14 @@ export function styleChart(raw: Record<string, unknown>, dark: boolean): Record<
   return {
     ...base,
     grid: goHorizontal
-      ? { left: 8, right: 56, top: p.series.length > 1 ? 34 : 16, bottom: 8, containLabel: true }
-      : { left: 8, right: 16, top: p.series.length > 1 ? 34 : 16, bottom: 8, containLabel: true },
+      ? { left: 8, right: 56, top: seriesToDraw.length > 1 ? 34 : 16, bottom: 8, containLabel: true }
+      : { left: 8, right: 16, top: seriesToDraw.length > 1 ? 34 : 16, bottom: 8, containLabel: true },
     tooltip,
     legend,
     xAxis: goHorizontal ? valAxis : catAxis,
     yAxis: goHorizontal ? { ...catAxis, inverse: true } : valAxis,
     series: styledSeries,
+    __meta: mergedNote ? { overflowNote: mergedNote } : undefined,
   }
 }
 
