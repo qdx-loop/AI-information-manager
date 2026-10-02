@@ -7,7 +7,46 @@ const RETRY_DELAY = 30 * 1000 // 重试间隔30秒
 const MAX_RETRIES = 3
 const HOOK_MIN_INTERVAL = 60 * 1000 // 页面钩子触发同步的最小间隔（防切标签页风暴，P9）
 
+export type SyncPhase = 'off' | 'idle' | 'syncing' | 'ok' | 'error'
+export interface SyncStatus {
+  phase: SyncPhase
+  /** 最近一次成功同步时间戳 */
+  at: number | null
+  /** 失败原因（仅 phase==='error'） */
+  message: string | null
+}
+
 class AutoSyncManager {
+  private listeners = new Set<() => void>()
+  private status: SyncStatus = { phase: 'off', at: null, message: null }
+
+  /**
+   * 同步状态此前只写进 console，用户既不知道「正在同步」，
+   * 也不知道「上次同步失败」。用 useSyncExternalStore 暴露给设置页。
+   */
+  subscribe = (cb: () => void): (() => void) => {
+    this.listeners.add(cb)
+    return () => { this.listeners.delete(cb) }
+  }
+
+  getStatus = (): SyncStatus => this.status
+
+  private setStatus(next: Partial<SyncStatus>): void {
+    const merged = { ...this.status, ...next }
+    if (
+      merged.phase === this.status.phase &&
+      merged.at === this.status.at &&
+      merged.message === this.status.message
+    ) return
+    this.status = merged
+    this.listeners.forEach((l) => l())
+  }
+
+  private errText(e: unknown): string {
+    if (e instanceof Error) return e.message
+    return String(e)
+  }
+
   private syncTimer: ReturnType<typeof setTimeout> | null = null
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private isSyncing = false
@@ -19,6 +58,11 @@ class AutoSyncManager {
     if (settings.storageMode !== 'cloud') return false
     if (!settings.cloud.url || !settings.cloud.anonKey) return false
     return !!useAuthStore.getState().account
+  }
+
+  /** 未启用云同步时也要把状态落到 off，否则页面显示「已同步」但其实根本没在同步 */
+  refreshEnabled(): void {
+    this.setStatus(this.canSync() ? { phase: 'idle' } : { phase: 'off' })
   }
 
   /** 触发防抖同步：每次数据修改时调用，3分钟后无新修改才执行 */
@@ -40,8 +84,10 @@ class AutoSyncManager {
         anonKey: settings.cloud.anonKey,
       })
       this.lastHookSyncAt = Date.now()
+      this.setStatus({ phase: 'ok', at: Date.now(), message: null })
       console.log('[autoSync] 双向同步完成')
     } catch (e) {
+      this.setStatus({ phase: 'error', message: this.errText(e) })
       console.error('[autoSync] 同步失败:', e)
     }
   }
@@ -68,6 +114,7 @@ class AutoSyncManager {
 
   destroy(): void {
     this.clearTimers()
+    this.setStatus({ phase: 'off' })
   }
 
   private async doSync(retryCount = 0): Promise<void> {
@@ -77,6 +124,7 @@ class AutoSyncManager {
     const acc = useAuthStore.getState().account!
 
     this.isSyncing = true
+    this.setStatus({ phase: 'syncing', message: null })
     try {
       // 先合并云端再上传：任何路径都不会用陈旧副本盲覆盖云端的新修改（P1）
       await syncBidirectional(acc.id, {
@@ -84,8 +132,10 @@ class AutoSyncManager {
         anonKey: settings.cloud.anonKey,
       })
       this.lastHookSyncAt = Date.now()
+      this.setStatus({ phase: 'ok', at: Date.now(), message: null })
       console.log('[autoSync] 同步完成')
     } catch (e) {
+      this.setStatus({ phase: 'error', message: this.errText(e) })
       console.error(`[autoSync] 同步失败 (第${retryCount + 1}次):`, e)
       if (retryCount < MAX_RETRIES - 1) {
         this.retryTimer = setTimeout(() => { void this.doSync(retryCount + 1) }, RETRY_DELAY)

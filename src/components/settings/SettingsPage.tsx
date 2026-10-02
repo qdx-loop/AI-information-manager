@@ -51,22 +51,85 @@ import {
 import { SYSTEM_PROMPT } from '@/ai/contextBuilder'
 import { importLegacyMemory, listMemory, replaceAllMemory, clearMemory } from '@/ai/memory'
 import FaceToFaceSyncModal from '@/components/settings/FaceToFaceSyncModal'
+import { autoSyncManager } from '@/utils/autoSync'
 import { useI18n } from '@/i18n'
+import { useSyncExternalStore } from 'react'
 
 const { Text } = Typography
+
+/**
+ * 同步此前只往 console 写，界面上毫无反馈：
+ * 用户改完数据切到别的设备，发现数据没过去，
+ * 唯一能得出的结论是「云同步坏了」，而其实可能只是还没到 3 分钟。
+ * 这里把「未启用 / 空闲 / 正在同步 / 上次成功于何时 / 失败原因」摊开。
+ */
+function SyncStatusBanner() {
+  const t = useI18n()
+  const st = useSyncExternalStore(autoSyncManager.subscribe, autoSyncManager.getStatus)
+
+  useEffect(() => { autoSyncManager.refreshEnabled() }, [])
+
+  const when = st.at ? new Date(st.at).toLocaleString() : ''
+  if (st.phase === 'off') {
+    return (
+      <Alert
+        style={{ marginBottom: 12 }}
+        type="info"
+        showIcon
+        icon={<CloudOutlined />}
+        message={t('settings.sync.off')}
+        description={t('settings.sync.offDesc')}
+      />
+    )
+  }
+  if (st.phase === 'error') {
+    return (
+      <Alert
+        style={{ marginBottom: 12 }}
+        type="error"
+        showIcon
+        message={t('settings.sync.error')}
+        description={`${t('settings.sync.lastOk')}: ${when || '—'} · ${st.message ?? ''}`}
+      />
+    )
+  }
+  if (st.phase === 'syncing') {
+    return (
+      <Alert
+        style={{ marginBottom: 12 }}
+        type="info"
+        showIcon
+        icon={<SyncOutlined spin />}
+        message={t('settings.sync.syncing')}
+        description={t('settings.sync.syncingDesc')}
+      />
+    )
+  }
+  return (
+    <Alert
+      style={{ marginBottom: 12 }}
+      type="success"
+      showIcon
+      message={t('settings.sync.ok')}
+      description={t('settings.sync.lastOk') + ': ' + (when || t('settings.sync.never'))}
+    />
+  )
+}
 
 export default function SettingsPage() {
   const t = useI18n()
   return (
     <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
+      <SyncStatusBanner />
       <Card>
         <Tabs
+          defaultActiveKey="account"
           items={[
             { key: 'account', label: t('settings.tab.account'), children: <AccountTab /> },
-            { key: 'storage', label: t('settings.tab.storage'), children: <StorageTab /> },
-            { key: 'configsync', label: t('settings.tab.configsync'), children: <ConfigSyncTab /> },
             { key: 'ai', label: t('settings.tab.ai'), children: <AITab /> },
             { key: 'backup', label: t('settings.tab.backup'), children: <BackupTab /> },
+            { key: 'configsync', label: t('settings.tab.configsync'), children: <ConfigSyncTab /> },
+            { key: 'storage', label: t('settings.tab.storage'), children: <StorageTab /> },
           ]}
         />
       </Card>
@@ -304,10 +367,10 @@ function StorageTab() {
       </Space>
 
       <Alert
-        type="info"
+        type="warning"
         showIcon
         style={{ marginBottom: 16 }}
-        message={t('settings.storage.info.title')}
+        message={t('settings.storage.advanced')}
         description={t('settings.storage.info.body')}
       />
 
@@ -570,13 +633,13 @@ function AITab() {
             onChange={(e) => setAI({ model: e.target.value })}
           />
         </Form.Item>
-        <Space>
-          <Button icon={<RobotOutlined />} onClick={handleTest}>
+        <Space wrap>
+          <Button type="primary" icon={<RobotOutlined />} onClick={handleTest}>
             {t('settings.ai.test')}
           </Button>
-          <Button type="primary" onClick={() => message.success(t('settings.ai.saved'))}>
-            保存
-          </Button>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {t('settings.ai.autosave')}
+          </Text>
         </Space>
       </Form>
         </>

@@ -21,6 +21,8 @@ import {
 } from '@/utils/p2pTransfer'
 import { apiSignalHost, apiSignalGuest, apiSignalPoll, apiSignalCancel, type P2PSignalRow } from '@/lib/serverApi'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+
 const { Text } = Typography
 
 type Stage =
@@ -475,6 +477,8 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
         )
     }
   }
+
+  useBackButtonLayer(open, handleClose)
 
   return (
     <Modal

@@ -18,6 +18,8 @@ import { sweepTrashOncePerDay } from '@/utils/trashSweep'
 import { isTourDone, markTourDone } from '@/utils/onboarding'
 import { startReminderWatcher } from '@/utils/reminderNotify'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+
 const { Content, Header } = Layout
 
 export default function AppShell() {
@@ -158,6 +160,9 @@ export default function AppShell() {
       placement: 'center',
     },
   ]
+
+  useBackButtonLayer(sidebarOpen, () => setSidebarOpen(false))
+  useBackButtonLayer(tourOpen, () => setTourOpen(false))
 
   return (
     <Layout style={{ height: '100vh', display: 'flex' }}>

@@ -24,6 +24,8 @@ import { getProvider } from '@/db/providerFactory'
 import { useI18n, tNow } from '@/i18n'
 import type { Item } from '@/types'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+
 interface Hit {
   kind: 'item'
   item: Item
@@ -274,6 +276,8 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
   const keyOf = (r: Row) => (r.kind === 'cmd' ? r.id : `hit-${r.item.id}`)
 
   const empty = rows.length === 0 && !loading
+
+  useBackButtonLayer(open, onClose)
 
   return (
     <Modal

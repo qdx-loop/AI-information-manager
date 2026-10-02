@@ -62,6 +62,7 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
 
   const visibleFields = fields.filter((f) => f.visible)
 
+
   return (
     <Modal
       title={item ? t('lib.editor.editTitle') : t('lib.editor.newTitle')}

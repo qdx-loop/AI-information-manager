@@ -40,6 +40,8 @@ import {
   type OpsStats,
 } from '@/lib/serverApi'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+
 const { Text } = Typography
 
 /**
@@ -336,6 +338,8 @@ export default function AdminPage() {
     { title: t('admin.col.detail'), dataIndex: 'detail', key: 'd', render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v || '—'}</Text> },
     { title: 'IP', dataIndex: 'ip', key: 'ip', render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text> },
   ]
+
+  useBackButtonLayer(!!resetFor, () => setResetFor(null))
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--app-canvas)', padding: 16 }}>

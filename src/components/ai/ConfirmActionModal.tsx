@@ -5,6 +5,8 @@ import type { Library, FieldDef, Item } from '@/types'
 import { useI18n } from '@/i18n'
 import { useAutoConfirm } from '@/ai/autoConfirm'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+
 interface Props {
   open: boolean
   action: ItemAction | null
@@ -57,6 +59,8 @@ export default function ConfirmActionModal({
   }
 
   const visibleFields = fields.filter((f) => f.visible)
+
+  useBackButtonLayer(open, onCancel)
 
   return (
     <Modal

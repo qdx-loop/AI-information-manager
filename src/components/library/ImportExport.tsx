@@ -8,6 +8,8 @@ import { itemsToExcel, parseExcel } from '@/utils/excel'
 import { downloadBlob } from '@/utils/csv'
 import { useI18n } from '@/i18n'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+
 /** 窄屏时工具栏把这些动作收进「⋯」菜单，需要父组件能命令式触发。
  *  导出直接给两种格式，而不是命令式打开一个二级菜单——嵌套菜单在手机上很难点准。 */
 export interface ImportExportHandle {
@@ -113,6 +115,8 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
     setParsedRows([])
     message.success(t('lib.importExport.imported', { n: rows.length }))
   }
+
+  useBackButtonLayer(modalOpen, () => setModalOpen(false))
 
   return (
     <>

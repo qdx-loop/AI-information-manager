@@ -5,6 +5,8 @@ import type { Library, FieldDef } from '@/types'
 import { useI18n } from '@/i18n'
 import { useAutoConfirm } from '@/ai/autoConfirm'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+
 const ACTION_COLORS: Record<string, string> = {
   create: 'green',
   rename: 'green',
@@ -83,6 +85,8 @@ export default function ConfirmLibActionModal({
       setLoading(false)
     }
   }
+
+  useBackButtonLayer(open, onCancel)
 
   return (
     <Modal

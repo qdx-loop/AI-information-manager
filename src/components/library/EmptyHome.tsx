@@ -11,6 +11,8 @@ import { getProvider } from '@/db/providerFactory'
 import HomeDashboard from './HomeDashboard'
 import GettingStarted from './GettingStarted'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+
 const { Paragraph } = Typography
 
 // iOS Safari 会对"7 天未使用"的网站清除本地存储（含 IndexedDB）。
@@ -89,6 +91,8 @@ export default function EmptyHome() {
       setCreating(false)
     }
   }
+
+  useBackButtonLayer(namingOpen, () => setNamingOpen(false))
 
   return (
     <div style={{ padding: 24, height: '100%' }}>

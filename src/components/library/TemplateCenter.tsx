@@ -7,6 +7,8 @@ import { useLibraryStore } from '@/store/libraryStore'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/i18n'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+
 const { Paragraph } = Typography
 
 // 模板中心：按行业分组展示所有模板，一键建库并套用字段结构（可选附带示例数据）
@@ -61,6 +63,8 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
       },
     })
   }
+
+  useBackButtonLayer(open, onClose)
 
   return (
     <Modal

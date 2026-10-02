@@ -5,6 +5,8 @@ import { useI18n, tNow } from '@/i18n'
 import { styleChart } from '@/ai/chartStyle'
 import { useAppStore } from '@/store/appStore'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+
 // 按需加载图表库（UMD 版），多个 CDN 依次回退，保证国内外网络环境可用
 let echartsPromise: Promise<unknown> | null = null
 
@@ -144,6 +146,8 @@ export default function ChartModal({
     a.click()
     message.success(t('ai.chart.downloaded'))
   }
+
+  useBackButtonLayer(!!payload, onClose)
 
   return (
     <Modal

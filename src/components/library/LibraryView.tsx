@@ -45,6 +45,9 @@ import type { Item, FieldValue } from '@/types'
 import { useI18n } from '@/i18n'
 import { track } from '@/utils/track'
 
+import { useBackButtonLayer } from '@/utils/backButton'
+import PageSkeleton from '@/components/common/PageSkeleton'
+
 const { Title, Text } = Typography
 
 export default function LibraryView() {
@@ -250,7 +253,20 @@ export default function LibraryView() {
     message.success(t('lib.clone.done', { n: cloneTargets.length }))
   }
 
-  if (loading) return <div style={{ padding: 24 }}>{t('lib.view.loading')}</div>
+  useBackButtonLayer(editorOpen, () => setEditorOpen(false))
+  useBackButtonLayer(templateOpen, () => setTemplateOpen(false))
+  useBackButtonLayer(cloneOpen, () => setCloneOpen(false))
+
+  // 加载中：骨架屏而不是一行字。之前是 `if (loading) return <div>加载中</div>`，
+  // 整个表格区域塌成一行文字，然后又整块跳出来，页面高度还会二次抖动。
+  if (loading) {
+    return (
+      <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
+        <PageSkeleton rows={8} />
+      </div>
+    )
+  }
+
 
   // 库不存在/已删除：只给「回到首页 / 去回收站」两个出口，不提供任何写入口
   if (libMissing) {
