@@ -41,12 +41,16 @@ export const manualEn: Manual = {
                   text: 'Open the home page, click Sign up, and pick a username and password. Remember the username — it is the only way to log in, and it cannot be recovered, by design, so nobody can impersonate you to read your data.',
                 },
                 {
-                  title: 'Create a library',
-                  text: 'After logging in, click New library on the left and give it a name such as "Customers". A library is one table.',
+                  title: 'Capture one note first',
+                  text: 'Click "Capture" at the bottom right and just type something. No library to create, no decision about where it belongs — it goes into a library called "Inbox", created automatically. This is the fastest way in and a good starting point.',
                 },
                 {
-                  title: 'Say what you want to track',
-                  text: 'Click Template and pick a ready-made one (customers, property, inventory, expenses), or start from a blank one and add your own fields.',
+                  title: 'Create a library',
+                  text: 'When you want to manage a particular kind of thing for real, click New library on the left and give it a name such as "Customers". A library is one table.',
+                },
+                {
+                  title: 'Say what you want to track (you can skip this)',
+                  text: 'Three ways, pick whichever you feel like: "Let AI suggest fields" and it proposes a set based on what you say it is for; start from a ready-made template; or do nothing at all — a library can stay empty and you just write plain text, adding fields whenever you want.',
                 },
                 {
                   title: 'Start entering data',
@@ -91,7 +95,46 @@ export const manualEn: Manual = {
         },
         {
           id: 'fieldtypes',
-          title: '2.2 Field types',
+          title: '2.2 Three ways in without designing a table',
+          blocks: [
+            {
+              t: 'p',
+              text: 'What usually stops people is not the app being hard to use — it is not knowing which fields to create. So there are three routes, in any order you like.',
+            },
+            {
+              t: 'steps',
+              items: [
+                {
+                  title: 'Capture (fastest, decide nothing)',
+                  text: 'Click "Capture" at the bottom right, or press Ctrl/⌘ + Shift + C, from any page. No library to pick, no fields to set up. Ctrl/⌘ + Enter saves. It goes to whichever library you are currently in; if you are not in one, it goes to a library called "Inbox", created automatically.',
+                },
+                {
+                  title: 'Let AI suggest fields',
+                  text: 'In a library that has no fields yet, click "Let AI suggest fields" and describe what you use it for (e.g. "contracts with renovation clients, tracking handover dates"). You get 3 to 6 suggested fields; remove anything you do not want and nothing is created until you confirm.',
+                },
+                {
+                  title: 'Start from a template',
+                  text: 'Click "Start from a template" and pick one of the ready-made sets (customers, property, inventory, expenses).',
+                },
+              ],
+            },
+            {
+              t: 'note',
+              kind: 'tip',
+              title: 'Capture first, structure later',
+              text: 'A library can have no fields at all, and what you write is then stored as plain text. If you add fields later, **nothing you already wrote is lost** — it keeps showing as part of that record. So "capture first, structure later" genuinely works here.',
+            },
+            {
+              t: 'note',
+              kind: 'tip',
+              title: 'Noticed a missing field halfway through?',
+              text: 'Click "+ Add a field on the fly" at the bottom of the item editor and type a name; it appears in the form immediately. Note that a new field applies to **every record in that library**, not just the one you are editing — so there is no need to agonise over whether it should exist.',
+            },
+          ],
+        },
+        {
+          id: 'fieldtypes',
+          title: '2.3 Field types',
           blocks: [
             { t: 'p', text: 'Picking the right type matters — it decides what you can sort, filter and chart later:' },
             {
@@ -275,7 +318,25 @@ export const manualEn: Manual = {
         },
         {
           id: 'phone',
-          title: '5.2 On a phone',
+          title: '5.2 Keyboard shortcuts',
+          blocks: [
+            {
+              t: 'table',
+              head: ['Shortcut', 'What it does'],
+              rows: [
+                ['Ctrl / ⌘ + Shift + C', 'Open "Capture" from any page — no need to find a library first'],
+                ['Ctrl / ⌘ + K', 'Command palette: search items, jump to a library, switch theme/language, open AI'],
+                ['Ctrl / ⌘ + J', 'Show / hide the AI assistant'],
+                ['Enter or F2', 'Edit the current cell directly in the table'],
+                ['Enter / Tab', 'Save and move down / right'],
+                ['Esc', 'Discard this edit'],
+              ],
+            },
+          ],
+        },
+        {
+          id: 'phone',
+          title: '5.3 On a phone',
           blocks: [
             { t: 'p', text: 'Open the same address on your phone and the layout switches to cards automatically. You can also install it as an app:' },
             {

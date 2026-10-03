@@ -165,6 +165,24 @@ export default function AppShell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [toggleDock])
 
+  // —— ⌘/Ctrl + Shift + C：全局速记 ——
+  //
+  // 刻意用 Shift 修饰：单独按 C/Ctrl+C 会和「复制」「浏览器 DevTools」冲突，
+  // 而速记是个高频动作，值得一个不用离开键盘的入口。
+  // 记法上刻意避开 N（新建条目）—— 那个在条目编辑器里是「新建」，
+  // 用同一个键会让人形成错误的肌肉记忆。
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || !e.shiftKey) return
+      if (e.key !== 'c' && e.key !== 'C') return
+      // 输入框里按下时也要能用（用户可能正在别处打字），所以不拦
+      e.preventDefault()
+      useAppStore.getState().openQuickCapture()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const tourSteps: TourProps['steps'] = [
     {
       title: t('tour.lib.title'),

@@ -22,6 +22,7 @@ import { useAppStore } from '@/store/appStore'
 import { useMemo, useState } from 'react'
 import type { Library } from '@/types'
 import { syncNow } from '@/utils/autoSync'
+import { Typography } from 'antd'
 import { resetSession } from '@/store/session'
 import { getProvider } from '@/db/providerFactory'
 import { copyTemplateToLibrary } from '@/utils/libraryTemplates'
@@ -55,7 +56,9 @@ function useSidebarState(onNavigate?: () => void) {
   // 首次打开前不挂载 → 加载永远不会执行 → 库列表空、标题显示「未命名管理库」。
 
   // 按分类分组
-  const grouped = useMemo(() => {
+  const { Text } = Typography
+
+const grouped = useMemo(() => {
     const map = new Map<string, Library[]>()
     libraries.forEach((l) => {
       const arr = map.get(l.category) ?? []
@@ -70,7 +73,15 @@ function useSidebarState(onNavigate?: () => void) {
     modal.confirm({
       title: t('app.newLibrary'),
       content: (
-        <Input placeholder={t('app.lib.namePlaceholder')} onChange={(e) => (name = e.target.value)} />
+        <div>
+          <Input placeholder={t('app.lib.namePlaceholder')} onChange={(e) => (name = e.target.value)} />
+          {/* 预期管理：以前这个对话框只有一个光秃秃的输入框，
+              填完点确定就跳进一个「你还没有字段」的库 —— 用户会以为自己建错了。
+              提前说清「创建完就能直接开始记，字段以后再加」，把落差消掉。 */}
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 10, lineHeight: 1.7 }}>
+            {t('app.lib.createHint')}
+          </Text>
+        </div>
       ),
       onOk: async () => {
         if (!name.trim()) {
