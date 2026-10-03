@@ -6,6 +6,8 @@ import { MoonOutlined, SunOutlined, MenuOutlined, SearchOutlined, LogoutOutlined
 import Sidebar, { SidebarContent } from './Sidebar'
 import AIDock from './AIDock'
 import AIFab from './AIFab'
+import CaptureFab from './CaptureFab'
+import QuickCapture from '@/components/common/QuickCapture'
 import MobileTabBar from './MobileTabBar'
 import { useAiUiStore, aiPanelVisible } from '@/store/aiUiStore'
 import { resetSession } from '@/store/session'
@@ -24,7 +26,7 @@ const { Content, Header } = Layout
 
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { settings, setTheme, setLanguage } = useAppStore()
+  const { settings, setTheme, setLanguage, quickCaptureOpen, closeQuickCapture } = useAppStore()
   const t = useI18n()
   const isDark = settings.theme === 'dark'
 
@@ -382,7 +384,13 @@ export default function AppShell() {
       </div>
       {/* 桌面：右下角悬浮 AI 入口。手机：AI 已经是底部标签之一，
           再放一个悬浮按钮既重复又会和标签栏抢位置。 */}
+      {/* 全局速记：桌面与手机都提供入口 */}
+      <CaptureFab />
       {!isMobile && <AIFab />}
+      <QuickCapture
+        open={quickCaptureOpen}
+        onClose={closeQuickCapture}
+      />
       {isMobile && <MobileTabBar />}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <Tour
