@@ -539,6 +539,11 @@ export default function LibraryView() {
           setEditing(null)
         }}
         onSave={handleSave}
+        libraryId={id!}
+        onFieldsChanged={async () => {
+          // 内联加字段后把新模板拉回 store，否则这个编辑器不会重渲染出新字段
+          if (lib) await selectLibrary(lib.id)
+        }}
       />
       <AiFieldsModal
         open={aiFieldsOpen}

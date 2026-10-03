@@ -8,6 +8,11 @@ type Dict = Record<string, string>
 const zh: Dict = {
   // —— 通用 ——
   'common.save': '保存',
+  'lib.inlineField.add': '＋ 按需加一个字段',
+  'lib.inlineField.labelPlaceholder': '字段名，如「联系人」',
+  'lib.inlineField.added': '已添加字段「{label}」，对本库所有条目生效',
+  'lib.inlineField.failed': '添加字段失败：{msg}',
+  'common.add': '添加',
   'app.offline': '当前离线：新建和编辑照常可用，数据已存在本机；恢复联网后会自动同步。',
   'common.cancel': '取消',
   'common.confirm': '确认',
@@ -763,6 +768,11 @@ Object.assign(zh as Dict, {
 const en: Dict = {
   // —— Common ——
   'common.save': 'Save',
+  'lib.inlineField.add': '+ Add a field on the fly',
+  'lib.inlineField.labelPlaceholder': 'Field name, e.g. Contact',
+  'lib.inlineField.added': 'Added field "{label}" — it applies to every record in this library',
+  'lib.inlineField.failed': 'Could not add the field: {msg}',
+  'common.add': 'Add',
   'app.offline': 'Offline: creating and editing still work, and your data is stored on this device. It will sync automatically when the connection returns.',
   'common.cancel': 'Cancel',
   'common.confirm': 'Confirm',
