@@ -152,34 +152,11 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
               }
             >
               {restFields(it).map((f) => (
-                <div
-                  key={f.key}
-                  style={{
-                    display: 'flex',
-                    gap: 10,
-                    fontSize: 13,
-                    padding: '2px 0',
-                    alignItems: 'baseline',
-                  }}
-                >
-                  <span
-                    style={{
-                      color: 'var(--app-ink-faint)',
-                      width: 72,
-                      flexShrink: 0,
-                      fontSize: 12,
-                    }}
-                  >
+                <div key={f.key} className="card-field">
+                  <span className="card-field-label" title={f.label}>
                     {f.label}
                   </span>
-                  <span
-                    style={{
-                      wordBreak: 'break-word',
-                      minWidth: 0,
-                      flex: 1,
-                      textAlign: alignOf(f.type) === 'left' ? 'left' : 'right',
-                    }}
-                  >
+                  <span className="card-field-value">
                     <SmartValue field={f} value={it.fields[f.key]} />
                   </span>
                 </div>

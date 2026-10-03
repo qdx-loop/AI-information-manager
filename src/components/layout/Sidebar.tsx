@@ -19,7 +19,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAppStore } from '@/store/appStore'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Library } from '@/types'
 import { syncNow } from '@/utils/autoSync'
 import { resetSession } from '@/store/session'
@@ -39,7 +39,6 @@ function useSidebarState(onNavigate?: () => void) {
   const {
     libraries,
     currentLibraryId,
-    loadLibraries,
     selectLibrary,
     createLibrary,
     renameLibrary,
@@ -51,9 +50,9 @@ function useSidebarState(onNavigate?: () => void) {
   const [loggingOut, setLoggingOut] = useState(false)
   const t = useI18n()
 
-  useEffect(() => {
-    loadLibraries().catch((e) => message.error(t('app.loadLibsFailed', { msg: (e as Error).message })))
-  }, [loadLibraries, message])
+  // 注意：库列表的加载已移到 AppShell（两种布局下都常驻）。
+  // 放在这里的话，手机上 Sidebar 只存在于未打开的 Drawer 里，
+  // 首次打开前不挂载 → 加载永远不会执行 → 库列表空、标题显示「未命名管理库」。
 
   // 按分类分组
   const grouped = useMemo(() => {

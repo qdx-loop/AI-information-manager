@@ -906,3 +906,57 @@ input {
   background: var(--app-kiln-wash);
   border-bottom: 1px solid var(--app-border);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   手机端：列表卡片里的字段行
+   原来数字/日期是右对齐的，于是「成交金额」在左边、「7350」贴着卡片右边缘，
+   中间横着约 150px 空白 —— 扫读时眼睛要跨过去，实测比左对齐慢很多。
+   卡片行一律左对齐：标签固定宽度、值紧跟其后，形成一条稳定的竖直阅读线。
+   同时把标签字号从 12 提到 13：原来标签比值还小，层级是反的，
+   12px 的中文在手机上偏小且发虚。
+   ══════════════════════════════════════════════════════════════ */
+.card-field {
+  display: flex;
+  gap: 10px;
+  padding: 3px 0;
+  align-items: baseline;
+}
+.card-field-label {
+  color: var(--app-ink-faint);
+  width: 84px;
+  flex-shrink: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-field-value {
+  word-break: break-word;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  /* 窄屏一律给足点击区，不只看 pointer:coarse。
+     带触摸屏的小笔记本、以及某些 WebView 会报 pointer:fine，
+     但用户确实是用手指点 —— 只按指针类型判断会漏掉这些设备。 */
+  .tap-action {
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 8px;
+  }
+  /* 卡片头部的置顶/编辑/删除按钮同属拇指区 */
+  .ant-card-head .tap-action {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .card-field-label {
+    width: 76px;
+    font-size: 13px;
+  }
+  .card-field-value {
+    font-size: 14px;
+  }
+}

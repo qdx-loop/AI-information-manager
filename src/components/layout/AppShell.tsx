@@ -44,6 +44,29 @@ export default function AppShell() {
   // —— 首次登录引导 Tour（仅桌面端，每账号一次）——
   const { account } = useAuthStore()
   const navigate = useNavigate()
+
+  /**
+   * 库列表必须在这里加载，不能放在 Sidebar 里。
+   *
+   * Sidebar 在手机上只存在于 `<Drawer open={sidebarOpen}>` 内部，而 antd Drawer
+   * 默认不预渲染（没有 forceRender），首次打开前根本不挂载 ——
+   * 于是 Sidebar 里的 useEffect 从不执行，libraries 一直是空数组。后果：
+   *   1. 库详情页标题显示「未命名管理库」、分类标签消失（找不到 lib）
+   *   2. 侧边栏的库列表是空的，非得先点开汉堡才看得到
+   *   3. libsReady 永远为 false —— 那是我为「库不存在」保护页加的判定依据，
+   *      于是那道保护在手机上等于从未生效
+   * 条目数据是好的（selectLibrary 不依赖 libraries），所以问题被掩盖成
+   * 「就是标题不对」，很容易被当成小毛病。
+   *
+   * AppShell 在两种布局下都常驻，是唯一正确的加载点。
+   */
+  const loadLibraries = useLibraryStore((s) => s.loadLibraries)
+  useEffect(() => {
+    if (!account) return
+    void loadLibraries().catch((e: unknown) => {
+      console.error('[AppShell] 加载管理库失败:', e)
+    })
+  }, [account, loadLibraries])
   const libraries = useLibraryStore((s) => s.libraries)
   const currentLibraryId = useLibraryStore((s) => s.currentLibraryId)
   const currentLib = libraries.find((l) => l.id === currentLibraryId) ?? null
