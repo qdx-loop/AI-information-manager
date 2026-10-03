@@ -1,5 +1,4 @@
-import { Alert, Modal, Form, App, Button, DatePicker, Divider, Input, Select, Space } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { Alert, Modal, Form, App, DatePicker, Divider, Input, Select } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
 import { useEffect, useRef, useState } from 'react'
 import dayjs from 'dayjs'
@@ -11,18 +10,7 @@ import { useAuthStore } from '@/store/authStore'
 import { getProvider } from '@/db/providerFactory'
 import { markObStep } from '@/utils/onboarding'
 import { notificationSupported } from '@/utils/reminderNotify'
-import { newId } from '@/utils/id'
 import { FREE_TEXT_KEY, getFreeText, withFreeText } from '@/utils/freeText'
-
-/** 内联加字段时可选的类型（与模板编辑器一致） */
-const INLINE_FIELD_TYPES: Array<{ value: FieldDef['type']; label: string }> = [
-  { value: 'text', label: '文本' },
-  { value: 'number', label: '数字' },
-  { value: 'date', label: '日期' },
-  { value: 'select', label: '下拉' },
-  { value: 'checkbox', label: '复选框' },
-  { value: 'rating', label: '评分' },
-]
 
 interface Props {
   open: boolean
@@ -30,68 +18,11 @@ interface Props {
   item: Item | null
   onCancel: () => void
   onSave: (values: Record<string, FieldValue>) => Promise<void>
-  /** 内联加字段后调用，让父组件把新模板拉回 store */
-  onFieldsChanged?: () => Promise<void> | void
-  /** 目标库 ID。新建条目时 item 为 null，不能拿 item 当库来源 */
-  libraryId: string
 }
 
-export default function ItemEditor({ open, fields, item, onCancel, onSave, onFieldsChanged, libraryId }: Props) {
+export default function ItemEditor({ open, fields, item, onCancel, onSave }: Props) {
   const { message, modal } = App.useApp()
   const [form] = Form.useForm()
-
-  /**
-   * 内联加字段。
-   *
-   * 原来要加一个字段只能：关掉编辑器 → 点「模板」→ 全屏模板编辑器 →
-   * 加字段 → 保存 → 再打开条目。刚把一句话记下来、想顺手补个「联系人」，
-   * 却被迫中断两次，这是「先记下来，结构以后补」理念的反面。
-   *
-   * 关键点：新增字段**立刻写入模板**，所以它属于这个库、对所有条目生效，
-   * 不是「这一条特有的临时输入」—— 那样用户会以为加字段是免费的。
-   */
-  const [adding, setAdding] = useState(false)
-  const [newField, setNewField] = useState<{ label: string; type: FieldDef['type'] }>({
-    label: '',
-    type: 'text',
-  })
-  const [addingBusy, setAddingBusy] = useState(false)
-
-  const addFieldInline = async () => {
-    const label = newField.label.trim()
-    if (!label) return
-    if (!libraryId) return
-    if (fields.some((f) => f.label === label)) {
-      message.warning(t('lib.tpl.err.labelDup'))
-      return
-    }
-    setAddingBusy(true)
-    try {
-      const now = Date.now()
-      const def: FieldDef = {
-        id: newId(),
-        libraryId,
-        key: `k_${newId().slice(0, 8)}`,
-        label,
-        type: newField.type,
-        options: [],
-        required: false,
-        visible: true,
-        sortOrder: fields.length,
-        updatedAt: now,
-        deletedAt: null,
-      }
-      await getProvider().saveTemplate(libraryId, [...fields, def])
-      await onFieldsChanged?.()
-      setNewField({ label: '', type: 'text' })
-      setAdding(false)
-      message.success(t('lib.inlineField.added', { label }))
-    } catch (e) {
-      message.error(t('lib.inlineField.failed', { msg: (e as Error).message }))
-    } finally {
-      setAddingBusy(false)
-    }
-  }
   const t = useI18n()
   const { account } = useAuthStore()
 
@@ -271,41 +202,6 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onFie
           之前界面上完全看不出这一点，用户只能自己发现「提醒从来没响过」。
           所以在设置提醒的地方直接说明它在这个环境里会不会生效。
         */}
-
-        {/*
-          内联加字段：录着录着发现少一个维度，就地补一个。
-          不用关掉编辑器去全屏模板编辑器 —— 那会把一次连续的录入打断两次。
-        */}
-        <div style={{ marginBottom: 12 }}>
-          {!adding ? (
-            <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={() => setAdding(true)}>
-              {t('lib.inlineField.add')}
-            </Button>
-          ) : (
-            <Space.Compact style={{ width: '100%' }}>
-              <Input
-                autoFocus
-                value={newField.label}
-                placeholder={t('lib.inlineField.labelPlaceholder')}
-                onChange={(e) => setNewField({ ...newField, label: e.target.value })}
-                onPressEnter={addFieldInline}
-                maxLength={20}
-                style={{ flex: 1 }}
-              />
-              <Select
-                value={newField.type}
-                onChange={(v) => setNewField({ ...newField, type: v })}
-                style={{ width: 130, flex: 'none' }}
-                options={INLINE_FIELD_TYPES}
-              />
-              <Button type="primary" loading={addingBusy} onClick={addFieldInline}>
-                {t('common.add')}
-              </Button>
-              <Button onClick={() => setAdding(false)}>{t('common.cancel')}</Button>
-            </Space.Compact>
-          )}
-        </div>
-
         {notifyState !== 'ok' && (
           <Alert
             type="warning"
