@@ -10,7 +10,6 @@ import SmartValue from '@/components/fields/SmartValue'
 import { useLibraryStore } from '@/store/libraryStore'
 import dayjs from 'dayjs'
 
-import { getFreeText } from '@/utils/freeText'
 interface Props {
   fields: FieldDef[]
   items: Item[]
@@ -63,13 +62,9 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
         const v = it.fields[f.key]
         if (v != null && String(v).trim() !== '') return renderCellValue(f, v)
       }
-      // 一个字段都没有的库（用户还没配模板就记了东西），标题退回速记正文。
-      // 不兜底的话这里永远返回「（无内容）」，用户会以为东西没存上。
-      const free = getFreeText(it)
-      if (free) return free.length > 60 ? `${free.slice(0, 60)}…` : free
       return t('common.emptyValue')
     },
-    [visibleFields, t],
+    [visibleFields],
   )
   // 卡片正文要跳过主标识字段，否则和标题重复
   const restFields = useMemo(
@@ -123,12 +118,12 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
                     />
                   </Tooltip>
                   <span
-                    style={
-                      visibleFields.length === 0
-                        ? // 零字段时整段就是速记内容，截断会把记的东西藏起来
-                          { fontWeight: 600, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }
-                        : { fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-                    }
+                    style={{
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
                   >
                     {primaryOf(it)}
                   </span>
@@ -166,9 +161,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
                   </span>
                 </div>
               ))}
-              {/* 零字段时不要再渲染一遍正文：卡片标题（primaryOf）已经是速记内容了，
-                  两处都显示会出现同一句话重复两遍。 */}
-              {restFields(it).length === 0 && visibleFields.length > 0 && (
+              {restFields(it).length === 0 && (
                 <div style={{ fontSize: 12.5, color: 'var(--app-ink-faint)', padding: '6px 0' }}>
                   {t('lib.card.onlyTitle')}
                 </div>
@@ -293,25 +286,6 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
         </Tooltip>
       ),
     },
-    /*
-     * 一个字段都没有时（用户还没配模板就记了东西），必须给速记正文一列。
-     * 原来这里只有 visibleFields.map(...)，于是零字段的库在桌面上只剩
-     * 「创建时间 / 操作」两列，记录显示成一行空白 —— 东西确实存下来了，
-     * 但用户看不见，「存下了却看不到」比一开始就不提供这个功能更糟。
-     */
-    ...(visibleFields.length === 0
-      ? [{
-          title: t('lib.freeText.label'),
-          key: '__free',
-          ellipsis: true,
-          className: 'cell-primary',
-          width: 320,
-          render: (_: unknown, record: Item) => {
-            const free = getFreeText(record)
-            return free ? <span style={{ whiteSpace: 'pre-wrap' }}>{free}</span> : t('common.emptyValue')
-          },
-        } as ColumnsType<Item>[number]]
-      : []),
     // 第一个可见字段当作「标识列」：给足宽度 + 加粗，让每行第一眼就能认出是哪条。
     // 研究里反复出现的一条：表格的第一职责是可扫读性，标识列必须排在最前并占最大权重。
     ...visibleFields.map((f, i) => ({

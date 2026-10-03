@@ -1,19 +1,9 @@
 import * as XLSX from 'xlsx'
 import type { FieldDef, Item } from '@/types'
-import { getFreeText } from '@/utils/freeText'
-
-/** 零字段库导出时的列名（中文界面） */
-const freeTextColumnLabel = '内容'
 
 export function itemsToExcel(items: Item[], fields: FieldDef[]): Blob {
   const visibleFields = fields.filter((f) => f.visible)
-  // 一个字段都没有时导出「内容」列（速记正文）。
-  // 否则会生成一个只有表头的空文件，用户会以为数据丢了。
-  const cols: Array<{ label: string; get: (it: Item) => unknown }> =
-    visibleFields.length > 0
-      ? visibleFields.map((f) => ({ label: f.label, get: (it: Item) => it.fields[f.key] }))
-      : [{ label: freeTextColumnLabel, get: (it: Item) => getFreeText(it) }]
-  const header = cols.map((c) => c.label)
+  const header = visibleFields.map((f) => f.label)
   const rows = items.map((it) =>
     visibleFields.map((f) => formatValue(it.fields[f.key])),
   )

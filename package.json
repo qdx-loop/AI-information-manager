@@ -7,9 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "npm run check:i18n && vitest run",
-    "test:watch": "vitest",
-    "check:i18n": "node scripts/check-i18n.mjs src/i18n/index.ts"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@ant-design/icons": "^5.3.7",

@@ -1,4 +1,4 @@
-import { Alert, Modal, Form, App, DatePicker, Divider, Input, Select } from 'antd'
+import { Alert, Modal, Form, App, DatePicker, Divider, Select } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
 import { useEffect, useRef, useState } from 'react'
 import dayjs from 'dayjs'
@@ -10,7 +10,6 @@ import { useAuthStore } from '@/store/authStore'
 import { getProvider } from '@/db/providerFactory'
 import { markObStep } from '@/utils/onboarding'
 import { notificationSupported } from '@/utils/reminderNotify'
-import { FREE_TEXT_KEY, getFreeText, withFreeText } from '@/utils/freeText'
 
 interface Props {
   open: boolean
@@ -47,7 +46,6 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
       const reminder = item ? getReminderAt(item) : null
       init[REMINDER_FIELD_KEY] = reminder != null ? dayjs(isoToLocalTs(reminder)) : null
       init[REMINDER_REPEAT_KEY] = item ? getReminderRepeat(item) : 'none'
-      init[FREE_TEXT_KEY] = item ? getFreeText(item) : null
       form.setFieldsValue(init)
     }
   }, [open, fields, item, form])
@@ -113,8 +111,7 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
         delete values[REMINDER_FIELD_KEY]
         delete values[REMINDER_REPEAT_KEY]
       }
-      const { [FREE_TEXT_KEY]: free, ...rest } = values
-      await onSave(withFreeText(rest as Record<string, FieldValue>, typeof free === 'string' ? free : null))
+      await onSave(values as Record<string, FieldValue>)
     } catch (e) {
       if ((e as Error).message) message.error((e as Error).message)
     } finally {
@@ -153,34 +150,8 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
             <FieldRenderer field={f} value={null} onChange={() => {}} />
           </Form.Item>
         ))}
-        {/*
-          零字段时不再只给一句「请先去配置字段」然后把人赶走 ——
-          原来 handleNew 在这种情况下直接拒绝打开编辑器，
-          于是「录第一条数据」的前置条件变成了「先设计一张表」，
-          三层概念之后才能存一个东西。这正是被验证为劝退非技术用户的记录摩擦。
-          现在给一个大文本框：什么都不配也能先记下来。
-        */}
         {visibleFields.length === 0 && (
-          <>
-            <Form.Item
-              name={FREE_TEXT_KEY}
-              label={t('lib.freeText.label')}
-              extra={t('lib.freeText.hint')}
-              style={{ marginBottom: 4 }}
-            >
-              <Input.TextArea
-                autoSize={{ minRows: 5, maxRows: 14 }}
-                placeholder={t('lib.freeText.placeholder')}
-              />
-            </Form.Item>
-            <Alert
-              type="info"
-              showIcon
-              style={{ marginBottom: 4 }}
-              message={t('lib.freeText.upgradeTitle')}
-              description={t('lib.freeText.upgradeBody')}
-            />
-          </>
+          <p style={{ color: 'var(--ant-color-text-secondary)', textAlign: 'center' }}>当前管理库尚未配置字段，请先在「字段模板」中添加字段。</p>
         )}
         <Divider style={{ margin: '12px 0' }} />
         <Form.Item

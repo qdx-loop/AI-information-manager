@@ -21,7 +21,6 @@ import { useLibraryStore } from '@/store/libraryStore'
 import { useAppStore } from '@/store/appStore'
 import { useAiUiStore } from '@/store/aiUiStore'
 import { getProvider } from '@/db/providerFactory'
-import { FREE_TEXT_KEY } from '@/utils/freeText'
 import { useI18n, tNow } from '@/i18n'
 import type { Item } from '@/types'
 
@@ -134,9 +133,7 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
                 item: it,
                 libraryId: lib.id,
                 libraryName: lib.name,
-                // 保留键（如零配置速记的 __text）不在模板里，
-                // 直接显示 key 会把内部字段名暴露给用户
-                fieldLabel: labels[key] ?? (key === FREE_TEXT_KEY ? t('lib.freeText.label') : key),
+                fieldLabel: labels[key] ?? key,
                 matched: sval,
               })
               break // 一条记录只出现一次
