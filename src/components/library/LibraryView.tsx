@@ -35,9 +35,12 @@ import {
   FileTextOutlined,
   FileExcelOutlined,
   FolderOpenOutlined,
+  EditOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import LibraryTable from './LibraryTable'
+import AiFieldsModal from './AiFieldsModal'
 import ItemEditor from './ItemEditor'
 import TemplateEditor from './TemplateEditor'
 import ImportExport, { type ImportExportHandle } from './ImportExport'
@@ -84,6 +87,7 @@ export default function LibraryView() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<Item | null>(null)
   const [templateOpen, setTemplateOpen] = useState(false)
+  const [aiFieldsOpen, setAiFieldsOpen] = useState(false)
   const [cloneOpen, setCloneOpen] = useState(false)
   const [cloneTargets, setCloneTargets] = useState<string[]>([])
   const [keywordInput, setKeywordInput] = useState('')
@@ -145,15 +149,10 @@ export default function LibraryView() {
   const visibleFields = fields.filter((f) => f.visible)
 
   const handleNew = () => {
-    if (fields.length === 0) {
-      modal.warning({
-        title: t('lib.needTemplate.title'),
-        content: t('lib.needTemplate.content'),
-        okText: t('lib.needTemplate.go'),
-        onOk: () => setTemplateOpen(true),
-      })
-      return
-    }
+    // 不再拦截「一个字段都没有」的库。
+    // 原来这里弹一个警告把人赶去配模板，等于给「录第一条」加了三层前置概念
+    // （建库 → 配模板 → 录数据）。编辑器里已经支持纯文本速记（freeText.ts），
+    // 所以零字段也能直接写。
     setEditing(null)
     setEditorOpen(true)
   }
@@ -438,11 +437,14 @@ export default function LibraryView() {
         {processed.length === 0 ? (
           <div style={{ padding: '32px 16px 40px' }}>
             {items.length === 0 && fields.length === 0 ? (
-              // 一个字段都没有时，「新建条目」是无效动作——先去配模板
+              // 一个字段都没有时，唯一出口原本是「去配模板」——
+              // 也就是「想存东西，先设计一张表」。这里改成两个并列出口，
+              // 主按钮是「直接写一条」，配字段/用模板是次选项。
+              // 结构可以后补，先把东西记下来。
               <Empty
-                image={<SettingOutlined style={{ fontSize: 44, color: 'var(--app-ink-faint)' }} />}
+                image={<EditOutlined style={{ fontSize: 44, color: 'var(--app-ink-faint)' }} />}
                 description={
-                  <span style={{ display: 'block', maxWidth: 380, margin: '0 auto' }}>
+                  <span style={{ display: 'block', maxWidth: 420, margin: '0 auto' }}>
                     <span style={{ display: 'block', fontWeight: 600, marginBottom: 6, color: 'var(--ant-color-text)' }}>
                       {t('lib.empty.noFields.title')}
                     </span>
@@ -450,9 +452,22 @@ export default function LibraryView() {
                   </span>
                 }
               >
-                <Button type="primary" icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>
-                  {t('lib.empty.noFields.cta')}
-                </Button>
+                <Space direction="vertical" size={10} align="center" style={{ alignItems: 'center' }}>
+                  <Button type="primary" size="large" icon={<EditOutlined />} onClick={handleNew}>
+                    {t('lib.empty.noFields.ctaWrite')}
+                  </Button>
+                  <Space size={8} wrap>
+                    <Button icon={<ThunderboltOutlined />} onClick={() => setAiFieldsOpen(true)}>
+                      {t('lib.empty.noFields.ctaAi')}
+                    </Button>
+                    <Button icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>
+                      {t('lib.empty.noFields.ctaTpl')}
+                    </Button>
+                  </Space>
+                  <Text type="secondary" style={{ fontSize: 12.5, maxWidth: 380 }}>
+                    {t('lib.empty.noFields.foot')}
+                  </Text>
+                </Space>
               </Empty>
             ) : items.length === 0 ? (
               // 首次使用：空状态是这里最好的新手引导位，要说清「这里将来会放什么」
@@ -524,6 +539,17 @@ export default function LibraryView() {
           setEditing(null)
         }}
         onSave={handleSave}
+      />
+      <AiFieldsModal
+        open={aiFieldsOpen}
+        onClose={() => setAiFieldsOpen(false)}
+        libraryId={id!}
+        libraryName={lib?.name ?? ''}
+        existingLabels={fields.map((f) => f.label)}
+        onCreated={async () => {
+          // 字段刚建好，必须把模板重新拉进 store，否则界面还停在「无字段」空状态
+          await refreshCurrent()
+        }}
       />
       <TemplateEditor
         open={templateOpen}
