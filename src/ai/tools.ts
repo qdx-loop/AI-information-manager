@@ -19,10 +19,7 @@ export const ITEM_ACTION_TOOL = {
         itemId: { type: 'string', description: 'update/delete 时必填，目标条目 ID' },
         fields: {
           type: 'object',
-          description:
-            'create/update 时必填，字段键值对。必须使用字段模板中的 key（括号中的英文名），不要使用 label（中文显示名）。' +
-            '例外：如果目标库**一个字段都没有**（用户还没配置模板），优先用 execute_template_action 先加上合适的字段；' +
-            '如果用户明确只想留一段文字，就写进保留键 __text（纯文本），这样能存下来而不会因为没有字段可用而失败。',
+          description: 'create/update 时必填，字段键值对。必须使用字段模板中的 key（括号中的英文名），不要使用 label（中文显示名）',
           additionalProperties: true,
         },
         reason: { type: 'string', description: '执行该操作的理由（展示给用户）' },

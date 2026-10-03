@@ -1,4 +1,3 @@
-import { getFreeText } from '@/utils/freeText'
 import type { Library, FieldDef, Item } from '@/types'
 import type { AIScope } from '@/types'
 
@@ -29,10 +28,7 @@ function rowText(fields: FieldDef[], it: Item): string {
       return `${s.length > MAX_FIELD_VALUE_LEN ? s.slice(0, MAX_FIELD_VALUE_LEN) + '…' : s}`
     })
     .join(' | ')
-  // 零字段库（用户还没配模板就记了东西）里，速记正文存在保留键 __text 里。
-  // 不兜底的话这些条目在 AI 眼里全是空行 —— 用户会以为「AI 看不到我的数据」。
-  const free = getFreeText(it)
-  return `[id=${it.id}] ${free ? free + (vals ? ' | ' + vals : '') : vals}`
+  return `[id=${it.id}] ${vals}`
 }
 
 /**
@@ -107,9 +103,6 @@ export const SYSTEM_PROMPT = `你是「信息管理助手」，一个具备完�
 # 规则
 - 用中文回答，简洁专业。
 - 字段 key 请使用字段模板括号中的英文名，不要用中文显示名。
-- 如果某个库的字段是「(无字段)」，说明用户还没配置模板：
-  想认真管理就先用 execute_template_action 加上合适的字段；
-  用户只想随手留一句话时，把内容写进保留键 __text。
 `
 
 export const SYSTEM_PROMPT_EN = `You are "InfoDesk", a capable data-agent. Users manage their libraries through natural language: search, statistics, organizing, and record changes.
@@ -143,7 +136,4 @@ The system provides your previously saved memories at conversation start. When t
 # Rules
 - Reply in the user's language; be concise and professional.
 - Use the English field key (in parentheses in the template), never the display label.
-- If a library shows "(no fields)", the user has not set up a template yet:
-  to manage it properly, add fields first with execute_template_action;
-  if the user only wants to jot something down, write it to the reserved key __text.
 `
