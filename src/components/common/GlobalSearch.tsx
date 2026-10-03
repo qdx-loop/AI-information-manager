@@ -15,7 +15,6 @@ import {
   GlobalOutlined,
   CloudSyncOutlined,
   SaveOutlined,
-  EditOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useLibraryStore } from '@/store/libraryStore'
@@ -78,7 +77,6 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
   const settings = useAppStore((s) => s.settings)
   const setTheme = useAppStore((s) => s.setTheme)
   const setLanguage = useAppStore((s) => s.setLanguage)
-  const openQuickCapture = useAppStore((s) => s.openQuickCapture)
   const setAiOpen = useAiUiStore((s) => s.setOpen)
 
   const [q, setQ] = useState('')
@@ -208,11 +206,10 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
         icon: <GlobalOutlined />,
         run: () => setLanguage(settings.language === 'zh' ? 'en' : 'zh'),
       },
-      { kind: 'cmd', id: 'capture', group: t('palette.group.act'), label: t('quickCapture.cmd'), icon: <EditOutlined />, run: () => { onClose(); openQuickCapture() } },
       { kind: 'cmd', id: 'backup', group: t('palette.group.act'), label: t('palette.backup'), icon: <SaveOutlined />, run: () => go('/settings') },
       { kind: 'cmd', id: 'sync', group: t('palette.group.act'), label: t('palette.sync'), icon: <CloudSyncOutlined />, run: () => go('/settings') },
     ]
-  }, [t, go, createLibrary, onClose, openQuickCapture, setAiOpen, settings.theme, settings.language, setTheme, setLanguage, message])
+  }, [t, go, createLibrary, onClose, setAiOpen, settings.theme, settings.language, setTheme, setLanguage, message])
 
   const libRows = useMemo<Cmd[]>(() => {
     const kw = q.trim().toLowerCase()

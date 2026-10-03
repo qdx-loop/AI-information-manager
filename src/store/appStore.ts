@@ -21,11 +21,6 @@ function persist(s: Settings) {
 }
 
 interface AppState {
-  /** 全局速记弹窗 */
-  quickCaptureOpen: boolean
-  openQuickCapture: () => void
-  closeQuickCapture: () => void
-
   settings: Settings
   setStorageMode: (mode: Settings['storageMode']) => void
   setLanguage: (lang: Language) => void
@@ -37,9 +32,6 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
   settings: load(),
-  quickCaptureOpen: false,
-  openQuickCapture: () => set({ quickCaptureOpen: true }),
-  closeQuickCapture: () => set({ quickCaptureOpen: false }),
 
   setStorageMode(mode) {
     const next = { ...get().settings, storageMode: mode }
