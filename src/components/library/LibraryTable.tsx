@@ -39,6 +39,32 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 10
 
+  // row 是**当前页内**的下标（只用于 DOM 定位），id 才是数据身份。
+  // 原来只用 row，而 antd 的 render(_, record, index) 传的是分页后的页内下标，
+  // beginEdit/commitEdit 却拿它去索引完整的 items —— 于是在第 2 页点任意单元格，
+  // 编辑器里显示第 1 条的内容，回车就把改动写进了整个库的第 1 条。
+  // 这类静默写错行比报错更难挽回，所以身份一律以 id 为准。
+  const [editCell, setEditCell] = useState<{ id: string; row: number; key: string } | null>(null)
+  const [draft, setDraft] = useState<FieldValue>(null)
+  const [savingCell, setSavingCell] = useState(false)
+  const gridRef = useRef<HTMLTableElement | null>(null)
+
+  // 这几个 Hook 原来写在 `if (isMobile) return ...` 之后：窗口宽度跨过 768px
+  // （拖窄窗口、旋转平板）时 Hook 数量会变，React 抛「Rendered fewer hooks」
+  // 打到全局 ErrorBoundary —— 一次改窗口大小就能白屏。必须无条件调用。
+
+  // 当前页实际渲染的行数：showSizeChanger 可改每页条数，从 DOM 数最可靠
+  const renderedRowCount = (): number => gridRef.current?.querySelectorAll('tbody tr').length ?? items.length
+
+  // items 变少（搜索命中几条、刚删过几条）后 page 可能越界：移动端 slice 出空数组
+  // 且分页器只在 items.length > PAGE_SIZE 时渲染 → 列表空白且无处可点回第一页。
+  // 用 effect 夹住（不在渲染期 setState）。
+  const maxMobilePage = Math.max(1, Math.ceil(items.length / PAGE_SIZE))
+  useEffect(() => {
+    if (page > maxMobilePage) setPage(maxMobilePage)
+  }, [page, maxMobilePage])
+  const clampedPage = Math.min(page, maxMobilePage)
+
   const visibleFields = fields.filter((f) => f.visible)
 
   // 焦点条目滚动定位 + 自动清除高亮
@@ -83,7 +109,10 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
 
   // ———— 移动端：卡片列表（横向滚动太远才能摸到操作列，改为纵向卡片） ————
   if (isMobile) {
-    const start = (page - 1) * PAGE_SIZE
+    // items 变少（搜索命中 3 条、刚删过几条）后，page 可能停在越界的位置上：
+    // slice 出来是空数组，而分页器只在 items.length > PAGE_SIZE 时渲染
+    // → 列表空白且分页器也没了，命中结果再也回不来。夹一下就好。
+    const start = (clampedPage - 1) * PAGE_SIZE
     const paged = items.slice(start, start + PAGE_SIZE)
     return (
       <div ref={tableRef} className="lib-grid">
@@ -173,7 +202,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
             <Pagination
               simple
-              current={page}
+              current={clampedPage}
               pageSize={PAGE_SIZE}
               total={items.length}
               onChange={(p) => {
@@ -192,14 +221,12 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
   // 键盘约定采用全行业一致的一套（ArcGIS Pro / JMP / GraphPad / Budibase / Esko 相同）：
   //   Enter 或 F2  进入编辑      Enter  保存并下移      Tab  保存并右移
   //   Esc          取消并还原    方向键  在单元格间移动（编辑中不劫持）
-  const [editCell, setEditCell] = useState<{ row: number; key: string } | null>(null)
-  const [draft, setDraft] = useState<FieldValue>(null)
-  const [savingCell, setSavingCell] = useState(false)
-  const gridRef = useRef<HTMLTableElement | null>(null)
+  // （editCell/draft/savingCell/gridRef/renderedRowCount 已提到移动端分支之前，
+  //   否则窗口宽度跨过 768px 时 Hook 数量会变，React 会抛错白屏。）
 
-  const beginEdit = (rowIndex: number, f: FieldDef) => {
-    setEditCell({ row: rowIndex, key: f.key })
-    setDraft(items[rowIndex]?.fields[f.key] ?? null)
+  const beginEdit = (record: Item, rowIndex: number, f: FieldDef) => {
+    setEditCell({ id: record.id, row: rowIndex, key: f.key })
+    setDraft(record.fields[f.key] ?? null)
   }
 
   const cancelEdit = () => {
@@ -209,7 +236,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
 
   const commitEdit = async (move: 'down' | 'right' | 'none' = 'none') => {
     if (!editCell) return
-    const target = items[editCell.row]
+    const target = items.find((i) => i.id === editCell.id)
     const f = visibleFields.find((x) => x.key === editCell.key)
     if (!target || !f) return cancelEdit()
     const original = target.fields[f.key] ?? null
@@ -234,9 +261,10 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
 
   /** 提交/取消后把下一个单元格聚焦，进入连续录入 */
   const focusNeighbour = (move: 'down' | 'right') => {
+    const lastRow = Math.max(0, renderedRowCount() - 1)
     const next =
       move === 'down'
-        ? { row: Math.min((editCell?.row ?? 0) + 1, items.length - 1), col: editCell ? visibleFields.findIndex((x) => x.key === editCell.key) : 0 }
+        ? { row: Math.min((editCell?.row ?? 0) + 1, lastRow), col: editCell ? visibleFields.findIndex((x) => x.key === editCell.key) : 0 }
         : { row: editCell?.row ?? 0, col: Math.min((editCell ? visibleFields.findIndex((x) => x.key === editCell.key) : 0) + 1, visibleFields.length - 1) }
     window.setTimeout(() => {
       const el = gridRef.current?.querySelector<HTMLElement>(
@@ -251,7 +279,9 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
     if (editCell) return
     let r = row
     let c = col
-    if (e.key === 'ArrowDown') r = Math.min(row + 1, items.length - 1)
+    // 边界按当前页渲染行数算，不能拿 items.length（那是全库条数）
+    const lastRow = Math.max(0, renderedRowCount() - 1)
+    if (e.key === 'ArrowDown') r = Math.min(row + 1, lastRow)
     else if (e.key === 'ArrowUp') r = Math.max(row - 1, 0)
     else if (e.key === 'ArrowRight') c = Math.min(col + 1, visibleFields.length - 1)
     else if (e.key === 'ArrowLeft') c = Math.max(col - 1, 0)
@@ -299,7 +329,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
       className: i === 0 ? 'cell-primary' : undefined,
       width: i === 0 ? 220 : undefined,
       render: (_: unknown, record: Item, rowIndex: number) => {
-        const isEditing = editCell?.row === rowIndex && editCell.key === f.key
+        const isEditing = editCell?.id === record.id && editCell.key === f.key
         if (isEditing) {
           return (
             <div className={`cell-editing${savingCell ? ' is-saving' : ''}`} onKeyDown={(e) => {
@@ -322,10 +352,10 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
             className="cell-edit"
             aria-label={`${record.fields[visibleFields[0]?.key ?? ''] ?? ''} · ${f.label}`}
             title={t('lib.cell.editHint')}
-            onClick={() => beginEdit(rowIndex, f)}
+            onClick={() => beginEdit(record, rowIndex, f)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === 'F2') {
-                e.preventDefault(); beginEdit(rowIndex, f)
+                e.preventDefault(); beginEdit(record, rowIndex, f)
               } else {
                 onGridKeyDown(e, rowIndex, i)
               }

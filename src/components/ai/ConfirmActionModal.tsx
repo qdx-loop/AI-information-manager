@@ -44,6 +44,13 @@ export default function ConfirmActionModal({
     setLoading(false)
   }, [open])
 
+  // 必须在任何提前 return 之前调用：Hooks 规则要求每次渲染的调用顺序一致。
+  // 原来它排在 `if (!action) return null` 之后 —— action 由 null 变成有值时
+  // 渲染中途多出 2 个 Hook，React 直接抛 "Rendered more hooks than during the
+  // previous render"，而捕获它的边界是全局 ErrorBoundary，于是「AI 提议一个操作」
+  // 就会把整个应用打成错误页。
+  useBackButtonLayer(open, onCancel)
+
   if (!action) return null
 
   const handleOk = async () => {
@@ -59,8 +66,6 @@ export default function ConfirmActionModal({
   }
 
   const visibleFields = fields.filter((f) => f.visible)
-
-  useBackButtonLayer(open, onCancel)
 
   return (
     <Modal

@@ -61,13 +61,20 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
         // 边在左边，往左拖是变宽
         setWidth(dragRef.current.startW + (dragRef.current.startX - ev.clientX))
       }
-      const up = () => {
+      // pointercancel 和 blur 也要清理：指针在窗口外松开、或手势被系统取消（触屏滚动）
+      // 时不会触发 pointerup。少了这两个分支，move 监听会永久留在 window 上，
+      // 之后每次鼠标移动都写一遍 localStorage，且下次拖拽会再叠一份。
+      const end = () => {
         dragRef.current = null
         window.removeEventListener('pointermove', move)
-        window.removeEventListener('pointerup', up)
+        window.removeEventListener('pointerup', end)
+        window.removeEventListener('pointercancel', end)
+        window.removeEventListener('blur', end)
       }
       window.addEventListener('pointermove', move)
-      window.addEventListener('pointerup', up)
+      window.addEventListener('pointerup', end)
+      window.addEventListener('pointercancel', end)
+      window.addEventListener('blur', end)
     },
     [width, setWidth],
   )

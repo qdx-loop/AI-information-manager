@@ -41,6 +41,7 @@ import {
 } from '@/lib/serverApi'
 
 import { useBackButtonLayer } from '@/utils/backButton'
+import { downloadBlob } from '@/utils/csv'
 
 const { Text } = Typography
 
@@ -256,12 +257,10 @@ export default function AdminPage() {
       lines.push(cells.join(','))
     }
     const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const el = document.createElement('a')
-    el.href = url
-    el.download = `accounts-${dayjs().format('YYYYMMDD')}.csv`
-    el.click()
-    URL.revokeObjectURL(url)
+    // 走公共下载工具：必须先把 a 挂到文档里再 click（Firefox 会忽略未插入 DOM 的
+    // a 上的 click），且 revoke 不能同步执行（此刻浏览器可能还没开始取 blob）。
+    // 原来这里自己写了一遍，两条都违反，Firefox / 安卓 WebView 上导出「点了没反应」。
+    downloadBlob(`accounts-${dayjs().format('YYYYMMDD')}.csv`, blob)
   }
 
   const accountColumns: ColumnsType<AdminAccountRow> = [

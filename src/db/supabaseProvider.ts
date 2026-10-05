@@ -268,13 +268,23 @@ export class SupabaseDataProvider implements DataProvider {
     return lib
   }
 
+  // 下面这两个（以及 reorderLibraries）必须同时刷新 updated_at：跨设备的
+  // 改名/分类/排序靠它来裁决，不刷新的话这些改动在合并时一律被判为「本地没变」，
+  // 于是被对方覆盖回去 —— 云端会看到新名字，下一次同步又被旧名字盖掉，两端永久分叉。
+  // 本地 provider（localProvider.ts）本来就遵守这条不变式，两边必须一致。
   async renameLibrary(id: string, name: string): Promise<void> {
-    const { error } = await this.client.from('libraries').update({ name }).eq('id', id)
+    const { error } = await this.client
+      .from('libraries')
+      .update({ name, updated_at: Date.now() })
+      .eq('id', id)
     if (error) throw new Error(error.message)
   }
 
   async setLibraryCategory(id: string, category: string): Promise<void> {
-    const { error } = await this.client.from('libraries').update({ category }).eq('id', id)
+    const { error } = await this.client
+      .from('libraries')
+      .update({ category, updated_at: Date.now() })
+      .eq('id', id)
     if (error) throw new Error(error.message)
   }
 
@@ -355,10 +365,12 @@ export class SupabaseDataProvider implements DataProvider {
   }
 
   async reorderLibraries(accountId: string, orderedIds: string[]): Promise<void> {
+    // 同样要带 updated_at：手工排序也是一次需要传播的编辑，否则排序永远同步不过去
+    const now = Date.now()
     for (let i = 0; i < orderedIds.length; i++) {
       const { error } = await this.client
         .from('libraries')
-        .update({ sort_order: i })
+        .update({ sort_order: i, updated_at: now })
         .eq('id', orderedIds[i])
       if (error) throw new Error(error.message)
     }

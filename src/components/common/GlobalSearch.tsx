@@ -96,8 +96,15 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
     return () => clearTimeout(t)
   }, [open])
 
+  // 只认最后一次查询：doSearch 是逐库串行 await 的，慢的那次可能后到。
+  // 没有这道闸，⌘K 里先打「北京」再打「上海」，北京的结果会盖掉上海的结果，
+  // 而输入框里显示的是上海。
+  const seqRef = useRef(0)
+
   const doSearch = useCallback(
     async (keyword: string) => {
+      const seq = ++seqRef.current
+      const stale = () => seq !== seqRef.current
       const kw = keyword.trim().toLowerCase()
       if (!kw) {
         setHits([])
@@ -109,6 +116,8 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
         const out: Hit[] = []
         let pool = 0
         for (const lib of libraries) {
+          // 每轮库之间也检查一次：库多时中途输入已经变了就别再白扫
+          if (stale()) return
           let items: Item[] = []
           let labels: Record<string, string> = {}
           try {
@@ -140,12 +149,15 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
             }
           }
         }
+        if (stale()) return
         setTruncated(pool > MAX_ITEM_HITS)
         setHits(out.slice(0, MAX_ITEM_HITS))
       } catch {
+        if (stale()) return
         setHits([])
       } finally {
-        setLoading(false)
+        // 旧查询的 finally 不能关掉新查询的 loading
+        if (!stale()) setLoading(false)
       }
     },
     [libraries],

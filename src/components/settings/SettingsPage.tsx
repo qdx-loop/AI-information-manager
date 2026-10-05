@@ -53,6 +53,7 @@ import { importLegacyMemory, listMemory, replaceAllMemory, clearMemory } from '@
 import FaceToFaceSyncModal from '@/components/settings/FaceToFaceSyncModal'
 import { autoSyncManager } from '@/utils/autoSync'
 import { useI18n } from '@/i18n'
+import { downloadBlob } from '@/utils/csv'
 import { useSyncExternalStore } from 'react'
 
 const { Text } = Typography
@@ -834,13 +835,9 @@ function BackupTab() {
     const blob = await exportBackup(account.id)
     const json = JSON.stringify(blob, null, 2)
     const file = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(file)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `备份_${dayjs().format('YYYYMMDD_HHmmss')}.json`
-    a.click()
-    // TWA/安卓 WebView 中下载是异步启动的：立即 revoke 会导致下载失败/空文件（桌面 Chrome 宽容但移动端不宽容）
-    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    // 统一走 downloadBlob：a 必须先挂到文档里再 click，且 revoke 必须延后
+    // （TWA/安卓 WebView 里下载是异步启动的，立即 revoke 会得到空文件）。
+    downloadBlob(`备份_${dayjs().format('YYYYMMDD_HHmmss')}.json`, file)
     message.success(t('settings.backup.exported'))
   }
 

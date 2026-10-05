@@ -1,6 +1,6 @@
 // POST /api/auth/password — 买家自助修改密码（需登录，验证旧密码）
 // 注意：这是唯一的改密通道；管理员侧没有重置密码的接口（产品决策，见 PRODUCT.md）
-import { json, errorJson, requireUser, hashPassword, verifyPassword } from '../../lib/_auth'
+import { json, errorJson, requireUser, hashPassword, verifyPassword, MIN_PASSWORD } from '../../lib/_auth'
 
 export async function onRequestPost({ request, env }) {
   const { account: acc, error } = await requireUser(request, env)
@@ -14,7 +14,12 @@ export async function onRequestPost({ request, env }) {
   }
   const oldPwd = String(body.oldPassword ?? '')
   const newPwd = String(body.newPassword ?? '')
-  if (newPwd.length < 6) return errorJson('新密码至少 6 位', 400, 'WEAK_PASSWORD')
+  // 阈值与注册/管理员重置统一用 MIN_PASSWORD。原来这里写死 6，
+  // 等于留了一条「把密码降级到 6 位」的旁路，和其余两个入口的策略长期不一致。
+  if (newPwd.length < MIN_PASSWORD) {
+    return errorJson(`新密码至少 ${MIN_PASSWORD} 位`, 400, 'WEAK_PASSWORD')
+  }
+  if (newPwd.length > 200) return errorJson('新密码过长', 400, 'WEAK_PASSWORD')
   if (!(await verifyPassword(oldPwd, acc.password_hash))) {
     return errorJson('旧密码不正确', 403, 'WRONG_OLD')
   }

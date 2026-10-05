@@ -30,7 +30,7 @@ const CODE_MSG: Record<string, [string, string]> = {
   BAD_TOKEN: ['登录已失效，请重新登录', 'Session expired — please sign in again'],
   NO_ACCOUNT: ['账户不存在', 'Account not found'],
   WRONG_ADMIN: ['管理密码错误', 'Incorrect admin password'],
-  WEAK_PASSWORD: ['新密码至少 6 位', 'New password must be at least 6 characters'],
+  WEAK_PASSWORD: ['新密码至少 8 位', 'New password must be at least 8 characters'],
   WRONG_OLD: ['旧密码不正确', 'The old password is incorrect'],
   NETWORK: ['网络连接失败，请检查网络', 'Network error — check your connection'],
 }

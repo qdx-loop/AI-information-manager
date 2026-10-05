@@ -135,11 +135,19 @@ export default function AIPanel() {
   useEffect(() => {
     if (!account || !sessionId) return
     try {
-      saveSession(account.id, sessions.find((s) => s.id === sessionId) ?? { id: sessionId, title: '', updatedAt: Date.now() }, messages.map((m) => ({ role: m.role, content: m.content, thinking: m.thinking, steps: m.steps, chart: m.chart })))
+      // 这里必须重新从存储里读 meta，不能用 sessions state：
+      // touchSessionTitle 只写 localStorage、不更新 sessions state，所以 state 里的
+      // title 永远是 ''，saveSession 又把空标题兜底成「新会话」——每个流式增量都触发
+      // 一次本 effect，于是刚命名好的标题被一秒内打回「新会话」。
+      const stored = listSessions(account.id).find((s) => s.id === sessionId)
+      const meta = stored ?? sessions.find((s) => s.id === sessionId) ?? { id: sessionId, title: '', updatedAt: Date.now() }
+      saveSession(account.id, meta, messages.map((m) => ({ role: m.role, content: m.content, thinking: m.thinking, steps: m.steps, chart: m.chart })))
     } catch {
       /* 存储异常时静默，不影响对话 */
     }
-  }, [messages, sessionId, account?.id, sessions])
+    // sessions 只作兜底，不再作为依赖：它一变就整段重存，没有必要
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, sessionId, account?.id])
 
   // 首条用户消息懒取名：更新会话标题
   useEffect(() => {
@@ -201,6 +209,16 @@ export default function AIPanel() {
     fields: FieldDef[]
   } | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  // 卸载时中断在途请求。少了这个：AI 正在流式输出时退出登录（或被 401 watcher 踢下线），
+  // AIDock 会因为 aiUiStore.mounted=false 而卸载本组件，但 fetch 还在跑 ——
+  // 收尾照样弹「任务完成」，走到 executeAction 还会用上一个账号的身份继续写数据。
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+      abortRef.current = null
+    }
+  }, [])
   // 任务运行状态提到全局：面板关掉/收起时，外壳照样知道「后台还在跑」
   const beginRun = useAiUiStore((x) => x.beginRun)
   const endRun = useAiUiStore((x) => x.endRun)
@@ -339,11 +357,15 @@ export default function AIPanel() {
       if (isStreamCut && !retryDoneRef.current) {
         retryDoneRef.current = true
         try {
-          // 清掉可能残留的空 assistant 消息，重跑本轮对话
+          // 清掉可能残留的空 assistant 消息，重跑本轮对话。
+          // 注意只能「清空」不能「删掉」：onText 是按 `m[m.length - 1]` 追加文本的，
+          // 删掉那条占位消息后最后一条就成了用户自己的提问，回答会被追加到用户气泡上。
           setMessages((m) => {
             const last = m[m.length - 1]
             if (last && last.role === 'assistant' && !last.content.trim() && !last.steps?.length) {
-              return m.slice(0, -1)
+              return m.map((msg, i) =>
+                i === m.length - 1 ? { ...msg, content: '', thinking: '', pending: true } : msg,
+              )
             }
             return m
           })

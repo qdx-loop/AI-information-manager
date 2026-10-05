@@ -47,6 +47,11 @@ export default function ConfirmLibActionModal({
   }, [open])
 
   const action = libAction ?? tplAction
+
+  // 必须排在 `if (!action) return null` 之前，否则 action 由 null 变有值时
+  // React 会因渲染中途新增 Hook 而抛错，整个应用被 ErrorBoundary 打成错误页。
+  useBackButtonLayer(open, onCancel)
+
   if (!action) return null
 
   const actionKey = action.action
@@ -85,8 +90,6 @@ export default function ConfirmLibActionModal({
       setLoading(false)
     }
   }
-
-  useBackButtonLayer(open, onCancel)
 
   return (
     <Modal

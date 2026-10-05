@@ -114,6 +114,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       getProvider().getTemplate(id),
       getProvider().listItems(id),
     ])
+    // 竞态保护：await 期间用户可能已经切到别的库（restoreItem/purgeItem、AI 工具
+    // 动作、拉取同步、面对面合并都会调到这里）。没有这道判断，A 库的刷新结果会
+    // 覆盖掉刚选中的 B 库，于是 B 的页面渲染出 A 的行和列。与 selectLibrary 同理。
+    if (get().currentLibraryId !== id) return
     set({ fields, items })
   },
 

@@ -16,6 +16,13 @@ import {
 
 const DUMMY_SALT = '0123456789abcdef0123456789abcdef'
 
+// 单账号 15 分钟 10 次失败即锁（防针对一个账号的爆破）。
+// 另加一个「整 IP」维度的桶：只按 账号+IP 计数的话，同一 IP 换着用户名挨个试
+// 每个桶都是全新的 —— 这正是密码喷洒（password spraying），且完全没有被限速覆盖。
+// 这里取更宽的阈值，正常用户（同一 IP 偶尔输错自己的密码）不会碰到。
+const IP_MAX_FAILURES = 30
+const IP_WINDOW_MS = 15 * 60_000
+
 export async function onRequestPost({ request, env }) {
   let body
   try {
@@ -27,7 +34,14 @@ export async function onRequestPost({ request, env }) {
   const password = String(body.password ?? '')
   if (!username || !password) return errorJson('请输入用户名和密码', 400, 'MISSING')
 
-  const rateKey = `user:${username.toLowerCase()}:${clientIp(request)}`
+  const ip = clientIp(request)
+  // 先看 IP 桶：喷洒是「IP 维度」的，先在 IP 维度上拦住，避免用一个桶消耗一个 D1 查询
+  const ipLimit = await checkRateLimit(env, `loginip:${ip}`, IP_MAX_FAILURES, IP_WINDOW_MS)
+  if (!ipLimit.allowed) {
+    return errorJson(`尝试次数过多，请约 ${ipLimit.waitMin} 分钟后再试`, 429, 'RATE_LIMITED')
+  }
+
+  const rateKey = `user:${username.toLowerCase()}:${ip}`
   const limit = await checkRateLimit(env, rateKey, 10, 15 * 60_000)
   if (!limit.allowed) {
     return errorJson(`尝试次数过多，请约 ${limit.waitMin} 分钟后再试`, 429, 'RATE_LIMITED')
@@ -49,11 +63,14 @@ export async function onRequestPost({ request, env }) {
   }
   if (!ok) {
     await recordLoginFailure(env, rateKey)
+    // 两个桶都要计数：账号桶挡住针对单账号的爆破，IP 桶挡住喷洒
+    await recordLoginFailure(env, `loginip:${ip}`)
     return errorJson('用户名或密码错误', 401, 'INVALID_CREDENTIALS')
   }
   if (acc.disabled) return errorJson('账户已被停用，请联系管理员', 403, 'DISABLED')
 
   await clearLoginFailures(env, rateKey)
+  await clearLoginFailures(env, `loginip:${ip}`)
   const now = Date.now()
   await env.DB.prepare('UPDATE accounts SET last_login = ? WHERE id = ?')
     .bind(now, acc.id)
