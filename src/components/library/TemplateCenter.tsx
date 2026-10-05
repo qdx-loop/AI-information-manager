@@ -50,13 +50,15 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
           if (withSample && account) sampleCount = await applySampleData(id, account.id, tpl)
           await loadLibraries()
           await selectLibrary(id)
-          navigate(`/library/${id}`)
           message.success(
             sampleCount > 0
               ? t('tpl.center.createdSample', { name: finalName, n: sampleCount })
               : t('tpl.center.created', { name: finalName }),
           )
           onClose()
+          // 同 LibraryPickerSheet：先关后跳 + replace，避免关闭时那次异步
+          // history.back() 把刚做的导航撤销掉（原来先跳后关，必然被撤销）
+          navigate(`/library/${id}`, { replace: true })
         } catch (e) {
           message.error(t('home.create.failed', { msg: (e as Error).message }))
         }

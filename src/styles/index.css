@@ -429,7 +429,10 @@ input {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* 之前是 bottom:0，展开态高 68dvh 直接盖住整条底栏：四个标签全部点不到，
+     连「点 AI 标签把自己关掉」都做不到（它的 handler 就是 setAiOpen(!aiOpen)）。
+     现在抬到底栏上方，底栏始终可见可点。 */
+  bottom: var(--mobile-tabs-h, 0px);
   z-index: 900;
   border-top: 1px solid var(--app-border-soft);
   border-radius: 16px 16px 0 0;
@@ -519,7 +522,8 @@ input {
 .ai-sheet-peek {
   position: fixed;
   right: 12px;
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  /* 抬到底栏之上，而不是压在底栏上 */
+  bottom: calc(var(--mobile-tabs-h, 56px) + 12px);
   z-index: 899;
   display: inline-flex;
   align-items: center;
@@ -672,6 +676,15 @@ input {
    Android 设计指南也指出抽屉在紧凑屏幕上不理想，因为要伸手够顶栏。
    把 4 个最高频目的地钉进拇指区，汉堡降级为完整库树的次级入口。
    ══════════════════════════════════════════════════════════════ */
+/* 底栏实际高度（含安全区）。AI 抽屉和收起后的 peek 条都要避开它。
+   必须定义在两者都能继承到的作用域上 —— 之前 peek 条按 bottom:12px 定位、
+   z-index 899 又高于底栏的 880，于是它横跨 x=215–378，把「AI 助手」和「设置」
+   两个标签整个盖死，用户试过一次 AI 之后「设置」就再也点不到了。 */
+@media (max-width: 768px) {
+  :root {
+    --mobile-tabs-h: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+}
 .mobile-tabs {
   display: none;
 }
@@ -683,6 +696,7 @@ input {
     right: 0;
     bottom: 0;
     z-index: 880;
+    min-height: 56px;
     background: var(--app-surface);
     border-top: 1px solid var(--app-border-soft);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -959,4 +973,12 @@ input {
   .card-field-value {
     font-size: 14px;
   }
+}
+
+/* 库切换面板的可点遮罩。必须低于 .mobile-tabs(880)，否则底栏又会失效。 */
+.libpicker-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 855;
+  background: rgba(15, 23, 42, 0.34);
 }

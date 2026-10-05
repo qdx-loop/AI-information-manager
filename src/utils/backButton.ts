@@ -97,6 +97,23 @@ export function useBackButtonLayer(open: boolean, close: () => void): void {
   }, [open])
 }
 
+/**
+ * 关掉一个弹层，并且**不让历史栈回退** —— 用于「这次关闭伴随一次导航」的场景。
+ *
+ * 为什么需要：useBackButtonLayer 的 cleanup 会 history.back() 把自己压进去的那个条目
+ * 退回来，而 back() 是**异步**的。于是「先跳再关」和「先关再跳」都会失败：
+ * 前者被 back() 撤销掉导航，后者 back() 依然会落到前一个条目上（实测都停在 /）。
+ * 与其和异步的 back() 抢时序，不如直接把栈顶标记成「已处理」，
+ * cleanup 看到 popped 就不再回退（这个标记本来就是 handlePop 用来表示
+ * 「这次返回已经被消费掉了」的语义）。
+ */
+export function consumeTopOverlay(): boolean {
+  const top = stack[stack.length - 1]
+  if (!top) return false
+  top.popped = true
+  return true
+}
+
 /** 仅测试用 */
 export function __backButtonStackSize(): number {
   return stack.length

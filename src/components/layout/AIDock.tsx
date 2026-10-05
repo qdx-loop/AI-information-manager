@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import { useAiUiStore, AI_DOCK_MIN, AI_DOCK_MAX } from '@/store/aiUiStore'
 import { useI18n } from '@/i18n'
+import { useBackButtonLayer } from '@/utils/backButton'
 
 // AI 面板依赖 xlsx / papaparse / react-markdown 等重包，只有真正打开过才下载
 const AIPanel = lazy(() => import('@/components/ai/AIPanel'))
@@ -84,6 +85,12 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
     if (dy > 60) setCollapsed(true) // 往下拖 = 收成小条
     else setSheetFull((v) => !v) // 轻点/上推 = 切换高度
   }
+
+  // 安卓返回键此前关不掉这个抽屉 —— 而 backButton 的注释里「AI 抽屉」正是它要解决的场景，
+  // 唯独这里漏了注册。结果 PWA 上按实体返回键会把整个页面换掉，而不是关掉眼前这层。
+  // 只在手机抽屉形态注册：桌面是右侧停靠列，返回键应当留给路由导航。
+  // 状态（open）在 aiUiStore 里、组件自己读，所以由本组件登记，符合「状态在哪一层谁注册」。
+  useBackButtonLayer(variant === 'sheet' && open && !collapsed, () => setOpen(false))
 
   // Esc 关闭。只在没有模态层时接管，否则在 AI 的确认弹窗里按 Esc
   // 会把弹窗和整个 AI 面板一起关掉，任务虽然在跑但用户失去了上下文。
@@ -170,7 +177,15 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
       )}
       <aside
         className={cls}
-        style={isSheet ? { height: `${(sheetFull ? 0.92 : SHEET_RATIO) * 100}dvh` } : { width }}
+        style={
+          isSheet
+            ? {
+                // 底栏现在浮在抽屉下方（CSS 里 bottom: var(--mobile-tabs-h)），
+                // 92dvh 会顶出屏幕，所以按可用高度夹一下，顶部留出抓手/标题的位置
+                height: `min(${sheetFull ? 92 : SHEET_RATIO * 100}dvh, calc(100dvh - var(--mobile-tabs-h, 0px) - 76px))`,
+              }
+            : { width }
+        }
         aria-label={t('app.aiAssistant')}
         aria-hidden={hidden}
       >

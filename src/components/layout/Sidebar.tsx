@@ -23,9 +23,8 @@ import { useMemo, useState } from 'react'
 import type { Library } from '@/types'
 import { syncNow } from '@/utils/autoSync'
 import { resetSession } from '@/store/session'
-import { getProvider } from '@/db/providerFactory'
-import { copyTemplateToLibrary } from '@/utils/libraryTemplates'
 import { useI18n } from '@/i18n'
+import CreateLibraryDialog from '@/components/library/CreateLibraryDialog'
 
 const { Sider } = Layout
 
@@ -40,7 +39,6 @@ function useSidebarState(onNavigate?: () => void) {
     libraries,
     currentLibraryId,
     selectLibrary,
-    createLibrary,
     renameLibrary,
     deleteLibrary,
     setLibraryCategory,
@@ -65,48 +63,22 @@ function useSidebarState(onNavigate?: () => void) {
     return Array.from(map.entries())
   }, [libraries])
 
+  // 建库统一走 CreateLibraryDialog。之前这里是 modal.confirm：只有名称框、
+  // 没有父级 / 行业模板 / 字段标签，还带 antd 默认的 exclamation-circle
+  // （把正常的新建画成警告），而且 onOk 同步 return 会让空名提交直接关掉弹窗。
+  // 可移动端唯一的建库路径恰好就是这里，所以老用户拿到的全是这个残废版本。
+  const [creatingLib, setCreatingLib] = useState(false)
+
   const handleNewLibrary = () => {
-    let name = ''
-    modal.confirm({
-      title: t('app.newLibrary'),
-      content: (
-        <Input placeholder={t('app.lib.namePlaceholder')} onChange={(e) => (name = e.target.value)} />
-      ),
-      onOk: async () => {
-        if (!name.trim()) {
-          message.warning(t('app.lib.nameRequired'))
-          return
-        }
-        const id = await createLibrary(name.trim())
-        await selectLibrary(id)
-        navigate(`/library/${id}`)
-        message.success(t('app.lib.created'))
-      },
-    })
+    setCreatingLib(true)
+    onNavigate?.()
   }
 
-  // 在指定库下新建子库
+  // 在指定库下新建子库（同一个弹窗，预置父库）
+  const [creatingChildOf, setCreatingChildOf] = useState<Library | null>(null)
+
   const handleNewChild = (parent: Library) => {
-    let name = ''
-    modal.confirm({
-      title: t('app.newLibrary'),
-      content: <Input placeholder={t('app.lib.namePlaceholder')} onChange={(e) => (name = e.target.value)} />,
-      onOk: async () => {
-        if (!name.trim()) {
-          message.warning(t('app.lib.nameRequired'))
-          return
-        }
-        const id = await createLibrary(name.trim(), parent.category, parent.id)
-        // 子库默认继承父库的字段模板（若有）
-        try {
-          const parentTpl = await getProvider().getTemplate(parent.id)
-          if (parentTpl.length > 0) await copyTemplateToLibrary(parentTpl, id)
-        } catch { /* 模板继承失败不阻塞建库 */ }
-        await selectLibrary(id)
-        navigate(`/library/${id}`)
-        message.success(t('app.lib.created'))
-      },
-    })
+    setCreatingChildOf(parent)
   }
 
   const handleRename = (lib: Library) => {
@@ -345,7 +317,10 @@ function useSidebarState(onNavigate?: () => void) {
     navigate('/login')
   }
 
-  return { account, isDark, menuItems, selectedKey, handleClick, handleLogout, loggingOut }
+  return {
+    account, isDark, menuItems, selectedKey, handleClick, handleLogout, loggingOut,
+    creatingLib, setCreatingLib, creatingChildOf, setCreatingChildOf,
+  }
 }
 
 // 共享的侧边栏内容渲染：header + menu + footer(AI/退出按钮)
@@ -362,7 +337,10 @@ function SidebarBody({
   aiRef?: React.Ref<HTMLButtonElement>
 }) {
   const t = useI18n()
-  const { account, menuItems, selectedKey, handleClick, handleLogout, loggingOut } = state
+  const {
+    account, menuItems, selectedKey, handleClick, handleLogout, loggingOut,
+    creatingLib, setCreatingLib, creatingChildOf, setCreatingChildOf,
+  } = state
   return (
     <>
       <div
@@ -412,6 +390,14 @@ function SidebarBody({
           {collapsed ? '' : t('app.logout', { name: account?.username ?? '' })}
         </Button>
       </div>
+
+      {/* 建库只有一个实现：桌面侧边栏和移动端抽屉共用 */}
+      <CreateLibraryDialog open={creatingLib} onClose={() => setCreatingLib(false)} />
+      <CreateLibraryDialog
+        open={creatingChildOf !== null}
+        defaultParentId={creatingChildOf?.id ?? null}
+        onClose={() => setCreatingChildOf(null)}
+      />
     </>
   )
 }

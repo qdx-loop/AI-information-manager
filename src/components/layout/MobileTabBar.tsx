@@ -23,7 +23,14 @@ import { useI18n } from '@/i18n'
  * 为什么是这 4 个：按使用频次而非重要性排。
  * 回收站属于「偶尔才用」，按 Android 指南应进 overflow，所以留在抽屉里。
  */
-export default function MobileTabBar() {
+export default function MobileTabBar({
+  onOpenLibraries,
+  onDismiss,
+}: {
+  onOpenLibraries: () => void
+  /** 任意标签被点时收起库切换面板（面板不再自带遮罩，底栏始终可点） */
+  onDismiss?: () => void
+}) {
   const navigate = useNavigate()
   const location = useLocation()
   const t = useI18n()
@@ -37,7 +44,7 @@ export default function MobileTabBar() {
         label: t('app.home'),
         icon: <HomeOutlined />,
         active: location.pathname === '/',
-        onClick: () => navigate('/'),
+        onClick: () => { onDismiss?.(); navigate('/') },
       },
       {
         key: 'libs',
@@ -45,27 +52,28 @@ export default function MobileTabBar() {
         icon: <AppstoreOutlined />,
         // 任何库页面（含子库）都算「库」选中
         active: location.pathname.startsWith('/library/'),
-        onClick: () => {
-          // 已经停在某个库里就别跳走（会打断正在看的数据）
-          if (!location.pathname.startsWith('/library/')) navigate('/')
-        },
+        // 以前这里是 `if (!pathname.startsWith('/library/')) navigate('/')`：
+        // 在首页时正好导航到当前页 → 死按钮；而且在库里时又是 no-op，
+        // 于是这个标签**永远无法切库** —— 而切库是它在手机上唯一的职责
+        // （完整库树收在汉堡抽屉里）。改为打开库切换面板。
+        onClick: () => { onDismiss?.(); onOpenLibraries() },
       },
       {
         key: 'ai',
         label: t('app.aiAssistant'),
         icon: <RobotOutlined />,
         active: aiOpen,
-        onClick: () => setAiOpen(!aiOpen),
+        onClick: () => { onDismiss?.(); setAiOpen(!aiOpen) },
       },
       {
         key: '/settings',
         label: t('app.settings'),
         icon: <SettingOutlined />,
         active: location.pathname === '/settings',
-        onClick: () => navigate('/settings'),
+        onClick: () => { onDismiss?.(); navigate('/settings') },
       },
     ],
-    [navigate, location.pathname, t, aiOpen, setAiOpen],
+    [navigate, location.pathname, t, aiOpen, setAiOpen, onOpenLibraries, onDismiss],
   )
 
   return (

@@ -7,6 +7,7 @@ import Sidebar, { SidebarContent } from './Sidebar'
 import AIDock from './AIDock'
 import AIFab from './AIFab'
 import MobileTabBar from './MobileTabBar'
+import LibraryPickerSheet from '@/components/library/LibraryPickerSheet'
 import { useAiUiStore, aiPanelVisible } from '@/store/aiUiStore'
 import { resetSession } from '@/store/session'
 import GlobalSearch from '@/components/common/GlobalSearch'
@@ -18,12 +19,14 @@ import { sweepTrashOncePerDay } from '@/utils/trashSweep'
 import { isTourDone, markTourDone } from '@/utils/onboarding'
 import { startReminderWatcher } from '@/utils/reminderNotify'
 
-import { useBackButtonLayer } from '@/utils/backButton'
+import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
 
 const { Content, Header } = Layout
 
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // 手机底栏「管理库」标签的库切换面板
+  const [libPickerOpen, setLibPickerOpen] = useState(false)
   const { settings, setTheme, setLanguage } = useAppStore()
   const t = useI18n()
   const isDark = settings.theme === 'dark'
@@ -383,7 +386,20 @@ export default function AppShell() {
       {/* 桌面：右下角悬浮 AI 入口。手机：AI 已经是底部标签之一，
           再放一个悬浮按钮既重复又会和标签栏抢位置。 */}
       {!isMobile && <AIFab />}
-      {isMobile && <MobileTabBar />}
+      {isMobile && (
+        <MobileTabBar
+          onOpenLibraries={() => setLibPickerOpen(true)}
+          onDismiss={() => {
+            // 面板关闭时会 history.back()，那会把这次导航撤销掉（实测停在 /）。
+            // 只有面板确实开着时才消费栈顶，避免误标别的弹层。
+            if (libPickerOpen) consumeTopOverlay()
+            setLibPickerOpen(false)
+          }}
+        />
+      )}
+      {isMobile && (
+        <LibraryPickerSheet open={libPickerOpen} onClose={() => setLibPickerOpen(false)} />
+      )}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <Tour
         open={tourOpen}
