@@ -366,7 +366,7 @@ export async function mergeCloudToLocal(accountId: string, cloud: CloudConfig): 
     ...cloudLibs.map((r) => String(r.id)),
     ...localLibs.map((l) => l.id),
   ])
-  let cloudFieldRows: Array<Record<string, unknown>> = []
+  const cloudFieldRows: Array<Record<string, unknown>> = []
   if (visibleLibIds.size > 0) {
     // 分页：fields 同样有 1000 行上限，而且一个库的模板列数通常远不到，
     // 但多库累积起来会超。带墓碑行也要拉，否则删除传播不出去。

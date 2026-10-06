@@ -12,10 +12,10 @@ import ConfirmActionModal from './ConfirmActionModal'
 import type { ItemAction } from '@/ai/tools'
 import type { FieldDef, Item } from '@/types'
 
-vi.mock('@/utils/backButton', () => ({
-  useBackButtonLayer: () => {},
-  consumeTopOverlay: () => {},
-}))
+// ⚠ 这里刻意**不 mock** @/utils/backButton：
+// 它内部有 useRef + useEffect 两个 Hook。把它 mock 成空函数会把「多出来的两个 Hook」
+// 一并抹掉，于是无论代码怎么写测试都绿 —— 这正是最危险的假绿。
+// jsdom 自带 history，真实实现可以直接跑。
 
 const fields: FieldDef[] = [
   { id: 'f1', libraryId: 'L1', key: 'name', label: '名称', type: 'text', required: false, visible: true, options: [], sortOrder: 0 },

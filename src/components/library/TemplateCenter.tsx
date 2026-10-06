@@ -7,7 +7,7 @@ import { useLibraryStore } from '@/store/libraryStore'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/i18n'
 
-import { useBackButtonLayer } from '@/utils/backButton'
+import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
 
 const { Paragraph } = Typography
 
@@ -29,7 +29,7 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
     return Array.from(map.entries())
   }, [])
 
-  const useTemplate = (tpl: LibTemplate) => {
+  const applyLibTemplate = (tpl: LibTemplate) => {
     let name = tpl.name
     modal.confirm({
       title: t('tpl.center.nameTitle', { name: tpl.name }),
@@ -55,9 +55,14 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
               ? t('tpl.center.createdSample', { name: finalName, n: sampleCount })
               : t('tpl.center.created', { name: finalName }),
           )
+          // 必须先消费栈顶再关：TemplateCenter 用 useBackButtonLayer 压了一个历史条目，
+          // 它卸载时 cleanup 会 history.back()。而 back() 是**异步**的 ——
+          // 即使 navigate 带 replace，那次 back() 仍会在之后落到上一个条目，
+          // 把刚跳过去的库页弹回首页（实测：库建好了、数据写进去了、「已创建」也弹了，
+          // 页面却纹丝不动停在 /，用户以为没生效）。
+          // consumeTopOverlay() 把栈顶标记为已处理，cleanup 就不再回退。
+          consumeTopOverlay()
           onClose()
-          // 同 LibraryPickerSheet：先关后跳 + replace，避免关闭时那次异步
-          // history.back() 把刚做的导航撤销掉（原来先跳后关，必然被撤销）
           navigate(`/library/${id}`, { replace: true })
         } catch (e) {
           message.error(t('home.create.failed', { msg: (e as Error).message }))
@@ -95,7 +100,7 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
                   hoverable
                   title={tpl.name}
                   extra={<AppstoreAddOutlined style={{ color: 'var(--app-glaze)' }} />}
-                  onClick={() => useTemplate(tpl)}
+                  onClick={() => applyLibTemplate(tpl)}
                   style={{ cursor: 'pointer' }}
                 >
                   <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8, minHeight: 34 }}>

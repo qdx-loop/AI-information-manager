@@ -151,7 +151,7 @@ export function nextOccurrence(
   // 之后再每次 +1 月都停在 3 号 —— 用户设的「每月 31 日」永久漂移。
   let y = b.y
   let mo = b.mo
-  let d = b.d
+  const d = b.d
   for (let i = 0; i < 12 * 20; i++) {
     const clamped = Math.min(d, daysInMonth(y, mo))
     const iso = fmt(y, mo, clamped)

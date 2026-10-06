@@ -93,6 +93,12 @@ export default function AdminPage() {
     if (logged) load()
   }, [logged, load])
 
+  // 必须在 `if (!logged) return` 之前调用：否则管理员登录成功后
+  // （logged 从 false 变 true）渲染中途多出一个 Hook，React 抛
+  // 「Rendered more hooks than during the previous render」，
+  // 整个管理后台变成错误页 —— 也就是「密码输对了反而进不去」。
+  useBackButtonLayer(!!resetFor, () => setResetFor(null))
+
   const handleLogin = async () => {
     if (!password) return
     setLoginLoading(true)
@@ -337,8 +343,6 @@ export default function AdminPage() {
     { title: t('admin.col.detail'), dataIndex: 'detail', key: 'd', render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v || '—'}</Text> },
     { title: 'IP', dataIndex: 'ip', key: 'ip', render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text> },
   ]
-
-  useBackButtonLayer(!!resetFor, () => setResetFor(null))
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--app-canvas)', padding: 16 }}>

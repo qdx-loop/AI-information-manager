@@ -98,7 +98,7 @@ function toNum(v: unknown): number {
   if (typeof v === 'number') return v
   if (typeof v === 'string') {
     // 兼容 "1,234"、"73.5元"、"12%" 这类脏数据
-    const cleaned = v.replace(/[,\s]/g, '').replace(/[^0-9.\-]/g, '')
+    const cleaned = v.replace(/[,\s]/g, '').replace(/[^0-9.-]/g, '')
     const n = Number(cleaned)
     return Number.isFinite(n) ? n : NaN
   }

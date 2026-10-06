@@ -491,7 +491,7 @@ export default function AIPanel() {
     contexts: LibraryContext[],
   ) {
     let rounds = 0
-    let currentMessages = [...chatMessages]
+    const currentMessages = [...chatMessages]
     while (rounds < MAX_ROUNDS) {
       rounds++
       const reply = await chat({
