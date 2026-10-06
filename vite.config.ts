@@ -28,6 +28,10 @@ export default defineConfig({
           // antd 内部依赖 react（否则产生 circular chunk），故合并为单一 vendor。
           if (!id.includes('node_modules')) return
           if (id.includes('@supabase')) return 'vendor-supabase'
+          // echarts 约 1MB，只有真正画图时才用到。必须单独成 chunk，
+          // 否则 Rollup 会把它并进入口 chunk，白白拖慢首屏
+          // （之前是靠 CDN 懒加载才没这个问题，换成打包后必须显式拆）。
+          if (id.includes('echarts') || id.includes('zrender')) return 'vendor-echarts'
           if (
             id.includes('react') || id.includes('scheduler') ||
             id.includes('antd') || id.includes('@ant-design') ||

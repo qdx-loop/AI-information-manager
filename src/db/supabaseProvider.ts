@@ -496,13 +496,17 @@ export class SupabaseDataProvider implements DataProvider {
   }
 
   async pinItem(id: string, pinned: boolean): Promise<void> {
-    const { error } = await this.client.from('items').update({ pinned }).eq('id', id)
+    // 同 localProvider：不刷新 updated_at 的话 pin 状态永远同步不过去
+    const { error } = await this.client.from('items').update({ pinned, updated_at: Date.now() }).eq('id', id)
     if (error) throw new Error(error.message)
   }
 
   async reorderItems(libraryId: string, orderedIds: string[]): Promise<void> {
+    // 同上：sortOrder 也是一次需要传播的编辑
+    const now = Date.now()
     for (let i = 0; i < orderedIds.length; i++) {
-      await this.client.from('items').update({ sort_order: i }).eq('id', orderedIds[i])
+      const { error } = await this.client.from('items').update({ sort_order: i, updated_at: now }).eq('id', orderedIds[i])
+      if (error) throw new Error(error.message)
     }
     void libraryId
   }

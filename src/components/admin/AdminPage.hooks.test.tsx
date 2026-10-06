@@ -11,7 +11,7 @@
 // 一并抹掉了，测试会永远通过 —— 正是这类假绿最危险。
 // jsdom 自带 history，真实实现可以直接跑。
 import { describe, it, expect, vi } from 'vitest'
-import { render, act } from '@testing-library/react'
+import { render, act, waitFor } from '@testing-library/react'
 import AdminPage from './AdminPage'
 
 vi.mock('@/lib/serverApi', async () => {
@@ -30,6 +30,9 @@ vi.mock('@/lib/serverApi', async () => {
 })
 
 describe('AdminPage Hooks 顺序', () => {
+  // 这个用例要渲染完整的管理后台（antd Table/Form + 一堆图标），
+  // 单跑就接近 vitest 默认的 5s 超时，全量 25 个文件并行时必然超时。
+  // 实测：显式给足时间后连续 6 次全量跑都稳定通过。
   it('登录成功后不触发「Rendered more hooks」（密码输对了要能进得去）', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const view = render(<AdminPage />)
@@ -53,16 +56,19 @@ describe('AdminPage Hooks 顺序', () => {
 
     await act(async () => {
       btn!.click()
-      await new Promise((r) => setTimeout(r, 60))
     })
 
-    // logged 已翻转：登录框消失
-    expect(view.container.querySelector('input[type="password"]')).toBeNull()
+    // 不用固定 setTimeout 等：全量并行跑时机器负载高，60ms 偶尔不够，
+    // 表现为这个用例随机失败（一次「全套 222 项」里它红过一次）。
+    // 等「登录框消失」这个真实条件出现，既确定又快。
+    await waitFor(() => {
+      expect(view.container.querySelector('input[type="password"]')).toBeNull()
+    })
 
     const hookErrors = errSpy.mock.calls.filter((c) =>
       /rendered (more|fewer) hooks/i.test(String(c[0])),
     )
     expect(hookErrors).toHaveLength(0)
     errSpy.mockRestore()
-  })
+  }, 20_000)
 })

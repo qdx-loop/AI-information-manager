@@ -51,6 +51,19 @@ export function validateBackupBlob(blob: unknown): asserts blob is BackupBlob {
       bad(`${k} 里有缺少 id 的条目`)
     }
   }
+  // items.fields 必须是对象：LibraryView/LibraryTable 在渲染时会
+  // Object.values(it.fields) / it.fields[f.key]，非对象直接 TypeError 白屏。
+  // 原来只校验 id，于是 {items:[{id:"x",fields:null}]} 能通过校验，
+  // importAll 写进去后，用户一打开库就崩 —— 而导入流程还显示「成功」。
+  const items = b.items as Array<Record<string, unknown>>
+  if (items.some((x) => x.fields === null || typeof x.fields !== 'object' || Array.isArray(x.fields))) {
+    bad('items 里有条目的 fields 不是对象')
+  }
+  // fields.options 必须是数组（FieldRenderer 用 .map 遍历它）
+  const fields = b.fields as Array<Record<string, unknown>>
+  if (fields.some((x) => x.options !== undefined && !Array.isArray(x.options))) {
+    bad('fields 里有条目的 options 不是数组')
+  }
 }
 
 // 从备份结构恢复（覆盖当前账户数据）

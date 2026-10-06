@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Modal, Button, Space, Typography, Progress, Alert, Result } from 'antd'
+import { App as AntdApp } from 'antd'
 import { SwapOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { useLibraryStore } from '@/store/libraryStore'
-import { exportBackup } from '@/db/backup'
+import { exportBackup, validateBackupBlob } from '@/db/backup'
 import { mergeNativeIntoLocal, type MergeResult } from '@/db/syncService'
 import { createSnapshot } from '@/db/snapshotService'
 import { initFromSettings } from '@/db/providerFactory'
@@ -55,6 +56,7 @@ function getDeviceId(): string {
  * 数据经 WebRTC 数据通道在局域网内直连互传并合并，不经过任何服务器。
  */
 export default function FaceToFaceSyncModal({ open, onClose }: Props) {
+  const { modal } = AntdApp.useApp()
   const t = useI18n()
   const account = useAuthStore((s) => s.account)
 
@@ -179,11 +181,32 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
               customPrompt: cfg.ai.customPrompt || '',
             })
           }
+          // 云端配置是高风险项：accountId 不是密钥（它就在每份导出备份里），
+          // 拿到它的人 + 同一局域网就能冒充对端。若无条件接受 cfg.cloud，
+          // 之后本机的自动同步会**把所有数据上传到对端指定的 Supabase**，
+          // 而且几乎没有界面提示。所以在生效前明确问一次。
           if (cfg.cloud && cfg.cloud.url && cfg.cloud.anonKey) {
-            app.setCloud({ url: cfg.cloud.url, anonKey: cfg.cloud.anonKey })
-            if (cfg.storageMode === 'cloud') {
-              app.setStorageMode('cloud')
-              initFromSettings(useAppStore.getState().settings)
+            const cur = useAppStore.getState().settings.cloud
+            const changed = cur?.url !== cfg.cloud.url || cur?.anonKey !== cfg.cloud.anonKey
+            let approved = true
+            if (changed) {
+              approved = await new Promise<boolean>((resolve) => {
+                modal.confirm({
+                  title: t('settings.f2f.cloudConfigTitle'),
+                  content: t('settings.f2f.cloudConfigBody', { url: cfg.cloud.url }),
+                  okText: t('common.confirm'),
+                  cancelText: t('common.cancel'),
+                  onOk: () => resolve(true),
+                  onCancel: () => resolve(false),
+                })
+              })
+            }
+            if (approved) {
+              app.setCloud({ url: cfg.cloud.url, anonKey: cfg.cloud.anonKey })
+              if (cfg.storageMode === 'cloud') {
+                app.setStorageMode('cloud')
+                initFromSettings(useAppStore.getState().settings)
+              }
             }
           }
         }
@@ -194,6 +217,11 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
         } catch (e) {
           console.warn('[f2f] 合并前快照失败：', e)
         }
+        // 对端负载和「从磁盘选的备份文件」一样不可信：旧版本 schema 不同、
+        // bug、乃至恶意构造的 payload 都可能进来。走同一套校验，
+        // 不合格的直接拒掉，不进 mergeNativeIntoLocal（否则写进去后
+        // 一打开库就 Object.values(it.fields) 崩白屏）。
+        validateBackupBlob(backup)
         const r = await mergeNativeIntoLocal(account.id, {
           libraries: backup.libraries,
           fields: Array.isArray(backup.fields) ? backup.fields : [],

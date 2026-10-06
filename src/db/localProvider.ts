@@ -296,12 +296,17 @@ export class LocalDataProvider implements DataProvider {
   }
 
   async pinItem(id: string, pinned: boolean): Promise<void> {
-    await db.items.update(id, { pinned })
+    // 必须刷新 updatedAt：跨设备合并比的是 updatedAt，不刷新的话
+    // pin 状态永远同步不过去（对端判「本地没变」→ 保留自己的旧 pin 状态）。
+    // 和 renameLibrary / reorderLibraries 一致。
+    await db.items.update(id, { pinned, updatedAt: Date.now() })
   }
 
   async reorderItems(_libraryId: string, orderedIds: string[]): Promise<void> {
+    // 同上：sortOrder 也是一次需要传播的编辑，不刷新 updatedAt 就永远同步不过去
     await db.transaction('rw', db.items, async () => {
-      await Promise.all(orderedIds.map((id, idx) => db.items.update(id, { sortOrder: idx })))
+      const now = Date.now()
+      await Promise.all(orderedIds.map((id, idx) => db.items.update(id, { sortOrder: idx, updatedAt: now })))
     })
   }
 

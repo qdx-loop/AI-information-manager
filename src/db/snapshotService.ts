@@ -23,8 +23,17 @@ export interface SnapshotSummary {
   items: number
 }
 
-/** 拍一张当前数据快照并存入本机快照表（超限时自动清理最旧）。失败会抛错，由调用方决定是否兜底。 */
-export async function createSnapshot(accountId: string, trigger: SnapshotTrigger): Promise<SnapshotRecord> {
+/**
+ * 拍一张当前数据快照并存入本机快照表（超限时自动清理最旧）。失败会抛错，由调用方决定是否兜底。
+ *
+ * @param keepIds 这次要额外保住的快照 id（恢复流程里指「正要恢复的那张」）：
+ *   它可能恰好是最旧的一张，若按 createdAt 直接裁剪就会把正在恢复的快照删掉。
+ */
+export async function createSnapshot(
+  accountId: string,
+  trigger: SnapshotTrigger,
+  keepIds: string[] = [],
+): Promise<SnapshotRecord> {
   const data = await exportBackup(accountId)
   const rec: SnapshotRecord = {
     id: newId(),
@@ -34,15 +43,17 @@ export async function createSnapshot(accountId: string, trigger: SnapshotTrigger
     data,
   }
   await db.snapshots.put(rec)
-  await pruneSnapshots(accountId)
+  await pruneSnapshots(accountId, keepIds)
   return rec
 }
 
-/** 保留最近 MAX_SNAPSHOTS 张，删除更旧的 */
-async function pruneSnapshots(accountId: string): Promise<void> {
+/** 保留最近 MAX_SNAPSHOTS 张，删除更旧的（keepIds 里的除外，它们必须活下来） */
+async function pruneSnapshots(accountId: string, keepIds: string[] = []): Promise<void> {
+  const keep = new Set(keepIds)
   const all = await db.snapshots.where('accountId').equals(accountId).sortBy('createdAt')
-  if (all.length > MAX_SNAPSHOTS) {
-    const toDelete = all.slice(0, all.length - MAX_SNAPSHOTS).map((s) => s.id)
+  const prunable = all.filter((s) => !keep.has(s.id))
+  if (prunable.length > MAX_SNAPSHOTS) {
+    const toDelete = prunable.slice(0, prunable.length - MAX_SNAPSHOTS).map((s) => s.id)
     await db.snapshots.bulkDelete(toDelete)
   }
 }
@@ -71,9 +82,13 @@ export async function restoreSnapshot(accountId: string, snapshotId: string): Pr
   if (!target || target.accountId !== accountId) {
     throw new Error('快照不存在或已删除')
   }
-  // 先读入目标数据，避免随后的兜底快照触发清理时把目标快照行删掉
+  // 先读入目标数据（即使随后目标行被删，本地变量里仍持有内容，importBackup 不受影响），
+  // 但更要紧的是把目标 id 传给 createSnapshot：它可能恰好是最旧的一张，
+  // 拍兜底快照触发裁剪时会被一并删掉 —— 数据没丢，快照行却从列表里消失了，
+  // 用户再也点不回「撤销这次恢复」。原来注释只说「先读入数据避免删掉行」，
+  // 可 pruneSnapshots 是按 id 删行的，读没读过根本不影响它。
   const dataToRestore = target.data
-  await createSnapshot(accountId, 'pre-restore')
+  await createSnapshot(accountId, 'pre-restore', [snapshotId])
   await importBackup(accountId, dataToRestore)
 }
 

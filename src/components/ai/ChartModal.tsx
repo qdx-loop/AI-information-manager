@@ -1,51 +1,33 @@
 import { useEffect, useRef, useState } from 'react'
 import { Modal, Button, Space, Spin, App } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
-import { useI18n, tNow } from '@/i18n'
+import { useI18n } from '@/i18n'
 import { styleChart } from '@/ai/chartStyle'
 import { useAppStore } from '@/store/appStore'
 
 import { useBackButtonLayer } from '@/utils/backButton'
 
-// 按需加载图表库（UMD 版），多个 CDN 依次回退，保证国内外网络环境可用
-let echartsPromise: Promise<unknown> | null = null
+// 按需加载图表库。
+//
+// 原来是 document.createElement('script') 从四个 CDN 依次回退加载 echarts。
+// 那等于把「拿到应用 origin 完整权限的第三方远程代码」引进来了：
+//   - 没写 integrity（SRI），CDN 被劫持 / MITM 就能执行任意代码，
+//     直接读走 IndexedDB（用户全部数据）、localStorage 里的
+//     info-mgmt-token 和管理员令牌
+//   - bootcdn / baomitu 这类国内镜像供应链管控更弱
+//   - 断网 / 内网环境下四个源全挂 → 图表功能完全不可用
+//
+// 改成打包进产物 + 动态 import：Vite 会把 echarts 拆成独立 chunk，
+// 仍然只有真正画图时才下载（和原来 CDN 的懒加载一个意思），
+// 但代码随产物一起走 hash 校验，不再信任任何远端服务器，离线也能用。
+let echartsPromise: Promise<typeof import('echarts')> | null = null
 
-const CDN_LIST = [
-  'https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js',
-  'https://unpkg.com/echarts@5.5.1/dist/echarts.min.js',
-  'https://cdn.bootcdn.net/ajax/libs/echarts/5.5.1/echarts.min.js',
-  'https://lib.baomitu.com/echarts/5.5.1/echarts.min.js',
-]
-
-function loadECharts(): Promise<unknown> {
-  const win = window as unknown as { echarts?: unknown }
-  if (win.echarts) return Promise.resolve(win.echarts)
+function loadECharts(): Promise<typeof import('echarts')> {
   if (echartsPromise) return echartsPromise
-
-  echartsPromise = new Promise((resolve, reject) => {
-    let idx = 0
-    const tryNext = () => {
-      if (idx >= CDN_LIST.length) {
-        echartsPromise = null
-        reject(new Error(tNow('ai.chart.loadFailed')))
-        return
-      }
-      const script = document.createElement('script')
-      script.src = CDN_LIST[idx++]
-      script.onload = () => {
-        if ((window as unknown as { echarts?: unknown }).echarts) {
-          resolve((window as unknown as { echarts?: unknown }).echarts)
-        } else {
-          tryNext()
-        }
-      }
-      script.onerror = () => {
-        script.remove()
-        tryNext()
-      }
-      document.head.appendChild(script)
-    }
-    tryNext()
+  echartsPromise = import('echarts').catch((e) => {
+    // 失败要清掉缓存，否则这次之后永远拿不到（Promise 已 settle）
+    echartsPromise = null
+    throw e
   })
   return echartsPromise
 }
@@ -99,8 +81,7 @@ export default function ChartModal({
     void loadECharts()
       .then((mod) => {
         if (disposed || !chartDivRef.current) return
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const echarts = mod as any
+        const echarts = mod
         chartRef.current?.dispose()
         // 双保险：init 前再校验一次容器尺寸，异常环境（如容器仍为 0）时推迟到 resize
         const el = chartDivRef.current
@@ -129,6 +110,12 @@ export default function ChartModal({
     return () => {
       disposed = true
       window.removeEventListener('resize', onResize)
+      // 不 dispose 的话 ECharts 实例（canvas + WebGL 上下文）永远不释放：
+      // 关弹窗 → payload 变 null → effect 早 return → 没人再 init 新实例 →
+      // 旧实例就一直挂着；反复开关几次就攒出一堆 WebGL context，直到标签页崩。
+      // dispose() 对已 dispose 的实例是 no-op，所以和「下一轮 init 前 dispose」不冲突。
+      chartRef.current?.dispose()
+      chartRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payload, ready])

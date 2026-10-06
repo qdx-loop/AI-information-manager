@@ -193,8 +193,17 @@ export async function mergeNativeIntoLocal(accountId: string, incoming: Incoming
   // 原来只做并集插入，所以：改 label/type/options 对端永远看不到；
   // 删掉字段则会在对端「重新长出来」（上传只 upsert，云端旧行还在，
   // 对端同步时它不存在于本地 → 被当新字段插入）。
+  //
+  // libIdSet 必须与上面库的裁决结果一致。若把「已过保留期的墓碑库」也加进来，
+  // 它虽然不会被插入（上面 continue 了），但它那些**活着的字段**会通过
+  // libIdSet.has() 这道检查，被插到一个本地根本不存在的库下面 ——
+  // 孤儿字段在任何界面里都看不到，也永远不会被 purgeExpiredTrash 清掉，
+  // 还会跟着 exportAll 一路传进后续备份。与上面「绝不能重新落地」的意图正好相反。
   const libIdSet = new Set<string>(localLibs.map((l) => l.id))
-  for (const inc of incoming.libraries) libIdSet.add(inc.id)
+  for (const inc of incoming.libraries) {
+    if (inc.deletedAt != null && isPastRetention(inc.deletedAt, Date.now())) continue
+    libIdSet.add(inc.id)
+  }
   for (const inc of incoming.fields) {
     if (!libIdSet.has(inc.libraryId)) continue // 字段所属库不属于该账号，跳过脏数据
     const local = await db.fields.get(inc.id)
