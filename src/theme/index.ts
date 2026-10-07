@@ -212,7 +212,10 @@ const FONT_STACK =
 
 /** 与主题无关的基准 token */
 const BASE = {
-  borderRadius: 8,
+  // 从 8 系统升到 10 系统：同样的手性配合黑填充，8px 方角显得像印上去的块，
+  // 10px 的圆角才是 Apple 按钮那种柔一点的语言
+  borderRadius: 10,
+  borderRadiusLG: 12,
   fontFamily: FONT_STACK,
   fontSize: 14,
   lineHeight: 1.6,
@@ -226,6 +229,8 @@ const BASE = {
 const LIGHT: ThemeConfig['token'] = {
   ...BASE,
   colorPrimary: SEMANTIC_L.glaze,
+  colorPrimaryHover: '#3C3C44',
+  colorPrimaryActive: '#000000',
   colorInfo: SEMANTIC_L.glaze,
   // 链接是「白底上的文字」，必须用文字档
   colorLink: SEMANTIC_L.glazeText,
@@ -311,7 +316,9 @@ const COMPONENTS_LIGHT: ThemeConfig['components'] = {
   },
   Button: {
     fontWeight: 500,
-    primaryShadow: 'none',
+    /* 黑填充需要一点悬浮感才能脱离平面，否则像是贴死的块；
+       阴影必须轻：1px 落影 + 一点漫反射，绝不发明未知来源的光 */
+    primaryShadow: '0 1px 2px rgba(0, 0, 0, 0.14), 0 3px 10px rgba(0, 0, 0, 0.08)',
     defaultShadow: 'none',
   },
   Input: { paddingBlock: 5 },
