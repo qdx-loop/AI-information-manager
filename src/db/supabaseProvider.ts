@@ -315,16 +315,20 @@ export class SupabaseDataProvider implements DataProvider {
     const lib = await this.client.from('libraries').select('account_id').eq('id', id).maybeSingle()
     const accountId = (lib.data as LibraryRow | null)?.account_id
     const ids = accountId ? await this.collectDescendantIds(accountId, id) : [id]
-    // 软删该库及所有子孙库
+    // 软删该库及所有子孙库。
+    // 必须同时刷新 updated_at：云端行携带的 tombstone 是在别的设备拉取后参与
+    // 合并仲裁的（syncService 的 delete 分支比较 updatedAt），不刷新就等于
+    // 「删除在其它设备时间轴上不可见」，对端会把「已删」的库判为「没变」而忽略，
+    // 再由它的老快照把删除盖回去 —— 删除经过几次同步就被完全撤销。
     const { error: e1 } = await this.client
       .from('libraries')
-      .update({ deleted_at: now })
+      .update({ deleted_at: now, updated_at: now })
       .in('id', ids)
     if (e1) throw new Error(e1.message)
     // 只级联删除尚未被单独删除的条目
     const { error: e2 } = await this.client
       .from('items')
-      .update({ deleted_at: now })
+      .update({ deleted_at: now, updated_at: now })
       .in('library_id', ids)
       .is('deleted_at', null)
     if (e2) throw new Error(e2.message)
@@ -338,14 +342,14 @@ export class SupabaseDataProvider implements DataProvider {
     const ids = await this.collectDescendantIds(row.account_id, id)
     const { error: e1 } = await this.client
       .from('libraries')
-      .update({ deleted_at: null })
+      .update({ deleted_at: null, updated_at: Date.now() })
       .in('id', ids)
     if (e1) throw new Error(e1.message)
     if (libDeletedAt === null) return
     // 只恢复随库一起被级联删除的条目（deletedAt 与库相同）
     const { error: e2 } = await this.client
       .from('items')
-      .update({ deleted_at: null })
+      .update({ deleted_at: null, updated_at: Date.now() })
       .in('library_id', ids)
       .eq('deleted_at', libDeletedAt)
     if (e2) throw new Error(e2.message)

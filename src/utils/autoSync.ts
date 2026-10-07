@@ -72,18 +72,32 @@ class AutoSyncManager {
     this.syncTimer = setTimeout(() => { void this.doSync() }, SYNC_DELAY)
   }
 
+  /** 轮询等当前同步结束（有界）；超时返回 false */
+  private async waitForIdle(maxMs = 20_000): Promise<boolean> {
+    const start = Date.now()
+    while (this.isSyncing && Date.now() - start < maxMs) {
+      await new Promise((r) => setTimeout(r, 150))
+    }
+    return !this.isSyncing
+  }
+
   /** 立即双向同步（登出等显式动作调用），不重试 */
   async syncNow(): Promise<void> {
     this.clearTimers()
     if (!this.canSync()) return
-    // 必须和 doSync 一样守 isSyncing。原来只有 doSync 有这道守卫，
-    // 于是退登前的 syncNow 可以和防抖触发的 doSync 并发跑：
-    // 两个 syncBidirectional 各自「合并 → 上传」，
-    // 而合并是 read-then-write、await 之间没有锁，
-    // 两次上传会用各自读到的中间状态互相覆盖。
-    if (this.isSyncing) return
+    // 修两个并行问题：
+    // ① 曾经的实现 if(isSyncing) return——退登前的 syncNow 常常与防抖触发的
+    //    doSync 恰好重叠，直接 return 会把 doSync 开始之后新写入 IndexedDB 的
+    //    改动留在本地，紧接着 logout() 清会话 = 这批最后同步前的编辑全丢。
+    //    现在改为等它结束再执行一次本次同步。
+    // ② syncNow 体间没有自己设 isSyncing，doSync 和 syncNow 两边各自
+    //    触发的 syncBidirectional 会「合并→上传」互相覆盖。现在设置。
+    if (this.isSyncing) {
+      await this.waitForIdle()
+    }
     const { settings } = useAppStore.getState()
     const acc = useAuthStore.getState().account!
+    this.isSyncing = true
     try {
       await syncBidirectional(acc.id, {
         url: settings.cloud.url,
@@ -95,6 +109,8 @@ class AutoSyncManager {
     } catch (e) {
       this.setStatus({ phase: 'error', message: this.errText(e) })
       console.error('[autoSync] 同步失败:', e)
+    } finally {
+      this.isSyncing = false
     }
   }
 

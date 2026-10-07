@@ -48,7 +48,11 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
       init[REMINDER_REPEAT_KEY] = item ? getReminderRepeat(item) : 'none'
       form.setFieldsValue(init)
     }
-  }, [open, fields, item, form])
+    // 只在「打开」或「切换条目」时重置表单。
+    // 原来也把 fields 放进依赖里：而 refreshCurrent() 每次都安装新的 fields 数组，
+    // 于是 AI 做任何写操作或同步回刷后，用户正在编辑的表单被静默重置(=丢草稿)。
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 刻意只放 open 和 item 身份
+  }, [open, item?.id, form])
 
   const [saving, setSaving] = useState(false)
   /**

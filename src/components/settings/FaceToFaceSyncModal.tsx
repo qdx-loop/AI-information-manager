@@ -150,6 +150,12 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
 
   const maybeFinish = useCallback(() => {
     if (sentDoneRef.current && recvDoneRef.current) {
+      // 传输完成：结束两端会话。不然各自那边 armStallWatchdog 挂着的定时器
+      // 还会过约 45s 触发一次 fail(STALLED)，把已进入 done 的成功页又拨回错误。
+      try {
+        sessionRef.current?.close()
+      } catch { /* ignore */ }
+      sessionRef.current = null
       setMergeResult(mergeResultRef.current)
       setStage('done')
     }

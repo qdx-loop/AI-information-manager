@@ -167,7 +167,8 @@ export default function AIPanel() {
 
   /** 新建会话并切换过去 */
   const startNewSession = () => {
-    if (!account) return
+    if (!account || loading) return // 与 switchSession 对称：传输中不切，否则在途写作流会撒到新会话上
+
     const s = newSession()
     saveSession(account.id, s, [])
     setSessions(listSessions(account.id))
@@ -226,6 +227,11 @@ export default function AIPanel() {
   // 流截断自动重试：每条用户消息只重试一次；重试时复用同一份会话构造
   const retryDoneRef = useRef(false)
   const chatMessagesRef = useRef<ChatMessage[] | null>(null)
+  // 每个渲染同步一次：异步回调（如流末尾的自动起名）需要读到最新的消息列表，
+  // 而它们闭包里捕获的可能是发送时的那版 messages（含首轮才追加的用户消息），
+  // 从那版列表取 firstUser 会全程找不到 → 自动命名永远不触发
+  const messagesRef = useRef<UIMessage[]>(messages)
+  messagesRef.current = messages
   const scrollRef = useRef<HTMLDivElement>(null)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [parsingFile, setParsingFile] = useState(false)
@@ -420,7 +426,7 @@ export default function AIPanel() {
     if (!account || !sessionId) return
     try {
       if (isSessionTitled(account.id, sessionId)) return
-      const msgs = messages
+      const msgs = messagesRef.current
       const firstUser = msgs.find((m) => m.role === 'user')
       const firstAssistant = msgs.find((m) => m.role === 'assistant' && m.content?.trim())
       if (!firstUser?.content?.trim() || !firstAssistant) return
@@ -1055,9 +1061,35 @@ export default function AIPanel() {
       undo: {
         label: '修改条目',
         undo: async () => {
-          const itemToRestore: Item = { ...target, fields: oldFields }
+          // 先比对：在 AI 动作之后若用户手工编辑过这条，原本的 oldFields 覆盖式写回
+          // 会把他改的字段静默丢掉。用 confirm 让他决定，不别走他的手工编辑。
+          const live = (await getProvider().listItems(action.libraryId)).find(
+            (i) => i.id === action.itemId,
+          )
+          const sameAsAfterAI =
+            live && JSON.stringify(live.fields) === JSON.stringify(updated.fields)
+          if (!live) {
+            message.error('无法撤回：条目已不存在')
+            return
+          }
+          let ok = !!sameAsAfterAI
+          if (!ok) {
+            ok = await new Promise<boolean>((resolve) => {
+              modal.confirm({
+                title: '还原此条目的 AI 修改？',
+                content: 'AI 之后又有手工编辑，还原将覆盖掉它们。',
+                okText: '覆盖并还原',
+                cancelText: '保留现状',
+                onOk: () => resolve(true),
+                onCancel: () => resolve(false),
+              })
+            })
+          }
+          if (!ok) return
+          const itemToRestore: Item = { ...live, fields: oldFields, updatedAt: Date.now() }
           await getProvider().updateItem(itemToRestore)
           if (action.libraryId === currentLibraryId) await refreshCurrent()
+          message.success('已撤回')
         },
       },
     }
