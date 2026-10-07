@@ -133,17 +133,17 @@ export default function LibraryPickerSheet({
                         minHeight: 48,
                         padding: `6px 10px 6px ${10 + depth * 16}px`,
                         marginBottom: 4,
-                        border: `1px solid ${on ? 'var(--app-glaze, #0969DA)' : 'var(--app-border-soft, #e5e7eb)'}`,
+                        border: `1px solid ${on ? 'var(--app-glaze, #0f766e)' : 'var(--app-border-soft, #e5e7eb)'}`,
                         borderRadius: 10,
-                        background: on ? 'color-mix(in srgb, var(--app-glaze, #0969DA) 10%, transparent)' : 'transparent',
+                        background: on ? 'color-mix(in srgb, var(--app-glaze, #0f766e) 10%, transparent)' : 'transparent',
                         font: 'inherit',
                         textAlign: 'left',
                         cursor: 'pointer',
                       }}
                     >
-                      <AppstoreOutlined style={{ color: 'var(--app-glaze, #0969DA)' }} />
+                      <AppstoreOutlined style={{ color: 'var(--app-glaze, #0f766e)' }} />
                       <span style={{ flex: 1, fontSize: 15 }}>{lib.name}</span>
-                      {on && <CheckOutlined style={{ color: 'var(--app-glaze, #0969DA)' }} />}
+                      {on && <CheckOutlined style={{ color: 'var(--app-glaze, #0f766e)' }} />}
                     </button>
                   )
                 })}
