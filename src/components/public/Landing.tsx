@@ -195,7 +195,7 @@ export default function Landing() {
             {features.map((f) => (
               <div key={f.title} style={{ background: '#fff', padding: '20px 22px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <span style={{ color: '#0969DA', fontSize: 16, display: 'inline-flex', flexShrink: 0 }}>
+                  <span style={{ color: '#1D1D1F', fontSize: 16, display: 'inline-flex', flexShrink: 0 }}>
                     {f.icon}
                   </span>
                   <span style={{ fontWeight: 600, fontSize: 15, color: '#1F2328' }}>{f.title}</span>
@@ -222,12 +222,12 @@ export default function Landing() {
         <section style={{ paddingTop: 88 }}>
           {/* 深窑青而不是随手拿来的 slate-900：整个页面的色彩语言
               终于和应用同源；8px 圆角回归系统（不是 24px 的"模板胶囊"） */}
-          <div style={{ background: '#0A3069', borderRadius: 8, padding: '48px 28px', textAlign: 'center', color: '#fff' }}>
+          <div style={{ background: '#000000', borderRadius: 8, padding: '48px 28px', textAlign: 'center', color: '#fff' }}>
             <h2 style={{ fontSize: 26, margin: '0 0 10px', color: '#fff' }}>{t('landing.dark.title')}</h2>
             <p style={{ color: 'rgba(255,255,255,.78)', marginBottom: 24 }}>{t('landing.dark.sub')}</p>
             {/* 深底上的主按钮必须反白：teal 填充压在深窑青上几乎不可见（对比度不足），
                 白底深青字才既有对比又贵气 */}
-            <Button size="large" style={{ background: '#fff', borderColor: '#fff', color: '#0A3069', fontWeight: 600 }} onClick={goLogin}>
+            <Button size="large" style={{ background: '#fff', borderColor: '#fff', color: '#000000', fontWeight: 600 }} onClick={goLogin}>
               {t('landing.dark.cta')}
             </Button>
           </div>

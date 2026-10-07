@@ -91,7 +91,7 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
       {grouped.length === 0 && <Empty />}
       {grouped.map(([cat, tpls]) => (
         <div key={cat} style={{ marginBottom: 18 }}>
-          <Tag color="teal" style={{ marginBottom: 8 }}>{cat}</Tag>
+          <Tag color="default" style={{ marginBottom: 8 }}>{cat}</Tag>
           <Row gutter={[12, 12]}>
             {tpls.map((tpl) => (
               <Col xs={24} sm={12} key={tpl.key}>

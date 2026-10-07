@@ -358,10 +358,10 @@ export default function AuthPage() {
         <div style={{ width: '100%', maxWidth: 320, padding: '0 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: BRAND, display: 'inline-block' }} />
-            <span style={{ fontWeight: 700, fontSize: 15, color: '#0A3069' }}>{t('auth.brand')}</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: '#1D1D1F' }}>{t('auth.brand')}</span>
           </div>
 
-          <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px', color: '#0A3069' }}>{t('auth.welcome')}</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px', color: '#1D1D1F' }}>{t('auth.welcome')}</h2>
           <p style={{ color: '#475569', fontSize: 13, margin: '0 0 20px' }}>{t('auth.hint')}</p>
 
           <Tabs

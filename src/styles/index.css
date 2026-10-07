@@ -29,7 +29,7 @@ body {
 .ant-input-affix-wrapper,
 textarea,
 input {
-  caret-color: #0969DA;
+  caret-color: #1D1D1F;
 }
 
 ::-webkit-scrollbar {
@@ -127,7 +127,9 @@ input {
   background: rgba(128, 128, 128, 0.08);
 }
 .ai-md a {
-  color: #0969DA;
+  color: #1D1D1F;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .ai-md blockquote {
   margin: 6px 0;
@@ -144,7 +146,7 @@ input {
   /* 深窑青而不是亮青瓷釉：品牌色大面积铺开（登录页整半屏）会稀释釉色、
      拉低层级——theme/index.ts 的调研结论（Fluent：品牌色不要铺在大面积表面）。
      深一档的窑色安静、贵气，白字对比 9.5:1；釉色留给小块的点缀与按钮。 */
-  background: #0A3069;
+  background: #000000;
   color: #fff;
   padding: 48px 64px;
 }
@@ -165,7 +167,7 @@ input {
     justify-content: center;
   }
   .login-form-side {
-    border-left: 1px solid #B9D4F5;
+    border-left: 1px solid #E8E8ED;
     min-height: unset;
   }
 }
@@ -260,14 +262,14 @@ input {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #0969DA;
+  background: #1D1D1F;
   display: inline-block;
   animation: lp-dot-blink 1.2s infinite;
 }
 .lp-bar {
   border-radius: 4px 4px 0 0;
   /* 平涂釉色：本系统不用渐变（DESIGN.md Don'ts） */
-  background: #0969DA;
+  background: #1D1D1F;
   width: 26px;
 }
 
@@ -295,9 +297,9 @@ input {
   --app-ink-faint: #66717e;
   --app-border: #d3d9de;
   --app-border-soft: #e3e8ec;
-  --app-glaze: #0969DA;
-  --app-glaze-text: #0969DA;
-  --app-glaze-soft: #EEF4FD;
+  --app-glaze: #1D1D1F;
+  --app-glaze-text: #1D1D1F;
+  --app-glaze-soft: #F5F5F7;
   --app-kiln: #fa8c16;
   /* 琥珀当文字用必须用 700 档（亮画布上 4.67:1），亮琥珀只在填充/指示时用 */
   --app-kiln-text: #b45309;

@@ -14,7 +14,7 @@
  *
  * 之前的问题（2026-09 重做）：
  *  antd 的 overrideToken 叠加在算法输出之上，所以旧代码里
- *  `colorBgLayout: '#EEF4FD'` 在暗色模式下依然生效，暗色页面出现浅薄荷画布，
+ *  `colorBgLayout: '#F5F5F7'` 在暗色模式下依然生效，暗色页面出现浅薄荷画布，
  *  逼得 4 处硬编码 `#141414` 去盖。现在暗色不再继承任何亮色值。
  *
  * 本轮新增：**用 WCAG 对比度实测**修掉了亮色模式下 5 处不达标的配色。
@@ -32,21 +32,21 @@ export type ThemeMode = 'light' | 'dark'
 // ══════════════════════════════════════════════════════════════
 
 /**
- * 青瓷（品牌釉色）色阶。同一色相，由浅到深。
- * 浅色模式下按钮/链接取 700（对白 5.47:1，对白底也是 5.47:1，两头都过 AA）；
- * 色值换成蓝（GitHub 体系：#0969DA 主填充/文字，白字对比 5.19:1，达标）。
+ * 品牌黑白中性阶（Apple 极简风）。
+ * 浅色模式：按钮/链接取 700（#1D1D1F，对白 14.7:1）；
+ * 暗色模式：主填充取 300（#E8E8ED，浅底 + 黑字 = Apple 暗底按钮）。
  */
 const GLAZE = {
-  50: '#EEF4FD',
-  100: '#DAE9FB',
-  200: '#B9D4F5',
-  300: '#2F81E6',
-  400: '#1F7FDE',
-  500: '#2278CE',
-  600: '#0A5BC2',
-  700: '#0969DA',
-  800: '#084891',
-  900: '#0A3069',
+  50: '#F5F5F7',
+  100: '#E8E8ED',
+  200: '#D2D2D7',
+  300: '#E8E8ED',
+  400: '#D2D2D7',
+  500: '#86868B',
+  600: '#48484A',
+  700: '#1D1D1F',
+  800: '#111113',
+  900: '#000000',
 } as const
 
 /** 窑火琥珀：只用于「需要注意」的三件事——行焦点、内容被改、临期提醒 */
@@ -150,7 +150,7 @@ const SEMANTIC_L = {
   border: NEUTRAL_L[300],
   borderSoft: NEUTRAL_L[200],
 
-  // 品牌：填充用与文字用同值（700 对白 5.19:1 / 对白底 5.19:1）
+  // 品牌：填充用与文字用同值（700 对白 14.7:1 / 对白底 14.7:1）
   glaze: GLAZE[700],
   glazeText: GLAZE[700],
   glazeSoft: GLAZE[50],
@@ -183,11 +183,11 @@ const SEMANTIC_D = {
   border: NEUTRAL_D[300],
   borderSoft: NEUTRAL_D[200],
 
-  // 暗底上要更亮的釉色才能压住深底（对深底 10.18:1）
+  // 暗底主按钮：浅灰填充。配合 DARK token 里的 colorTextLightSolid 黑字。
   glaze: GLAZE[300],
   glazeText: GLAZE[300],
-  glazeSoft: 'rgba(47, 129, 230, 0.14)',
-  glazeSoftStrong: 'rgba(47, 129, 230, 0.22)',
+  glazeSoft: 'rgba(232, 232, 237, 0.14)',
+  glazeSoftStrong: 'rgba(232, 232, 237, 0.22)',
 
   kiln: KILN[300],
   kilnText: KILN[300],
@@ -248,6 +248,8 @@ const LIGHT: ThemeConfig['token'] = {
 const DARK: ThemeConfig['token'] = {
   ...BASE,
   colorPrimary: SEMANTIC_D.glaze,
+  // 暗底主按钮实为浅灰填充 + 近黑字（Apple 风暗底主按钮），置默认白色字后看不见
+  colorTextLightSolid: '#1D1D1F',
   colorInfo: SEMANTIC_D.glaze,
   colorLink: SEMANTIC_D.glazeText,
   colorLinkHover: GLAZE[200],

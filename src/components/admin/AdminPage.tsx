@@ -181,7 +181,7 @@ export default function AdminPage() {
                 marginBottom: 10,
               }}
             />
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#0A3069' }}>{t('admin.title')}</h2>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#1D1D1F' }}>{t('admin.title')}</h2>
             <p style={{ color: '#475569', fontSize: 12, marginTop: 4, marginBottom: 0 }}>
               {t('admin.consoleHint')}
             </p>
@@ -350,7 +350,7 @@ export default function AdminPage() {
         <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
           <Space align="center">
             <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--app-glaze)', display: 'inline-block' }} />
-            <span style={{ fontWeight: 700, fontSize: 16, color: '#0A3069' }}>{t('admin.title')}</span>
+            <span style={{ fontWeight: 700, fontSize: 16, color: '#1D1D1F' }}>{t('admin.title')}</span>
           </Space>
           <Space>
             <Button icon={<DownloadOutlined />} onClick={exportCsv}>
