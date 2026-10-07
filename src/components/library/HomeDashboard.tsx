@@ -28,7 +28,7 @@ function useDateTag() {
     const diff = target.diff(now, 'day')
     if (diff < 0) return <Tag color="red">{t('dash.overdue', { n: -diff })}</Tag>
     if (diff === 0) return <Tag color="orange">{t('dash.today')}</Tag>
-    return <Tag color="default">{t('dash.inDays', { n: diff })}</Tag>
+    return <Tag color="blue">{t('dash.inDays', { n: diff })}</Tag>
   }
 }
 

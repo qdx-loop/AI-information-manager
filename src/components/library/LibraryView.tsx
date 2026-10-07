@@ -334,7 +334,7 @@ export default function LibraryView() {
           <Title level={4} style={{ margin: 0, fontSize: 19 }}>
             {lib?.name ?? t('lib.untitled')}
           </Title>
-          {lib?.category && <Tag color="default">{lib.category}</Tag>}
+          {lib?.category && <Tag color="teal">{lib.category}</Tag>}
           <Text type="secondary" style={{ fontSize: 13 }}>
             {t('lib.total', { n: items.length })}
           </Text>

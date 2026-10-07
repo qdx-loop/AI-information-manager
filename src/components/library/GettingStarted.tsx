@@ -126,7 +126,7 @@ export default function GettingStarted() {
         <Space>
           <RocketOutlined style={{ color: 'var(--app-glaze)' }} />
           <span>{t('ob.title')}</span>
-          <Tag color="default">{doneCount}/{steps.length}</Tag>
+          <Tag color="teal">{doneCount}/{steps.length}</Tag>
         </Space>
       }
       extra={
