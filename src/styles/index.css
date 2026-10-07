@@ -141,7 +141,10 @@ input {
   display: none;
   position: relative;
   flex: 1;
-  background: #0d9488;
+  /* 深窑青而不是亮青瓷釉：品牌色大面积铺开（登录页整半屏）会稀释釉色、
+     拉低层级——theme/index.ts 的调研结论（Fluent：品牌色不要铺在大面积表面）。
+     深一档的窑色安静、贵气，白字对比 9.5:1；釉色留给小块的点缀与按钮。 */
+  background: #134e4a;
   color: #fff;
   padding: 48px 64px;
 }
@@ -187,17 +190,6 @@ input {
 }
 
 /* ———— 公开落地页（Landing）专用 ———— */
-.lp-hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 14px;
-  border-radius: 999px;
-  background: #f0fdfa;
-  border: 1px solid #99f6e4;
-  color: #0f766e;
-  font-size: 13px;
-}
 .lp-header {
   max-width: 1080px;
   margin: 0 auto;
@@ -221,7 +213,7 @@ input {
   min-width: 0;
 }
 .lp-nav-link {
-  color: #334155;
+  color: #4e5866;
   font-size: 14px;
   background: none;
   border: none;
@@ -232,8 +224,8 @@ input {
   transition: background 0.15s, color 0.15s;
 }
 .lp-nav-link:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: #f5f7f8;
+  color: #1f2328;
 }
 /* 窄屏：导航独占一行并可横向滑动，链接不再被压成竖排 */
 @media (max-width: 768px) {
@@ -274,7 +266,8 @@ input {
 }
 .lp-bar {
   border-radius: 4px 4px 0 0;
-  background: linear-gradient(180deg, #14b8a6, #0d9488);
+  /* 平涂釉色：本系统不用渐变（DESIGN.md Don'ts） */
+  background: #0d9488;
   width: 26px;
 }
 

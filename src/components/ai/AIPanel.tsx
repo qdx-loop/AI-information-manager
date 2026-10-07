@@ -56,7 +56,7 @@ import {
 import { processAttachment, type Attachment } from '@/ai/attachments'
 import { API_BASE, getToken } from '@/lib/serverApi'
 import { normalizeChartOption } from '@/ai/chartUtils'
-import { useI18n } from '@/i18n'
+import { useI18n, tNow } from '@/i18n'
 import { AutoConfirmContext } from '@/ai/autoConfirm'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -154,6 +154,7 @@ export default function AIPanel() {
     if (!account || !sessionId) return
     const firstUser = messages.find((m) => m.role === 'user')
     if (firstUser?.content) touchSessionTitle(account.id, sessionId, firstUser.content)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 第一条用户消息出现即起名，避免流式每个增量都重跑
   }, [messages.length, sessionId, account?.id])
 
   /** 切换会话：保存当前 → 加载目标 */
@@ -289,7 +290,7 @@ export default function AIPanel() {
     const tables = attachments.filter((a) => (a.kind === 'table' || a.kind === 'text') && a.summary)
     const images = attachments.filter((a) => a.kind === 'image' && a.dataUrl)
     let fullText = userText
-    if (tables.length > 0) fullText += '\n\n' + tables.map((t) => t.summary).join('\n\n')
+    if (tables.length > 0) fullText += '\n\n' + tables.map((tbl) => tbl.summary).join('\n\n')
     if (images.length > 0) fullText += `\n\n（本条消息附有 ${images.length} 张图片，请结合图片内容回答）`
     setAttachments([])
 
@@ -469,6 +470,7 @@ export default function AIPanel() {
     } catch {
       /* 命名失败静默降级：保留截取式标题，不打扰用户 */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 账号切换才重建，深层用 account/settings 的最新值即可
   }, [account?.id, sessionId, messages, settings.ai, usingPlatform])
 
   // 向最近一条 assistant 消息追加执行步骤（agent 进度展示）
@@ -643,7 +645,7 @@ export default function AIPanel() {
           const preview =
             op === 'update'
               ? `${t('ai.confirm.memory.target')}${String(texts[0] ?? '')}\n${t('ai.confirm.memory.newValue')}${String(texts[1] ?? '')}`
-              : texts.map((t) => `· ${String(t)}`).join('\n')
+              : texts.map((item) => `· ${String(item)}`).join('\n')
           let result = ''
           if (!account) {
             result = '当前未登录，无法保存记忆。'
@@ -1275,13 +1277,13 @@ export default function AIPanel() {
       setMessages((m) =>
         m.map((mm, i) =>
           i === msgIndex
-            ? { ...mm, undo: undefined, content: mm.content + t('ai.undoDone') }
+            ? { ...mm, undo: undefined, content: mm.content + tNow('ai.undoDone') }
             : mm,
         ),
       )
-      message.success(t('ai.undoSuccess'))
+      message.success(tNow('ai.undoSuccess'))
     } catch (e) {
-      message.error(t('ai.undoFailed', { msg: (e as Error).message }))
+      message.error(tNow('ai.undoFailed', { msg: (e as Error).message }))
     }
   }, [messages, message])
 

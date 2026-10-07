@@ -5,7 +5,7 @@ import { DeleteOutlined, UndoOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useLibraryStore } from '@/store/libraryStore'
 import type { TrashEntry } from '@/types'
-import { useI18n } from '@/i18n'
+import { useI18n, tNow } from '@/i18n'
 
 export default function TrashBin() {
   const { message } = App.useApp()
@@ -14,7 +14,7 @@ export default function TrashBin() {
   const t = useI18n()
 
   useEffect(() => {
-    loadTrash().catch((e) => message.error(t('lib.trash.loadFailed', { msg: (e as Error).message })))
+    loadTrash().catch((e) => message.error(tNow('lib.trash.loadFailed', { msg: (e as Error).message })))
   }, [loadTrash, message])
 
   const handleRestore = async (entry: TrashEntry) => {

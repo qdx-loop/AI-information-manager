@@ -238,7 +238,7 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
         failWith('BAD_PAYLOAD')
       }
     },
-    [account, maybeFinish, teardownSession, failWith],
+    [account, maybeFinish, teardownSession, failWith, modal, t],
   )
 
   const buildSession = useCallback(() => {
@@ -333,7 +333,7 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
     } finally {
       setBusy(false)
     }
-  }, [account, buildSession, makePayload, stopPolling, failWith])
+  }, [account, buildSession, makePayload, stopPolling, failWith, ensurePrimed])
 
   // —— 加入方：轮询发现对端请求 → 用户确认 → 完成 answer 握手 ——
   const startJoinScan = useCallback(() => {
@@ -375,7 +375,7 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
     } finally {
       setBusy(false)
     }
-  }, [account, pendingHost, buildSession, makePayload, teardownSession, failWith])
+  }, [account, pendingHost, buildSession, makePayload, teardownSession, failWith, ensurePrimed])
 
   const handleClose = useCallback(() => {
     closedRef.current = true

@@ -42,7 +42,7 @@ import ItemEditor from './ItemEditor'
 import TemplateEditor from './TemplateEditor'
 import ImportExport, { type ImportExportHandle } from './ImportExport'
 import type { Item, FieldValue } from '@/types'
-import { useI18n } from '@/i18n'
+import { useI18n, tNow } from '@/i18n'
 import { track } from '@/utils/track'
 
 import { useBackButtonLayer } from '@/utils/backButton'
@@ -77,7 +77,7 @@ export default function LibraryView() {
 
   useEffect(() => {
     if (id && id !== currentLibraryId) {
-      selectLibrary(id).catch((e) => message.error(t('app.loadLibFailed', { msg: (e as Error).message })))
+      selectLibrary(id).catch((e) => message.error(tNow('app.loadLibFailed', { msg: (e as Error).message })))
     }
   }, [id, currentLibraryId, selectLibrary, message])
 

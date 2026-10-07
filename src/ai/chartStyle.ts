@@ -149,7 +149,6 @@ export function parseChartOption(raw: Record<string, unknown>): Parsed | null {
 
 // ── 主入口：把 AI 的配置重建成规范外观 ──────────────────────
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export function styleChart(raw: Record<string, unknown>, dark: boolean): Record<string, unknown> {
   const parsed = parseChartOption(raw)
   if (!parsed) return raw
@@ -321,7 +320,6 @@ export function styleChart(raw: Record<string, unknown>, dark: boolean): Record<
   }
 }
 
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 function stylePie(p: Parsed, tk: ChartTokens, base: Record<string, unknown>) {
   const raw = p.series[0]?.data ?? []

@@ -203,49 +203,46 @@ function useSidebarState(onNavigate?: () => void) {
   }
 
   // 单个库的菜单项（含子库递归）
-  const buildLibItems = useMemo(
-    () => (libs: Library[]) => {
-      type MenuItem = NonNullable<MenuProps['items']>[number]
-      const byParent = new Map<string | null, Library[]>()
-      for (const l of libs) byParent.set(l.parentId ?? null, [...(byParent.get(l.parentId ?? null) ?? []), l])
-      const makeItem = (l: Library): MenuItem => {
-        const children: MenuItem[] = (byParent.get(l.id) ?? [])
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map(makeItem)
-        return {
-          key: `/library/${l.id}`,
-          icon: <AppstoreOutlined />,
-          label: (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                // 有子库时右侧预留展开箭头的位置，避免「⋯ 更多」按钮与箭头重叠
-                paddingRight: children.length ? 16 : 0,
-              }}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                {l.name}
-              </span>
-              <Dropdown menu={libActions(l)} trigger={['click']}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<MoreOutlined />}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ flexShrink: 0 }}
-                />
-              </Dropdown>
-            </div>
-          ),
-          ...(children.length ? { children } : {}),
-        }
+  const buildLibItems = (libs: Library[]) => {
+    type MenuItem = NonNullable<MenuProps['items']>[number]
+    const byParent = new Map<string | null, Library[]>()
+    for (const l of libs) byParent.set(l.parentId ?? null, [...(byParent.get(l.parentId ?? null) ?? []), l])
+    const makeItem = (l: Library): MenuItem => {
+      const children: MenuItem[] = (byParent.get(l.id) ?? [])
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(makeItem)
+      return {
+        key: `/library/${l.id}`,
+        icon: <AppstoreOutlined />,
+        label: (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              // 有子库时右侧预留展开箭头的位置，避免「⋯ 更多」按钮与箭头重叠
+              paddingRight: children.length ? 16 : 0,
+            }}
+          >
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              {l.name}
+            </span>
+            <Dropdown menu={libActions(l)} trigger={['click']}>
+              <Button
+                type="text"
+                size="small"
+                icon={<MoreOutlined />}
+                onClick={(e) => e.stopPropagation()}
+                style={{ flexShrink: 0 }}
+              />
+            </Dropdown>
+          </div>
+        ),
+        ...(children.length ? { children } : {}),
       }
-      return (byParent.get(null) ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map(makeItem)
-    },
-    [libActions],
-  )
+    }
+    return (byParent.get(null) ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map(makeItem)
+  }
 
   const menuItems = [
     { key: '/', label: t('app.home'), icon: <HomeOutlined /> },

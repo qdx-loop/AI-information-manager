@@ -86,6 +86,7 @@ export default function AppShell() {
       () => useLibraryStore.getState().libraries,
     )
     return stop
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 启动函数内部现行从 store 读最新账号，只需在 登录/退出 时重建
   }, [account?.id])
 
   useEffect(() => {

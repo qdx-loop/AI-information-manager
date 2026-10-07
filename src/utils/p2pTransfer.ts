@@ -123,12 +123,12 @@ export class ChunkReceiver {
       // 必须要求原始类型就是 number：JSON.stringify({chunks: NaN}) 得到的是
       // null，而 Number(null) === 0 —— 那样 NaN 会被当成合法的「0 分块」，
       // 于是损坏的负载被降级成空负载，上层 JSON.parse('') 报出一个误导性的错。
-      const raw = (msg as unknown as Record<string, unknown>).chunks
-      if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0) {
+      const chunks = (msg as unknown as Record<string, unknown>).chunks
+      if (typeof chunks !== 'number' || !Number.isInteger(chunks) || chunks < 0) {
         this.invalid = true
         return null
       }
-      const n = raw
+      const n = chunks
       if (n > MAX_CHUNKS) {
         this.invalid = true
         return null

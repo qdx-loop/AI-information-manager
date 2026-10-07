@@ -211,10 +211,10 @@ export default function HelpPage() {
   useEffect(() => {
     const id = location.hash.replace('#', '')
     if (!id.startsWith('ch-')) return
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       document.getElementById(id)?.scrollIntoView({ block: 'start' })
     }, 60)
-    return () => window.clearTimeout(t)
+    return () => window.clearTimeout(timer)
   }, [location.hash])
 
   // 目录随章节滚动高亮：IntersectionObserver 比监听 scroll 更省事也更准
@@ -261,7 +261,6 @@ export default function HelpPage() {
           {c.title}
         </a>
       )),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [manual, active],
   )
 

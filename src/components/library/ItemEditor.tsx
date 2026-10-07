@@ -62,6 +62,7 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
   const baseUpdatedAt = useRef<number | null>(null)
   useEffect(() => {
     if (open) baseUpdatedAt.current = item?.updatedAt ?? null
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 打开那一刻快照一次，存盘时任务网比；之后条目变化不重置基线
   }, [open, item?.id])
 
   const handleOk = async () => {

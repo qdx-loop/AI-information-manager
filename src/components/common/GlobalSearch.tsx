@@ -92,8 +92,8 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
     setHits([])
     setActive(0)
     setTruncated(false)
-    const t = setTimeout(() => inputRef.current?.focus(), 60)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => inputRef.current?.focus(), 60)
+    return () => clearTimeout(timer)
   }, [open])
 
   // 只认最后一次查询：doSearch 是逐库串行 await 的，慢的那次可能后到。

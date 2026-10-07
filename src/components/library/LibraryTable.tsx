@@ -90,7 +90,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
       }
       return t('common.emptyValue')
     },
-    [visibleFields],
+    [visibleFields, t],
   )
   // 卡片正文要跳过主标识字段，否则和标题重复
   const restFields = useMemo(
@@ -104,8 +104,8 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
     [visibleFields],
   )
   // 首列（标识列）：字段类型决定对齐方式，数字与日期右对齐便于纵向比较
-  const alignOf = (t: FieldType): 'left' | 'right' =>
-    t === 'number' || t === 'date' ? 'right' : 'left'
+  const alignOf = (fieldType: FieldType): 'left' | 'right' =>
+    fieldType === 'number' || fieldType === 'date' ? 'right' : 'left'
 
   // ———— 移动端：卡片列表（横向滚动太远才能摸到操作列，改为纵向卡片） ————
   if (isMobile) {
