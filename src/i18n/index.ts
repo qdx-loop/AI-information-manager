@@ -684,6 +684,7 @@ export function tFn(): TFunc {
 Object.assign(zh as Dict, {
   // —— Landing ——
   'landing.nav.features': '功能',
+  'landing.nav.privacy': '数据在哪',
   'landing.nav.faq': '常见问题',
   'landing.nav.contact': '联系我们',
   'landing.nav.help': '帮助中心',
@@ -712,10 +713,18 @@ Object.assign(zh as Dict, {
   'landing.hero.downloadApk': '下载安卓 App',
 
   'landing.hero.trust': '完全免费不会过期 · 数据存在你自己的设备里 · 手机电脑都能用',
-  'landing.demo.userMsg': '统计每个城市的客户数',
-  'landing.demo.aiLine': '共 6 位客户：北京 2 · 上海 2 · 广州 1 · 深圳 1',
-  'landing.demo.caption': '真实界面示意：对 AI 说一句话，直接得到统计和图表',
-  'landing.demo.bars': '北京,上海,广州,深圳,其他',
+  'landing.shot.caption': '真实界面截图：示例数据。点任意一格就能直接改。',
+  'landing.shot.alt': '应用内「客户跟进」管理库的表格视图，示例数据',
+  // 立场段（反模板的关键）：说清楚数据在哪、谁能看见
+  'landing.pov.eyebrow': '和大部分工具不一样的地方',
+  'landing.pov.title': '你的客户名单，不在我们的服务器上。',
+  'landing.pov.body': '默认存在你自己手机或电脑的浏览器里。断网照样能录能查，我们没有你的数据，也拿不到。',
+  'landing.pov.f1t': '没信号也能用',
+  'landing.pov.f1d': '地铁、仓库、地下室断网时，录入和查询照常工作，联网后自动接着同步。',
+  'landing.pov.f2t': '两台设备直接对传',
+  'landing.pov.f2d': '同一个 Wi-Fi 下，手机和电脑之间局域网直连传输，不经过任何服务器。',
+  'landing.pov.f3t': '要上云就上你自己的云',
+  'landing.pov.f3d': '可选的云同步写进你自己的 Supabase 项目，密钥只有你拿着；随时能导出 JSON 备份。',
   'landing.features.title': '为一个目的而生：',
   'landing.features.sub': '让不懂表格的人，也能把数据管得明明白白',
   'landing.f1t': '说话即操作',
@@ -1312,6 +1321,7 @@ Object.assign(en, {
 
   // —— Landing ——
   'landing.nav.features': 'Features',
+  'landing.nav.privacy': 'Where your data lives',
   'landing.nav.faq': 'FAQ',
   'landing.nav.contact': 'Contact',
   'landing.nav.help': 'Help',
@@ -1340,10 +1350,18 @@ Object.assign(en, {
   'landing.hero.downloadApk': 'Download Android App',
 
   'landing.hero.trust': 'Free forever · Your data stays on your own device · Works on phone & desktop',
-  'landing.demo.userMsg': 'Count customers per city',
-  'landing.demo.aiLine': '6 customers total: Beijing 2 · Shanghai 2 · Guangzhou 1 · Shenzhen 1',
-  'landing.demo.caption': 'Real UI preview: say one sentence, get stats and a chart instantly',
-  'landing.demo.bars': 'Beijing,Shanghai,Guangzhou,Shenzhen,Other',
+  'landing.shot.caption': 'Real UI, sample data. Click any cell to edit it in place.',
+  'landing.shot.alt': 'Table view of a "客户跟进" (customer follow-up) library inside the app, with sample data',
+  // Point of view: where the data lives, and who can see it.
+  'landing.pov.eyebrow': 'The part that is different',
+  'landing.pov.title': "Your customer list is not on our servers.",
+  'landing.pov.body': "By default it lives in the browser on your own phone or computer. Keep working with no signal — we do not have your data and cannot get it.",
+  'landing.pov.f1t': 'Works with no signal',
+  'landing.pov.f1d': 'On a subway, in a warehouse or a basement, entry and search keep working, then sync when you reconnect.',
+  'landing.pov.f2t': 'Two devices, direct transfer',
+  'landing.pov.f2d': 'On the same Wi-Fi, phone and desktop transfer over the local network — no server in between.',
+  'landing.pov.f3t': 'Cloud, but your cloud',
+  'landing.pov.f3d': 'Optional cloud sync writes to your own Supabase project, with the keys in your hands. Export a JSON backup any time.',
   'landing.features.title': 'Built for one purpose:',
   'landing.features.sub': 'helping people who dread spreadsheets keep their data perfectly organized',
   'landing.f1t': 'Talk, and it happens',

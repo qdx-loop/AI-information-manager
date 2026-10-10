@@ -8,8 +8,6 @@ import {
   MailOutlined,
   UserAddOutlined,
   DownloadOutlined,
-  UserOutlined,
-  RobotOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '@/i18n'
@@ -20,23 +18,24 @@ const { Text } = Typography
 
 const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
 
-/** 模拟 AI 对话的"运行中的产品"卡片（内容随语言切换）
+/**
+ * 真实界面截图（public/hero-table.png）。
  *
- * 刻意不用假浏览器窗口（红黄绿圆点 + 标题栏）：那是"AI 落地页模板"最重的
- * 两个信号之一，而且对本产品是谎言——它是 Web 应用，不是 macOS 软件。
- * 分隔靠 1px 发丝线（DESIGN.md Hairline Rule），不靠大投影。
- * 气泡几何与应用内真实聊天一致：8px 圆角 + 28px 圆形头像，让"示意图"
- * 名副其实——用户进来看到的和应用里是同一个东西。
+ * 原来这里是一段用 div 拼的"聊天 + 柱状图"示意，卡片上还写着
+ * 「真实界面示意」—— 但它不是真界面，是硬编码的假数据
+ * （counts = [2,2,1,1,0]）。这是 anti-slop 里 C4「抽象演示图顶替真实产品」
+ * 的典型形态：示意可以放在任何产品页上，且它展示的是聊天气泡——
+ * 本产品最没有辨识度的部分。
+ *
+ * 现在换成从运行中的应用直接截的表格视图：那是这个产品真正的样子，
+ * 也是唯一能证明「录进去就能扫读、能直接改」的东西。图里是示例数据。
  */
-function ProductDemo() {
+function ProductShot() {
   const t = useI18n()
-  const barLabels = t('landing.demo.bars').split(',')
-  const counts = [2, 2, 1, 1, 0]
-  const heights = [34, 34, 17, 17, 5]
   return (
-    <div
+    <figure
       style={{
-        maxWidth: 620,
+        maxWidth: 860,
         margin: '40px auto 0',
         borderRadius: 8,
         border: '1px solid #D3D9DE',
@@ -45,50 +44,30 @@ function ProductDemo() {
         textAlign: 'left',
       }}
     >
-      <div style={{ padding: '20px 18px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <div style={{ background: 'var(--app-glaze)', color: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: 14 }}>
-            {t('landing.demo.userMsg')}
-          </div>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--app-glaze)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
-            <UserOutlined />
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E3E8EC', color: '#4E5866', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
-              <RobotOutlined />
-            </div>
-            <div style={{ background: '#F5F7F8', borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#333B47', maxWidth: '85%' }}>
-              {t('landing.demo.aiLine')}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E3E8EC', color: '#4E5866', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0, visibility: 'hidden' }}>
-              <RobotOutlined />
-            </div>
-            <div style={{ background: '#F5F7F8', borderRadius: 8, padding: '12px 16px', width: 'min(100%, 340px)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, height: 56 }}>
-                {barLabels.map((city, i) => (
-                  <div key={city} style={{ textAlign: 'center' }}>
-                    <Text className="num" style={{ fontSize: 11, color: '#4E5866', display: 'block', marginBottom: 4 }}>{counts[i]}</Text>
-                    <div className="lp-bar" style={{ height: Math.max(heights[i], 5) }} />
-                    <Text style={{ fontSize: 11, color: '#8A94A0', display: 'block', marginTop: 4 }}>{city}</Text>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div style={{ padding: '2px 6px 2px 36px' }}>
-            <span className="lp-dot" /> <span className="lp-dot" style={{ animationDelay: '.2s' }} />{' '}
-            <span className="lp-dot" style={{ animationDelay: '.4s' }} />
-          </div>
-        </div>
+      {/* 窄屏不缩图：7 列表格缩到 390px 宽会糊成一片灰，比没有更糟。
+          改成固定一个仍然读得清的最小宽度，横向滑动查看 —— 手机上
+          表格本来就宽，滑动是符合直觉的。 */}
+      <div className="lp-shot-scroll">
+        <img
+          src="/hero-table.png"
+          alt={t('landing.shot.alt')}
+          loading="eager"
+          decoding="async"
+          style={{ display: 'block' }}
+        />
       </div>
-      <div style={{ borderTop: '1px solid #E3E8EC', padding: '8px 14px', fontSize: 12, color: '#8A94A0', textAlign: 'center' }}>
-        {t('landing.demo.caption')}
-      </div>
-    </div>
+      <figcaption
+        style={{
+          borderTop: '1px solid #E3E8EC',
+          padding: '9px 14px',
+          fontSize: 12,
+          color: '#66717E',
+          textAlign: 'center',
+        }}
+      >
+        {t('landing.shot.caption')}
+      </figcaption>
+    </figure>
   )
 }
 
@@ -107,6 +86,11 @@ export default function Landing() {
     { icon: <AppstoreOutlined />, title: t('landing.f2t'), desc: t('landing.f2d') },
     { icon: <BarChartOutlined />, title: t('landing.f3t'), desc: t('landing.f3d') },
     { icon: <MobileOutlined />, title: t('landing.f4t'), desc: t('landing.f4d') },
+  ]
+  const povFacts = [
+    { title: t('landing.pov.f1t'), desc: t('landing.pov.f1d') },
+    { title: t('landing.pov.f2t'), desc: t('landing.pov.f2d') },
+    { title: t('landing.pov.f3t'), desc: t('landing.pov.f3d') },
   ]
   const faqs = [
     [t('landing.faq.q1'), t('landing.faq.a1')],
@@ -135,6 +119,7 @@ export default function Landing() {
           </Space>
           <nav className="lp-nav">
             <button className="lp-nav-link" onClick={() => scrollTo('features')}>{t('landing.nav.features')}</button>
+            <button className="lp-nav-link" onClick={() => scrollTo('privacy')}>{t('landing.nav.privacy')}</button>
             <button className="lp-nav-link" onClick={() => scrollTo('faq')}>{t('landing.nav.faq')}</button>
             <button className="lp-nav-link" onClick={() => scrollTo('contact')}>{t('landing.nav.contact')}</button>
             <button className="lp-nav-link" onClick={() => navigate('/help')}>{t('landing.nav.help')}</button>
@@ -171,7 +156,29 @@ export default function Landing() {
 
           <div style={{ marginTop: 14, fontSize: 13, color: '#8A94A0' }}>{t('landing.hero.trust')}</div>
 
-          <ProductDemo />
+          <ProductShot />
+        </section>
+
+        {/* ===== 立场段 =====
+            这是整页唯一"不对称"的一节，也是唯一的节奏断点。
+            之前每一节都是：居中标题 + 居中副标题 + 居中内容，节奏完全一致，
+            结果是没有任何一处被强调（anti-slop S6）。
+            这里改成左文右证据：左边是一句立场，右边是三条具体后果。
+            立场本身是产品已经做到、竞品抄不走的事实（数据不在我们服务器上）。 */}
+        <section id="privacy" className="lp-pov">
+          <div className="lp-pov-lead">
+            <div className="lp-pov-eyebrow">{t('landing.pov.eyebrow')}</div>
+            <h2 className="lp-pov-title">{t('landing.pov.title')}</h2>
+            <p className="lp-pov-body">{t('landing.pov.body')}</p>
+          </div>
+          <dl className="lp-pov-facts">
+            {povFacts.map((f) => (
+              <div key={f.title} className="lp-pov-fact">
+                <dt>{f.title}</dt>
+                <dd>{f.desc}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
 
         {/* ===== 功能 ===== */}

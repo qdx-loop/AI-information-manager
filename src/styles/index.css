@@ -271,11 +271,107 @@ input {
   width: 26px;
 }
 
-/* ==========================================================================
+/* 截图在窄屏不缩放，改为横向滚动：见 Landing.tsx ProductShot 的说明 */
+.lp-shot-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.lp-shot-scroll img {
+  width: 100%;
+  height: auto;
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  /* 低于这个宽度，7 列会被压到读不清。保持 620px 并允许横向滑动。 */
+  .lp-shot-scroll img {
+    min-width: 620px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   立场段（数据在哪）
+   整页唯一一处不对称布局，也是唯一的节奏断点：其余各节都是
+   「居中标题 + 居中副标题 + 居中内容」，节奏完全一致反而没有重点。
+   左边一句立场，右边三条具体后果 —— 用左重右轻的排版表达
+   「这是一句主张，后面是它的证据」，而不是又一组并排卡片。
+   ══════════════════════════════════════════════════════════════ */
+.lp-pov {
+  padding-top: 88px;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 48px;
+  align-items: start;
+  border-top: 1px solid #e3e8ec;
+}
+.lp-pov-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #0f766e;
+  margin-bottom: 14px;
+}
+.lp-pov-title {
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.35;
+  font-weight: 700;
+  margin: 0 0 14px;
+  color: #1f2328;
+  /* 立场句允许收紧字距：中文标题默认间距在这个字号下偏松 */
+  letter-spacing: -0.01em;
+}
+.lp-pov-body {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #4e5866;
+  margin: 0;
+  max-width: 34em;
+}
+/* 证据列表用发丝线分隔，不用卡片 —— 与全站 Hairline Rule 一致，
+   也避免又变成「三张等大的圆角卡片」 */
+.lp-pov-facts {
+  margin: 0;
+}
+.lp-pov-fact {
+  padding: 16px 0;
+  border-top: 1px solid #e3e8ec;
+}
+.lp-pov-fact:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+.lp-pov-fact dt {
+  font-weight: 600;
+  font-size: 15px;
+  color: #1f2328;
+  margin-bottom: 5px;
+}
+.lp-pov-fact dd {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: #4e5866;
+}
+/* 窄屏：立场段退回单列，但仍然左对齐 —— 不为了统一而丢掉层级 */
+@media (max-width: 860px) {
+  .lp-pov {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding-top: 64px;
+  }
+  .lp-pov-facts {
+    border-top: 1px solid #e3e8ec;
+    padding-top: 4px;
+  }
+  .lp-pov-fact:first-child {
+    padding-top: 16px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
    应用级语义变量
    antd 的 token 只能通过 JS 消费；这里给纯 CSS 场景（内联样式、状态条、
    移动端点击区）提供同源变量。data-theme 由 ThemeProvider 写在 <html> 上。
-   ========================================================================== */
+   ══════════════════════════════════════════════════════════════ */
 
    应用级语义变量
    ⚠ 这些值只是「首屏兜底」。真正的定义在 src/theme/index.ts 的语义层，
