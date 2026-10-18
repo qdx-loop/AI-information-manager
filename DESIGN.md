@@ -18,6 +18,11 @@ colors:
   ink-body: "#475569"
   ink-muted: "#94A3B8"
   ink-faint: "#999999"
+  landing-paper: "#FAFAF8"
+  landing-hairline: "#E6E5E0"
+  landing-chrome: "#F4F3EE"
+  landing-chrome-dot: "#D8D6CF"
+  landing-mint: "#79D6C9"
 typography:
   display:
     fontFamily: "'Plus Jakarta Sans', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif"

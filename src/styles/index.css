@@ -189,21 +189,91 @@ input {
   background: var(--app-pinned-wash);
 }
 
-/* ———— 公开落地页（Landing）专用 ———— */
-.lp-header {
-  max-width: 1080px;
+/* ══════════════════════════════════════════════════════════════
+   公开落地页（Landing）专用 —— 2026-10 大改版
+   brief 见 Landing.tsx 文件头：antd 退出落地页、编号编辑部排版、
+   深段落做唯一节奏断口、真实截图进展柜。设计轴：
+   · 中文走系统黑体链，拉丁/数字/眉题走系统 mono（DESIGN.md：中文禁网络字体）
+   · 青瓷青是唯一彩相；底色换瓷纸 #FAFAF8，hero 铺青瓷粉底 #F0FDFA
+   · 营销页刻意用「瓷纸」浅色定值，不随 data-theme 暗色联动（与旧版一致）
+   ══════════════════════════════════════════════════════════════ */
+.lp-page {
+  --lp-paper: #fafaf8;
+  --lp-hairline: #e6e5e0;
+  --lp-wash: #f0fdfa; /* 复用 app 的青瓷粉底 */
+  --lp-glaze: #0f766e; /* 深一档的釉：白字对比度更稳 */
+  --lp-glaze-strong: #0d9488;
+  --lp-kiln-deep: #134e4a; /* 深窑青 */
+  --lp-mint: #79d6c9; /* 深底上的青瓷亮字 */
+  --lp-ink: #1f2328;
+  --lp-ink-soft: #4e5866;
+  --lp-ink-faint: #66717e;
+  --lp-chrome: #f4f3ee;
+  --lp-chrome-edge: #e2e1da;
+  --lp-chrome-dot: #d8d6cf;
+
+  min-height: 100vh;
+  background: var(--lp-paper);
+  color: var(--lp-ink);
+  font-family: -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+/* 等宽只用于编号与数字 —— 「编辑部」口音；中文在 mono 栈里回退系统黑体 */
+.lp-page .lp-num {
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: var(--lp-glaze);
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-container {
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 12px 20px;
+  padding: 0 24px;
+}
+.lp-sect {
+  padding-top: 96px;
+}
+
+/* ——— 导航：瓷底 + 发丝线，sticky ——— */
+.lp-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--lp-paper);
+  border-bottom: 1px solid var(--lp-hairline);
+}
+/* 品牌与右端按钮不允许被压缩：中文在 flex 子项里 min-width:auto 会退化成一个字宽，
+   一旦被挤就会逐字竖排（这正是旧版窄屏导航崩掉的原因）。 */
+.lp-header-row {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
-/* 品牌与右侧按钮不允许被压缩：中文在 flex 子项里 min-width:auto 会退化成一个字宽，
-   一旦被挤就会逐字竖排（这正是旧版窄屏导航崩掉的原因）。 */
-.lp-brand,
-.lp-header > .ant-btn {
+.lp-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   flex-shrink: 0;
   white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 17px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--lp-ink);
+}
+.lp-brand-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--lp-glaze-strong);
 }
 .lp-nav {
   flex: 1;
@@ -213,26 +283,434 @@ input {
   min-width: 0;
 }
 .lp-nav-link {
-  color: #4e5866;
+  color: var(--lp-ink-soft);
   font-size: 14px;
+  font-family: inherit;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 7px 12px;
   border-radius: 6px;
   white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
+  transition: color 0.15s, background 0.15s;
 }
 .lp-nav-link:hover {
-  background: #f5f7f8;
-  color: #1f2328;
+  color: var(--lp-ink);
+  background: #f1f0ea;
 }
-/* 窄屏：导航独占一行并可横向滑动，链接不再被压成竖排 */
-@media (max-width: 768px) {
-  .lp-header {
+.lp-lang {
+  flex-shrink: 0;
+  white-space: nowrap;
+  background: none;
+  border: 1px solid var(--lp-hairline);
+  border-radius: 8px;
+  color: var(--lp-ink-soft);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 6px 10px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.lp-lang:hover {
+  color: var(--lp-ink);
+  border-color: var(--lp-chrome-dot);
+}
+
+/* ——— 按钮（antd 退出落地页） ——— */
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 30px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.lp-btn-sm {
+  height: 38px;
+  padding: 0 18px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+.lp-btn-primary {
+  background: var(--lp-glaze);
+  color: #fff;
+}
+.lp-btn-primary:hover {
+  background: #115e59;
+}
+.lp-btn-ghost {
+  background: transparent;
+  color: var(--lp-ink);
+  border: 1px solid #cfcec6;
+}
+.lp-btn-ghost:hover {
+  background: #f1f0ea;
+  border-color: var(--lp-chrome-dot);
+}
+
+/* ——— Hero：整幅釉底带平涂（页面第一口呼吸；无渐变无发光） ——— */
+.lp-hero-band {
+  background: var(--lp-wash);
+  border-bottom: 1px solid var(--lp-hairline);
+  padding: 88px 0 72px;
+}
+.lp-hero {
+  text-align: center;
+}
+/* 中文大标题：量级拉到 38–72px（旧版 30–46px 是模板默认尺寸），字重 600、字距收紧。
+   颜色用深窑青而不是纯黑 —— 与应用的「标题不用黑」一脉相承。 */
+.lp-h1 {
+  font-size: clamp(38px, 6.4vw, 72px);
+  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--lp-kiln-deep);
+  margin: 0 auto 22px;
+}
+.lp-hero-sub {
+  font-size: 18px;
+  line-height: 1.85;
+  color: var(--lp-ink-soft);
+  max-width: 36em;
+  margin: 0 auto 34px;
+}
+.lp-cta-row {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.lp-h2 {
+  font-size: clamp(26px, 3.6vw, 40px);
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--lp-kiln-deep);
+  margin: 0 0 10px;
+}
+.lp-lede {
+  font-size: 16.5px;
+  line-height: 1.8;
+  color: var(--lp-ink-soft);
+  margin: 0 0 44px;
+  max-width: 30em;
+}
+
+/* ——— 展柜截图：发丝线窗口框 + 深青纯色托座（无阴影无渐变的深度） ——— */
+.lp-shot-plate {
+  position: relative;
+  z-index: 0;
+  max-width: 960px;
+  margin: 56px auto 8px;
+}
+/* 托座往右下露 24px：它是一块「盘子」，不是发光背景（渐变/辉光被禁） */
+.lp-shot-plate::before {
+  content: '';
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  background: var(--lp-kiln-deep);
+  z-index: -1;
+}
+.lp-shot {
+  position: relative;
+  z-index: 1;
+  border: 1px solid var(--lp-hairline);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.lp-shot-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 16px;
+  height: 40px;
+  background: var(--lp-chrome);
+  border-bottom: 1px solid var(--lp-chrome-edge);
+}
+/* 中性圆点，不用红黄绿 macOS 信号灯 —— 那是另一套模板的指纹 */
+.lp-shot-bar i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--lp-chrome-dot);
+}
+/* 截图在窄屏不缩放，改为横向滚动：见 Landing.tsx ProductShot 的说明 */
+.lp-shot-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.lp-shot-scroll img {
+  width: 100%;
+  height: auto;
+  min-width: 0;
+}
+.lp-shot-cap {
+  padding: 11px 18px;
+  font-size: 12px;
+  color: var(--lp-ink-faint);
+  border-top: 1px solid var(--lp-hairline);
+}
+@media (max-width: 720px) {
+  /* 低于这个宽度，7 列会被压到读不清。保持 620px 并允许横向滑动。 */
+  .lp-shot-scroll img {
+    min-width: 620px;
+  }
+  /* 托座在窄屏会溢出视口，且小图上层次直接压内容 —— 手机隐藏 */
+  .lp-shot-plate {
+    margin: 36px 0 0;
+  }
+  .lp-shot-plate::before {
+    display: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   功能 = 编号编辑部列表（linear.app 的 Fig 式排版）
+   左等宽编号、中标题、右描述，发丝线分行 —— 替换「图标 + 等大网格」。
+   ══════════════════════════════════════════════════════════════ */
+.lp-feat {
+  display: grid;
+  grid-template-columns: 72px 300px 1fr;
+  gap: 12px 28px;
+  padding: 26px 0;
+  border-top: 1px solid var(--lp-hairline);
+  align-items: baseline;
+}
+.lp-feat-title {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--lp-ink);
+}
+.lp-feat-desc {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--lp-ink-soft);
+  max-width: 42em;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   立场段（数据在哪）= 全页唯一的节奏断口：深窑青整幅。
+   这是产品已做到、竞品抄不走的事实，值得最重的排版；
+   列表从「左侧栏卡片证据」升级为与功能段同构的编号行 —— 深底上的编辑部。
+   ══════════════════════════════════════════════════════════════ */
+.lp-deep {
+  background: var(--lp-kiln-deep);
+  color: #fff;
+  margin-top: 96px;
+  padding: 92px 0 84px;
+}
+.lp-deep-eyebrow {
+  font-size: 12.5px;
+  letter-spacing: 0.1em;
+  color: var(--lp-mint);
+  margin: 0 0 18px;
+}
+.lp-deep-title {
+  font-size: clamp(28px, 4.2vw, 46px);
+  line-height: 1.28;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: #fff;
+  margin: 0 0 16px;
+  max-width: 22em;
+}
+.lp-deep-body {
+  font-size: 16.5px;
+  line-height: 1.85;
+  color: rgba(255, 255, 255, 0.78);
+  margin: 0 0 44px;
+  max-width: 36em;
+}
+.lp-pov-fact {
+  display: grid;
+  grid-template-columns: 72px 264px 1fr;
+  gap: 12px 28px;
+  padding: 22px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  align-items: baseline;
+}
+.lp-num-light {
+  color: var(--lp-mint);
+}
+.lp-pov-dt {
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+}
+.lp-pov-dd {
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.72);
+  max-width: 42em;
+}
+
+/* ——— FAQ：左对齐、编号问句（不再「居中标题 + 等节奏」） ——— */
+.lp-faq {
+  max-width: 772px;
+}
+.lp-faq-item {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px 28px;
+  padding: 22px 0;
+  border-top: 1px solid var(--lp-hairline);
+  align-items: baseline;
+}
+.lp-faq-item .lp-num {
+  font-size: 12px;
+}
+.lp-faq-q {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lp-ink);
+  margin: 0 0 8px;
+}
+.lp-faq-a {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--lp-ink-soft);
+  margin: 0;
+}
+
+/* ——— 收尾：一段大字 + 一个按钮（flomo 式诚实小字收底） ——— */
+.lp-close {
+  text-align: center;
+}
+.lp-close-sub {
+  margin: 0 auto 32px;
+}
+.lp-close-trust {
+  margin-top: 18px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--lp-ink-faint);
+}
+
+/* ——— 联系 + 页脚 ——— */
+.lp-contact {
+  margin-top: 88px;
+  border-top: 1px solid var(--lp-hairline);
+  padding-top: 72px;
+}
+.lp-contact-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 48px;
+  align-items: start;
+}
+.lp-contact-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--lp-ink);
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+.lp-contact .lp-lede {
+  margin-bottom: 0;
+}
+.lp-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.lp-chip {
+  border: 1px solid #cfcec6;
+  background: transparent;
+  border-radius: 10px;
+  height: 44px;
+  padding: 0 18px;
+  font-size: 14.5px;
+  font-family: inherit;
+  color: var(--lp-ink);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.lp-chip:hover {
+  background: #f1f0ea;
+  border-color: var(--lp-chrome-dot);
+}
+.lp-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 14.5px;
+  font-family: inherit;
+  color: var(--lp-glaze);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgba(15, 118, 110, 0.35);
+}
+.lp-link:hover {
+  color: #115e59;
+}
+.lp-footer {
+  margin-top: 88px;
+  border-top: 1px solid var(--lp-hairline);
+  padding: 28px 0 40px;
+}
+.lp-footer-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--lp-ink-faint);
+}
+
+/* ——— 滚动一次性淡入（observer 不可用或 prefers-reduced-motion 时全部直出） ——— */
+.lp-page.lp-anim .lp-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+.lp-page.lp-anim .lp-reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-page.lp-anim .lp-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ——— 窄屏 ——— */
+@media (max-width: 860px) {
+  .lp-container {
+    padding: 0 20px;
+  }
+  .lp-sect {
+    padding-top: 64px;
+  }
+  .lp-hero-band {
+    padding: 56px 0 48px;
+  }
+  /* 导航独占一行并可横向滑动，链接不再被压成竖排 */
+  .lp-header-row {
     flex-wrap: wrap;
     gap: 8px;
-    padding: 10px 14px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
   .lp-nav {
     order: 3;
@@ -245,125 +723,45 @@ input {
   .lp-nav::-webkit-scrollbar {
     display: none;
   }
-}
-@keyframes lp-dot-blink {
-  0%,
-  80%,
-  100% {
-    opacity: 0.25;
+  /* 编号行在窄屏退回两列：编号独占一格，标题与描述右移对齐 */
+  .lp-feat,
+  .lp-pov-fact,
+  .lp-faq-item {
+    grid-template-columns: 44px 1fr;
+    padding: 20px 0;
   }
-  40% {
-    opacity: 1;
+  .lp-feat .lp-feat-title,
+  .lp-pov-fact .lp-pov-dt {
+    grid-column: 2;
+    grid-row: 1;
   }
-}
-.lp-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #0d9488;
-  display: inline-block;
-  animation: lp-dot-blink 1.2s infinite;
-}
-.lp-bar {
-  border-radius: 4px 4px 0 0;
-  /* 平涂釉色：本系统不用渐变（DESIGN.md Don'ts） */
-  background: #0d9488;
-  width: 26px;
-}
-
-/* 截图在窄屏不缩放，改为横向滚动：见 Landing.tsx ProductShot 的说明 */
-.lp-shot-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
-}
-.lp-shot-scroll img {
-  width: 100%;
-  height: auto;
-  min-width: 0;
-}
-@media (max-width: 720px) {
-  /* 低于这个宽度，7 列会被压到读不清。保持 620px 并允许横向滑动。 */
-  .lp-shot-scroll img {
-    min-width: 620px;
+  .lp-feat .lp-feat-desc,
+  .lp-pov-fact .lp-pov-dd,
+  .lp-faq-item .lp-faq-q,
+  .lp-faq-item .lp-faq-a {
+    grid-column: 2;
   }
-}
-
-/* ══════════════════════════════════════════════════════════════
-   立场段（数据在哪）
-   整页唯一一处不对称布局，也是唯一的节奏断点：其余各节都是
-   「居中标题 + 居中副标题 + 居中内容」，节奏完全一致反而没有重点。
-   左边一句立场，右边三条具体后果 —— 用左重右轻的排版表达
-   「这是一句主张，后面是它的证据」，而不是又一组并排卡片。
-   ══════════════════════════════════════════════════════════════ */
-.lp-pov {
-  padding-top: 88px;
-  display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-  gap: 48px;
-  align-items: start;
-  border-top: 1px solid #e3e8ec;
-}
-.lp-pov-eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  color: #0f766e;
-  margin-bottom: 14px;
-}
-.lp-pov-title {
-  font-size: clamp(24px, 3vw, 32px);
-  line-height: 1.35;
-  font-weight: 700;
-  margin: 0 0 14px;
-  color: #1f2328;
-  /* 立场句允许收紧字距：中文标题默认间距在这个字号下偏松 */
-  letter-spacing: -0.01em;
-}
-.lp-pov-body {
-  font-size: 15px;
-  line-height: 1.8;
-  color: #4e5866;
-  margin: 0;
-  max-width: 34em;
-}
-/* 证据列表用发丝线分隔，不用卡片 —— 与全站 Hairline Rule 一致，
-   也避免又变成「三张等大的圆角卡片」 */
-.lp-pov-facts {
-  margin: 0;
-}
-.lp-pov-fact {
-  padding: 16px 0;
-  border-top: 1px solid #e3e8ec;
-}
-.lp-pov-fact:first-child {
-  padding-top: 0;
-  border-top: none;
-}
-.lp-pov-fact dt {
-  font-weight: 600;
-  font-size: 15px;
-  color: #1f2328;
-  margin-bottom: 5px;
-}
-.lp-pov-fact dd {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.75;
-  color: #4e5866;
-}
-/* 窄屏：立场段退回单列，但仍然左对齐 —— 不为了统一而丢掉层级 */
-@media (max-width: 860px) {
-  .lp-pov {
+  .lp-faq-item .lp-faq-q {
+    grid-row: 1;
+  }
+  .lp-faq-item .lp-faq-a {
+    grid-row: 2;
+  }
+  .lp-num {
+    grid-row: 1;
+  }
+  .lp-feat .lp-num,
+  .lp-pov-fact .lp-num,
+  .lp-faq-item .lp-num {
+    grid-column: 1;
+  }
+  .lp-deep {
+    margin-top: 64px;
+    padding: 64px 0 56px;
+  }
+  .lp-contact-grid {
     grid-template-columns: 1fr;
     gap: 28px;
-    padding-top: 64px;
-  }
-  .lp-pov-facts {
-    border-top: 1px solid #e3e8ec;
-    padding-top: 4px;
-  }
-  .lp-pov-fact:first-child {
-    padding-top: 16px;
   }
 }
 
@@ -371,13 +769,12 @@ input {
    应用级语义变量
    antd 的 token 只能通过 JS 消费；这里给纯 CSS 场景（内联样式、状态条、
    移动端点击区）提供同源变量。data-theme 由 ThemeProvider 写在 <html> 上。
-   ══════════════════════════════════════════════════════════════ */
-
-   应用级语义变量
+   ⚠ 修正过的注释：这里原本断裂成两段 —— `*/` 之后跟着裸文字和一个悬空的
+   `*/`，浏览器会把整条 :root 规则解析成非法选择器而整块丢弃。
    ⚠ 这些值只是「首屏兜底」。真正的定义在 src/theme/index.ts 的语义层，
    ThemeProvider 启动时会用 semanticOf(mode) 覆盖到 <html> 上。
    改色请改 theme/index.ts，这里保持同步即可，不要在这里单独调色。
-   ========================================================================== */
+   ══════════════════════════════════════════════════════════════ */
 
 :root {
   /* 兜底 = 亮色语义层（NEUTRAL_L / GLAZE / KILN） */
@@ -456,12 +853,8 @@ input {
   font-variant-numeric: tabular-nums;
 }
 
-/* 落地页在暗色模式下也要能用（之前整页写死亮色） */
-[data-theme='dark'] .lp-header,
-[data-theme='dark'] .lp-nav-link,
-[data-theme='dark'] .lp-nav-link:hover {
-  color: inherit;
-}
+/* 落地页已改为自带「瓷纸」浅色定值（见 .lp-page），不再依赖应用级
+   暗色变量覆写；旧版 [data-theme='dark'] .lp-* 覆写已删除。 */
 
 /* 表格里的标识列：第一列是「这一行是谁」，给足视觉权重 */
 .ant-table .cell-primary {
