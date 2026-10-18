@@ -16,7 +16,6 @@ import {
   Radio,
 } from 'antd'
 import {
-  UserOutlined,
   RobotOutlined,
   DatabaseOutlined,
   DownloadOutlined,
@@ -71,22 +70,25 @@ function SyncStatusBanner() {
   useEffect(() => { autoSyncManager.refreshEnabled() }, [])
 
   const when = st.at ? new Date(st.at).toLocaleString() : ''
+  // 同步状态不需要整套 Alert 盒子：一行状态文字 + 次要说明，
+  // 需要用户注意的错误才保留醒目样式。
   if (st.phase === 'off') {
     return (
-      <Alert
-        style={{ marginBottom: 12 }}
-        type="info"
-        showIcon
-        icon={<CloudOutlined />}
-        message={t('settings.sync.off')}
-        description={t('settings.sync.offDesc')}
-      />
+      <div style={{ marginBottom: 16, paddingTop: 2 }}>
+        <Space size={8} align="baseline" wrap>
+          <CloudOutlined style={{ color: 'var(--app-ink-faint)', fontSize: 13 }} />
+          <Text style={{ fontSize: 13.5, fontWeight: 500 }}>{t('settings.sync.off')}</Text>
+        </Space>
+        <div style={{ fontSize: 12.5, color: 'var(--app-ink-faint)', marginTop: 3 }}>
+          {t('settings.sync.offDesc')}
+        </div>
+      </div>
     )
   }
   if (st.phase === 'error') {
     return (
       <Alert
-        style={{ marginBottom: 12 }}
+        style={{ marginBottom: 16 }}
         type="error"
         showIcon
         message={t('settings.sync.error')}
@@ -96,24 +98,26 @@ function SyncStatusBanner() {
   }
   if (st.phase === 'syncing') {
     return (
-      <Alert
-        style={{ marginBottom: 12 }}
-        type="info"
-        showIcon
-        icon={<SyncOutlined spin />}
-        message={t('settings.sync.syncing')}
-        description={t('settings.sync.syncingDesc')}
-      />
+      <div style={{ marginBottom: 16, paddingTop: 2 }}>
+        <Space size={8} align="baseline" wrap>
+          <SyncOutlined spin style={{ color: 'var(--app-ink-faint)', fontSize: 13 }} />
+          <Text style={{ fontSize: 13.5, fontWeight: 500 }}>{t('settings.sync.syncing')}</Text>
+        </Space>
+        <div style={{ fontSize: 12.5, color: 'var(--app-ink-faint)', marginTop: 3 }}>
+          {t('settings.sync.syncingDesc')}
+        </div>
+      </div>
     )
   }
   return (
-    <Alert
-      style={{ marginBottom: 12 }}
-      type="success"
-      showIcon
-      message={t('settings.sync.ok')}
-      description={t('settings.sync.lastOk') + ': ' + (when || t('settings.sync.never'))}
-    />
+    <div style={{ marginBottom: 16, paddingTop: 2 }}>
+      <Space size={8} align="baseline" wrap>
+        <Text style={{ fontSize: 13.5, fontWeight: 500 }}>{t('settings.sync.ok')}</Text>
+      </Space>
+      <div style={{ fontSize: 12.5, color: 'var(--app-ink-faint)', marginTop: 3 }}>
+        {t('settings.sync.lastOk') + ': ' + (when || t('settings.sync.never'))}
+      </div>
+    </div>
   )
 }
 
@@ -178,29 +182,29 @@ function AccountTab() {
   return (
     <div>
       {account && (
-        <Card size="small" style={{ marginBottom: 16, maxWidth: 480 }}>
-          <Space direction="vertical" size={4}>
-            <span>
-              {t('settings.account.current')}<Text strong>{account.username}</Text>
-            </span>
-            {account.contact && (
-              <span>
-                {t('settings.account.contact')}
-                <Text strong>{account.contact}</Text>
-              </span>
-            )}
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {t('settings.account.freeForeverHint')}
-            </Text>
+        <div style={{ marginBottom: 18 }}>
+          <Space size={6} align="baseline" wrap>
+            <span style={{ fontSize: 13, color: 'var(--app-ink-faint)' }}>{t('settings.account.current')}</span>
+            <Text strong>{account.username}</Text>
           </Space>
-        </Card>
+          {account.contact && (
+            <div style={{ marginTop: 4 }}>
+              <span style={{ fontSize: 13, color: 'var(--app-ink-faint)' }}>{t('settings.account.contact')}</span>
+              <Text strong> {account.contact}</Text>
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: 'var(--app-ink-faint)', marginTop: 4 }}>
+            {t('settings.account.freeForeverHint')}
+          </div>
+        </div>
       )}
 
       <Space style={{ marginBottom: 16 }}>
-        <Button icon={<UserOutlined />} onClick={() => setPwdOpen(true)} disabled={!account}>
+        <Button onClick={() => setPwdOpen(true)} disabled={!account}>
           {t('settings.account.changePwd')}
         </Button>
         <Button
+          type="text"
           onClick={async () => {
             // 走统一收口：退出前同步 + 清空库数据（之前这里只清了 token）
             await resetSession()
@@ -237,9 +241,9 @@ function AccountTab() {
         </Card>
       )}
 
+      {/* 密码安全说明改为一句正文：说明类信息不需要图标和底色盒子 */}
       <Alert
         type="info"
-        showIcon
         style={{ maxWidth: 480 }}
         message={t('settings.account.pwdInfo.title')}
         description={t('settings.account.pwdInfo.body')}

@@ -4,7 +4,6 @@ import {
   CloseOutlined,
   VerticalLeftOutlined,
   DownOutlined,
-  RobotOutlined,
   LoadingOutlined,
 } from '@ant-design/icons'
 import { useAiUiStore, AI_DOCK_MIN, AI_DOCK_MAX } from '@/store/aiUiStore'
@@ -122,7 +121,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
   if (collapsed) {
     return isSheet ? (
       <button type="button" className="ai-sheet-peek" onClick={() => setCollapsed(false)}>
-        <RobotOutlined />
+        <span className="ai-dock-title">AI</span>
         <span>{t('app.aiAssistant')}</span>
         {running ? <LoadingOutlined spin /> : <span className="ai-peek-open">{t('ai.open')}</span>}
       </button>
@@ -135,7 +134,9 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           aria-label={t('ai.open')}
           title={t('ai.open')}
         >
-          <RobotOutlined />
+          <span className="ai-mono-mark" style={{ fontFamily: 'var(--app-mono)', fontWeight: 600, fontSize: 13 }}>
+            AI
+          </span>
         </Button>
         {running && <span className="ai-pulse" title={t('ai.runningInBackground')} />}
         {!running && unseen && <span className="ai-fab-dot" aria-hidden />}
@@ -207,8 +208,8 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           </div>
         )}
         <header className="ai-dock-head">
-          <RobotOutlined className="ai-dock-icon" />
           <span className="ai-dock-title">{t('app.aiAssistant')}</span>
+          {/^Mac|iP(hone|ad)/.test(navigator.platform) ? <span className="app-foot-kbd">⌘J</span> : null}
           {running && (
             <span className="ai-dock-running" title={t('ai.runningInBackground')}>
               <LoadingOutlined spin />

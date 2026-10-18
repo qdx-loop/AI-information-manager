@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Result, Button, Card, Typography, Alert } from 'antd'
-import { AppstoreAddOutlined, WarningOutlined } from '@ant-design/icons'
+import { Alert } from 'antd'
+import { WarningOutlined } from '@ant-design/icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
@@ -9,8 +9,6 @@ import HomeDashboard from './HomeDashboard'
 import GettingStarted from './GettingStarted'
 import CreateLibraryDialog from './CreateLibraryDialog'
 
-
-const { Paragraph } = Typography
 
 // iOS Safari 会对"7 天未使用"的网站清除本地存储（含 IndexedDB）。
 // 本地模式下数据只存在浏览器里，必须提醒买家开启云同步或定期导出备份（红队报告 P6）。
@@ -49,65 +47,75 @@ export default function EmptyHome() {
 
 
   return (
-    <div style={{ padding: 24, height: '100%' }}>
-      <Card>
-        {safariRisk && !riskDismissed && (
-          <Alert
-            type="warning"
-            showIcon
-            icon={<WarningOutlined />}
-            style={{ marginBottom: 16 }}
-            message={t('home.safari.title')}
-            description={
-              <span>
-                {t('home.safari.body')}
-              </span>
-            }
-            closable
-            onClose={() => {
-              localStorage.setItem(RISK_KEY, '1')
-              setRiskDismissed(true)
-            }}
-          />
-        )}
+    <div style={{ padding: '28px 24px 32px', height: '100%', overflow: 'auto' }}>
+      {safariRisk && !riskDismissed && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<WarningOutlined />}
+          style={{ marginBottom: 16 }}
+          message={t('home.safari.title')}
+          description={
+            <span>
+              {t('home.safari.body')}
+            </span>
+          }
+          closable
+          onClose={() => {
+            localStorage.setItem(RISK_KEY, '1')
+            setRiskDismissed(true)
+          }}
+        />
+      )}
 
-        <GettingStarted />
+      {/* 首页头：编辑部式 greeting——文字就是主视觉，不需要插图和盒子 */}
+      <header style={{ marginBottom: 18 }}>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 26,
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            color: 'var(--app-ink)',
+          }}
+        >
+          {t('home.greeting', { name: account?.username ?? '' })}
+        </h1>
+        <p style={{ margin: '6px 0 0', fontSize: 13.5, color: 'var(--app-ink-faint)' }}>
+          {libraries.length > 0 ? t('home.pick') : t('home.empty')}
+        </p>
+      </header>
 
-        {libraries.length > 0 ? (
-          <>
-            <Result
-              icon={<AppstoreAddOutlined style={{ color: 'var(--app-glaze)' }} />}
-              title={t('home.greeting', { name: account?.username ?? '' })}
-              subTitle={t('home.pick')}
-              style={{ paddingBottom: 12 }}
-              /* 之前只有 libraries.length === 0 的分支才有建库按钮，
-                 有库之后首页就只剩「模板中心」，移动端要建第 2 个库得点进汉堡抽屉三下。 */
-              extra={
-                <Button type="primary" size="large" icon={<AppstoreAddOutlined />} onClick={openNaming}>
-                  {t('home.createFirst')}
-                </Button>
-              }
-            />
-            <HomeDashboard />
-          </>
-        ) : (
-          <>
-            <Result
-              icon={<AppstoreAddOutlined style={{ color: 'var(--app-glaze)' }} />}
-              title={t('home.greeting', { name: account?.username ?? '' })}
-              subTitle={t('home.empty')}
-              extra={
-                <Button type="primary" size="large" icon={<AppstoreAddOutlined />} onClick={openNaming}>
-                  {t('home.createFirst')}
-                </Button>
-              }
-            />
-            <Paragraph type="secondary" style={{ textAlign: 'center' }}>
-              {t('home.tip')}
-            </Paragraph>
-          </>
-        )}
-      </Card>
+      <div style={{ marginBottom: 20 }}>
+        <button
+          type="button"
+          onClick={openNaming}
+          style={{
+            height: 40,
+            padding: '0 18px',
+            borderRadius: 8,
+            border: 'none',
+            background: 'var(--app-glaze)',
+            color: '#fff',
+            font: 'inherit',
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >
+          {t('home.createFirst')}
+        </button>
+      </div>
+
+      <GettingStarted />
+
+      {libraries.length > 0 ? (
+        <HomeDashboard />
+      ) : (
+        <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--app-ink-faint)' }}>
+          {t('home.tip')}
+        </p>
+      )}
 
       <CreateLibraryDialog open={namingOpen} onClose={() => setNamingOpen(false)} />
     </div>

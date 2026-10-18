@@ -1,15 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Card, Progress, Button, Tag, Space, Alert, App, Typography, Grid } from 'antd'
-import {
-  RocketOutlined,
-  CheckCircleFilled,
-  AppstoreAddOutlined,
-  EditOutlined,
-  RobotOutlined,
-  BellOutlined,
-  CloseOutlined,
-  AppstoreOutlined,
-} from '@ant-design/icons'
+import { Card, Button, Space, App, Grid } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useLibraryStore } from '@/store/libraryStore'
@@ -17,8 +7,6 @@ import { createDemoLibrary } from '@/utils/demoData'
 import { isObStepDone, isObDismissed, dismissOb } from '@/utils/onboarding'
 import { useI18n } from '@/i18n'
 import TemplateCenter from './TemplateCenter'
-
-const { Text } = Typography
 
 // 新手任务清单：按真实激活里程碑打勾（建库 / 录数据 / 用 AI / 设提醒），
 // 带进度条与快捷操作，全部完成或手动关闭后不再打扰。
@@ -44,16 +32,15 @@ export default function GettingStarted() {
   const hasLib = libraries.length > 0
   const steps = useMemo(
     () => [
-      { key: 'lib', icon: <AppstoreOutlined />, title: t('ob.step.lib'), desc: t('ob.step.lib.desc'), done: hasLib },
-      { key: 'item', icon: <EditOutlined />, title: t('ob.step.item'), desc: t('ob.step.item.desc'), done: isObStepDone(accId, 'item') },
-      { key: 'ai', icon: <RobotOutlined />, title: t('ob.step.ai'), desc: t('ob.step.ai.desc'), done: isObStepDone(accId, 'ai') },
-      { key: 'reminder', icon: <BellOutlined />, title: t('ob.step.reminder'), desc: t('ob.step.reminder.desc'), done: isObStepDone(accId, 'reminder') },
+      { key: 'lib', num: '01', title: t('ob.step.lib'), desc: t('ob.step.lib.desc'), done: hasLib },
+      { key: 'item', num: '02', title: t('ob.step.item'), desc: t('ob.step.item.desc'), done: isObStepDone(accId, 'item') },
+      { key: 'ai', num: '03', title: t('ob.step.ai'), desc: t('ob.step.ai.desc'), done: isObStepDone(accId, 'ai') },
+      { key: 'reminder', num: '04', title: t('ob.step.reminder'), desc: t('ob.step.reminder.desc'), done: isObStepDone(accId, 'reminder') },
     ],
     [accId, hasLib, t],
   )
   const doneCount = steps.filter((s) => s.done).length
   const allDone = doneCount === steps.length
-  const pct = Math.round((doneCount / steps.length) * 100)
   // 窄屏时把操作按钮换到下一行：中文在 flex 子项里 min-width:auto 会退化成一个字，
   // 按钮（flexShrink:0）会把文字列挤成 1 字宽、逐字换行，整张卡片被撑到几百像素高。
   const narrow = !Grid.useBreakpoint().md
@@ -90,28 +77,28 @@ export default function GettingStarted() {
     setHidden(true)
   }
 
-  // 每个未完成步骤的快捷操作
+  // 每个未完成步骤的快捷操作（文字项，不再挂图标）
   const actionFor = (key: string) => {
     if (key === 'lib')
       return (
         <Space size={4} wrap>
-          <Button size="small" type="primary" loading={demoLoading} icon={<RocketOutlined />} onClick={handleDemo}>
+          <Button size="small" type="primary" loading={demoLoading} onClick={handleDemo}>
             {t('ob.act.demo')}
           </Button>
-          <Button size="small" icon={<AppstoreAddOutlined />} onClick={() => setTplOpen(true)}>
+          <Button size="small" type="text" onClick={() => setTplOpen(true)}>
             {t('ob.act.tpl')}
           </Button>
         </Space>
       )
     if (key === 'item' && hasLib)
       return (
-        <Button size="small" icon={<EditOutlined />} onClick={goFirstLib}>
+        <Button size="small" type="text" onClick={goFirstLib}>
           {t('ob.act.addItem')}
         </Button>
       )
     if (key === 'ai')
       return (
-        <Button size="small" icon={<RobotOutlined />} onClick={openAi}>
+        <Button size="small" type="text" onClick={openAi}>
           {t('ob.act.ai')}
         </Button>
       )
@@ -121,50 +108,67 @@ export default function GettingStarted() {
   return (
     <Card
       size="small"
-      style={{ marginBottom: 16, border: '1px solid var(--app-glaze)' }}
+      style={{ marginBottom: 18, borderColor: 'var(--app-border-soft)' }}
       title={
-        <Space>
-          <RocketOutlined style={{ color: 'var(--app-glaze)' }} />
-          <span>{t('ob.title')}</span>
-          <Tag color="teal">{doneCount}/{steps.length}</Tag>
-        </Space>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>
+          {t('ob.title')}
+          <span
+            style={{
+              fontFamily: 'var(--app-mono)',
+              fontSize: 12,
+              fontWeight: 400,
+              color: 'var(--app-ink-faint)',
+              marginLeft: 10,
+            }}
+          >
+            {doneCount}/{steps.length}
+          </span>
+        </span>
       }
       extra={
-        <Button type="text" size="small" icon={<CloseOutlined />} onClick={dismiss}>
+        <Button type="text" size="small" onClick={dismiss}>
           {t('ob.dismiss')}
         </Button>
       }
     >
-      <Progress percent={pct} size="small" showInfo={false} strokeColor="var(--app-glaze)" style={{ marginBottom: 14 }} />
-
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
-        {steps.map((s, idx) => (
-          <div key={s.key} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 10 }}>
-            {s.done ? (
-              <CheckCircleFilled style={{ color: '#52c41a', fontSize: 18, marginTop: 2 }} />
-            ) : (
+      {/* 不用进度条：数字 3/4 已经说明一切，条形图在这里只有装饰价值。
+          完成的步骤用编号划线表达，而不是绿色对勾图标（去彩汤）。 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {steps.map((s) => (
+          <div key={s.key} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 12 }}>
+            <span
+              style={{
+                fontFamily: 'var(--app-mono)',
+                fontSize: 13,
+                lineHeight: '20px',
+                flexShrink: 0,
+                color: s.done ? 'var(--app-ink-faint)' : 'var(--app-glaze-text)',
+                textDecoration: s.done ? 'line-through' : 'none',
+                width: 20,
+                textAlign: 'right',
+              }}
+            >
+              {s.num}
+            </span>
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
               <span
                 style={{
-                  width: 18, height: 18, borderRadius: '50%', marginTop: 3, flexShrink: 0,
-                  border: '1px solid var(--app-border)', color: 'var(--app-ink-faint)', fontSize: 12,
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: s.done ? 400 : 500,
+                  textDecoration: s.done ? 'line-through' : 'none',
+                  color: s.done ? 'var(--app-ink-faint)' : 'var(--app-ink)',
+                  fontSize: 13.5,
                 }}
               >
-                {idx + 1}
-              </span>
-            )}
-            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-              <Text style={{ fontWeight: 500, textDecoration: s.done ? 'line-through' : 'none' }} type={s.done ? 'secondary' : undefined}>
                 {s.title}
-              </Text>
-              <div style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>{s.desc}</div>
+              </span>
+              <div style={{ fontSize: 12, color: 'var(--app-ink-faint)', marginTop: 1 }}>{s.desc}</div>
             </div>
             {!s.done && (
               <div
                 style={{
                   flexShrink: 0,
                   // 窄屏：占满整行换到文字下方；宽屏：留在同一行右侧
-                  ...(narrow ? { flexBasis: '100%', paddingLeft: 28 } : null),
+                  ...(narrow ? { flexBasis: '100%', paddingLeft: 32 } : null),
                 }}
               >
                 {actionFor(s.key)}
@@ -172,16 +176,12 @@ export default function GettingStarted() {
             )}
           </div>
         ))}
-      </Space>
+      </div>
 
       {allDone && (
-        <Alert
-          type="success"
-          showIcon
-          style={{ marginTop: 14 }}
-          message={t('ob.done.title')}
-          description={t('ob.done.body')}
-        />
+        <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--app-ink-faint)' }}>
+          {t('ob.done.title')} · {t('ob.done.body')}
+        </div>
       )}
 
       <TemplateCenter open={tplOpen} onClose={() => setTplOpen(false)} />

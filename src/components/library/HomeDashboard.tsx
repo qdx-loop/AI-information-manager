@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, List, Space, Statistic, Tag, Typography } from 'antd'
+import { Alert, Button, Card, List, Space, Typography } from 'antd'
 import { InlineSkeleton, EmptyState } from '@/components/common/PageSkeleton'
-import {
-  AppstoreOutlined,
-  ProfileOutlined,
-  RiseOutlined,
-  BellOutlined,
-  AppstoreAddOutlined,
-  RightOutlined,
-} from '@ant-design/icons'
+import { RightOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { useLibraryStore } from '@/store/libraryStore'
@@ -19,16 +12,23 @@ import TemplateCenter from './TemplateCenter'
 
 const { Text } = Typography
 
-// 相对日期标签：已逾期 / 今天 / N 天后
+// 相对日期提示：已逾期 / 今天 / N 天后。
+// 不再用彩色 Tag 药丸——时间是提醒内容的一部分，用文字色阶表达紧急度。
 function useDateTag() {
   const t = useI18n()
   return (at: number) => {
     const now = dayjs().startOf('day')
     const target = dayjs(at).startOf('day')
     const diff = target.diff(now, 'day')
-    if (diff < 0) return <Tag color="red">{t('dash.overdue', { n: -diff })}</Tag>
-    if (diff === 0) return <Tag color="orange">{t('dash.today')}</Tag>
-    return <Tag color="blue">{t('dash.inDays', { n: diff })}</Tag>
+    if (diff < 0)
+      return <Text style={{ color: 'var(--app-danger)', fontSize: 12.5 }}>{t('dash.overdue', { n: -diff })}</Text>
+    if (diff === 0)
+      return <Text style={{ color: 'var(--app-kiln-text)', fontSize: 12.5 }}>{t('dash.today')}</Text>
+    return (
+      <Text type="secondary" style={{ fontSize: 12.5 }}>
+        {t('dash.inDays', { n: diff })}
+      </Text>
+    )
   }
 }
 
@@ -89,36 +89,33 @@ export default function HomeDashboard() {
   return (
     <div>
       {/*
-        原来 4 个数字各包一层 <Card>，页面外层已经有容器和卡片，
-        于是首页出现「卡片里套卡片」：一层边框套一层边框再套一层，
-        数字被挤到中间，四块内容看起来是四张互不相干的卡片而不是一组指标。
-        改成单个描边容器 + 竖分隔线：一组指标，一个外框。
-        「模板中心」是导航不是指标，从指标行里拿出来。
+        指标条的上一版是 4 个 <Card>，再上一版换成了带图标前缀的 Statistic。
+        图标不承载信息（管理库标题配一个格子图标是同义反复），
+        这一版做成编辑部数字条：小标签 + 等宽大数字，细线分隔，无图标无配色。
       */}
-      <div className="stat-strip">
+      <div className="stat-strip" style={{ marginBottom: 18 }}>
         <div className="stat-cell">
-          <Statistic title={t('dash.stat.libs')} value={loading ? '—' : data?.totalLibs ?? libraries.length} prefix={<AppstoreOutlined />} />
+          <div className="stat-label">{t('dash.stat.libs')}</div>
+          <div className="stat-num">{loading ? '—' : data?.totalLibs ?? libraries.length}</div>
         </div>
         <div className="stat-cell">
-          <Statistic title={t('dash.stat.items')} value={loading || error ? '—' : data?.totalItems ?? 0} prefix={<ProfileOutlined />} />
+          <div className="stat-label">{t('dash.stat.items')}</div>
+          <div className="stat-num">{loading || error ? '—' : data?.totalItems ?? 0}</div>
         </div>
         <div className="stat-cell">
-          <Statistic
-            title={t('dash.stat.week')}
-            value={loading || error ? '—' : data?.itemsThisWeek ?? 0}
-            prefix={<RiseOutlined />}
-            valueStyle={{ color: 'var(--app-glaze)' }}
-          />
+          <div className="stat-label">{t('dash.stat.week')}</div>
+          <div className="stat-num is-accent">{loading || error ? '—' : data?.itemsThisWeek ?? 0}</div>
         </div>
       </div>
 
       <Card
         size="small"
-        title={<Space><BellOutlined />{t('dash.alerts.title')}</Space>}
+        style={{ borderColor: 'var(--app-border-soft)' }}
+        title={<span style={{ fontSize: 13, fontWeight: 600 }}>{t('dash.alerts.title')}</span>}
         extra={
-          <Space size={8}>
+          <Space size={6}>
             <Text type="secondary" style={{ fontSize: 12 }}>{t('dash.alerts.hint')}</Text>
-            <Button size="small" icon={<AppstoreAddOutlined />} onClick={() => setTplOpen(true)}>
+            <Button size="small" type="text" onClick={() => setTplOpen(true)}>
               {t('tpl.center.entry')}
             </Button>
           </Space>
@@ -141,7 +138,6 @@ export default function HomeDashboard() {
             compact
             title={t('dash.alerts.empty')}
             body={libraries.length === 0 ? t('dash.alerts.emptyNoLib') : t('dash.alerts.emptyHint')}
-            icon={<BellOutlined style={{ fontSize: 26 }} />}
           />
         ) : (
           <List

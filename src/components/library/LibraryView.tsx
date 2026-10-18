@@ -17,7 +17,7 @@ import {
   Space,
   Card,
   Typography,
-  Tag,
+
   App,
   Empty,
   Switch,
@@ -331,10 +331,14 @@ export default function LibraryView() {
         }}
       >
         <Space wrap size={8} style={{ minWidth: 0 }}>
-          <Title level={4} style={{ margin: 0, fontSize: 19 }}>
+          <Title level={4} style={{ margin: 0, fontSize: 19, letterSpacing: '-0.01em' }}>
             {lib?.name ?? t('lib.untitled')}
           </Title>
-          {lib?.category && <Tag color="teal">{lib.category}</Tag>}
+          {lib?.category && (
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              {lib.category}
+            </Text>
+          )}
           <Text type="secondary" style={{ fontSize: 13 }}>
             {t('lib.total', { n: items.length })}
           </Text>
@@ -344,6 +348,9 @@ export default function LibraryView() {
             窄屏收进一个「⋯」，避免五个按钮在手机上折成三行、挤掉数据区。
             对应飞书多维表格「搭建与使用分离」：设置项不与主流程并排争夺注意力。 */}
         <Space size={8} wrap>
+          {/* 「新建」是这页唯一的主操作，其余工具一律降级为文字项——
+              五个等权重图标按钮排排坐是后台模板的指纹（去 AI 味）。
+              对应飞书多维表格「搭建与使用分离」：设置项不与主流程并排争夺注意力。 */}
           <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
             {t('lib.new')}
           </Button>
@@ -365,10 +372,10 @@ export default function LibraryView() {
             </Dropdown>
           ) : (
             <>
-              <Button icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>
+              <Button type="text" onClick={() => setTemplateOpen(true)}>
                 {t('lib.template')}
               </Button>
-              <Button icon={<CopyOutlined />} onClick={handleClone} disabled={fields.length === 0}>
+              <Button type="text" onClick={handleClone} disabled={fields.length === 0}>
                 {t('lib.clone')}
               </Button>
               <ImportExport ref={ioRef} fields={fields} items={items} onImport={handleImport} />
@@ -402,7 +409,7 @@ export default function LibraryView() {
             value={filterField || undefined}
             onChange={(v) => setFilterField(v ?? '')}
             allowClear
-            style={{ flex: 1, minWidth: 120 }}
+            style={{ width: 170 }}
             options={visibleFields.map((f) => ({ label: f.label, value: f.key }))}
           />
           {filterField && (
@@ -411,7 +418,7 @@ export default function LibraryView() {
               allowClear
               value={filterValue}
               onChange={(e) => setFilterValue(e.target.value)}
-              style={{ flex: 1, minWidth: 120 }}
+              style={{ width: 170 }}
             />
           )}
           <Select
@@ -419,7 +426,7 @@ export default function LibraryView() {
             value={sortField || undefined}
             onChange={(v) => setSortField(v ?? '')}
             allowClear
-            style={{ flex: 1, minWidth: 120 }}
+            style={{ width: 170 }}
             options={visibleFields.map((f) => ({ label: f.label, value: f.key }))}
           />
           {sortField && (

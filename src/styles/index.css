@@ -777,17 +777,18 @@ input {
    ══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* 兜底 = 亮色语义层（NEUTRAL_L / GLAZE / KILN） */
+  /* 兜底 = 亮色语义层（NEUTRAL_L / GLAZE / KILN）。
+     画布与细线已与落地页(lp-*)同源：瓷纸 #FAFAF8、暖 hairline。 */
   --app-surface: #ffffff;
-  --app-surface-sunken: #f5f7f8;
-  --app-canvas: #f5f7f8;
+  --app-surface-sunken: #f5f4f0;
+  --app-canvas: #fafaf8;
   --app-overlay: rgba(28, 33, 38, 0.44);
   --app-ink: #1f2328;
   --app-ink-soft: #4e5866;
   /* 旧的 #8a94a0 只有 2.86:1，说明文字读不清；改 600 档 4.62:1 */
-  --app-ink-faint: #66717e;
-  --app-border: #d3d9de;
-  --app-border-soft: #e3e8ec;
+  --app-ink-faint: #6b7280;
+  --app-border: #d9d7d2;
+  --app-border-soft: #e7e5e1;
   --app-glaze: #0f766e;
   --app-glaze-text: #0f766e;
   --app-glaze-soft: #f0faf8;
@@ -798,6 +799,10 @@ input {
   --app-pinned-wash: #fff8ec;
   --app-success: #3f7a21;
   --app-danger: #c5351f;
+
+  /* 数字/编号/快捷键用等宽字链（与落地页同源，主题 MONO_STACK 同值） */
+  --app-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas,
+    'Noto Sans Mono CJK SC', monospace, 'PingFang SC', 'Microsoft YaHei';
 
   /* 图表分类色（数据工具的图表是核心输出） */
   /* 图表分类色（Okabe-Ito/Wong 色盲安全子集，5 色，见 theme/index.ts 的实测依据） */
@@ -1463,4 +1468,138 @@ input {
   inset: 0;
   z-index: 855;
   background: rgba(15, 23, 42, 0.34);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   应用界面 · 去 AI 味（与落地页 lp-* 编辑部风格同源）
+   规则：同一个图标重复出现=删；信息不需要「盒」；数字用等宽。
+   ══════════════════════════════════════════════════════════════ */
+
+/* 侧边栏：分组标题是「栏目名」，不是列表项——小号、加字距、灰阶 */
+.app-menu .ant-menu-item-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--app-ink-faint);
+  padding: 12px 16px 4px 16px;
+}
+.app-menu .ant-menu-item-group:first-child > .ant-menu-item-group-title {
+  padding-top: 6px;
+}
+/* 库列表行去图标后，文字直接顶行头，缩进收一致 */
+.app-menu .ant-menu-item {
+  line-height: 1.4;
+}
+/* 品牌行的小方块（与落地页 logo 同形） */
+.app-brand-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--app-glaze);
+  flex-shrink: 0;
+}
+/* 页脚两行：编辑部式文字项，不做大块按钮 */
+.app-side-foot {
+  border-top: 1px solid var(--app-border-soft);
+  padding: 8px 8px 10px;
+  background: var(--app-surface);
+}
+.app-side-foot .app-foot-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  color: var(--app-ink-soft);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.12s;
+}
+.app-side-foot .app-foot-item:hover {
+  background: rgba(31, 35, 40, 0.045);
+}
+.app-side-foot .app-foot-item.app-foot-danger:hover {
+  background: rgba(197, 53, 31, 0.07);
+  color: var(--app-danger);
+}
+.app-foot-kbd {
+  font-family: var(--app-mono);
+  font-size: 10.5px;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--app-border-soft);
+  color: var(--app-ink-faint);
+  flex-shrink: 0;
+}
+
+/* 信息条去盒子：像一句正文，不插旗不描边 */
+.ant-alert.ant-alert-info,
+.ant-alert.ant-alert-default {
+  background: transparent;
+  border: none;
+  padding: 5px 0;
+}
+.ant-alert.ant-alert-info .ant-alert-icon,
+.ant-alert.ant-alert-default .ant-alert-icon {
+  display: none;
+}
+.ant-alert.ant-alert-info .ant-alert-description,
+.ant-alert.ant-alert-default .ant-alert-description {
+  font-size: 12.5px;
+  color: var(--app-ink-faint);
+}
+.ant-alert.ant-alert-info > .ant-alert-body,
+.ant-alert.ant-alert-default > .ant-alert-body {
+  margin-left: 0;
+}
+
+/* 快捷键一律等宽 */
+kbd {
+  font-family: var(--app-mono);
+}
+
+/* 指标条：hairline + 统一圆角。数字用等宽字链的姿态 */
+.stat-strip {
+  border-color: var(--app-border-soft);
+  border-radius: 8px;
+}
+.stat-label {
+  font-size: 12.5px;
+  color: var(--app-ink-faint);
+  margin-bottom: 5px;
+}
+.stat-num {
+  font-family: var(--app-mono);
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--app-ink);
+  font-variant-numeric: tabular-nums;
+}
+.stat-num.is-accent {
+  color: var(--app-glaze-text);
+}
+
+/* 悬浮 AI 入口降噪：白底 hairline、细投影，不再是「描边药丸」 */
+.ai-fab,
+.ai-sheet-peek {
+  border-color: var(--app-border-soft);
+  box-shadow: 0 1px 4px rgba(31, 35, 40, 0.08);
+  color: var(--app-glaze-text);
+}
+[data-theme='dark'] .ai-fab,
+[data-theme='dark'] .ai-sheet-peek {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.ai-fab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(31, 35, 40, 0.12);
 }

@@ -1,14 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Form, Input, Button, Checkbox, App, Tabs, Alert, Spin } from 'antd'
-import {
-  UserOutlined,
-  LockOutlined,
-  MessageOutlined,
-  DatabaseOutlined,
-  BarChartOutlined,
-  MailOutlined,
-  SafetyOutlined,
-} from '@ant-design/icons'
+import { SafetyOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store/authStore'
 import { apiRegistrationOpen } from '@/lib/serverApi'
 import { useI18n } from '@/i18n'
@@ -117,9 +109,9 @@ export default function AuthPage() {
   }
 
   const features = [
-    { icon: <MessageOutlined />, text: t('auth.f1') },
-    { icon: <DatabaseOutlined />, text: t('auth.f2') },
-    { icon: <BarChartOutlined />, text: t('auth.f3') },
+    { num: '01', text: t('auth.f1') },
+    { num: '02', text: t('auth.f2') },
+    { num: '03', text: t('auth.f3') },
   ]
 
   const loginPane = (
@@ -133,7 +125,6 @@ export default function AuthPage() {
     >
       <Form.Item name="username" rules={[{ required: true, message: t('auth.err.username') }]}>
         <Input
-          prefix={<UserOutlined style={{ color: '#94a3b8' }} />}
           placeholder={t('auth.username')}
           autoComplete="username"
           aria-label={t('auth.username')}
@@ -147,7 +138,6 @@ export default function AuthPage() {
         ]}
       >
         <Input.Password
-          prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
           placeholder={t('auth.password')}
           autoComplete="current-password"
           aria-label={t('auth.password')}
@@ -196,8 +186,7 @@ export default function AuthPage() {
           ]}
         >
           <Input
-            prefix={<UserOutlined style={{ color: '#94a3b8' }} />}
-            placeholder={t('auth.reg.username')}
+              placeholder={t('auth.reg.username')}
             autoComplete="username"
             aria-label={t('auth.reg.username')}
           />
@@ -210,8 +199,7 @@ export default function AuthPage() {
           ]}
         >
           <Input.Password
-            prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
-            placeholder={t('auth.reg.password')}
+              placeholder={t('auth.reg.password')}
             autoComplete="new-password"
             aria-label={t('auth.reg.password')}
           />
@@ -230,8 +218,7 @@ export default function AuthPage() {
           ]}
         >
           <Input.Password
-            prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
-            placeholder={t('auth.reg.confirm')}
+              placeholder={t('auth.reg.confirm')}
             autoComplete="new-password"
             aria-label={t('auth.reg.confirm')}
           />
@@ -242,7 +229,6 @@ export default function AuthPage() {
           style={{ marginBottom: 16 }}
         >
           <Input
-            prefix={<MailOutlined style={{ color: '#94a3b8' }} />}
             placeholder={t('auth.reg.contact')}
             autoComplete="email"
             aria-label={t('auth.reg.contact')}
@@ -326,24 +312,21 @@ export default function AuthPage() {
             {t('auth.hero.subtitle')}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {features.map((f, i) => (
-              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            {features.map((f) => (
+              <div key={f.num} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                {/* 编号用等宽字：编辑部感，替代「白底圆角块 packing 图标」的模板件 */}
                 <span
                   style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 8,
-                    background: 'rgba(255,255,255,0.18)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 16,
+                    fontFamily: 'var(--app-mono)',
+                    fontSize: 12.5,
+                    lineHeight: '22px',
+                    opacity: 0.75,
                     flexShrink: 0,
                   }}
                 >
-                  {f.icon}
+                  {f.num}
                 </span>
-                <span style={{ fontSize: 14, lineHeight: '34px', opacity: 0.95 }}>{f.text}</span>
+                <span style={{ fontSize: 14, lineHeight: '22px', opacity: 0.95 }}>{f.text}</span>
               </div>
             ))}
           </div>

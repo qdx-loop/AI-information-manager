@@ -1,10 +1,7 @@
-import { Layout, Menu, Button, Badge, Input, App, Dropdown } from 'antd'
+import { Layout, Menu, Button, Input, App, Dropdown } from 'antd'
 import {
-  AppstoreOutlined,
   DeleteOutlined,
   SettingOutlined,
-  RobotOutlined,
-  LogoutOutlined,
   PlusOutlined,
   MoreOutlined,
   EditOutlined,
@@ -213,7 +210,8 @@ function useSidebarState(onNavigate?: () => void) {
         .map(makeItem)
       return {
         key: `/library/${l.id}`,
-        icon: <AppstoreOutlined />,
+        // 不给每个库都挂同一个 Appstore 图标——同一图标重复 N 次只剩噪声，
+        // 库名本身就是最好的标识（去 AI 味规则：重复图标=删）
         label: (
           <div
             style={{
@@ -343,20 +341,22 @@ function SidebarBody({
       <div
         onClick={() => handleClick('/')}
         style={{
-          padding: '16px 16px 8px',
+          padding: '16px 16px 6px',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
           fontWeight: 600,
-          color: 'var(--app-glaze)',
+          color: 'var(--app-ink)',
           cursor: 'pointer',
+          fontSize: 14.5,
         }}
       >
-        <Badge color="var(--app-glaze)" />
+        <span className="app-brand-dot" />
         {!collapsed && <span>{t('app.brand')}</span>}
       </div>
 
       <Menu
+        className="app-menu"
         mode="inline"
         selectedKeys={[selectedKey]}
         items={menuItems}
@@ -364,28 +364,32 @@ function SidebarBody({
         style={{ borderInlineEnd: 'none' }}
       />
 
+      {/* 页脚不再用大块按钮：两行文字项 + kbd 提示，编辑部式收尾 */}
       <div
+        className="app-side-foot"
         style={{
           position: 'sticky',
           bottom: 0,
           width: '100%',
-          padding: 12,
-          borderTop: '1px solid var(--app-border-soft)',
-          background: 'var(--app-surface)',
         }}
       >
-        <Button ref={aiRef} icon={<RobotOutlined />} block onClick={onOpenPanel} style={{ marginBottom: 8 }}>
-          {collapsed ? '' : t('app.aiAssistant')}
-        </Button>
-        <Button
-          icon={<LogoutOutlined />}
-          block
-          type="text"
+        <button ref={aiRef} type="button" className="app-foot-item" onClick={onOpenPanel}>
+          <span>{collapsed ? '' : t('app.aiAssistant')}</span>
+          {!collapsed && (
+            // ⌘ 只在苹果平台存在；Win/Linux 上写 Ctrl，避免假快捷键说明
+            <span className="app-foot-kbd">
+              {/Mac|iP(hone|ad)/.test(navigator.platform) ? '⌘J' : 'Ctrl·J'}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          className="app-foot-item"
           onClick={handleLogout}
-          loading={loggingOut}
+          disabled={loggingOut}
         >
-          {collapsed ? '' : t('app.logout', { name: account?.username ?? '' })}
-        </Button>
+          <span>{collapsed ? '' : t('app.logout', { name: account?.username ?? '' })}</span>
+        </button>
       </div>
 
       {/* 建库只有一个实现：桌面侧边栏和移动端抽屉共用 */}

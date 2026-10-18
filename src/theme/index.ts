@@ -138,17 +138,18 @@ const SERIES_D = ['#009E73', '#0072B2', '#D55E00', '#CC79A7', '#B4BCC6'] as cons
 /** 亮色语义 */
 const SEMANTIC_L = {
   surface: NEUTRAL_L[0], // 卡片、面板
-  surfaceSunken: NEUTRAL_L[50], // 表头、内嵌区
-  canvas: NEUTRAL_L[50], // 页面画布（back）
+  surfaceSunken: '#F5F4F0', // 表头、内嵌区（暖瓷灰，与落地页 lp-chrome 同系）
+  canvas: '#FAFAF8', // 页面画布（back）——瓷纸底，与落地页同源
   overlay: 'rgba(28, 33, 38, 0.44)',
 
   ink: NEUTRAL_L[900],
   inkSoft: NEUTRAL_L[700],
   // 旧的 #8A94A0 只有 2.86:1，占位符/说明文字都读不清；700 档 4.62:1 达标
-  inkFaint: NEUTRAL_L[600],
+  inkFaint: '#6B7280',
 
-  border: NEUTRAL_L[300],
-  borderSoft: NEUTRAL_L[200],
+  // 细线改暖（冷蓝灰在瓷纸底上发脏）：hairline #E7E5E1
+  border: '#D9D7D2',
+  borderSoft: '#E7E5E1',
 
   // 品牌：填充用与文字用同值（700 对白 5.47:1 / 对白底 5.47:1）
   glaze: GLAZE[700],
@@ -208,7 +209,11 @@ export type Semantic = typeof SEMANTIC_L
 // ══════════════════════════════════════════════════════════════
 
 const FONT_STACK =
-  "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif"
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif"
+
+/** 等宽（数字/编号/快捷键）。与落地页 lp-* 同源：系统 mono 链 */
+export const MONO_STACK =
+  "ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, 'Noto Sans Mono CJK SC', monospace, 'PingFang SC', 'Microsoft YaHei'"
 
 /** 与主题无关的基准 token */
 const BASE = {
@@ -282,30 +287,31 @@ const COMPONENTS_LIGHT: ThemeConfig['components'] = {
     triggerColor: 'var(--app-ink-faint)',
   },
   Card: {
-    // 研究结论：「需要描边的话，多半是需要更多留白」——卡片默认不要阴影
-    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.04)',
+    // 「需要描边的话，多半是需要更多留白」——卡片默认不要阴影，靠 hairline 分层
+    boxShadow: 'none',
     headerBg: 'transparent',
     headerFontSize: 15,
     bodyPadding: 16,
   },
   Table: {
-    headerBg: NEUTRAL_L[50],
+    headerBg: '#F5F4F0',
     headerColor: SEMANTIC_L.inkSoft,
     headerSplitColor: 'transparent',
     rowHoverBg: GLAZE[50],
     cellPaddingBlock: 11,
     cellPaddingInline: 12,
-    borderColor: NEUTRAL_L[100],
+    borderColor: SEMANTIC_L.borderSoft,
     footerBg: 'transparent',
   },
   Menu: {
-    itemHeight: 38,
+    itemHeight: 36,
     itemMarginInline: 8,
     itemBorderRadius: 8,
     itemSelectedBg: GLAZE[50],
     itemSelectedColor: GLAZE[700],
-    itemHoverBg: NEUTRAL_L[25],
+    itemHoverBg: 'rgba(31, 35, 40, 0.04)',
     iconSize: 15,
+    activeBarBorderWidth: 0,
   },
   Button: {
     fontWeight: 500,

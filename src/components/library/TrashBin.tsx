@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
-import { Card, Table, Button, Space, Tag, Popconfirm, Empty, App, Alert } from 'antd'
+import { Card, Table, Button, Space, Popconfirm, Empty, App, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, UndoOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useLibraryStore } from '@/store/libraryStore'
 import type { TrashEntry } from '@/types'
 import { useI18n, tNow } from '@/i18n'
+
+const { Text } = Typography
 
 export default function TrashBin() {
   const { message } = App.useApp()
@@ -42,8 +44,12 @@ export default function TrashBin() {
       title: t('lib.trash.col.type'),
       dataIndex: 'kind',
       width: 90,
-      render: (k: string) =>
-        k === 'library' ? <Tag color="orange">{t('lib.trash.kind.library')}</Tag> : <Tag color="green">{t('lib.trash.kind.item')}</Tag>,
+      // 类型用文字不用药丸 Tag：两种颜色在这里只是装饰
+      render: (k: string) => (
+        <Text type="secondary" style={{ fontSize: 12.5 }}>
+          {k === 'library' ? t('lib.trash.kind.library') : t('lib.trash.kind.item')}
+        </Text>
+      ),
     },
     {
       title: t('lib.trash.col.name'),
@@ -85,15 +91,22 @@ export default function TrashBin() {
 
   return (
     <div style={{ padding: 16, height: '100%' }}>
-      <Card title={t('lib.trash.title')} styles={{ body: { padding: 0 } }}>
-        <Alert
-          type="info"
-          showIcon
-          style={{ borderRadius: 0 }}
-          message={t('lib.trash.notice')}
-        />
+      {/* 页面头不套 Card：标题一行、说明一行，编辑部式 */}
+      <div style={{ marginBottom: 14 }}>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' }}>
+          {t('lib.trash.title')}
+        </h2>
+        <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--app-ink-faint)' }}>
+          {t('lib.trash.notice')}
+        </p>
+      </div>
+      <Card styles={{ body: { padding: 0 } }}>
         {trash.length === 0 ? (
-          <Empty description={t('lib.trash.empty')} style={{ padding: 48 }} />
+          <Empty
+            image={false}
+            description={t('lib.trash.empty')}
+            style={{ padding: '56px 0 64px' }}
+          />
         ) : (
           <Table<TrashEntry>
             rowKey={(r) => `${r.kind}-${r.record.id}`}

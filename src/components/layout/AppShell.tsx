@@ -1,5 +1,4 @@
-import { Layout, Drawer, Button, Tooltip, Tour, Dropdown, Avatar, App as AntApp } from 'antd'
-import type { TourProps } from 'antd'
+import { Layout, Drawer, Button, Tooltip, Dropdown, Avatar, App as AntApp } from 'antd'
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { MoonOutlined, SunOutlined, MenuOutlined, SearchOutlined, LogoutOutlined, WifiOutlined } from '@ant-design/icons'
@@ -16,7 +15,6 @@ import { useAuthStore } from '@/store/authStore'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useI18n } from '@/i18n'
 import { sweepTrashOncePerDay } from '@/utils/trashSweep'
-import { isTourDone, markTourDone } from '@/utils/onboarding'
 import { startReminderWatcher } from '@/utils/reminderNotify'
 
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
@@ -74,9 +72,7 @@ export default function AppShell() {
   const currentLibraryId = useLibraryStore((s) => s.currentLibraryId)
   const currentLib = libraries.find((l) => l.id === currentLibraryId) ?? null
   const siderRef = useRef<HTMLDivElement>(null)
-  const aiRef = useRef<HTMLButtonElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
-  const [tourOpen, setTourOpen] = useState(false)
 
   // —— 到期提醒的浏览器通知：登录态下常驻检查（每 30 分钟 + 启动一次）——
   useEffect(() => {
@@ -88,13 +84,6 @@ export default function AppShell() {
     return stop
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 启动函数内部现行从 store 读最新账号，只需在 登录/退出 时重建
   }, [account?.id])
-
-  useEffect(() => {
-    if (account && !isMobile && !isTourDone(account.id)) {
-      const timer = setTimeout(() => setTourOpen(true), 600)
-      return () => clearTimeout(timer)
-    }
-  }, [account, isMobile])
 
   // 供新手清单等处通过自定义事件打开 AI 面板
   const setAiOpen = useAiUiStore((s) => s.setOpen)
@@ -167,27 +156,6 @@ export default function AppShell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [toggleDock])
 
-  const tourSteps: TourProps['steps'] = [
-    {
-      title: t('tour.lib.title'),
-      description: t('tour.lib.desc'),
-      target: () => siderRef.current!,
-      placement: 'right',
-    },
-    {
-      title: t('tour.ai.title'),
-      description: t('tour.ai.desc'),
-      target: () => aiRef.current!,
-      placement: 'right',
-    },
-    {
-      title: t('tour.home.title'),
-      description: t('tour.home.desc'),
-      target: () => contentRef.current!,
-      placement: 'center',
-    },
-  ]
-
   /**
    * 离线状态此前完全不可见。这个应用是本地优先的：断网时新建、编辑、
    * 删除都照常工作，数据就在本机 IndexedDB 里。
@@ -207,7 +175,6 @@ export default function AppShell() {
   }, [])
 
   useBackButtonLayer(sidebarOpen, () => setSidebarOpen(false))
-  useBackButtonLayer(tourOpen, () => setTourOpen(false))
 
   return (
     <Layout style={{ height: '100vh', display: 'flex' }}>
@@ -231,7 +198,7 @@ export default function AppShell() {
           />
         </Drawer>
       ) : (
-        <Sidebar onOpenPanel={() => setAiOpen(true)} siderRef={siderRef} aiRef={aiRef} />
+        <Sidebar onOpenPanel={() => setAiOpen(true)} siderRef={siderRef} />
       )}
       <div className="app-main">
       <Layout>
@@ -263,11 +230,13 @@ export default function AppShell() {
             )}
             {/* 当前位置：分类 / 库名。用户任何时候都知道自己在哪个库里，
                 不必回头看侧边栏；没有选中库时回落到产品名。 */}
+            {/* 当前位置：分类 / 库名。页面主标题属于页面本身，
+                顶栏只留「次要位置感」，不再用大字重压过页面标题。 */}
             <span
               style={{
-                fontSize: 15,
-                fontWeight: 600,
-                color: 'var(--app-ink)',
+                fontSize: 13.5,
+                fontWeight: 500,
+                color: currentLib ? 'var(--app-ink-soft)' : 'var(--app-ink)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -402,18 +371,6 @@ export default function AppShell() {
         <LibraryPickerSheet open={libPickerOpen} onClose={() => setLibPickerOpen(false)} />
       )}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <Tour
-        open={tourOpen}
-        steps={tourSteps}
-        onClose={() => {
-          setTourOpen(false)
-          if (account) markTourDone(account.id)
-        }}
-        onFinish={() => {
-          setTourOpen(false)
-          if (account) markTourDone(account.id)
-        }}
-      />
     </Layout>
   )
 }

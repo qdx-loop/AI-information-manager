@@ -1,4 +1,4 @@
-import { RobotOutlined, LoadingOutlined } from '@ant-design/icons'
+import { LoadingOutlined } from '@ant-design/icons'
 import { useAiUiStore } from '@/store/aiUiStore'
 import { useI18n } from '@/i18n'
 
@@ -32,7 +32,7 @@ export default function AIFab({ compact }: { compact?: boolean }) {
       aria-label={t('ai.open')}
       title={running ? t('ai.runningInBackground') : t('ai.open')}
     >
-      {running ? <LoadingOutlined spin /> : <RobotOutlined />}
+      {running ? <LoadingOutlined spin /> : <span className="ai-mono-mark" style={{ fontFamily: 'var(--app-mono)', fontWeight: 600, fontSize: 13 }}>AI</span>}
       {!compact && <span className="ai-fab-text">{t('app.aiAssistant')}</span>}
       {unseen && !running && <span className="ai-fab-dot" aria-hidden />}
     </button>

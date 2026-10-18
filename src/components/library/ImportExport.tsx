@@ -1,5 +1,4 @@
 import { Button, Dropdown, Modal, Select, App } from 'antd'
-import { ImportOutlined, ExportOutlined } from '@ant-design/icons'
 import { useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import type { MenuProps } from 'antd'
 import type { FieldDef, Item, FieldValue } from '@/types'
@@ -132,11 +131,11 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
           if (f) void handleFile(f)
         }}
       />
-      <Button icon={<ImportOutlined />} onClick={() => fileInputRef.current?.click()}>
+      <Button type="text" onClick={() => fileInputRef.current?.click()}>
         {t('lib.importExport.import')}
       </Button>
       <Dropdown menu={exportMenu}>
-        <Button icon={<ExportOutlined />}>{t('lib.importExport.export')}</Button>
+        <Button type="text">{t('lib.importExport.export')}</Button>
       </Dropdown>
 
       <Modal

@@ -14,7 +14,7 @@ import {
   Space,
   theme as antdTheme,
 } from 'antd'
-import { SendOutlined, RobotOutlined, UserOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { SendOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
@@ -1364,8 +1364,8 @@ export default function AIPanel() {
       // 说明文字是长句，必须是块级并限宽，否则在停靠面板里会横向溢出被裁掉
       <div style={{ padding: 24, height: '100%', minWidth: 0, overflow: 'auto' }}>
         <Empty
-          image={<RobotOutlined style={{ fontSize: 48, color: 'var(--app-ink-faint)' }} />}
-          description={t('ai.notConfigured')}
+          image={false}
+          description={<span style={{ color: 'var(--app-ink-soft)', fontSize: 13.5 }}>{t('ai.notConfigured')}</span>}
         >
           <div
             style={{
@@ -1475,21 +1475,8 @@ export default function AIPanel() {
                 flexDirection: m.role === 'user' ? 'row-reverse' : 'row',
               }}
             >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  background: m.role === 'user' ? 'var(--app-glaze)' : token.colorFillSecondary,
-                  color: m.role === 'user' ? '#fff' : token.colorTextSecondary,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                {m.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
-              </div>
+              {/* 不再放机器人/用户头像圆组——气泡颜色和左右对齐已区分角色，
+                  头像圆圈只是聊天模板的装饰件 */}
               <div
                 style={{
                   background: m.role === 'user' ? 'var(--app-glaze)' : token.colorFillTertiary,
