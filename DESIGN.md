@@ -1,187 +1,178 @@
 ---
 name: 信息管理 · AI 智能信息管理助手
-description: 青瓷般安静的蓝绿扁平系统——Antd 企业级骨架，中文优先，橙色只做注意力点缀
+description: 官纸账簿 The Ledger——暖纸、墨字、朱砂标记、账线；衬线标题、无衬线 UI、等宽数字
 colors:
-  primary: "#0D9488"
-  primary-deep: "#134E4A"
-  primary-wash: "#F0FDFA"
-  primary-edge: "#99F6E4"
-  primary-edge-soft: "#CCEBE6"
-  accent-amber: "#FA8C16"
-  accent-amber-wash: "#FFF7E6"
-  status-active: "#3F8600"
-  surface: "#FFFFFF"
-  canvas: "#F5F5F5"
-  night-kiln: "#141414"
-  night-edge: "#303030"
-  ink-strong: "#333333"
-  ink-body: "#475569"
-  ink-muted: "#94A3B8"
-  ink-faint: "#999999"
-  landing-paper: "#FAFAF8"
-  landing-hairline: "#E6E5E0"
-  landing-chrome: "#F4F3EE"
-  landing-chrome-dot: "#D8D6CF"
-  landing-mint: "#79D6C9"
+  canvas: "#F7F4ED"
+  surface: "#FDFBF6"
+  surface-sunken: "#EFEBE1"
+  ink: "#1C1B18"
+  ink-soft: "#4A463D"
+  ink-faint: "#6E6759"
+  border: "#D9D3C5"
+  border-strong: "#B9B0A0"
+  rule: "#E6E1D5"
+  accent: "#A63D2C"
+  accent-text: "#8C3325"
+  accent-wash: "#F6E7E1"
+  action: "#26241F"
+  danger: "#A82A1F"
+  success: "#3F6B4A"
+  warning: "#8A5A22"
+  dark-canvas: "#141310"
+  dark-surface: "#1B1917"
+  dark-ink: "#E8E4DA"
+  dark-accent: "#E0785F"
 typography:
-  display:
-    fontFamily: "'Plus Jakarta Sans', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "32px"
-    fontWeight: 700
-    lineHeight: 1.35
-  title:
-    fontFamily: "'Plus Jakarta Sans', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "20px"
-    fontWeight: 700
-    lineHeight: 1.4
-  body:
-    fontFamily: "'Plus Jakarta Sans', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "14px"
-    fontWeight: 400
-    lineHeight: 1.6
-  label:
-    fontFamily: "'Plus Jakarta Sans', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "12px"
-    fontWeight: 400
-    lineHeight: 1.5
+  sans:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Source Han Sans SC', Roboto, sans-serif"
+  serif:
+    fontFamily: "'Noto Serif CJK SC', 'Source Han Serif SC', 'Songti SC', 'STSong', 'SimSun', 'Noto Serif SC', serif"
+  mono:
+    fontFamily: "'Noto Sans Mono CJK SC', ui-monospace, 'SF Mono', 'Cascadia Mono', Roboto Mono, Menlo, Consolas, monospace"
+  scale:
+    "2xs": "11px / 1.4 (mono +0.06em: 眉题、表头、快捷键)"
+    xs: "12px / 1.5 (辅助说明、时间戳、图注)"
+    sm: "13px / 1.5 (表格、侧栏、密集 UI)"
+    base: "14px / 1.6 (正文、表单)"
+    md: "16px / 1.75 (阅读区、AI 输出、编辑器正文)"
+    lg: "20px / 1.4 (区块标题、弹窗标题、空状态主句，serif 600)"
+    xl: "26px / 1.3 (页面标题，serif 600，每页仅一个)"
+    "2xl": "34px / 1.2 (大数字、登录主标，serif 600)"
 rounded:
-  md: "8px"
-  sm: "6px"
+  flat: "0 (表格、账页、分割线)"
+  sm: "2px (输入框、单元格编辑态、Tag)"
+  md: "4px (按钮、卡片、菜单项)"
+  lg: "6px (弹窗、抽屉)"
 spacing:
-  xs: "4px"
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
-  xl: "24px"
+  "1": "4px"
+  "2": "8px"
+  "3": "12px"
+  "4": "16px"
+  "5": "20px"
+  "6": "24px"
+  "7": "32px"
+  "8": "48px"
 components:
   button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "#FFFFFF"
+    backgroundColor: "{colors.action}"
+    textColor: "#F7F4ED"
     rounded: "{rounded.md}"
   button-secondary:
     backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink-strong}"
+    textColor: "{colors.ink}"
+    border: "1px solid {colors.border}"
     rounded: "{rounded.md}"
-  card-surface:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink-strong}"
-    rounded: "{rounded.md}"
+  table-header:
+    backgroundColor: "{colors.surface-sunken}"
+    textColor: "{colors.ink-faint}"
+    borderBottom: "1px solid {colors.border-strong}"
+  row-selected:
+    backgroundColor: "{colors.accent-wash}"
+    boxShadow: "inset 2px 0 0 {colors.accent}"
+  focus:
+    outline: "2px solid {colors.accent}"
 ---
 
-# Design System: 信息管理（info-manager）
+# Design System: 信息管理（info-manager）· 官纸账簿 The Ledger
 
 ## Overview
 
-**Creative North Star: 「青瓷工作台 · The Celadon Desk」**
+**Creative North Star: 「官纸账簿」**
 
-整个系统像一件青瓷器：釉色是唯一的装饰，器形靠比例与留白立住。蓝绿主色 #0D9488 是那层「釉」——出现在按钮、选中态、链接与品牌块上；界面其余部分是素坯般的白与浅灰，靠发丝线（1px 边框）和色调分层区分层次，几乎不用投影。橙色 #FA8C16 是「窑火」，只许在需要注意力的地方短暂出现（置顶、焦点行、AI 修改 diff），绝不参与品牌表达。
+这个产品本质是一本账：管理库是账本、条目是一笔记录、字段是账栏、导入导出是过账。AI 不是「助手」，是**书记员（录事）**——把口述变成条目、把账目核对出来，写完在边上留一行朱批。整套视觉因此从「青瓷工作台」的冷白 SaaS 语汇，换成暖纸底、墨字、朱砂标记与账线。
 
-这是典型的 Operate 型产品：用户每天在这里录数据、查数据、跟 AI 对话，扫读效率与状态可预期高于一切表达欲。信息密度中等偏紧凑（表格 density=middle，间距节拍 8/12/16/24），圆角统一 8px，没有戏剧化的视觉事件。
+它仍然是典型的 Operate 型产品：用户每天在这里录数据、查数据、跟 AI 对话，扫读效率与状态可预期高于一切表达欲。所以「账簿」只做气质，不做装饰：**没有纸纹理、没有做旧噪点、没有渐变**；纸感只来自色温，账感只来自 1px 横线。
 
-**Key Characteristics:**
-- 单一强调色体系：蓝绿承担全部品牌与交互语义
-- 扁平优先：深度靠色调分层 + 发丝线，阴影只在 Antd 反馈层出现
-- 中文优先排版：拉丁字体只装饰数字与品牌名，中文回退链必须完整
-- 深浅双主题：暗色用 #141414 底 + #303030 边，同一套语义
+**Key Characteristics**
+- 一屏最多两种色相：墨（动作/正文）+ 朱砂（标记）；彩度面积 ≤3%
+- 无卡片阴影、无渐变、无玻璃拟态、无 emoji 图标、无无限动画
+- 衬线只做 ≥20px 中文标题；无衬线做 UI；等宽做数字/日期/ID
+- 表格是账页：只有横线、无竖线、无斑马、数字右对齐、表头冻结
 
 ## Colors
 
-一句话：一支青绿走天下，灰阶做骨，琥珀点睛。
+一句话：**墨是动作，朱是标记，纸是底。**
 
-### Primary
-- **青瓷釉 Celadon Glaze** (#0D9488)：所有主动作——主按钮、链接、选中菜单项、AI 面板用户气泡、登录页品牌块。任何一屏中占比应 ≤10%。
-- **深窑青 Deep Kiln Teal** (#134E4A)：浅青背景上的标题文字（登录页、管理后台），替代纯黑以保持色温一致。
-- **青瓷粉底 Celadon Wash** (#F0FDFA)：全局布局底色与管理后台页面底色，让白色卡片浮出而不靠阴影。
-- **釉边 Glaze Edge** (#99F6E4 / 柔和变体 #CCEBE6)：登录页分栏线、次级边框。#CCEBE6 是 Antd `colorBorderSecondary` 的既定值。
+### Primary / Action（墨）
+- `action` `#26241F`：主按钮、选中文字、标题。白字对比 15.50:1。
+- `ink` `#1C1B18` / `ink-soft` `#4A463D` / `ink-faint` `#6E6759`：正文 15.68:1、次要 8.56:1、注脚 5.10:1（对 canvas，WCAG 实测）。
+- 暗色反相：`action` 变 `#E8E4DA`（亮底深字），墨阶整体反转为暖浅灰。
 
-### Secondary
-- **窑火琥珀 Kiln Amber** (#FA8C16)：注意力专用——表格焦点行左侧 3px 内嵌条、AI「修改」diff 高亮、3 天内到期标签。红色仅用于删除类危险操作（Antd danger 语义）。
-- **琥珀底 Amber Wash** (#FFF7E6 / 置顶行变体 #FFFBE6)：焦点行与置顶行的底色，与琥珀条同族。
-- **常青绿 Evergreen** (#3F8600)：「有效用户」等正向统计数字的文字色（比 Antd 默认 success 深两档以保证白底对比度）。
+### Accent（朱砂）
+- `accent` `#A63D2C`：印章、选中标记、焦点环、AI 批注立线、当前项左线。**只做标记，不做按钮底色。**
+- `accent-text` `#8C3325`：朱砂当文字/链接时用（7.31:1）。
+- `accent-wash` `#F6E7E1`：选中行/提示的浅底，单屏面积 ≤8%。
 
-### Neutral
-- **白瓷 Porcelain White** (#FFFFFF)：卡片、侧栏、表单区表面。
-- **素坯 Blank Bisque** (#F5F5F5)：内容画布、assistant 气泡、次级表面。
-- **夜窑 Night Kiln** (#141414) + **夜釉边 Night Edge** (#303030)：暗色主题的底与线。
-- **墨阶 Ink Scale**：#333333（气泡正文）→ #475569（说明文字）→ #94A3B8(输入图标) → #999999（辅助注脚）。四档足够，不许再发明灰。
+### Neutral（纸）
+- `canvas` `#F7F4ED`：页面底。
+- `surface` `#FDFBF6`：卡片、侧栏、面板。
+- `surface-sunken` `#EFEBE1`：表头、内嵌区、输入框聚焦前底。
+- `surface-raised` `#FFFDF9`：浮层（下拉/弹窗/AI 抽屉）。
+- 线：`border` `#D9D3C5`（输入框）、`border-strong` `#B9B0A0`（表头底线）、`rule` `#E6E1D5`（表格行线）。
+
+### Status
+- `success` `#3F6B4A`（完成）、`warning` `#8A5A22` + `warning-wash` `#F6EDDE`（临期）、`danger` `#A82A1F` + `danger-wash` `#F7E4E1`（删除/错误）。
+- 状态一律「文字 + 6px 方点」表达，不用彩色胶囊 Tag。
+
+### Charts
+Okabe-Ito/Wong 色盲安全 5 色子集（`#009E73 #0072B2 #D55E00 #CC79A7 #1A1A1A`，暗色第 5 色换 `#B4BCC6`）。已验证正常视觉/绿色盲/红色盲下无危险色对，**不要改动**。
 
 ### Named Rules
-**The One Glaze Rule.** 蓝绿是唯一的品牌色，负责一切「可点击/已选中」语义；想用新颜色时先问：是注意力场景（→琥珀）还是危险场景（→Antd 红），都不是就用墨阶。
-
-**The Amber Discipline Rule.** 琥珀橙只表达三件事：行级焦点、内容被修改、临期提醒。它永远不作为按钮或链接的主色。
+**The Two-Ink Rule.** 全站只有两种「墨」：墨黑负责动作，朱砂负责标记。出现第三种色相即视为 bug（图表与状态色除外）。
+**The 3% Rule.** 朱砂在任何一屏的面积不超过 3%——它是印章，不是主题色。
+**朱砂不是危险色.** 朱砂（低彩偏褐）只做标记；危险（高彩）只做破坏性操作，且必须同时有图标、文字说明与二次确认。
 
 ## Typography
 
-**Display Font:** Plus Jakarta Sans（仅拉丁字符与数字）
-**Body Font:** 系统中文链：-apple-system → PingFang SC → Hiragino Sans GB → Microsoft YaHei
+**Sans** 系统中文链做 UI；**Serif** 只做 ≥20px 标题/大数字/空状态主句（系统宋体链，Windows SimSun 无真 bold → `font-synthesis-weight:none`，缺字重时降级为无衬线而不是伪粗体）；**Mono** 只做数字/日期/ID/编号/快捷键（中文正文绝不用等宽）。
 
-**Character:** 几何人文的拉丁字体给数字和英文带来现代感；中文完全交给系统字体保证渲染速度与熟悉感——这是数据工具，不是杂志。
-
-### Hierarchy
-- **Display** (700, 32px, 1.35)：仅登录页左栏主标语。
-- **Title** (700, 20px, 1.4)：页面级标题与管理后台卡片标题。
-- **Body** (400, 14px, 1.6)：默认正文与表格单元格。
-- **Label** (400, 12px, 1.5)：辅助说明、时间戳、表单 help、气泡元信息。
+- 中文正文 `letter-spacing: 0`；标题最多 `-0.01em`；拉丁大写眉题 `+0.06em`。
+- 所有数值 `font-variant-numeric: tabular-nums`；金额/数量列右对齐；日期统一 `YYYY-MM-DD`。
+- 字阶只有 8 档：11 / 12 / 13 / 14 / 16 / 20 / 26 / 34。
 
 ### Named Rules
-**The System-CJK Rule.** 任何 font-family 必须携带完整中文回退链（至少 PingFang SC 与 Microsoft YaHei）；禁止为中文引入网络字体。
+**The Serif-at-20 Rule.** 衬线字号不得小于 20px。
+**The Mono-for-Numbers Rule.** 数字、日期、ID、快捷键必须等宽 + tabular；中文不得进等宽。
 
 ## Layout
 
-桌面端：左侧 240px 可折叠导航（Sider），右侧 64px Header + 内容滚动区。内容内边距 16–24px，卡片间距 12px。移动端 ≤768px 时侧栏转为左侧 Drawer（260px），Header 左侧出现汉堡按钮。登录页 ≥900px 左右分栏（品牌区/表单区各半），之下隐藏品牌区。AI 助手为右侧 Drawer，桌面 460px、移动全屏。间距节拍取 4 的倍数：4 / 8 / 12 / 16 / 24。
+- 桌面：左 220px 侧栏（可折叠）+ 44px 页眉 + 内容区；页面内边距 `24px 32px`。
+- 平板：`20px 24px`；手机：`16px`，底部 48px 标签栏 + 安全区。
+- 表格行高 32（紧凑 28 / 舒适 40）；表头 36；控件高 32（small 28）。
+- AI 停靠列默认 380px（340–720 可拖）；移动端底部抽屉，圆角 6。
 
 ## Elevation & Depth
 
-扁平底色系。深度不靠阴影，靠三层手段：① 青瓷粉底或素坯画布上的纯白表面；② 1px 发丝线（亮 #F0F0F0 / 暗 #303030）；③ Antd 自带悬停反馈。唯一的结构性「阴影」是表格焦点行的 `inset 3px 0 0 #FA8C16` 内嵌条——它是标记不是光影。
-
-### Named Rules
-**The Hairline Rule.** 需要分隔时先加 1px 线，线不够再考虑色调差，最后才考虑阴影。禁止自创 box-shadow。
+扁平纸面。深度只来自：① 纸与凹陷纸的明度差；② 1px 线（`rule` / `border` / `border-strong`）；③ 浮层的唯一阴影 `--shadow-pop`。**卡片、按钮、表格行、输入框一律零阴影**；hover 不加位移。
 
 ## Shapes
 
-统一 8px 圆角贯穿按钮、卡片、输入框、弹窗；行级元素（模板编辑行）用 6px 小一号圆角形成层级差；头像与聊天气泡头像用正圆。边框语言：常态发丝线，悬停转主色，无粗描边。
+表格/账页 0 圆角；输入框/单元格 2；按钮/卡片/菜单项 4；弹窗/抽屉 6。**禁止 999px 药丸与 >6px 圆角**（头像 50% 除外）。状态标签不用胶囊。
 
 ## Components
 
-组件全部基于 Antd v5，本系统通过 theme token 收编其默认外观；以下记录「收编后」的形态与自定义部件。
-
-### Buttons
-- **Shape:** 圆角 8px；主按钮实心青瓷釉白字，hover 由 Antd 自动加深
-- **Secondary/Ghost:** 白底 + 默认发丝边；危险操作一律 Antd `danger` 红并配 Popconfirm
-- **Icon Buttons:** 表格行操作用 type="link" 小号图标钮
-
-### Cards / Containers
-- **Corner Style:** 8px；白瓷底；管理后台整页铺青瓷粉底
-- **Shadow Strategy:** 无常驻阴影
-- **Internal Padding:** 卡片 16px，紧凑卡 12px
-
-### Inputs / Fields
-- **Style:** 白底、发丝线、8px 圆角；前缀图标用 ink-muted (#94A3B8)
-- **Focus:** Antd 主色描边 + 淡青晕；**Error:** Antd 红描边 + 校验文案
-
-### Navigation
-- **Style:** Sider 内联菜单，选中项青瓷釉高亮；按分类两级 group；每行 ⋯ 下拉承载重命名/删除
-- **Mobile:** Drawer 全高，底部固定「AI 助手 / 退出」按钮区，显示到期日与剩余天数标签
-
-### Chat Bubbles (AI 助手签名组件)
-- **User:** 实心青瓷釉底 + 白字，右对齐，圆形头像
-- **Assistant:** 素坯底 + #333 字，左对齐；内嵌可折叠「思考过程」（灰）与「执行过程 N 步」（青）
-- 消息内可点击的条目 chip（绿 Tag）跳转定位；撤回按钮为 12px link
-
-### Status Tags
-- **有效期:** 绿=正常（附剩余天数）、橙=≤3 天、红=已到期、灰=已停用；日期 `YYYY-MM-DD`
-- **回收站类型:** 橙=管理库、绿=条目
+- **Buttons**：主按钮墨色实心（暗色反相）；次按钮白底 + 1px 线；文字按钮只用于低权重操作；危险操作 `danger` 实心 + 文案写清后果。
+- **Tables**：表头 sunken + 11px 字 + 0.04em 字距；只有横线；数字右对齐；置顶用朱砂★；选中行 `accent-wash` + 2px 朱砂左条；内联编辑 hover 虚线、编辑中 2px 朱砂 inset。
+- **Cards**：默认不用卡片；需要成组时用 `sheet`（surface + 1px 线 + 0 圆角 + 0 阴影）。信息条不用色块 Alert，改成「2px 左线 + 正文」。
+- **Inputs**：32px 高、2px 圆角、1px 线；聚焦边框变墨；错误用危险色边框 + 文字说明。
+- **Tabs**：只用下划线（墨色 2px），不铺底色；移动端设置页保留 Tabs，桌面改为左侧垂直目录（当前项 2px 朱砂左线）。
+- **Chat (AI)**：没有气泡。用户输入 = 左侧 2px 朱砂立线 + 14px 墨字；AI 输出 = 16/1.75 文档流；执行步骤折叠为「已核对 N 步」+ mono 编号；运行中 = 12px 文字 + 2px 静态朱砂短条。
+- **Mobile tab bar**：48px；选中 = 朱砂文字 + 顶部 2px 朱砂短线；无胶囊底、无投影。
+- **Landing**：editorial 账页排版；hero 左对齐非对称；深色段是唯一节奏断口；产品截图放 hairline 展柜里；按钮墨色/ghost。
 
 ## Do's and Don'ts
 
-### Do:
-- **Do** 用 #0D9488 表达一切可交互与已选中语义；新界面先铺墨阶，最后上釉。
-- **Do** 时间戳统一 `YYYY-MM-DD HH:mm`（dayjs zh-cn）。
-- **Do** 复用现有 token；确需新颜色先扩展本文件 frontmatter 再使用。
-- **Do** 保持 ≤768px Drawer / ≥900px 登录分栏断点行为。
+### Do
+- 先铺纸与墨，最后点朱砂；新界面先问「这里需要标记吗」。
+- 数字右对齐、等宽、tabular；日期 `YYYY-MM-DD`。
+- 每个页面只有一个 26px 衬线标题；区块标题 20px 衬线。
+- 复用 `--app-*` 变量与工具 class（`.serif/.mono/.num/.eyebrow/.page-title/.rule/.sheet/.empty-state` 等）；新增颜色先加 token。
+- 尊重 `prefers-reduced-motion`：只允许 120–180ms 的 opacity/transform。
 
-### Don't:
-- **Don't** 为中文引入网络字体；Google Fonts 在目标市场不可靠。
-- **Don't** 自创 box-shadow、渐变或新的强调色相（紫/蓝/粉一律拒绝）。
-- **Don't** 让琥珀橙出现在按钮、链接或大面积背景上。
-- **Don't** 绕过 Antd token 直接写死会破坏暗色主题的颜色（如给文字写死 #000）。
+### Don't
+- 不要渐变、玻璃拟态、发光、投影卡片、999px 药丸、>6px 圆角。
+- 不要 emoji 当图标/状态/标题；不要聊天气泡与头像；不要无限动画（呼吸/脉冲）。
+- 不要紫/蓝/粉强调色；不要第三种色相；朱砂不要大面积铺。
+- 不要居中一切（只有「空状态主句 + 动作」允许居中）。
+- 不要写死颜色/字号/圆角；不要为好看改变交互行为。
+- 不要引入网络字体（尤其中文）与 CDN 资源——目标市场被墙。

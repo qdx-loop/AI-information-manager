@@ -1,62 +1,69 @@
+/**
+ * 帮助中心 ·『官纸账簿』说明书版式
+ *
+ * 目标：做成「说明书」而不是「FAQ 卡片墙」。
+ *   · 左 200px sticky 目录（mono 编号 + 当前项 2px 朱砂左线）
+ *   · 右正文 max-width 720、16/1.75（行宽 ≤ 40 汉字）
+ *   · 章节标题衬线 20，小节标题无衬线加粗（两级层次靠字号/留白，不靠卡片）
+ *   · 行内代码/字段名用 sunken 底 + 2px 圆角
+ *   · 移动端目录折叠为 <details>
+ *   · 文末一行 12px 灰字指向「设置 → 关于与支持」（纯文字）
+ *
+ * 内容仍来自 content/manualZh|manualEn（结构化文档），本文件只负责版式。
+ */
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Card, Tag, Typography, Button, Space } from 'antd'
-import {
-  CheckCircleOutlined,
-  InfoCircleOutlined,
-  WarningOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons'
+import { Grid } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import type { Block, Manual } from '@/content/manualTypes'
 import { manualZh } from '@/content/manualZh'
 import { manualEn } from '@/content/manualEn'
 import { useI18n } from '@/i18n'
 import { useAppStore } from '@/store/appStore'
-
-const { Title, Paragraph } = Typography
+import SupportLink from '@/components/reward/SupportLink'
 
 /** 说明书里的「接口地址 / 模型名」必须原样显示，不能被自动折行或富文本渲染改掉 */
-const MONO: React.CSSProperties = {
-  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+const CODE: React.CSSProperties = {
+  fontFamily: 'var(--font-mono)',
   fontSize: 13,
   background: 'var(--app-surface-sunken)',
   border: '1px solid var(--app-border-soft)',
-  borderRadius: 6,
+  borderRadius: 2,
   padding: '10px 12px',
   overflowX: 'auto',
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-all',
   color: 'var(--app-ink)',
   lineHeight: 1.7,
+  margin: '4px 0 16px',
 }
 
+/**
+ * 提示框：一条 2px 竖线 + 一行说明，不用彩色底色块。
+ * kind 只决定竖线颜色（tip=朱砂、warn=赭、info=墨阶），文字永远是正文色。
+ */
 function Note({ kind, title, text }: { kind: 'tip' | 'warn' | 'info'; title?: string; text: string }) {
-  // 三类提示各有主题语义色：提示=品牌绿，注意=窑火琥珀，重要=中性蓝灰
-  const map = {
-    tip: { icon: <ThunderboltOutlined />, color: 'var(--app-glaze)' },
-    warn: { icon: <WarningOutlined />, color: 'var(--app-kiln-text)' },
-    info: { icon: <InfoCircleOutlined />, color: 'var(--app-ink-soft)' },
-  } as const
-  const m = map[kind]
+  const color =
+    kind === 'tip'
+      ? 'var(--app-accent)'
+      : kind === 'warn'
+        ? 'var(--app-warning)'
+        : 'var(--app-border-strong)'
   return (
     <div
       style={{
-        display: 'flex',
-        gap: 10,
-        padding: '12px 14px',
-        borderRadius: 10,
+        borderLeft: `2px solid ${color}`,
         background: 'var(--app-surface-sunken)',
-        borderLeft: `3px solid ${m.color}`,
-        margin: '4px 0 4px',
+        borderRadius: 2,
+        padding: '10px 14px',
+        margin: '4px 0 16px',
       }}
     >
-      <span style={{ color: m.color, marginTop: 3, flexShrink: 0 }}>{m.icon}</span>
-      <div style={{ minWidth: 0 }}>
-        {title && (
-          <div style={{ fontWeight: 600, color: 'var(--app-ink)', marginBottom: 3 }}>{title}</div>
-        )}
-        <div style={{ color: 'var(--app-ink-soft)', lineHeight: 1.75 }}>{text}</div>
-      </div>
+      {title && (
+        <div style={{ fontWeight: 600, color: 'var(--app-ink)', marginBottom: 3, fontSize: 13 }}>
+          {title}
+        </div>
+      )}
+      <div style={{ color: 'var(--app-ink-soft)', fontSize: 14, lineHeight: 1.75 }}>{text}</div>
     </div>
   )
 }
@@ -68,13 +75,30 @@ function Blocks({ blocks }: { blocks: Block[] }) {
         switch (b.t) {
           case 'p':
             return (
-              <Paragraph key={i} style={{ marginBottom: 12, lineHeight: 1.85, color: 'var(--app-ink-soft)' }}>
+              <p
+                key={i}
+                style={{
+                  margin: '0 0 14px',
+                  fontSize: 16,
+                  lineHeight: 1.75,
+                  color: 'var(--app-ink)',
+                }}
+              >
                 {b.text}
-              </Paragraph>
+              </p>
             )
           case 'ul':
             return (
-              <ul key={i} style={{ margin: '0 0 14px', paddingLeft: 20, color: 'var(--app-ink-soft)', lineHeight: 1.85 }}>
+              <ul
+                key={i}
+                style={{
+                  margin: '0 0 14px',
+                  paddingLeft: 20,
+                  fontSize: 16,
+                  lineHeight: 1.75,
+                  color: 'var(--app-ink)',
+                }}
+              >
                 {b.items.map((x, j) => (
                   <li key={j} style={{ marginBottom: 5 }}>
                     {x}
@@ -84,7 +108,16 @@ function Blocks({ blocks }: { blocks: Block[] }) {
             )
           case 'ol':
             return (
-              <ol key={i} style={{ margin: '0 0 14px', paddingLeft: 20, color: 'var(--app-ink-soft)', lineHeight: 1.85 }}>
+              <ol
+                key={i}
+                style={{
+                  margin: '0 0 14px',
+                  paddingLeft: 20,
+                  fontSize: 16,
+                  lineHeight: 1.75,
+                  color: 'var(--app-ink)',
+                }}
+              >
                 {b.items.map((x, j) => (
                   <li key={j} style={{ marginBottom: 5 }}>
                     {x}
@@ -98,27 +131,33 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                 {b.items.map((x, j) => (
                   <li key={j} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
                     <span
+                      className="mono"
                       style={{
                         flexShrink: 0,
                         width: 22,
-                        height: 22,
-                        borderRadius: 999,
-                        background: 'var(--app-glaze-soft)',
-                        color: 'var(--app-glaze-text)',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginTop: 2,
+                        fontSize: 11,
+                        letterSpacing: '0.06em',
+                        color: 'var(--app-ink-faint)',
+                        marginTop: 4,
                       }}
                     >
-                      {j + 1}
+                      {String(j + 1).padStart(2, '0')}
                     </span>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, color: 'var(--app-ink)', marginBottom: 2 }}>{x.title}</div>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: 'var(--app-ink)',
+                          marginBottom: 2,
+                          fontSize: 14,
+                        }}
+                      >
+                        {x.title}
+                      </div>
                       {x.text && (
-                        <div style={{ color: 'var(--app-ink-soft)', lineHeight: 1.8 }}>{x.text}</div>
+                        <div style={{ color: 'var(--app-ink)', fontSize: 16, lineHeight: 1.75 }}>
+                          {x.text}
+                        </div>
                       )}
                     </div>
                   </li>
@@ -132,7 +171,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                   style={{
                     width: '100%',
                     borderCollapse: 'collapse',
-                    fontSize: 13.5,
+                    fontSize: 14,
                     minWidth: 520,
                   }}
                 >
@@ -141,12 +180,13 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                       {b.head.map((h) => (
                         <th
                           key={h}
+                          className="eyebrow"
                           style={{
                             textAlign: 'left',
-                            padding: '9px 12px',
+                            padding: '8px 12px',
                             background: 'var(--app-surface-sunken)',
                             color: 'var(--app-ink-soft)',
-                            fontWeight: 600,
+                            fontWeight: 500,
                             borderBottom: '1px solid var(--app-border)',
                             whiteSpace: 'nowrap',
                           }}
@@ -163,9 +203,9 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                           <td
                             key={c}
                             style={{
-                              padding: '9px 12px',
-                              borderBottom: '1px solid var(--app-border-soft)',
-                              color: 'var(--app-ink-soft)',
+                              padding: '8px 12px',
+                              borderBottom: '1px solid var(--app-rule)',
+                              color: 'var(--app-ink)',
                               lineHeight: 1.7,
                               verticalAlign: 'top',
                               // 速查表里有 60 字符长的接口地址，不允许断行会把整张表撑到
@@ -187,7 +227,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
             return <Note key={i} kind={b.kind} title={b.title} text={b.text} />
           case 'code':
             return (
-              <pre key={i} style={MONO}>
+              <pre key={i} style={CODE}>
                 {b.text}
               </pre>
             )
@@ -205,7 +245,9 @@ export default function HelpPage() {
   const t = useI18n()
   const lang = useAppStore((s) => s.settings.language ?? 'zh')
   const manual: Manual = lang === 'en' ? manualEn : manualZh
-  const [active, setActive] = useState(manual.chapters[0].id)
+  const [active, setActive] = useState(manual.chapters[0]?.id ?? '')
+  const screens = Grid.useBreakpoint()
+  const wide = !!screens.lg
 
   // 支持 #ch-xxx 直达：目录链接可以被收藏/分享给别人
   useEffect(() => {
@@ -240,99 +282,165 @@ export default function HelpPage() {
   }
 
   const toc = useMemo(
-    () =>
-      manual.chapters.map((c) => (
-        <a
-          key={c.id}
-          onClick={() => jump(c.id)}
-          style={{
-            display: 'block',
-            padding: '7px 12px',
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontSize: 13.5,
-            lineHeight: 1.5,
-            marginBottom: 2,
-            background: active === c.id ? 'var(--app-glaze-soft)' : 'transparent',
-            color: active === c.id ? 'var(--app-glaze-text)' : 'var(--app-ink-soft)',
-            fontWeight: active === c.id ? 600 : 400,
-          }}
-        >
-          {c.title}
-        </a>
-      )),
-    [manual, active],
+    () => (
+      <nav aria-label={t('help.toc')}>
+        {manual.chapters.map((c, i) => {
+          const isActive = active === c.id
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => jump(c.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 8,
+                width: '100%',
+                textAlign: 'left',
+                background: 'none',
+                border: 'none',
+                borderLeft: isActive
+                  ? '2px solid var(--app-accent)'
+                  : '2px solid transparent',
+                padding: '6px 0 6px 10px',
+                marginBottom: 2,
+                cursor: 'pointer',
+                font: 'inherit',
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: isActive ? 'var(--app-ink)' : 'var(--app-ink-soft)',
+                fontWeight: isActive ? 600 : 400,
+              }}
+            >
+              <span
+                className="mono"
+                style={{ fontSize: 11, color: 'var(--app-ink-faint)', flexShrink: 0 }}
+              >
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <span>{c.title}</span>
+            </button>
+          )
+        })}
+      </nav>
+    ),
+    [manual, active, t],
+  )
+
+  const tocTitle = (
+    <div className="eyebrow" style={{ marginBottom: 8 }}>
+      {t('help.toc')}
+    </div>
   )
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--app-canvas)' }}>
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 16px 64px' }}>
-        <Space style={{ marginBottom: 16 }} wrap>
-          <Tag color="var(--app-glaze)">{t('help.docBadge')}</Tag>
-          <Button onClick={() => navigate('/')} size="small">
-            {t('help.backHome')}
-          </Button>
-        </Space>
+      <div style={{ maxWidth: 1040, margin: '0 auto', padding: wide ? '40px 32px 72px' : '24px 16px 56px' }}>
+        {/* 页头：眉题 + 唯一 26px 标题 + 一行说明 */}
+        <header style={{ marginBottom: 32 }}>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>
+            {t('help.docBadge')}
+          </div>
+          <h1 className="serif page-title" style={{ margin: 0 }}>
+            {manual.title}
+          </h1>
+          <p className="page-lede" style={{ margin: '8px 0 0', maxWidth: 720 }}>
+            {manual.subtitle}
+          </p>
+          <div style={{ marginTop: 12 }}>
+            <button type="button" className="link-quiet" onClick={() => navigate('/')}>
+              {t('help.backHome')}
+            </button>
+          </div>
+          <div className="rule" style={{ marginTop: 20 }} />
+        </header>
 
-        <Title level={2} style={{ marginTop: 0, marginBottom: 6, fontSize: 26 }}>
-          {manual.title}
-        </Title>
-        <Paragraph style={{ color: 'var(--app-ink-soft)', fontSize: 15, maxWidth: 720, marginBottom: 24 }}>
-          {manual.subtitle}
-        </Paragraph>
+        <div
+          style={{
+            display: wide ? 'grid' : 'block',
+            gridTemplateColumns: wide ? '200px minmax(0, 1fr)' : undefined,
+            gap: wide ? 48 : 0,
+            alignItems: 'start',
+          }}
+        >
+          {/* 目录：桌面 sticky；移动折叠 */}
+          {wide ? (
+            <aside style={{ position: 'sticky', top: 24 }}>
+              {tocTitle}
+              {toc}
+            </aside>
+          ) : (
+            <details style={{ marginBottom: 24 }}>
+              <summary
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--app-ink)',
+                  padding: '8px 0',
+                  borderTop: '1px solid var(--app-rule)',
+                  borderBottom: '1px solid var(--app-rule)',
+                }}
+              >
+                {t('help.toc')}
+              </summary>
+              <div style={{ paddingTop: 8 }}>{toc}</div>
+            </details>
+          )}
 
-        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-          {/* 目录：桌面固定在左侧 */}
-          <nav
-            style={{
-              width: 240,
-              flexShrink: 0,
-              position: 'sticky',
-              top: 24,
-              display: 'block',
-            }}
-            className="manual-toc"
-          >
-            <div style={{ fontSize: 12, color: 'var(--app-ink-faint)', marginBottom: 8, letterSpacing: 0.4 }}>
-              {t('help.toc')}
-            </div>
-            {toc}
-          </nav>
-
-          <main style={{ flex: 1, minWidth: 0 }}>
-            {manual.chapters.map((c) => (
+          <main style={{ maxWidth: 720, minWidth: 0 }}>
+            {manual.chapters.map((c, ci) => (
               <section
                 key={c.id}
                 id={`ch-${c.id}`}
-                style={{ scrollMarginTop: 20, marginBottom: 12 }}
+                style={{ scrollMarginTop: 20, marginBottom: 40 }}
               >
-                <Card
-                  title={
-                    <span style={{ fontSize: 17, fontWeight: 600 }}>{c.title}</span>
-                  }
-                  style={{ marginBottom: 20, borderColor: 'var(--app-border-soft)' }}
-                  styles={{ body: { paddingTop: 8 } }}
+                <h2
+                  className="serif"
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 600,
+                    lineHeight: 1.4,
+                    margin: '0 0 16px',
+                    color: 'var(--app-ink)',
+                  }}
                 >
-                  {c.sections.map((s) => (
-                    <div key={s.id} style={{ marginBottom: 26 }}>
-                      <Title level={5} style={{ fontSize: 15, marginBottom: 10, marginTop: 4 }}>
-                        {s.title}
-                      </Title>
-                      <Blocks blocks={s.blocks} />
-                    </div>
-                  ))}
-                </Card>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--app-ink-faint)',
+                      marginRight: 8,
+                      letterSpacing: '0.06em',
+                    }}
+                  >
+                    {String(ci + 1).padStart(2, '0')}
+                  </span>
+                  {c.title}
+                </h2>
+                {c.sections.map((s) => (
+                  <div key={s.id} style={{ marginBottom: 28 }}>
+                    <h3
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        margin: '0 0 10px',
+                        color: 'var(--app-ink)',
+                      }}
+                    >
+                      {s.title}
+                    </h3>
+                    <Blocks blocks={s.blocks} />
+                  </div>
+                ))}
               </section>
             ))}
 
-            <Alert
-              type="info"
-              showIcon
-              icon={<CheckCircleOutlined />}
-              style={{ borderRadius: 10 }}
-              message={t('help.endTitle')}
-              description={t('help.endBody')}
-            />
+            {/* 文末：一行 12px 灰字，指向设置里的「关于与支持」（纯文字，不放码） */}
+            <div className="rule" style={{ margin: '8px 0 16px' }} />
+            <p className="faint" style={{ fontSize: 12, lineHeight: 1.8, margin: 0 }}>
+              {t('help.supportHint')} <SupportLink />
+            </p>
           </main>
         </div>
       </div>

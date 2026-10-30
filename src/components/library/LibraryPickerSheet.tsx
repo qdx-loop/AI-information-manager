@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Drawer, Empty } from 'antd'
-import { AppstoreOutlined, AppstoreAddOutlined, CheckOutlined } from '@ant-design/icons'
+import { Button, Drawer } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useLibraryStore } from '@/store/libraryStore'
 import type { Library } from '@/types'
@@ -20,6 +19,9 @@ import CreateLibraryDialog from './CreateLibraryDialog'
  *
  * 现在点开是这个底部抽屉：完整库树 + 当前库高亮 + 就地新建。
  * 「主目的地一个都不许藏」是当初引入底栏的理由，切库就不该再藏回抽屉里。
+ *
+ * 视觉：一行一个库（40px、只有横线），当前库 = 2px 朱砂左线 + wash 底，
+ * 不做圆角卡片、不做药丸、不放图标（库列表不需要图标）。
  */
 export default function LibraryPickerSheet({
   open,
@@ -85,7 +87,14 @@ export default function LibraryPickerSheet({
           Drawer 的 mask z-index 1000 > 底栏 880，会把底栏盖住 —— 那等于底栏又失效了，
           而底栏存在的理由就是「主目的地一个都不许藏」。面板本身压到 870，
           让底栏（880）始终可点。 */}
-      {open && <div className="libpicker-catcher" onClick={onClose} aria-hidden />}
+      {open && (
+        <div
+          className="libpicker-catcher"
+          onClick={onClose}
+          aria-hidden
+          style={{ position: 'fixed', inset: 0, zIndex: 869, background: 'var(--app-overlay)' }}
+        />
+      )}
       <Drawer
         placement="bottom"
         open={open}
@@ -97,26 +106,19 @@ export default function LibraryPickerSheet({
         styles={{ body: { padding: 12 }, wrapper: { zIndex: 870 } }}
       >
         {libraries.length === 0 ? (
-          <Empty description={t('home.empty')} style={{ marginTop: 40 }}>
-            <Button type="primary" icon={<AppstoreAddOutlined />} onClick={() => setCreating(true)}>
-              {t('home.createFirst')}
-            </Button>
-          </Empty>
+          <div className="empty-state" style={{ padding: '40px 12px', textAlign: 'center' }}>
+            <div className="empty-state-title">{t('home.empty')}</div>
+            <div className="empty-state-actions" style={{ justifyContent: 'center' }}>
+              <Button type="primary" onClick={() => setCreating(true)}>
+                {t('home.createFirst')}
+              </Button>
+            </div>
+          </div>
         ) : (
           <>
             {groups.map(([cat, rows]) => (
-              <div key={cat} style={{ marginBottom: 14 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    letterSpacing: 1,
-                    color: 'var(--app-muted, #6b7280)',
-                    padding: '4px 6px 6px',
-                  }}
-                >
-                  {cat}
-                </div>
+              <div key={cat} style={{ marginBottom: 12 }}>
+                <div className="eyebrow" style={{ padding: '4px 6px 6px' }}>{cat}</div>
                 {rows.map(({ lib, depth }) => {
                   const on = currentLibraryId === lib.id || location.pathname === `/library/${lib.id}`
                   return (
@@ -130,31 +132,39 @@ export default function LibraryPickerSheet({
                         alignItems: 'center',
                         gap: 10,
                         width: '100%',
-                        minHeight: 48,
-                        padding: `6px 10px 6px ${10 + depth * 16}px`,
-                        marginBottom: 4,
-                        border: `1px solid ${on ? 'var(--app-glaze, #0f766e)' : 'var(--app-border-soft, #e5e7eb)'}`,
-                        borderRadius: 10,
-                        background: on ? 'color-mix(in srgb, var(--app-glaze, #0f766e) 10%, transparent)' : 'transparent',
+                        minHeight: 40,
+                        padding: `4px 10px 4px ${10 + depth * 16}px`,
+                        margin: 0,
+                        // 账页行：只有横线，选中用 2px 朱砂左线 + wash 底，不做整行反白
+                        border: 0,
+                        borderBottom: '1px solid var(--app-rule)',
+                        borderLeft: on ? '2px solid var(--app-accent)' : '2px solid transparent',
+                        borderRadius: 0,
+                        background: on ? 'var(--app-accent-wash)' : 'transparent',
                         font: 'inherit',
                         textAlign: 'left',
                         cursor: 'pointer',
+                        color: 'inherit',
                       }}
                     >
-                      <AppstoreOutlined style={{ color: 'var(--app-glaze, #0f766e)' }} />
-                      <span style={{ flex: 1, fontSize: 15 }}>{lib.name}</span>
-                      {on && <CheckOutlined style={{ color: 'var(--app-glaze, #0f766e)' }} />}
+                      <span
+                        style={{
+                          flex: 1,
+                          fontSize: 'var(--text-base)',
+                          fontWeight: on ? 600 : 400,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {lib.name}
+                      </span>
                     </button>
                   )
                 })}
               </div>
             ))}
-            <Button
-              block
-              icon={<AppstoreAddOutlined />}
-              onClick={() => setCreating(true)}
-              style={{ marginTop: 4, height: 46 }}
-            >
+            <Button type="primary" block onClick={() => setCreating(true)} style={{ marginTop: 4 }}>
               {t('app.newLibrary')}
             </Button>
           </>

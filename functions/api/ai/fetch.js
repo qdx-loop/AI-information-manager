@@ -1,10 +1,14 @@
 // POST /api/ai/fetch — 服务端抓网页：返回清洗后的正文文本（供 AI 工具使用）
-// 仅登录买家可用；拒绝内网地址防 SSRF。
-import { json, errorJson, requireUser } from '../../lib/_auth'
+// 仅登录买家可用；拒绝内网地址防 SSRF；按账号限速防止被当成免费通用抓取代理。
+import { json, errorJson, requireUser, checkWindowCount } from '../../lib/_auth'
 import { isFetchableUrl } from '../../lib/ssrf'
 
 const MAX_BYTES = 300 * 1024
 const MAX_CHARS = 16000
+// 每账号每小时最多抓 60 次（可用 FETCH_RATE_MAX / FETCH_RATE_WINDOW_MS 调整）。
+// 不加限速时任一注册用户都能把它当匿名出站代理用（审计 P2-1/§4.6）。
+const FETCH_MAX = 60
+const FETCH_WINDOW_MS = 60 * 60_000
 
 // 手动跟随重定向并逐跳重新校验目标，防止「公网页 302 到内网」的 SSRF 绕过
 async function safeFetch(rawUrl, init, maxRedirects = 5) {
@@ -50,8 +54,16 @@ function htmlToText(html) {
 }
 
 export async function onRequestPost({ request, env }) {
-  const { error } = await requireUser(request, env)
+  const { account, error } = await requireUser(request, env)
   if (error) return error
+
+  // 限速放在任何出站请求之前：被挡的请求不产生外发流量，也不消耗上游带宽
+  const maxCount = Number(env.FETCH_RATE_MAX) > 0 ? Number(env.FETCH_RATE_MAX) : FETCH_MAX
+  const windowMs = Number(env.FETCH_RATE_WINDOW_MS) > 0 ? Number(env.FETCH_RATE_WINDOW_MS) : FETCH_WINDOW_MS
+  const limit = await checkWindowCount(env, `fetch:${account.id}`, maxCount, windowMs)
+  if (!limit.allowed) {
+    return errorJson(`网页抓取过于频繁，请约 ${limit.waitMin} 分钟后再试`, 429, 'RATE_LIMITED')
+  }
 
   let body
   try {
@@ -99,6 +111,14 @@ export async function onRequestPost({ request, env }) {
   const ct = upstream.headers.get('content-type') || ''
   if (!ct.includes('text/html') && !ct.includes('text/plain') && !ct.includes('application/json')) {
     return errorJson('目标不是网页/文本/JSON', 415, 'BAD_TYPE')
+  }
+
+  // 先看 Content-Length：恶意目标可以流式返回超大 body，等 arrayBuffer() 读完再判
+  // 就已经把整包读进 Workers 内存（128MB 上限）→ 内存 DoS。这里仍然保留下面的
+  // arrayBuffer 后校验作为兜底（chunked 响应可能没有 Content-Length）。
+  const declaredLen = Number(upstream.headers.get('content-length'))
+  if (Number.isFinite(declaredLen) && declaredLen > MAX_BYTES) {
+    return errorJson(`内容过大（>${MAX_BYTES / 1024}KB）`, 413, 'TOO_LARGE')
   }
 
   const buf = await upstream.arrayBuffer()

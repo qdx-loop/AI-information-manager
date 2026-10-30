@@ -1,11 +1,5 @@
 import { Tooltip } from 'antd'
-import {
-  PhoneOutlined,
-  MailOutlined,
-  LinkOutlined,
-  CheckCircleFilled,
-  StopOutlined,
-} from '@ant-design/icons'
+import { PhoneOutlined, MailOutlined, LinkOutlined } from '@ant-design/icons'
 import type { FieldDef, FieldValue } from '@/types'
 import { isAndroidApp } from '@/utils/platform'
 import { tNow } from '@/i18n'
@@ -30,9 +24,10 @@ export function detectSmartLink(value: string): SmartLink | null {
   return null
 }
 
+// 只保留线性（Outlined）图标：Filled/TwoTone 是「AI 味」的第二来源（01-ui-research §H）
 const ICONS = { phone: <PhoneOutlined />, mail: <MailOutlined />, link: <LinkOutlined /> }
 
-const DASH = <span style={{ color: 'var(--app-ink-faint)' }}>-</span>
+const DASH = <span className="faint">-</span>
 
 /** 空值统一占位，避免表格里出现一片空白 */
 function isEmpty(v: FieldValue): boolean {
@@ -46,13 +41,17 @@ function isEmpty(v: FieldValue): boolean {
  * 于是 checkbox 列在中文界面里直接显示 true / false，rating 显示裸数字。
  * 现在先按字段类型渲染（复选→是/否、评分→星级、日期→格式化），
  * 文本类再走链接识别，桌面表格 / 移动卡片 / 条目标题三处口径统一。
+ *
+ * 账页语言：所有数字/日期/ID 走 `.mono num`（等宽 + tabular-nums），
+ * 纵向扫读时数位不跳；状态不再用彩色图标（原来 是/否 用的 CheckCircleFilled
+ * 是 Filled 图标，且绿色会引入第三种色相），改为文字 + 墨阶。
  */
 export default function SmartValue({ field, value }: { field: FieldDef; value: FieldValue }) {
   if (field.type === 'checkbox') {
     if (isEmpty(value)) return DASH
     return (
-      <span style={{ color: value ? 'var(--app-glaze)' : 'var(--app-ink-faint)' }}>
-        {value ? <CheckCircleFilled /> : <StopOutlined />} {value ? tNow('field.yes') : tNow('field.no')}
+      <span className={value ? undefined : 'faint'} style={{ color: value ? 'var(--app-ink)' : undefined }}>
+        {value ? tNow('field.yes') : tNow('field.no')}
       </span>
     )
   }
@@ -60,18 +59,19 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
   if (field.type === 'rating') {
     if (isEmpty(value)) return DASH
     const n = Math.max(0, Math.min(5, Number(value) || 0))
-    if (n === 0) return <span style={{ color: 'var(--app-ink-faint)' }}>{tNow('field.no')}</span>
+    if (n === 0) return <span className="faint">{tNow('field.no')}</span>
+    // ★ 是账簿里的「钉」不是 emoji；填满的星走朱砂，空星走 faint
     return (
-      <span className="num" style={{ color: 'var(--app-kiln)', letterSpacing: 1 }}>
+      <span className="mono num" style={{ color: 'var(--app-accent)', letterSpacing: 1 }}>
         {'★'.repeat(n)}
-        <span style={{ color: 'var(--app-ink-faint)' }}>{'★'.repeat(5 - n)}</span>
+        <span className="faint">{'★'.repeat(5 - n)}</span>
       </span>
     )
   }
 
   if (field.type === 'date') {
     if (isEmpty(value)) return DASH
-    return <span className="num">{String(value)}</span>
+    return <span className="mono num">{String(value)}</span>
   }
 
   if (isEmpty(value)) return DASH
@@ -106,7 +106,7 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
 
   const num = field.type === 'number'
   return (
-    <span className={num ? 'num' : undefined} style={{ wordBreak: 'break-all' }}>
+    <span className={num ? 'mono num' : undefined} style={{ wordBreak: 'break-all' }}>
       {str}
     </span>
   )

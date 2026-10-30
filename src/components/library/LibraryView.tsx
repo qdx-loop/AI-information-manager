@@ -10,32 +10,8 @@ function useDebounced<T>(value: T, delay = 250): T {
   return debounced
 }
 import { useParams, useNavigate } from 'react-router-dom'
-import {
-  Button,
-  Input,
-  Select,
-  Space,
-  Card,
-  Typography,
-
-  App,
-  Empty,
-  Switch,
-  Modal,
-  Dropdown,
-  Grid,
-} from 'antd'
-import {
-  PlusOutlined,
-  SearchOutlined,
-  SettingOutlined,
-  ImportOutlined,
-  CopyOutlined,
-  MoreOutlined,
-  FileTextOutlined,
-  FileExcelOutlined,
-  FolderOpenOutlined,
-} from '@ant-design/icons'
+import { Button, Input, Select, App, Modal, Dropdown, Grid } from 'antd'
+import type { MenuProps } from 'antd'
 import { useLibraryStore } from '@/store/libraryStore'
 import LibraryTable from './LibraryTable'
 import ItemEditor from './ItemEditor'
@@ -48,12 +24,31 @@ import { track } from '@/utils/track'
 import { useBackButtonLayer } from '@/utils/backButton'
 import { isBlankFieldValue } from '@/utils/fieldValue'
 import PageSkeleton from '@/components/common/PageSkeleton'
+import { usePagePadding } from './pageFrame'
 
-const { Title, Text } = Typography
+/**
+ * 空状态：一句话（衬线 20）+ 说明 + 一个动作。
+ * 结构照 Lead 给的 `.empty-state / -title / -body / -actions`，
+ * 不再用 antd <Empty> 的自带插画（那是模板脸，也是一张图占半屏）。
+ */
+function EmptyBlock({ title, body, actions }: { title: React.ReactNode; body?: React.ReactNode; actions?: React.ReactNode }) {
+  return (
+    <div className="empty-state" style={{ padding: '48px 16px', textAlign: 'center' }}>
+      <div className="empty-state-title">{title}</div>
+      {body ? (
+        <div className="empty-state-body" style={{ maxWidth: 440, margin: '6px auto 0' }}>{body}</div>
+      ) : null}
+      {actions ? (
+        <div className="empty-state-actions" style={{ justifyContent: 'center' }}>{actions}</div>
+      ) : null}
+    </div>
+  )
+}
 
 export default function LibraryView() {
   const { id } = useParams()
   const { message, modal } = App.useApp()
+  const pad = usePagePadding()
   const narrow = !Grid.useBreakpoint().md
   const ioRef = useRef<ImportExportHandle>(null)
   const {
@@ -143,6 +138,14 @@ export default function LibraryView() {
   }, [items, keyword, filterField, filterValue, sortField, sortDesc])
 
   const visibleFields = fields.filter((f) => f.visible)
+  const hasFilters = Boolean(keywordInput || filterField || sortField)
+
+  const clearFilters = () => {
+    setKeywordInput('')
+    setFilterField('')
+    setFilterValue('')
+    setSortField('')
+  }
 
   const handleNew = () => {
     if (fields.length === 0) {
@@ -204,7 +207,7 @@ export default function LibraryView() {
    *
    * 刻意不弹成功 toast：连续录入时 toast 会盖住正在编辑的单元格。
    *
-   * 但必填校验不能省。条目弹窗里有 `rules={[{required:true}]`，
+   * 但必填校验不能省。条目弹窗里有 `rules={[{required:true}]}`，
    * 而这条内联路径直接落库，于是同一份数据有两个入口两套规则：
    * 用户可以在表格里把「客户名称」清空并保存，弹窗却不让这么干。
    * 清空之后表格里那一格显示「（无内容）」，而库模板要求的字段没了。
@@ -212,9 +215,11 @@ export default function LibraryView() {
   const handlePatch = async (item: Item, nextFields: Item['fields']) => {
     const missing = fields.filter((f) => f.required && isBlankFieldValue(nextFields[f.key]))
     if (missing.length > 0) {
-      message.error(t('lib.patch.requiredMissing', { names: missing.map((f) => f.label).join('、') }))
-      // 抛出去让 LibraryTable 留在编辑态：用户能看到没保存成，并能改回来
-      throw new Error('required-field-missing')
+      const msg = t('lib.patch.requiredMissing', { names: missing.map((f) => f.label).join('、') })
+      message.error(msg)
+      // 抛出去让 LibraryTable 留在编辑态：用户能看到没保存成，并能改回来。
+      // 文案带上原因，表格里才有「错误文字」可显示（原来只抛一个 sentinel）。
+      throw new Error(msg)
     }
     await updateItem({ ...item, fields: nextFields })
   }
@@ -272,6 +277,15 @@ export default function LibraryView() {
     message.success(t('lib.clone.done', { n: cloneTargets.length }))
   }
 
+  // 导出菜单：文字项，无图标（工具栏图标只做辅助，文字优先）
+  const exportMenu: MenuProps = {
+    items: [
+      { key: 'csv', label: t('lib.importExport.exportCsv') },
+      { key: 'excel', label: t('lib.importExport.exportExcel') },
+    ],
+    onClick: ({ key }) => ioRef.current?.exportAs(key as 'csv' | 'excel'),
+  }
+
   useBackButtonLayer(editorOpen, () => setEditorOpen(false))
   useBackButtonLayer(templateOpen, () => setTemplateOpen(false))
   useBackButtonLayer(cloneOpen, () => setCloneOpen(false))
@@ -280,7 +294,7 @@ export default function LibraryView() {
   // 整个表格区域塌成一行文字，然后又整块跳出来，页面高度还会二次抖动。
   if (loading) {
     return (
-      <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
+      <div style={{ ...pad, height: '100%' }}>
         <PageSkeleton rows={8} />
       </div>
     )
@@ -290,85 +304,137 @@ export default function LibraryView() {
   // 库不存在/已删除：只给「回到首页 / 去回收站」两个出口，不提供任何写入口
   if (libMissing) {
     return (
-      <div style={{ padding: '48px 16px' }}>
-        <Card>
-          <Empty
-            image={<FolderOpenOutlined style={{ fontSize: 44, color: 'var(--app-ink-faint)' }} />}
-            description={
-              <div style={{ maxWidth: 400, margin: '0 auto' }}>
-                <div style={{ fontWeight: 600, color: 'var(--app-ink)', marginBottom: 6 }}>
-                  {t('lib.missing.title')}
-                </div>
-                <div style={{ color: 'var(--app-ink-soft)', lineHeight: 1.75, marginBottom: 16 }}>
-                  {t('lib.missing.body')}
-                </div>
-                <Space>
-                  <Button type="primary" onClick={() => navigate('/')}>
-                    {t('lib.missing.backHome')}
-                  </Button>
-                  <Button onClick={() => navigate('/trash')}>{t('lib.missing.toTrash')}</Button>
-                </Space>
-              </div>
-            }
-          />
-        </Card>
+      <div style={{ ...pad }}>
+        <EmptyBlock
+          title={t('lib.missing.title')}
+          body={t('lib.missing.body')}
+          actions={
+            <>
+              <Button type="primary" onClick={() => navigate('/')}>
+                {t('lib.missing.backHome')}
+              </Button>
+              <Button onClick={() => navigate('/trash')}>{t('lib.missing.toTrash')}</Button>
+            </>
+          }
+        />
       </div>
     )
   }
 
   return (
-    <div style={{ padding: 16, height: '100%' }}>
-      {/* 页面头：不再套一层 Card。原来的「卡片里再套卡片」让界面多出两层边框，
-          研究结论是「需要描边的话，多半是需要更多留白」——用留白分层即可。 */}
+    <div style={{ ...pad, height: '100%' }}>
+      {/* 页面头：26px 衬线标题是每页唯一的大标题；右侧 12px mono 计数。
+          不套 Card——「卡片里再套卡片」会让界面多出两层边框，
+          研究结论是「需要描边的话，多半是需要更多留白」。 */}
       <div
         style={{
           display: 'flex',
+          alignItems: 'baseline',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
           gap: 12,
-          marginBottom: 16,
+          minHeight: 40,
+          marginBottom: 8,
+          flexWrap: 'wrap',
         }}
       >
-        <Space wrap size={8} style={{ minWidth: 0 }}>
-          <Title level={4} style={{ margin: 0, fontSize: 19, letterSpacing: '-0.01em' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, minWidth: 0, flexWrap: 'wrap' }}>
+          <h1
+            className="page-title"
+            title={lib?.name ?? t('lib.untitled')}
+            style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
             {lib?.name ?? t('lib.untitled')}
-          </Title>
-          {lib?.category && (
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              {lib.category}
-            </Text>
-          )}
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            {t('lib.total', { n: items.length })}
-          </Text>
-        </Space>
+          </h1>
+          {lib?.category && <span className="eyebrow">{lib.category}</span>}
+          <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>
+            <span className="mono num">{items.length}</span> {t('lib.count.unit')}
+          </span>
+        </div>
+      </div>
 
-        {/* 「新建」是这页唯一的主操作。桌面端把工具按钮平铺（便于发现），
-            窄屏收进一个「⋯」，避免五个按钮在手机上折成三行、挤掉数据区。
-            对应飞书多维表格「搭建与使用分离」：设置项不与主流程并排争夺注意力。 */}
-        <Space size={8} wrap>
-          {/* 「新建」是这页唯一的主操作，其余工具一律降级为文字项——
-              五个等权重图标按钮排排坐是后台模板的指纹（去 AI 味）。
-              对应飞书多维表格「搭建与使用分离」：设置项不与主流程并排争夺注意力。 */}
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
-            {t('lib.new')}
-          </Button>
+      {/* 工具栏压成一行 32px：左筛选/排序，右模板/复用/导入/导出/新建。
+          行为与原来完全一致（搜索防抖、筛选、排序、复用、导入导出入口）。 */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          minHeight: 32,
+          marginBottom: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: '1 1 auto', minWidth: 0 }}>
+          {/* 还没有字段时，搜索/筛选/排序全是无效控件（选项为空），只留空状态引导去配模板 */}
+          {fields.length > 0 && (
+            <>
+              <Input
+                placeholder={t('lib.searchPlaceholder')}
+                allowClear
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                style={{ width: 200, flex: '0 1 200px' }}
+              />
+              <Select
+                placeholder={t('lib.filterField')}
+                value={filterField || undefined}
+                onChange={(v) => setFilterField(v ?? '')}
+                allowClear
+                style={{ width: 132 }}
+                options={visibleFields.map((f) => ({ label: f.label, value: f.key }))}
+              />
+              {filterField && (
+                <Input
+                  placeholder={t('lib.filterValue')}
+                  allowClear
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                  style={{ width: 132 }}
+                />
+              )}
+              <Select
+                placeholder={t('lib.sort')}
+                value={sortField || undefined}
+                onChange={(v) => setSortField(v ?? '')}
+                allowClear
+                style={{ width: 132 }}
+                options={visibleFields.map((f) => ({ label: f.label, value: f.key }))}
+              />
+              {sortField && (
+                // 方向用文字按钮而不是 Switch：账页上不做彩色开关，升/降序写出来更清楚
+                <Button type="text" size="small" onClick={() => setSortDesc((v) => !v)}>
+                  {sortDesc ? t('lib.desc') : t('lib.asc')}
+                </Button>
+              )}
+              {hasFilters && (
+                <Button type="text" size="small" onClick={clearFilters}>{t('lib.clear')}</Button>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* 「新建」是这页唯一的主操作，墨色实心；其余工具一律降级为文字项——
+            五个等权重图标按钮排排坐是后台模板的指纹。
+            窄屏收进一个「⋯」，避免按钮在手机上折成三行、挤掉数据区。 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {narrow ? (
             <Dropdown
               trigger={['click']}
               menu={{
                 items: [
-                  { key: 'tpl', icon: <SettingOutlined />, label: t('lib.menu.template'), onClick: () => setTemplateOpen(true) },
-                  { key: 'clone', icon: <CopyOutlined />, label: t('lib.menu.clone'), disabled: fields.length === 0, onClick: handleClone },
+                  { key: 'tpl', label: t('lib.menu.template'), onClick: () => setTemplateOpen(true) },
+                  { key: 'clone', label: t('lib.menu.clone'), disabled: fields.length === 0, onClick: handleClone },
                   { type: 'divider' },
-                  { key: 'imp', icon: <ImportOutlined />, label: t('lib.menu.import'), onClick: () => ioRef.current?.openImport() },
-                  { key: 'csv', icon: <FileTextOutlined />, label: t('lib.menu.exportCsv'), onClick: () => ioRef.current?.exportAs('csv') },
-                  { key: 'xls', icon: <FileExcelOutlined />, label: t('lib.menu.exportExcel'), onClick: () => ioRef.current?.exportAs('excel') },
+                  { key: 'imp', label: t('lib.menu.import'), onClick: () => ioRef.current?.openImport() },
+                  { key: 'csv', label: t('lib.menu.exportCsv'), onClick: () => ioRef.current?.exportAs('csv') },
+                  { key: 'xls', label: t('lib.menu.exportExcel'), onClick: () => ioRef.current?.exportAs('excel') },
                 ],
               }}
             >
-              <Button icon={<MoreOutlined />} aria-label={t('lib.menu.more')} className="tap" />
+              <Button aria-label={t('lib.menu.more')} className="tap">
+                {t('lib.menu.more')}
+              </Button>
             </Dropdown>
           ) : (
             <>
@@ -378,149 +444,85 @@ export default function LibraryView() {
               <Button type="text" onClick={handleClone} disabled={fields.length === 0}>
                 {t('lib.clone')}
               </Button>
-              <ImportExport ref={ioRef} fields={fields} items={items} onImport={handleImport} />
+              <Button type="text" onClick={() => ioRef.current?.openImport()}>
+                {t('lib.importExport.import')}
+              </Button>
+              <Dropdown menu={exportMenu}>
+                <Button type="text">{t('lib.importExport.export')}</Button>
+              </Dropdown>
             </>
           )}
-          {/* 窄屏把工具收进「⋯」菜单，但 ImportExport 必须始终挂载：
-              菜单里的导入 / 导出 CSV / 导出 Excel 通过 ioRef 命令式触发该实例的
-              上传框与 Blob 下载，卸载后 ref 为 null，菜单会静默失效。 */}
-          {narrow && (
-            <div hidden>
-              <ImportExport ref={ioRef} fields={fields} items={items} onImport={handleImport} />
-            </div>
-          )}
-        </Space>
-      </div>
-
-      <Card styles={{ body: { padding: 12 } }}>
-        {/* 还没有字段时，搜索/筛选/排序全是无效控件（选项为空），只留空状态引导去配模板 */}
-        {fields.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-          <Input
-            prefix={<SearchOutlined />}
-            placeholder={t('lib.searchPlaceholder')}
-            allowClear
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            style={{ width: '100%', marginBottom: 4 }}
-          />
-          <Select
-            placeholder={t('lib.filterField')}
-            value={filterField || undefined}
-            onChange={(v) => setFilterField(v ?? '')}
-            allowClear
-            style={{ width: 170 }}
-            options={visibleFields.map((f) => ({ label: f.label, value: f.key }))}
-          />
-          {filterField && (
-            <Input
-              placeholder={t('lib.filterValue')}
-              allowClear
-              value={filterValue}
-              onChange={(e) => setFilterValue(e.target.value)}
-              style={{ width: 170 }}
-            />
-          )}
-          <Select
-            placeholder={t('lib.sort')}
-            value={sortField || undefined}
-            onChange={(v) => setSortField(v ?? '')}
-            allowClear
-            style={{ width: 170 }}
-            options={visibleFields.map((f) => ({ label: f.label, value: f.key }))}
-          />
-          {sortField && (
-            <Switch
-              checkedChildren={t('lib.desc')}
-              unCheckedChildren={t('lib.asc')}
-              checked={sortDesc}
-              onChange={setSortDesc}
-            />
-          )}
-          <Button type="link" onClick={() => { setKeywordInput(''); setFilterField(''); setFilterValue(''); setSortField('') }}>{t('lib.clear')}
+          <Button type="primary" onClick={handleNew}>
+            {t('lib.new')}
           </Button>
         </div>
-        )}
+      </div>
 
-        {processed.length === 0 ? (
-          <div style={{ padding: '32px 16px 40px' }}>
-            {items.length === 0 && fields.length === 0 ? (
-              // 一个字段都没有时，「新建条目」是无效动作——先去配模板
-              <Empty
-                image={<SettingOutlined style={{ fontSize: 44, color: 'var(--app-ink-faint)' }} />}
-                description={
-                  <span style={{ display: 'block', maxWidth: 380, margin: '0 auto' }}>
-                    <span style={{ display: 'block', fontWeight: 600, marginBottom: 6, color: 'var(--ant-color-text)' }}>
-                      {t('lib.empty.noFields.title')}
-                    </span>
-                    {t('lib.empty.noFields.body')}
-                  </span>
-                }
-              >
-                <Button type="primary" icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>
+      {/* ImportExport 必须始终挂载：桌面按钮与窄屏「⋯」菜单都通过 ioRef
+          命令式触发该实例的上传框 / Blob 下载；卸载后 ref 为 null，入口会静默失效。
+          所以它的两个可见按钮藏起来，只保留 hidden 常驻实例。 */}
+      <div hidden>
+        <ImportExport ref={ioRef} fields={fields} items={items} onImport={handleImport} />
+      </div>
+
+      {processed.length === 0 ? (
+        <div>
+          {items.length === 0 && fields.length === 0 ? (
+            // 一个字段都没有时，「新建条目」是无效动作——先去配模板
+            <EmptyBlock
+              title={t('lib.empty.noFields.title')}
+              body={t('lib.empty.noFields.body')}
+              actions={
+                <Button type="primary" onClick={() => setTemplateOpen(true)}>
                   {t('lib.empty.noFields.cta')}
                 </Button>
-              </Empty>
-            ) : items.length === 0 ? (
-              // 首次使用：空状态是这里最好的新手引导位，要说清「这里将来会放什么」
-              <Empty
-                image={<PlusOutlined style={{ fontSize: 44, color: 'var(--app-ink-faint)' }} />}
-                description={
-                  <span style={{ display: 'block', maxWidth: 400, margin: '0 auto' }}>
-                    <span style={{ display: 'block', fontWeight: 600, marginBottom: 6, color: 'var(--ant-color-text)' }}>
-                      {t('lib.empty.none.title')}
-                    </span>
-                    {t('lib.empty.none.body', { name: lib?.name ?? t('lib.untitled') })}
-                  </span>
-                }
-              >
-                <Space direction="vertical" size={10} style={{ alignItems: 'center' }}>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
-                    {t('lib.empty.cta')}
-                  </Button>
-                  <Text type="secondary" style={{ fontSize: 12.5 }}>
+              }
+            />
+          ) : items.length === 0 ? (
+            // 首次使用：空状态是这里最好的新手引导位，要说清「这里将来会放什么」
+            <EmptyBlock
+              title={t('lib.empty.none.title')}
+              body={
+                <>
+                  {t('lib.empty.none.body', { name: lib?.name ?? t('lib.untitled') })}
+                  <div className="faint" style={{ fontSize: 'var(--text-xs)', marginTop: 6 }}>
                     {t('lib.empty.none.hint')}
-                  </Text>
-                </Space>
-              </Empty>
-            ) : (
-              // 筛选无结果：给出退路，而不是死路
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  <span style={{ display: 'block', maxWidth: 380, margin: '0 auto' }}>
-                    <span style={{ display: 'block', fontWeight: 600, marginBottom: 6, color: 'var(--ant-color-text)' }}>
-                      {t('lib.empty.noMatch.title')}
-                    </span>
-                    {t('lib.empty.noMatch.body')}
+                  </div>
+                </>
+              }
+              actions={
+                <Button type="primary" onClick={handleNew}>
+                  {t('lib.empty.cta')}
+                </Button>
+              }
+            />
+          ) : (
+            // 筛选无结果：给出退路，而不是死路
+            <EmptyBlock
+              title={t('lib.empty.noMatch.title')}
+              body={t('lib.empty.noMatch.body')}
+              actions={
+                <>
+                  <Button onClick={clearFilters}>{t('lib.clear')}</Button>
+                  <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>
+                    <span className="mono num">{items.length}</span> {t('lib.count.unit')}
                   </span>
-                }
-              >
-                <Space direction="vertical" size={10} style={{ alignItems: 'center' }}>
-                  <Button
-                    onClick={() => { setKeywordInput(''); setFilterField(''); setFilterValue(''); setSortField('') }}
-                  >
-                    {t('lib.clear')}
-                  </Button>
-                  <Text type="secondary" style={{ fontSize: 12.5 }}>
-                    {t('lib.total', { n: items.length })}
-                  </Text>
-                </Space>
-              </Empty>
-            )}
-          </div>
-        ) : (
-          <LibraryTable
-            fields={fields}
-            items={processed}
-            focusItemId={focusItemId}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onPin={(item, pinned) => pinItem(item.id, pinned)}
-            onPatch={handlePatch}
-          />
-        )}
-      </Card>
+                </>
+              }
+            />
+          )}
+        </div>
+      ) : (
+        <LibraryTable
+          fields={fields}
+          items={processed}
+          focusItemId={focusItemId}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onPin={(item, pinned) => pinItem(item.id, pinned)}
+          onPatch={handlePatch}
+        />
+      )}
 
       <ItemEditor
         open={editorOpen}
@@ -531,6 +533,13 @@ export default function LibraryView() {
           setEditing(null)
         }}
         onSave={handleSave}
+        onDelete={(it) => {
+          // 编辑器里的「删除」走同一条二次确认路径；先收起编辑器，
+          // 避免确认框关掉后还留着一个已不存在的条目表单
+          setEditorOpen(false)
+          setEditing(null)
+          handleDelete(it)
+        }}
       />
       <TemplateEditor
         open={templateOpen}
@@ -550,7 +559,7 @@ export default function LibraryView() {
         onCancel={() => setCloneOpen(false)}
         onOk={confirmClone}
       >
-        <p style={{ color: 'var(--ant-color-text-secondary)', marginBottom: 12 }}>{t('lib.clone.pick')}</p>
+        <p className="muted" style={{ marginBottom: 12 }}>{t('lib.clone.pick')}</p>
         <Select
           mode="multiple"
           placeholder={t('lib.clone.placeholder')}

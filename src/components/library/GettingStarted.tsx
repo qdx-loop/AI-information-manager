@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Card, Button, Space, App, Grid } from 'antd'
+import { Button, App, Grid } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useLibraryStore } from '@/store/libraryStore'
 import { createDemoLibrary } from '@/utils/demoData'
 import { isObStepDone, isObDismissed, dismissOb } from '@/utils/onboarding'
 import { useI18n } from '@/i18n'
+import SupportNudge from '@/components/reward/SupportNudge'
 import TemplateCenter from './TemplateCenter'
 
 // 新手任务清单：按真实激活里程碑打勾（建库 / 录数据 / 用 AI / 设提醒），
-// 带进度条与快捷操作，全部完成或手动关闭后不再打扰。
+// 带进度与快捷操作，全部完成或手动关闭后不再打扰。
+//
+// 视觉：一张「账目清单」——mono 编号 + 一行一项 + 完成划线，
+// 没有卡片、没有对勾图标、没有进度条。数字 3/4 已经说明进度，
+// 条形图在这里只有装饰价值（01-ui-research §F5 同款判断）。
 export default function GettingStarted() {
   const { message } = App.useApp()
   const navigate = useNavigate()
@@ -81,14 +86,14 @@ export default function GettingStarted() {
   const actionFor = (key: string) => {
     if (key === 'lib')
       return (
-        <Space size={4} wrap>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
           <Button size="small" type="primary" loading={demoLoading} onClick={handleDemo}>
             {t('ob.act.demo')}
           </Button>
           <Button size="small" type="text" onClick={() => setTplOpen(true)}>
             {t('ob.act.tpl')}
           </Button>
-        </Space>
+        </div>
       )
     if (key === 'item' && hasLib)
       return (
@@ -106,46 +111,53 @@ export default function GettingStarted() {
   }
 
   return (
-    <Card
-      size="small"
-      style={{ marginBottom: 18, borderColor: 'var(--app-border-soft)' }}
-      title={
-        <span style={{ fontSize: 13, fontWeight: 600 }}>
-          {t('ob.title')}
-          <span
-            style={{
-              fontFamily: 'var(--app-mono)',
-              fontSize: 12,
-              fontWeight: 400,
-              color: 'var(--app-ink-faint)',
-              marginLeft: 10,
-            }}
-          >
+    <section aria-labelledby="ob-title" style={{ marginBottom: 32 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          gap: 12,
+          minHeight: 40,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+          <h2 id="ob-title" className="page-title-sm">{t('ob.title')}</h2>
+          {/* 进度用等宽数字，不做进度条 */}
+          <span className="mono num faint" style={{ fontSize: 'var(--text-xs)' }}>
             {doneCount}/{steps.length}
           </span>
-        </span>
-      }
-      extra={
+        </div>
         <Button type="text" size="small" onClick={dismiss}>
           {t('ob.dismiss')}
         </Button>
-      }
-    >
-      {/* 不用进度条：数字 3/4 已经说明一切，条形图在这里只有装饰价值。
-          完成的步骤用编号划线表达，而不是绿色对勾图标（去彩汤）。 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      </div>
+      <div className="rule" />
+
+      <div>
         {steps.map((s) => (
-          <div key={s.key} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 12 }}>
+          <div
+            key={s.key}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 12,
+              padding: '10px 0',
+              borderBottom: '1px solid var(--app-rule)',
+              flexWrap: 'wrap',
+            }}
+          >
             <span
+              className="mono num"
               style={{
-                fontFamily: 'var(--app-mono)',
-                fontSize: 13,
+                fontSize: 'var(--text-xs)',
                 lineHeight: '20px',
                 flexShrink: 0,
-                color: s.done ? 'var(--app-ink-faint)' : 'var(--app-glaze-text)',
-                textDecoration: s.done ? 'line-through' : 'none',
-                width: 20,
+                width: 24,
                 textAlign: 'right',
+                color: s.done ? 'var(--app-ink-faint)' : 'var(--app-accent-text)',
+                textDecoration: s.done ? 'line-through' : 'none',
               }}
             >
               {s.num}
@@ -156,19 +168,19 @@ export default function GettingStarted() {
                   fontWeight: s.done ? 400 : 500,
                   textDecoration: s.done ? 'line-through' : 'none',
                   color: s.done ? 'var(--app-ink-faint)' : 'var(--app-ink)',
-                  fontSize: 13.5,
+                  fontSize: 'var(--text-base)',
                 }}
               >
                 {s.title}
               </span>
-              <div style={{ fontSize: 12, color: 'var(--app-ink-faint)', marginTop: 1 }}>{s.desc}</div>
+              <div className="faint" style={{ fontSize: 'var(--text-xs)', marginTop: 2 }}>{s.desc}</div>
             </div>
             {!s.done && (
               <div
                 style={{
                   flexShrink: 0,
                   // 窄屏：占满整行换到文字下方；宽屏：留在同一行右侧
-                  ...(narrow ? { flexBasis: '100%', paddingLeft: 32 } : null),
+                  ...(narrow ? { flexBasis: '100%', paddingLeft: 36 } : null),
                 }}
               >
                 {actionFor(s.key)}
@@ -179,12 +191,20 @@ export default function GettingStarted() {
       </div>
 
       {allDone && (
-        <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--app-ink-faint)' }}>
-          {t('ob.done.title')} · {t('ob.done.body')}
+        <div style={{ marginTop: 12 }}>
+          <div className="faint" style={{ fontSize: 'var(--text-xs)' }}>
+            {t('ob.done.title')} · {t('ob.done.body')}
+          </div>
+          {/*
+            赞赏提示只挂在「4/4 完成」这一个结果位置。
+            它自己判断展示条件（时间/会话/里程碑/冷却/静音……），
+            未满足时返回 null；这里只负责挂载，不实现任何赞赏逻辑。
+          */}
+          <SupportNudge />
         </div>
       )}
 
       <TemplateCenter open={tplOpen} onClose={() => setTplOpen(false)} />
-    </Card>
+    </section>
   )
 }

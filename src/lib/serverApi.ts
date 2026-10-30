@@ -21,11 +21,16 @@ export function clearToken() {
 }
 
 // 常见错误码双语化：跟随浏览器语言（登录/踢出场景发生在语言切换语境之外）
+// 说明：账户已改为永久免费，不再有「已到期」状态，EXPIRED 词条随之删除（后端不会再返回该码）。
 const CODE_MSG: Record<string, [string, string]> = {
   INVALID_CREDENTIALS: ['用户名或密码错误', 'Incorrect username or password'],
   DISABLED: ['账户已被停用，请联系管理员', 'This account is disabled — contact your administrator'],
-  EXPIRED: ['您的账户已到期，请联系管理员续费', 'Your account has expired — contact your administrator to renew'],
   RATE_LIMITED: ['尝试次数过多，请稍后再试', 'Too many attempts — please try again later'],
+  AI_RATE_LIMITED: ['AI 调用过于频繁，请稍后再试', 'Too many AI requests — please try again later'],
+  SERVER_MISCONFIGURED: [
+    '服务端配置异常（AUTH_SECRET 缺失或过短），暂时无法登录，请联系管理员',
+    'Server misconfigured (AUTH_SECRET missing or too short) — contact your administrator',
+  ],
   NO_TOKEN: ['未登录', 'Not signed in'],
   BAD_TOKEN: ['登录已失效，请重新登录', 'Session expired — please sign in again'],
   NO_ACCOUNT: ['账户不存在', 'Account not found'],

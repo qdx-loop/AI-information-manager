@@ -1,0 +1,13 @@
+# SPA 客户端路由回退（BrowserRouter，见 src/main.tsx / src/router.tsx）
+#
+# 为什么需要：/admin 后台刻意没有 UI 入口，只能靠书签/直链访问。Pages 对「无匹配静态资源
+# 且无 404.html」的路径默认回退到根 index.html——显式写出这条规则，保证即使以后加了
+# 404.html 或改配置，/admin 这类深链也不会 404（审计 P1-3）。
+#
+# 注意两个 Pages 行为（官方文档「Redirects」）：
+#   1. _redirects 不作用于 Pages Functions 路由，所以 /api/* 的 404 不会被改写成 index.html；
+#   2. 静态资源（/assets/*、图标等）优先作为静态文件命中，不会被这条回退吞掉。
+# 若线上出现「JS/CSS 410/404 或返回 HTML」，先检查是不是这条规则被改坏 —— 可用
+#   curl -sI https://<域名>/assets/<构建产物文件名> | grep -i content-type
+# 应为 application/javascript / text/css。
+/* /index.html 200

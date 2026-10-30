@@ -4,7 +4,6 @@ import {
   CloseOutlined,
   VerticalLeftOutlined,
   DownOutlined,
-  LoadingOutlined,
 } from '@ant-design/icons'
 import { useAiUiStore, AI_DOCK_MIN, AI_DOCK_MAX } from '@/store/aiUiStore'
 import { useI18n } from '@/i18n'
@@ -122,8 +121,8 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
     return isSheet ? (
       <button type="button" className="ai-sheet-peek" onClick={() => setCollapsed(false)}>
         <span className="ai-dock-title">AI</span>
-        <span>{t('app.aiAssistant')}</span>
-        {running ? <LoadingOutlined spin /> : <span className="ai-peek-open">{t('ai.open')}</span>}
+        <span>{t('ai.clerk')}</span>
+        {running ? <span className="ai-pulse" /> : <span className="ai-peek-open">{t('ai.open')}</span>}
       </button>
     ) : (
       <aside className="ai-dock-collapsed" aria-label={t('app.aiAssistant')}>
@@ -134,9 +133,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           aria-label={t('ai.open')}
           title={t('ai.open')}
         >
-          <span className="ai-mono-mark" style={{ fontFamily: 'var(--app-mono)', fontWeight: 600, fontSize: 13 }}>
-            AI
-          </span>
+          <span className="ai-mono-mark">记</span>
         </Button>
         {running && <span className="ai-pulse" title={t('ai.runningInBackground')} />}
         {!running && unseen && <span className="ai-fab-dot" aria-hidden />}
@@ -208,11 +205,11 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           </div>
         )}
         <header className="ai-dock-head">
-          <span className="ai-dock-title">{t('app.aiAssistant')}</span>
+          <span className="ai-dock-title">{t('ai.clerk')}</span>
           {/^Mac|iP(hone|ad)/.test(navigator.platform) ? <span className="app-foot-kbd">⌘J</span> : null}
           {running && (
             <span className="ai-dock-running" title={t('ai.runningInBackground')}>
-              <LoadingOutlined spin />
+              <span className="ai-pulse" />
               <span className="ai-dock-running-text">{t('ai.running')}</span>
             </span>
           )}

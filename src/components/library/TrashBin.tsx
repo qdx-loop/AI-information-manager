@@ -1,16 +1,23 @@
 import { useEffect } from 'react'
-import { Card, Table, Button, Space, Popconfirm, Empty, App, Typography } from 'antd'
+import { Table, Button, Space, Popconfirm, App } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { DeleteOutlined, UndoOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useLibraryStore } from '@/store/libraryStore'
 import type { TrashEntry } from '@/types'
 import { useI18n, tNow } from '@/i18n'
+import { TRASH_RETENTION_DAYS } from '@/utils/retentionDays'
+import { usePagePadding } from './pageFrame'
 
-const { Text } = Typography
-
+/**
+ * 回收站：一张账页表格（类型 / 名称 / 所属库 / 删除时间 / 剩余天数）。
+ *
+ * 原来顶部是一条 antd Alert 黄色块，类型用彩色 Tag —— 两个都是「后台模板」的
+ * 默认长相。现在警示是一行 13px 文字 + 赭色小方点，类型退成一列淡文字；
+ * 唯一需要强调的数字是「剩余天数」，所以它是唯一的等宽数字列。
+ */
 export default function TrashBin() {
   const { message } = App.useApp()
+  const pad = usePagePadding()
   const { trash, loadTrash, restoreLibrary, purgeLibrary, restoreItem, purgeItem } =
     useLibraryStore()
   const t = useI18n()
@@ -39,48 +46,112 @@ export default function TrashBin() {
     }
   }
 
+  /** 距离「彻底清除」还剩几天（0 = 今天就会过期） */
+  const remainingDays = (deletedAt: number): number =>
+    Math.max(0, TRASH_RETENTION_DAYS - dayjs().startOf('day').diff(dayjs(deletedAt).startOf('day'), 'day'))
+
+  /** 行内文字按钮：18px 高，避免把 32px 的账页行撑高 */
+  const actionBtnStyle: React.CSSProperties = { height: 18, padding: '0 4px', fontSize: 'var(--text-xs)' }
+
+  const headCell = (right = false): React.CSSProperties => ({
+    height: 36,
+    padding: '0 12px',
+    ...(right ? { textAlign: 'right' as const } : null),
+  })
+  const bodyCell = (right = false): React.CSSProperties => ({
+    padding: '6px 12px',
+    verticalAlign: 'middle',
+    // 13px × 1.3 ≈ 17，加上下 padding 12 与 1px 行线 → 32px 账页行
+    lineHeight: 1.3,
+    ...(right ? { textAlign: 'right' as const, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' } : null),
+  })
+
   const columns: ColumnsType<TrashEntry> = [
     {
-      title: t('lib.trash.col.type'),
+      title: <span className="eyebrow">{t('lib.trash.col.type')}</span>,
       dataIndex: 'kind',
-      width: 90,
+      width: 96,
+      onHeaderCell: () => ({ style: headCell() }),
+      onCell: () => ({ style: bodyCell() }),
       // 类型用文字不用药丸 Tag：两种颜色在这里只是装饰
       render: (k: string) => (
-        <Text type="secondary" style={{ fontSize: 12.5 }}>
+        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>
           {k === 'library' ? t('lib.trash.kind.library') : t('lib.trash.kind.item')}
-        </Text>
+        </span>
       ),
     },
     {
-      title: t('lib.trash.col.name'),
+      title: <span className="eyebrow">{t('lib.trash.col.name')}</span>,
       key: 'name',
+      onHeaderCell: () => ({ style: headCell() }),
+      onCell: () => ({ style: bodyCell() }),
       render: (_, entry) => {
-        if (entry.kind === 'library') return entry.record.name
-        const vals = Object.values(entry.record.fields).filter((v) => v != null && v !== '')
-        return vals.length ? vals.join(' / ') : t('lib.trash.emptyItem')
+        const text =
+          entry.kind === 'library'
+            ? entry.record.name
+            : (() => {
+                const vals = Object.values(entry.record.fields).filter((v) => v != null && v !== '')
+                return vals.length ? vals.join(' / ') : t('lib.trash.emptyItem')
+              })()
+        return (
+          <span className="cell-primary" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {text}
+          </span>
+        )
       },
     },
     {
-      title: t('lib.trash.col.library'),
+      title: <span className="eyebrow">{t('lib.trash.col.library')}</span>,
       key: 'lib',
-      render: (_, entry) => (entry.kind === 'item' ? (entry.libraryName || t('lib.trash.orphanLib')) : '—'),
+      onHeaderCell: () => ({ style: headCell() }),
+      onCell: () => ({ style: bodyCell() }),
+      render: (_, entry) => (
+        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>
+          {entry.kind === 'item' ? entry.libraryName || t('lib.trash.orphanLib') : '—'}
+        </span>
+      ),
     },
     {
-      title: t('lib.trash.col.time'),
+      title: <span className="eyebrow">{t('lib.trash.col.time')}</span>,
       dataIndex: 'deletedAt',
       width: 170,
-      render: (v: number) => dayjs(v).format('YYYY-MM-DD HH:mm'),
+      onHeaderCell: () => ({ style: headCell(true) }),
+      onCell: () => ({ style: bodyCell(true) }),
+      render: (v: number) => <span className="mono num">{dayjs(v).format('YYYY-MM-DD HH:mm')}</span>,
     },
     {
-      title: t('lib.trash.col.actions'),
+      title: <span className="eyebrow">{t('lib.trash.col.remaining')}</span>,
+      key: 'remaining',
+      width: 110,
+      onHeaderCell: () => ({ style: headCell(true) }),
+      onCell: () => ({ style: bodyCell(true) }),
+      render: (_, entry) => {
+        const days = remainingDays(entry.deletedAt)
+        // 剩 3 天内是「临期」：赭色文字 + 6px 方点（不是彩色胶囊）
+        if (days <= 3)
+          return (
+            <span className="tag-dot" style={{ color: 'var(--app-warning)', justifyContent: 'flex-end' }}>
+              <span className="mono num">{days}</span> {t('lib.trash.days')}
+            </span>
+          )
+        return (
+          <span className="mono num faint">
+            {days} <span style={{ fontFamily: 'var(--font-sans)' }}>{t('lib.trash.days')}</span>
+          </span>
+        )
+      },
+    },
+    {
+      title: <span className="eyebrow">{t('lib.trash.col.actions')}</span>,
       key: 'action',
-      width: 160,
+      width: 168,
+      onHeaderCell: () => ({ style: headCell(true) }),
+      onCell: () => ({ style: { padding: '0 8px', textAlign: 'right' as const, verticalAlign: 'middle' as const, lineHeight: 1 } }),
       render: (_, entry) => (
-        <Space>
-          <Button size="small" icon={<UndoOutlined />} onClick={() => handleRestore(entry)}>{t('lib.trash.restore')}
-          </Button>
+        <Space size={4}>
+          <Button size="small" type="text" style={actionBtnStyle} onClick={() => handleRestore(entry)}>{t('lib.trash.restore')}</Button>
           <Popconfirm title={t('lib.trash.purgeConfirm')} okText={t('lib.trash.purgeOk')} okButtonProps={{ danger: true }} onConfirm={() => handlePurge(entry)}>
-            <Button size="small" danger icon={<DeleteOutlined />}>
+            <Button size="small" type="text" danger style={actionBtnStyle}>
               {t('lib.trash.purgeOk')}
             </Button>
           </Popconfirm>
@@ -90,32 +161,37 @@ export default function TrashBin() {
   ]
 
   return (
-    <div style={{ padding: 16, height: '100%' }}>
-      {/* 页面头不套 Card：标题一行、说明一行，编辑部式 */}
-      <div style={{ marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' }}>
-          {t('lib.trash.title')}
-        </h2>
-        <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--app-ink-faint)' }}>
-          {t('lib.trash.notice')}
-        </p>
+    <div style={{ ...pad, height: '100%' }}>
+      {/* 页面头：26 衬线标题 + 12 mono 计数；说明是一行 13px 文字，不是 Alert 色块 */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, minHeight: 40, flexWrap: 'wrap' }}>
+        <h1 className="page-title">{t('lib.trash.title')}</h1>
+        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>
+          <span className="mono num">{trash.length}</span> {t('lib.count.unit')}
+        </span>
       </div>
-      <Card styles={{ body: { padding: 0 } }}>
-        {trash.length === 0 ? (
-          <Empty
-            image={false}
-            description={t('lib.trash.empty')}
-            style={{ padding: '56px 0 64px' }}
-          />
-        ) : (
-          <Table<TrashEntry>
-            rowKey={(r) => `${r.kind}-${r.record.id}`}
-            columns={columns}
-            dataSource={trash}
-            pagination={{ pageSize: 20 }}
-          />
-        )}
-      </Card>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, margin: '4px 0 16px' }}>
+        <span aria-hidden style={{ width: 6, height: 6, background: 'var(--app-warning)', flexShrink: 0, marginTop: 6 }} />
+        <span className="muted" style={{ fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
+          {t('lib.trash.notice')}
+        </span>
+      </div>
+
+      {trash.length === 0 ? (
+        <div className="empty-state" style={{ padding: '48px 16px', textAlign: 'center' }}>
+          <div className="empty-state-title">{t('lib.trash.empty')}</div>
+        </div>
+      ) : (
+        <Table<TrashEntry>
+          rowKey={(r) => `${r.kind}-${r.record.id}`}
+          columns={columns}
+          dataSource={trash}
+          size="small"
+          onHeaderRow={() => ({ style: { height: 36 } })}
+          onRow={() => ({ style: { height: 32, fontSize: 'var(--text-sm)' } })}
+          pagination={{ pageSize: 20, showTotal: (n) => t('lib.total', { n }) }}
+          scroll={{ x: 'max-content' }}
+        />
+      )}
     </div>
   )
 }

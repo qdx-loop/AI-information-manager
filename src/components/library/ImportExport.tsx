@@ -1,6 +1,5 @@
-import { Button, Dropdown, Modal, Select, App } from 'antd'
-import { useImperativeHandle, useRef, useState, forwardRef } from 'react'
-import type { MenuProps } from 'antd'
+import { Button, Modal, Select, App } from 'antd'
+import { Fragment, useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import { itemsToCSV, parseCSV, downloadCSV } from '@/utils/csv'
 import { itemsToExcel, parseExcel } from '@/utils/excel'
@@ -22,6 +21,48 @@ interface Props {
   onImport: (rows: Record<string, FieldValue>[]) => Promise<void>
 }
 
+/** 三步编号步骤条：01 选择文件 → 02 字段映射 → 03 完成（mono 编号 + 1px 连线，当前步朱砂） */
+function StepBar({ current }: { current: 1 | 2 | 3 }) {
+  const t = useI18n()
+  const steps = [
+    { n: '01', label: t('lib.importExport.chooseFile') },
+    { n: '02', label: t('lib.importExport.mapTitle') },
+    { n: '03', label: t('lib.importExport.import') },
+  ]
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+      {steps.map((s, i) => (
+        <Fragment key={s.n}>
+          {i > 0 ? <div style={{ flex: '1 1 0%', height: 1, background: 'var(--app-rule)' }} /> : null}
+          <div
+            aria-current={current === i + 1 ? 'step' : undefined}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'baseline',
+              gap: 6,
+              flexShrink: 0,
+              color: current === i + 1 ? 'var(--app-accent-text)' : 'var(--app-ink-faint)',
+            }}
+          >
+            <span className="mono num" style={{ fontSize: 'var(--text-2xs)', letterSpacing: '0.06em' }}>{s.n}</span>
+            <span style={{ fontSize: 'var(--text-xs)' }}>{s.label}</span>
+          </div>
+        </Fragment>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * 导入 / 导出。
+ *
+ * 导入原来只有「点按钮 → 系统文件框 → 一个字段映射弹窗」，步骤不可见，
+ * 用户不知道自己在第几步、后面还有什么。现在做成三步过账：
+ *   01 选择文件（虚线框，可点可拖） → 02 字段映射（左侧对应、右侧账页预览）→ 03 完成
+ * 映射/类型转换/逐行写入的逻辑与原来完全一致（coerceValue 没有改动）。
+ *
+ * 导出保持「菜单里两个选项」，不再是一个图标按钮；真正的 Blob 下载逻辑没动。
+ */
 const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport(
   { fields, items, onImport },
   ref,
@@ -30,16 +71,16 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
   // upload/nativeElement 等，没有 click / openFileDialog，命令式打开文件框会抛
   // "click is not a function"。这里自持一个隐藏 input，桌面按钮和窄屏菜单共用。
   const fileInputRef = useRef<HTMLInputElement>(null)
-  useImperativeHandle(ref, () => ({
-    openImport: () => fileInputRef.current?.click(),
-    exportAs: (kind) => handleExport(kind),
-  }))
   const { message } = App.useApp()
   const t = useI18n()
+  const [step, setStep] = useState<1 | 2 | 3>(1)
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([])
   const [headers, setHeaders] = useState<string[]>([])
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [modalOpen, setModalOpen] = useState(false)
+  const [importedCount, setImportedCount] = useState(0)
+  const [importing, setImporting] = useState(false)
+  const [dragging, setDragging] = useState(false)
 
   const handleExport = (kind: 'csv' | 'excel') => {
     if (items.length === 0) {
@@ -56,13 +97,27 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
     message.success(t('lib.importExport.exported'))
   }
 
-  const exportMenu: MenuProps = {
-    items: [
-      { key: 'csv', label: t('lib.importExport.exportCsv') },
-      { key: 'excel', label: t('lib.importExport.exportExcel') },
-    ],
-    onClick: ({ key }) => handleExport(key as 'csv' | 'excel'),
+  const openModal = () => {
+    setStep(1)
+    setParsedRows([])
+    setHeaders([])
+    setMapping({})
+    setImportedCount(0)
+    setModalOpen(true)
   }
+
+  const closeModal = () => {
+    setModalOpen(false)
+    setParsedRows([])
+    setHeaders([])
+    setMapping({})
+    setStep(1)
+  }
+
+  useImperativeHandle(ref, () => ({
+    openImport: openModal,
+    exportAs: (kind) => handleExport(kind),
+  }))
 
   const handleFile = async (file: File) => {
     // 限制文件大小为 10MB，防止超大文件卡死浏览器
@@ -88,15 +143,15 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
       })
       setMapping(auto)
       setParsedRows(rows)
-      setModalOpen(true)
+      setStep(2)
     } catch (e) {
       message.error(t('lib.importExport.parseFailed', { msg: (e as Error).message }))
     }
     return false // 阻止 antd 自动上传
   }
 
-  const confirmImport = async () => {
-    const rows: Record<string, FieldValue>[] = parsedRows.map((r) => {
+  const buildRows = (): Record<string, FieldValue>[] =>
+    parsedRows.map((r) => {
       const obj: Record<string, FieldValue> = {}
       Object.entries(mapping).forEach(([header, fieldKey]) => {
         if (!fieldKey) return
@@ -109,13 +164,37 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
       })
       return obj
     })
-    await onImport(rows)
-    setModalOpen(false)
-    setParsedRows([])
-    message.success(t('lib.importExport.imported', { n: rows.length }))
+
+  const confirmImport = async () => {
+    if (importing) return
+    setImporting(true)
+    try {
+      // 逐行写入与进度提示由父组件负责（LibraryView.handleImport）
+      await onImport(buildRows())
+      setImportedCount(parsedRows.length)
+      setStep(3)
+    } catch {
+      // 父组件已经把「已导入 n/total + 原因」报出来了，这里停在映射步让用户重试
+    } finally {
+      setImporting(false)
+    }
   }
 
-  useBackButtonLayer(modalOpen, () => setModalOpen(false))
+  useBackButtonLayer(modalOpen, closeModal)
+
+  // 右侧账页预览的列：只显示已映射到字段的那些列
+  const previewCols = headers
+    .filter((h) => mapping[h])
+    .map((h) => {
+      const f = fields.find((x) => x.key === mapping[h])
+      return {
+        header: h,
+        label: f?.label ?? h,
+        numeric: f?.type === 'number' || f?.type === 'rating',
+      }
+    })
+
+  const importable = parsedRows.length > 0
 
   return (
     <>
@@ -131,38 +210,181 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
           if (f) void handleFile(f)
         }}
       />
-      <Button type="text" onClick={() => fileInputRef.current?.click()}>
-        {t('lib.importExport.import')}
-      </Button>
-      <Dropdown menu={exportMenu}>
-        <Button type="text">{t('lib.importExport.export')}</Button>
-      </Dropdown>
 
       <Modal
-        title={t('lib.importExport.mapTitle')}
+        title={t('lib.importExport.import')}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        onOk={confirmImport}
-        width={520}
+        onCancel={closeModal}
+        footer={null}
+        width={step === 2 ? 760 : 520}
+        style={{ maxWidth: 'calc(100vw - 32px)' }}
+        destroyOnHidden
       >
-        <p style={{ color: 'var(--ant-color-text-secondary)', marginBottom: 12 }}>
-          {t('lib.importExport.mapIntro', { n: parsedRows.length })}
-        </p>
-        {headers.map((h) => (
-          <div key={h} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <span style={{ flex: 1, fontWeight: 500 }}>{h}</span>
-            <Select
-              style={{ flex: 2 }}
-              value={mapping[h]}
-              onChange={(v) => setMapping({ ...mapping, [h]: v })}
-              options={[
-                { label: t('lib.importExport.skip'), value: '' },
-                ...fields.map((f) => ({ label: f.label, value: f.key })),
-              ]}
-              allowClear
-            />
+        <StepBar current={step} />
+
+        {step === 1 && (
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragging(false)
+              const f = e.dataTransfer.files?.[0]
+              if (f) void handleFile(f)
+            }}
+            style={{
+              // 1px 虚线框、圆角 2；拖动到上面时边框变朱砂
+              border: `1px dashed ${dragging ? 'var(--app-accent)' : 'var(--app-border)'}`,
+              borderRadius: 2,
+              padding: '40px 16px',
+              textAlign: 'center',
+              background: 'transparent',
+            }}
+          >
+            <div className="muted" style={{ fontSize: 'var(--text-sm)', marginBottom: 16 }}>
+              {t('lib.importExport.dropHint')}
+            </div>
+            <Button type="primary" onClick={() => fileInputRef.current?.click()}>
+              {t('lib.importExport.chooseFile')}
+            </Button>
+            <div className="faint" style={{ fontSize: 'var(--text-xs)', marginTop: 16 }}>
+              {t('lib.importExport.tooLarge')}
+            </div>
           </div>
-        ))}
+        )}
+
+        {step === 2 && (
+          <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            {/* 左：文件列 → 库字段 的对应表，一行一条账线 */}
+            <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+              <div className="eyebrow" style={{ marginBottom: 6 }}>{t('lib.importExport.mapTitle')}</div>
+              <div className="muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 8 }}>
+                {t('lib.importExport.mapIntro', { n: parsedRows.length })}
+              </div>
+              <div style={{ borderTop: '1px solid var(--app-border-strong)' }}>
+                {headers.map((h) => (
+                  <div
+                    key={h}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      minHeight: 36,
+                      borderBottom: '1px solid var(--app-rule)',
+                    }}
+                  >
+                    <span style={{ flex: '1 1 0%', minWidth: 0, fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={h}>
+                      {h}
+                    </span>
+                    <Select
+                      size="small"
+                      style={{ width: 180, flexShrink: 0 }}
+                      value={mapping[h]}
+                      onChange={(v) => setMapping({ ...mapping, [h]: v })}
+                      options={[
+                        { label: t('lib.importExport.skip'), value: '' },
+                        ...fields.map((f) => ({ label: f.label, value: f.key })),
+                      ]}
+                      allowClear
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 右：账页预览——只显示已映射的列，前 4 行，横向账线、数字右对齐 */}
+            <div style={{ flex: '1 1 300px', minWidth: 0 }}>
+              <div className="eyebrow" style={{ marginBottom: 6 }}>{t('lib.importExport.preview')}</div>
+              {previewCols.length === 0 ? (
+                <div className="faint" style={{ fontSize: 'var(--text-xs)', padding: '12px 0' }}>
+                  {t('lib.importExport.skip')}
+                </div>
+              ) : (
+                <div className="sheet" style={{ padding: '4px 8px', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                    <thead>
+                      <tr>
+                        {previewCols.map((c) => (
+                          <th
+                            key={c.header}
+                            className="eyebrow"
+                            style={{
+                              padding: '6px 8px',
+                              textAlign: c.numeric ? 'right' : 'left',
+                              borderBottom: '1px solid var(--app-border-strong)',
+                              fontWeight: 500,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {c.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedRows.slice(0, 4).map((r, ri) => (
+                        <tr key={ri}>
+                          {previewCols.map((c) => (
+                            <td
+                              key={c.header}
+                              style={{
+                                padding: '5px 8px',
+                                fontSize: 'var(--text-xs)',
+                                textAlign: c.numeric ? 'right' : 'left',
+                                fontFamily: c.numeric ? 'var(--font-mono)' : undefined,
+                                fontVariantNumeric: c.numeric ? 'tabular-nums' : undefined,
+                                borderBottom: '1px solid var(--app-rule)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {r[c.header] == null ? '' : String(r[c.header])}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="empty-state" style={{ padding: '24px 0 8px' }}>
+            <div className="empty-state-title">{t('lib.importExport.imported', { n: importedCount })}</div>
+          </div>
+        )}
+
+        {/* 底部操作：上一步是文字项，导入/完成是墨色主按钮 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 20 }}>
+          {step === 2 ? (
+            <Button type="text" onClick={() => setStep(1)}>
+              {t('common.back')}
+            </Button>
+          ) : null}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            {step === 3 ? (
+              <Button type="primary" onClick={closeModal}>{t('common.close')}</Button>
+            ) : (
+              <>
+                <Button onClick={closeModal}>{t('common.cancel')}</Button>
+                {step === 2 ? (
+                  <Button type="primary" loading={importing} disabled={!importable} onClick={confirmImport}>
+                    {t('lib.importExport.confirmN', { n: parsedRows.length })}
+                  </Button>
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
       </Modal>
     </>
   )

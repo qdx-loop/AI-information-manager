@@ -1,5 +1,4 @@
-import { Alert, Modal, Form, App, DatePicker, Divider, Select } from 'antd'
-import { BellOutlined } from '@ant-design/icons'
+import { Modal, Form, App, DatePicker, Select, Button } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import dayjs from 'dayjs'
 import type { FieldDef, Item, FieldValue } from '@/types'
@@ -10,6 +9,7 @@ import { useAuthStore } from '@/store/authStore'
 import { getProvider } from '@/db/providerFactory'
 import { markObStep } from '@/utils/onboarding'
 import { notificationSupported } from '@/utils/reminderNotify'
+import { LabelText } from './labels'
 
 interface Props {
   open: boolean
@@ -17,9 +17,11 @@ interface Props {
   item: Item | null
   onCancel: () => void
   onSave: (values: Record<string, FieldValue>) => Promise<void>
+  /** 编辑既有条目时的「删除」入口（走父组件的二次确认，不在这里直接删） */
+  onDelete?: (item: Item) => void
 }
 
-export default function ItemEditor({ open, fields, item, onCancel, onSave }: Props) {
+export default function ItemEditor({ open, fields, item, onCancel, onSave, onDelete }: Props) {
   const { message, modal } = App.useApp()
   const [form] = Form.useForm()
   const t = useI18n()
@@ -124,6 +126,11 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
     }
   }
 
+  const handleCancel = () => {
+    form.resetFields()
+    onCancel()
+  }
+
   const visibleFields = fields.filter((f) => f.visible)
 
 
@@ -131,42 +138,55 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
     <Modal
       title={item ? t('lib.editor.editTitle') : t('lib.editor.newTitle')}
       open={open}
-      onCancel={() => {
-        form.resetFields()
-        onCancel()
-      }}
-      onOk={handleOk}
-      confirmLoading={saving}
-      okText={t('common.save')}
-      width="90%"
-      style={{ maxWidth: 560 }}
+      onCancel={handleCancel}
+      footer={
+        // 底部操作栏：删除是文字 danger（破坏性操作不抢眼），保存是墨色主按钮。
+        // 用自定义 footer + body 限高滚动实现「sticky」：打开长表单时操作栏始终在底部。
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
+          {item && onDelete ? (
+            <Button type="text" danger onClick={() => onDelete(item)}>
+              {t('common.delete')}
+            </Button>
+          ) : null}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button onClick={handleCancel}>{t('common.cancel')}</Button>
+            <Button type="primary" loading={saving} onClick={handleOk}>
+              {t('common.save')}
+            </Button>
+          </div>
+        </div>
+      }
+      width={680}
+      // 垂直居中 + 限高：长表单时底部操作栏不出屏（sticky 效果靠 body 内部滚动实现）
+      centered
+      style={{ maxWidth: 'calc(100vw - 32px)', top: 0 }}
+      styles={{ body: { maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' } }}
       destroyOnHidden
     >
-      <Form form={form} layout="vertical">
-        {visibleFields.map((f) => (
+      {/* 单列表单，阅读宽度 680（`.doc` 的口径）；字段间距 16 */}
+      <Form form={form} layout="vertical" requiredMark={false} style={{ maxWidth: 680 }}>
+        {visibleFields.map((f, i) => (
           <Form.Item
             key={f.key}
             name={f.key}
-            label={f.label}
-            // 打开后直接可以打字，少按一次 Tab
-            {...(f === visibleFields[0] ? { autoFocus: true } : {})}
+            label={<LabelText label={f.label} required={f.required} />}
+            // 打开后第一个字段直接可以打字，少按一次 Tab
             rules={f.required ? [{ required: true, message: t('common.requiredField', { name: f.label }) }] : []}
+            style={{ marginBottom: 16 }}
           >
-            <FieldRenderer field={f} value={null} onChange={() => {}} />
+            <FieldRenderer field={f} value={null} onChange={() => {}} autoFocus={i === 0} />
           </Form.Item>
         ))}
         {visibleFields.length === 0 && (
-          <p style={{ color: 'var(--ant-color-text-secondary)', textAlign: 'center' }}>当前管理库尚未配置字段，请先在「字段模板」中添加字段。</p>
+          <p className="muted" style={{ textAlign: 'left' }}>{t('lib.editor.noFields')}</p>
         )}
-        <Divider style={{ margin: '12px 0' }} />
+
+        {/* 提醒区：一条账线分隔，不再用 antd Divider 的默认虚线/大间距 */}
+        <div className="rule" style={{ margin: '20px 0 16px' }} />
         <Form.Item
           name={REMINDER_FIELD_KEY}
-          label={
-            <span>
-              <BellOutlined style={{ marginRight: 6, color: 'var(--app-glaze)' }} />
-              {t('reminder.label')}
-            </span>
-          }
+          label={<LabelText label={t('reminder.label')} />}
+          style={{ marginBottom: 16 }}
         >
           <DatePicker style={{ width: '100%' }} placeholder={t('reminder.placeholder')} allowClear />
         </Form.Item>
@@ -177,21 +197,25 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave }: Pro
           但永远不会有任何通知。
           之前界面上完全看不出这一点，用户只能自己发现「提醒从来没响过」。
           所以在设置提醒的地方直接说明它在这个环境里会不会生效。
+          表现方式：13px 文字 + 赭色小方点（不是 Alert 黄色块——那会引入第三种色相）。
         */}
         {notifyState !== 'ok' && (
-          <Alert
-            type="warning"
-            showIcon
-            style={{ marginBottom: 12 }}
-            message={t(`reminder.unavailable.${notifyState}`)}
-          />
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <span
+              aria-hidden
+              style={{ width: 6, height: 6, background: 'var(--app-warning)', flexShrink: 0, marginTop: 6 }}
+            />
+            <span className="muted" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
+              {t(`reminder.unavailable.${notifyState}`)}
+            </span>
+          </div>
         )}
         <Form.Item noStyle shouldUpdate={(a, b) => a[REMINDER_FIELD_KEY] !== b[REMINDER_FIELD_KEY]}>
           {() => {
             const picked = form.getFieldValue(REMINDER_FIELD_KEY)
             if (!picked) return null
             return (
-              <Form.Item name={REMINDER_REPEAT_KEY} label={t('reminder.repeat')} style={{ marginBottom: 0 }}>
+              <Form.Item name={REMINDER_REPEAT_KEY} label={<LabelText label={t('reminder.repeat')} />} style={{ marginBottom: 0 }}>
                 <Select
                   options={[
                     { value: 'none', label: t('reminder.repeat.none') },

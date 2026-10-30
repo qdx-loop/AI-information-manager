@@ -3,6 +3,9 @@
 // 注意：这个文件会被 wrangler 的 esbuild 当作普通 TypeScript 一起打包，所以必须用
 // 合法的 .d.ts 写法——`export declare const` 而不是 `export const`（后者没有初始值
 // 会被 esbuild 判为语法错误，导致 Functions 构建失败）。
+export declare const MIN_AUTH_SECRET_LEN: number
+/** AUTH_SECRET 缺失/过短时返回 503 Response，配置正常时返回 null（fail-closed 自检） */
+export declare function ensureAuthSecret(env: unknown): Response | null
 export declare function issueUserToken(
   account: { id: string },
   secret: string,
@@ -22,6 +25,13 @@ export declare function checkWindowCount(
   maxCount: number,
   windowMs: number,
 ): Promise<{ allowed: boolean; waitMin?: number; remaining?: number }>
+export declare function recordLoginFailure(
+  env: unknown,
+  key: string,
+  windowMs?: number,
+): Promise<void>
+export declare function clearLoginFailures(env: unknown, key: string): Promise<void>
+export declare function clientIp(request: unknown): string
 export declare function hashPassword(
   password: string,
   saltHex?: string | null,

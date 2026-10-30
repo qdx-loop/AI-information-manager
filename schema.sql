@@ -59,3 +59,14 @@ CREATE TABLE IF NOT EXISTS p2p_signals (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_p2p_signals_account ON p2p_signals(account_id, created_at);
+-- 补查询索引：GET 轮询按 (account_id, device_id, role, status) 取本设备最新信令
+-- （老库重跑本文件即可补上，IF NOT EXISTS 幂等）
+CREATE INDEX IF NOT EXISTS idx_p2p_signals_device ON p2p_signals(account_id, device_id, role, status);
+
+-- ———— 保留期清理（本文件不自动执行，按需手工/定时跑）————
+-- D1 免费档写额度 10 万/日，login_attempts 只增不减、analytics_events 无保留期时会慢慢变大。
+-- 建议每月（或接入 Workers Cron Trigger）清理一次：
+--   DELETE FROM login_attempts WHERE window_start < (unixepoch('now') * 1000 - 7*24*3600*1000);
+--   DELETE FROM analytics_events WHERE created_at < (unixepoch('now') * 1000 - 180*24*3600*1000);
+-- 另：删除账户时不会级联清理 analytics_events / p2p_signals（隐私残留），
+-- 需要时按 account_id 手工删除，或在 admin/account.js 的 delete 分支里补两条 DELETE。

@@ -1,20 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import {
-  Card,
-  Tabs,
-  Form,
-  Input,
-  Button,
-  Switch,
-  Space,
-  Tag,
-  App,
-  Upload,
-  Typography,
-  Alert,
-  Divider,
-  Radio,
-} from 'antd'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { Form, Input, Button, Switch, Space, App, Upload, Radio, Grid, Tabs } from 'antd'
 import {
   RobotOutlined,
   DatabaseOutlined,
@@ -29,7 +14,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { resetSession } from '@/store/session'
 import { useAppStore } from '@/store/appStore'
@@ -50,94 +35,241 @@ import {
 import { SYSTEM_PROMPT } from '@/ai/contextBuilder'
 import { importLegacyMemory, listMemory, replaceAllMemory, clearMemory } from '@/ai/memory'
 import FaceToFaceSyncModal from '@/components/settings/FaceToFaceSyncModal'
+import RewardCard from '@/components/reward/RewardCard'
+import { noteBackupExported } from '@/utils/support'
 import { autoSyncManager } from '@/utils/autoSync'
 import { useI18n } from '@/i18n'
 import { downloadBlob } from '@/utils/csv'
-import { useSyncExternalStore } from 'react'
 
-const { Text } = Typography
+/**
+ * 设置页 ·『官纸账簿』
+ *
+ * 桌面：左侧 180px 垂直目录（6 项，选中 = 2px 朱砂左线 + 墨字），右侧单列表单 max-width 640，
+ *        组间 32px + 1px 账线。移动端回退为 Tabs（保留，因为窄屏目录会占掉半屏）。
+ * 第 6 项「关于与支持」支持 `?tab=support` 直达（帮助页/落地页的文末链接指向这里）。
+ *
+ * 视觉原则：不用 Card 包裹、不用彩色 Alert 色块、不用 Tag 胶囊；
+ * 说明类信息一律「文字 + 左侧朱砂/赭色细线」，危险操作放底部。
+ */
+
+type TabKey = 'account' | 'ai' | 'backup' | 'configsync' | 'storage' | 'support'
+
+const TAB_LABEL: Record<TabKey, string> = {
+  account: 'settings.tab.account',
+  ai: 'settings.tab.ai',
+  backup: 'settings.tab.backup',
+  configsync: 'settings.tab.configsync',
+  storage: 'settings.tab.storage',
+  support: 'settings.tab.about',
+}
+
+const TAB_ORDER: TabKey[] = ['account', 'ai', 'backup', 'configsync', 'storage', 'support']
+
+/** 说明块：2px 左线 + 一行文字，替代彩色 Alert 色块（不只靠颜色，也不加盒子阴影） */
+function Notice({
+  kind = 'info',
+  title,
+  children,
+}: {
+  kind?: 'info' | 'warning' | 'danger'
+  title?: string
+  children: React.ReactNode
+}) {
+  const color =
+    kind === 'warning'
+      ? 'var(--app-warning)'
+      : kind === 'danger'
+        ? 'var(--app-danger)'
+        : 'var(--app-border-strong)'
+  return (
+    <div
+      style={{
+        borderLeft: `2px solid ${color}`,
+        paddingLeft: 12,
+        marginBottom: 20,
+        fontSize: 13,
+        lineHeight: 1.7,
+        color: 'var(--app-ink-soft)',
+      }}
+    >
+      {title && (
+        <div style={{ fontWeight: 600, color: 'var(--app-ink)', marginBottom: 2 }}>{title}</div>
+      )}
+      {children}
+    </div>
+  )
+}
+
+/** 组标题：20 衬线 + 一行说明 */
+function GroupTitle({ title, desc }: { title: string; desc?: string }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <h2 className="serif" style={{ fontSize: 20, fontWeight: 600, margin: 0, color: 'var(--app-ink)' }}>
+        {title}
+      </h2>
+      {desc && (
+        <p className="muted" style={{ fontSize: 13, margin: '4px 0 0', lineHeight: 1.6 }}>
+          {desc}
+        </p>
+      )}
+    </div>
+  )
+}
 
 /**
  * 同步此前只往 console 写，界面上毫无反馈：
  * 用户改完数据切到别的设备，发现数据没过去，
  * 唯一能得出的结论是「云同步坏了」，而其实可能只是还没到 3 分钟。
- * 这里把「未启用 / 空闲 / 正在同步 / 上次成功于何时 / 失败原因」摊开。
+ * 这里把「未启用 / 空闲 / 正在同步 / 上次成功于何时 / 失败原因」摊开成一行状态文字。
  */
 function SyncStatusBanner() {
   const t = useI18n()
   const st = useSyncExternalStore(autoSyncManager.subscribe, autoSyncManager.getStatus)
 
-  useEffect(() => { autoSyncManager.refreshEnabled() }, [])
+  useEffect(() => {
+    autoSyncManager.refreshEnabled()
+  }, [])
 
   const when = st.at ? new Date(st.at).toLocaleString() : ''
-  // 同步状态不需要整套 Alert 盒子：一行状态文字 + 次要说明，
-  // 需要用户注意的错误才保留醒目样式。
   if (st.phase === 'off') {
     return (
-      <div style={{ marginBottom: 16, paddingTop: 2 }}>
-        <Space size={8} align="baseline" wrap>
-          <CloudOutlined style={{ color: 'var(--app-ink-faint)', fontSize: 13 }} />
-          <Text style={{ fontSize: 13.5, fontWeight: 500 }}>{t('settings.sync.off')}</Text>
-        </Space>
-        <div style={{ fontSize: 12.5, color: 'var(--app-ink-faint)', marginTop: 3 }}>
-          {t('settings.sync.offDesc')}
-        </div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--app-ink-faint)' }}>
+        <span style={{ color: 'var(--app-ink-soft)' }}>{t('settings.sync.off')}</span>
+        {' · '}
+        {t('settings.sync.offDesc')}
       </div>
     )
   }
   if (st.phase === 'error') {
     return (
-      <Alert
-        style={{ marginBottom: 16 }}
-        type="error"
-        showIcon
-        message={t('settings.sync.error')}
-        description={`${t('settings.sync.lastOk')}: ${when || '—'} · ${st.message ?? ''}`}
-      />
+      <div
+        style={{
+          borderLeft: '2px solid var(--app-danger)',
+          paddingLeft: 10,
+          fontSize: 12.5,
+          lineHeight: 1.7,
+          color: 'var(--app-ink-soft)',
+        }}
+      >
+        <span style={{ color: 'var(--app-danger)', fontWeight: 500 }}>{t('settings.sync.error')}</span>
+        {' · '}
+        {t('settings.sync.lastOk')}: {when || '—'}
+        {st.message ? ` · ${st.message}` : ''}
+      </div>
     )
   }
   if (st.phase === 'syncing') {
     return (
-      <div style={{ marginBottom: 16, paddingTop: 2 }}>
-        <Space size={8} align="baseline" wrap>
-          <SyncOutlined spin style={{ color: 'var(--app-ink-faint)', fontSize: 13 }} />
-          <Text style={{ fontSize: 13.5, fontWeight: 500 }}>{t('settings.sync.syncing')}</Text>
-        </Space>
-        <div style={{ fontSize: 12.5, color: 'var(--app-ink-faint)', marginTop: 3 }}>
-          {t('settings.sync.syncingDesc')}
-        </div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--app-ink-soft)' }}>
+        <SyncOutlined style={{ marginRight: 6, fontSize: 12 }} />
+        {t('settings.sync.syncing')} · {t('settings.sync.syncingDesc')}
       </div>
     )
   }
   return (
-    <div style={{ marginBottom: 16, paddingTop: 2 }}>
-      <Space size={8} align="baseline" wrap>
-        <Text style={{ fontSize: 13.5, fontWeight: 500 }}>{t('settings.sync.ok')}</Text>
-      </Space>
-      <div style={{ fontSize: 12.5, color: 'var(--app-ink-faint)', marginTop: 3 }}>
-        {t('settings.sync.lastOk') + ': ' + (when || t('settings.sync.never'))}
-      </div>
+    <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--app-ink-faint)' }}>
+      <CloudOutlined style={{ marginRight: 6, fontSize: 12 }} />
+      {t('settings.sync.ok')} · {t('settings.sync.lastOk')}: {when || t('settings.sync.never')}
     </div>
   )
 }
 
 export default function SettingsPage() {
   const t = useI18n()
+  const [search] = useSearchParams()
+  const screens = Grid.useBreakpoint()
+  const wide = !!screens.lg
+
+  const fromUrl = search.get('tab') as TabKey | null
+  const [tab, setTab] = useState<TabKey>(
+    fromUrl && TAB_ORDER.includes(fromUrl) ? fromUrl : 'account',
+  )
+
+  const select = (k: TabKey) => {
+    setTab(k)
+    // 刷新/分享后仍停在同一个分区（用 replaceState，不产生历史记录）
+    const u = new URL(window.location.href)
+    u.searchParams.set('tab', k)
+    window.history.replaceState(null, '', u.toString())
+  }
+
+  const items = TAB_ORDER.map((k) => ({ key: k, label: t(TAB_LABEL[k]) }))
+
+  const panels: Record<TabKey, React.ReactNode> = {
+    account: <AccountTab />,
+    ai: <AITab />,
+    backup: <BackupTab />,
+    configsync: <ConfigSyncTab />,
+    storage: <StorageTab />,
+    support: <RewardCard />,
+  }
+
   return (
-    <div style={{ padding: 16, height: '100%', overflow: 'auto' }}>
-      <SyncStatusBanner />
-      <Card>
-        <Tabs
-          defaultActiveKey="account"
-          items={[
-            { key: 'account', label: t('settings.tab.account'), children: <AccountTab /> },
-            { key: 'ai', label: t('settings.tab.ai'), children: <AITab /> },
-            { key: 'backup', label: t('settings.tab.backup'), children: <BackupTab /> },
-            { key: 'configsync', label: t('settings.tab.configsync'), children: <ConfigSyncTab /> },
-            { key: 'storage', label: t('settings.tab.storage'), children: <StorageTab /> },
-          ]}
-        />
-      </Card>
+    <div style={{ padding: wide ? '24px 32px 48px' : 16, height: '100%', overflow: 'auto' }}>
+      <header style={{ marginBottom: 28 }}>
+        <h1 className="serif page-title" style={{ margin: 0 }}>
+          {t('settings.pageTitle')}
+        </h1>
+        <div style={{ marginTop: 8 }}>
+          <SyncStatusBanner />
+        </div>
+      </header>
+
+      {wide ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '180px minmax(0, 1fr)',
+            gap: 48,
+            alignItems: 'start',
+          }}
+        >
+          <nav aria-label={t('settings.pageTitle')}>
+            {items.map((it) => {
+              const active = it.key === tab
+              return (
+                <button
+                  key={it.key}
+                  type="button"
+                  onClick={() => select(it.key as TabKey)}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'left',
+                    background: 'none',
+                    border: 'none',
+                    borderLeft: active
+                      ? '2px solid var(--app-accent)'
+                      : '2px solid transparent',
+                    padding: '7px 0 7px 10px',
+                    marginBottom: 2,
+                    cursor: 'pointer',
+                    font: 'inherit',
+                    fontSize: 13,
+                    color: active ? 'var(--app-ink)' : 'var(--app-ink-soft)',
+                    fontWeight: active ? 600 : 400,
+                  }}
+                >
+                  {it.label}
+                </button>
+              )
+            })}
+          </nav>
+          <div style={{ maxWidth: 640 }}>{panels[tab]}</div>
+        </div>
+      ) : (
+        <div style={{ maxWidth: 640 }}>
+          <Tabs
+            activeKey={tab}
+            onChange={(k) => select(k as TabKey)}
+            items={items.map((it) => ({
+              key: it.key,
+              label: it.label,
+              children: it.key === tab ? panels[tab] : null,
+            }))}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -157,8 +289,9 @@ function AccountTab() {
       message.warning(t('settings.account.warn.old'))
       return
     }
-    if (newPwd.length < 6) {
-      message.warning(t('settings.account.warn.min6'))
+    // 与注册一致：改密下限统一 8 位（原来前后端/注册与改密各写一套 6/8）
+    if (newPwd.length < 8) {
+      message.warning(t('settings.account.warn.min8'))
       return
     }
     if (oldPwd === newPwd) {
@@ -181,30 +314,86 @@ function AccountTab() {
 
   return (
     <div>
+      <GroupTitle title={t('settings.tab.account')} desc={t('settings.account.freeForeverHint')} />
+
       {account && (
-        <div style={{ marginBottom: 18 }}>
-          <Space size={6} align="baseline" wrap>
-            <span style={{ fontSize: 13, color: 'var(--app-ink-faint)' }}>{t('settings.account.current')}</span>
-            <Text strong>{account.username}</Text>
-          </Space>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13 }}>
+            <span className="faint">{t('settings.account.current')}</span>
+            <span style={{ fontWeight: 600, color: 'var(--app-ink)' }}>{account.username}</span>
+          </div>
           {account.contact && (
-            <div style={{ marginTop: 4 }}>
-              <span style={{ fontSize: 13, color: 'var(--app-ink-faint)' }}>{t('settings.account.contact')}</span>
-              <Text strong> {account.contact}</Text>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, marginTop: 4 }}>
+              <span className="faint">{t('settings.account.contact')}</span>
+              <span style={{ color: 'var(--app-ink)' }}>{account.contact}</span>
             </div>
           )}
-          <div style={{ fontSize: 12, color: 'var(--app-ink-faint)', marginTop: 4 }}>
-            {t('settings.account.freeForeverHint')}
-          </div>
         </div>
       )}
 
-      <Space style={{ marginBottom: 16 }}>
-        <Button onClick={() => setPwdOpen(true)} disabled={!account}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button onClick={() => setPwdOpen((v) => !v)} disabled={!account}>
           {t('settings.account.changePwd')}
         </Button>
+      </div>
+
+      {pwdOpen && (
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--app-rule)' }}>
+          <h3 className="serif" style={{ fontSize: 20, fontWeight: 600, margin: '0 0 12px' }}>
+            {t('settings.account.pwdCard')}
+          </h3>
+          <Input.Password
+            placeholder={t('settings.account.oldPwdPlaceholder')}
+            value={oldPwd}
+            onChange={(e) => setOldPwd(e.target.value)}
+            autoComplete="current-password"
+            style={{ marginBottom: 8 }}
+          />
+          <Input.Password
+            placeholder={t('settings.account.newPwdPlaceholder')}
+            value={newPwd}
+            onChange={(e) => setNewPwd(e.target.value)}
+            autoComplete="new-password"
+            style={{ marginBottom: 10 }}
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button type="primary" onClick={handleChangePwd} loading={pwdLoading}>
+              {t('settings.account.pwdConfirm')}
+            </Button>
+            <Button
+              onClick={() => {
+                setPwdOpen(false)
+                setOldPwd('')
+                setNewPwd('')
+              }}
+            >
+              {t('common.cancel')}
+            </Button>
+          </div>
+          <p className="faint" style={{ fontSize: 12, margin: '8px 0 0', lineHeight: 1.7 }}>
+            {t('settings.account.pwdOnlyYou')}
+          </p>
+        </div>
+      )}
+
+      <p
+        className="muted"
+        style={{ fontSize: 13, lineHeight: 1.7, margin: '24px 0 0', maxWidth: 480 }}
+      >
+        <span style={{ fontWeight: 600, color: 'var(--app-ink)' }}>
+          {t('settings.account.pwdInfo.title')}
+        </span>
+        {' · '}
+        {t('settings.account.pwdInfo.body')}
+      </p>
+
+      {/* 危险区放最底部：退出登录会清空本机会话数据 */}
+      <div style={{ marginTop: 32, paddingTop: 16, borderTop: '1px solid var(--app-rule)' }}>
+        <h3 className="serif" style={{ fontSize: 20, fontWeight: 600, margin: '0 0 12px' }}>
+          {t('app.signOut')}
+        </h3>
         <Button
-          type="text"
+          danger
           onClick={async () => {
             // 走统一收口：退出前同步 + 清空库数据（之前这里只清了 token）
             await resetSession()
@@ -213,41 +402,7 @@ function AccountTab() {
         >
           {t('settings.account.logout')}
         </Button>
-      </Space>
-
-      {pwdOpen && (
-        <Card size="small" title={t('settings.account.pwdCard')} style={{ marginBottom: 16, maxWidth: 400 }}>
-          <Input.Password
-            placeholder="旧密码（首次修改即卖家发放的初始密码）"
-            value={oldPwd}
-            onChange={(e) => setOldPwd(e.target.value)}
-            style={{ marginBottom: 8 }}
-          />
-          <Input.Password
-            placeholder="新密码（至少 6 位）"
-            value={newPwd}
-            onChange={(e) => setNewPwd(e.target.value)}
-            style={{ marginBottom: 8 }}
-          />
-          <Space>
-            <Button type="primary" onClick={handleChangePwd} loading={pwdLoading}>
-              {t('settings.account.pwdConfirm')}
-            </Button>
-            <Button onClick={() => { setPwdOpen(false); setOldPwd(''); setNewPwd('') }}>{t('common.cancel')}</Button>
-          </Space>
-          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-            {t('settings.account.pwdOnlyYou')}
-          </Text>
-        </Card>
-      )}
-
-      {/* 密码安全说明改为一句正文：说明类信息不需要图标和底色盒子 */}
-      <Alert
-        type="info"
-        style={{ maxWidth: 480 }}
-        message={t('settings.account.pwdInfo.title')}
-        description={t('settings.account.pwdInfo.body')}
-      />
+      </div>
     </div>
   )
 }
@@ -269,12 +424,18 @@ function StorageTab() {
       return
     }
     modal.confirm({
-      title: direction === 'push' ? t('settings.storage.confirm.pushTitle') : t('settings.storage.confirm.pullTitle'),
+      title:
+        direction === 'push'
+          ? t('settings.storage.confirm.pushTitle')
+          : t('settings.storage.confirm.pullTitle'),
       content:
         direction === 'push'
           ? t('settings.storage.confirm.pushBody')
           : t('settings.storage.confirm.pullBody'),
-      okText: direction === 'push' ? t('settings.storage.confirm.pushOk') : t('settings.storage.confirm.pullOk'),
+      okText:
+        direction === 'push'
+          ? t('settings.storage.confirm.pushOk')
+          : t('settings.storage.confirm.pullOk'),
       onOk: async () => {
         setSyncing(true)
         try {
@@ -282,7 +443,11 @@ function StorageTab() {
             message.loading({ content: t('settings.storage.doing.bidir'), key: 'sync', duration: 0 })
             const r = await syncBidirectional(account.id, settings.cloud)
             message.success({
-              content: t('settings.storage.done.bidir', { libs: r.addedLibraries, items: r.addedItems, updated: r.updatedItems }),
+              content: t('settings.storage.done.bidir', {
+                libs: r.addedLibraries,
+                items: r.addedItems,
+                updated: r.updatedItems,
+              }),
               key: 'sync',
               duration: 6,
             })
@@ -293,7 +458,12 @@ function StorageTab() {
             await useLibraryStore.getState().refreshCurrent()
             useLibraryStore.getState().bumpDataVersion()
             message.success({
-              content: t('settings.storage.done.pull', { libs: r.addedLibraries, fields: r.addedFields, items: r.addedItems, updated: r.updatedItems }),
+              content: t('settings.storage.done.pull', {
+                libs: r.addedLibraries,
+                fields: r.addedFields,
+                items: r.addedItems,
+                updated: r.updatedItems,
+              }),
               key: 'sync',
               duration: 6,
             })
@@ -335,7 +505,11 @@ function StorageTab() {
             await useLibraryStore.getState().refreshCurrent()
             useLibraryStore.getState().bumpDataVersion()
             message.success({
-              content: t('settings.storage.toggleDone.cloud', { libs: r.addedLibraries, items: r.addedItems, updated: r.updatedItems }),
+              content: t('settings.storage.toggleDone.cloud', {
+                libs: r.addedLibraries,
+                items: r.addedItems,
+                updated: r.updatedItems,
+              }),
               key: 'migrate',
               duration: 6,
             })
@@ -345,7 +519,11 @@ function StorageTab() {
             setStorageMode(mode)
             initFromSettings(useAppStore.getState().settings)
             message.success({
-              content: t('settings.storage.toggleDone.local', { libs: r.addedLibraries, items: r.addedItems, updated: r.updatedItems }),
+              content: t('settings.storage.toggleDone.local', {
+                libs: r.addedLibraries,
+                items: r.addedItems,
+                updated: r.updatedItems,
+              }),
               key: 'migrate',
               duration: 6,
             })
@@ -354,7 +532,14 @@ function StorageTab() {
           await useLibraryStore.getState().loadLibraries()
           useLibraryStore.getState().bumpDataVersion()
           // 切换存储模式后清空当前库选中状态（数据源已变，旧 fields/items 无意义）
-          useLibraryStore.setState({ currentLibraryId: null, fields: [], items: [], trash: [], focusItemId: null, libsReady: false })
+          useLibraryStore.setState({
+            currentLibraryId: null,
+            fields: [],
+            items: [],
+            trash: [],
+            focusItemId: null,
+            libsReady: false,
+          })
         } catch (e) {
           message.error({ content: t('settings.storage.toggleFailed', { msg: (e as Error).message }), key: 'migrate' })
         }
@@ -364,20 +549,20 @@ function StorageTab() {
 
   return (
     <div style={{ maxWidth: 560 }}>
-      <Space align="center" style={{ marginBottom: 16 }}>
-        <Switch checked={settings.storageMode === 'cloud'} onChange={handleToggle} />
-        <Text strong>
-          {settings.storageMode === 'cloud' ? t('settings.storage.mode.cloudOn') : t('settings.storage.mode.localOn')}
-        </Text>
-      </Space>
+      <GroupTitle title={t('settings.tab.storage')} />
 
-      <Alert
-        type="warning"
-        showIcon
-        style={{ marginBottom: 16 }}
-        message={t('settings.storage.advanced')}
-        description={t('settings.storage.info.body')}
-      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <Switch checked={settings.storageMode === 'cloud'} onChange={handleToggle} />
+        <span style={{ fontSize: 13, color: 'var(--app-ink)' }}>
+          {settings.storageMode === 'cloud'
+            ? t('settings.storage.mode.cloudOn')
+            : t('settings.storage.mode.localOn')}
+        </span>
+      </div>
+
+      <Notice kind="warning" title={t('settings.storage.advanced')}>
+        {t('settings.storage.info.body')}
+      </Notice>
 
       <Form layout="vertical">
         <Form.Item label={t('settings.storage.url')}>
@@ -398,23 +583,33 @@ function StorageTab() {
         </Form.Item>
       </Form>
 
-      <Alert
-        type="warning"
-        showIcon
-        style={{ marginBottom: 12 }}
-        message={t('settings.storage.sqlMigrateTitle')}
-        description={
-          <pre style={{ fontSize: 11, maxHeight: 160, overflow: 'auto', margin: '8px 0 0' }}>
+      {/* 建表 SQL 属于一次性技术步骤：默认折叠，避免把设置页撑成文档页 */}
+      <details style={{ margin: '8px 0 24px' }}>
+        <summary
+          className="mono"
+          style={{ cursor: 'pointer', fontSize: 12, color: 'var(--app-ink-soft)', padding: '4px 0' }}
+        >
+          {t('settings.storage.sqlTitle')}
+        </summary>
+        <pre
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            maxHeight: 240,
+            overflow: 'auto',
+            margin: '8px 0 0',
+            padding: 12,
+            background: 'var(--app-surface-sunken)',
+            borderRadius: 2,
+            color: 'var(--app-ink)',
+          }}
+        >
 {`-- 已经建过表的话，在 Supabase SQL Editor 里再跑一次这三句补列
 alter table libraries add column if not exists updated_at bigint default 0;
 alter table fields   add column if not exists updated_at bigint default 0;
-alter table fields   add column if not exists deleted_at bigint;`}
-          </pre>
-        }
-      />
-      <Card size="small" title={t('settings.storage.sqlTitle')} style={{ marginTop: 8 }}>
-        <pre style={{ fontSize: 11, maxHeight: 200, overflow: 'auto', margin: 0 }}>
-{`create table accounts (
+alter table fields   add column if not exists deleted_at bigint;
+
+create table accounts (
   id uuid primary key,
   username text unique not null,
   password_hash text not null,
@@ -459,24 +654,24 @@ alter table libraries disable row level security;
 alter table fields disable row level security;
 alter table items disable row level security;`}
         </pre>
-      </Card>
+      </details>
 
-      {(settings.cloud.url && settings.cloud.anonKey) ? (
-        <Card
-          size="small"
-          title={t('settings.storage.syncTitle')}
-          style={{ marginTop: 16 }}
-        >
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              <CloudOutlined /> {t('settings.storage.currentMode')}{settings.storageMode === 'cloud' ? t('settings.storage.mode.cloud') : t('settings.storage.mode.local')}
+      {settings.cloud.url && settings.cloud.anonKey ? (
+        <div style={{ paddingTop: 16, borderTop: '1px solid var(--app-rule)' }}>
+          <h3 className="serif" style={{ fontSize: 20, fontWeight: 600, margin: '0 0 12px' }}>
+            {t('settings.storage.syncTitle')}
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span className="faint" style={{ fontSize: 12 }}>
+              {t('settings.storage.currentMode')}
+              {settings.storageMode === 'cloud'
+                ? t('settings.storage.mode.cloud')
+                : t('settings.storage.mode.local')}
               {account ? t('settings.storage.accountLabel') + account.username : ''}
-            </Text>
-            <Space>
+            </span>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Button
                 type="primary"
-                ghost
-                icon={<SyncOutlined />}
                 loading={syncing}
                 onClick={() => handleSync('push')}
                 disabled={!account}
@@ -491,21 +686,20 @@ alter table items disable row level security;`}
               >
                 {t('settings.storage.btn.pull')}
               </Button>
-            </Space>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              <SyncOutlined /> {t('settings.storage.hint.sync')}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            </div>
+            <span className="faint" style={{ fontSize: 12, lineHeight: 1.7 }}>
+              {t('settings.storage.hint.sync')}
+              <br />
               {t('settings.storage.hint.qr')}
-            </Text>
-          </Space>
-        </Card>
+            </span>
+          </div>
+        </div>
       ) : null}
     </div>
   )
 }
 
-// 「数据同步」标签页：同一局域网内两台设备登录同一账号、连接同一 Wi-Fi，
+// 「数据同步」分区：同一局域网内两台设备登录同一账号、连接同一 Wi-Fi，
 // 经 WebRTC 数据通道直连，互传并合并全部数据（库数据 + AI / 云端配置），全程不经过服务器。
 function ConfigSyncTab() {
   const t = useI18n()
@@ -513,18 +707,10 @@ function ConfigSyncTab() {
 
   return (
     <div style={{ maxWidth: 560 }}>
-      <Card size="small" style={{ marginBottom: 16 }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-          <div style={{ minWidth: 220, flex: 1 }}>
-            <Text strong style={{ display: 'block' }}>{t('settings.f2f.card.title')}</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>{t('settings.f2f.card.body')}</Text>
-          </div>
-          <Button type="primary" icon={<SwapOutlined />} onClick={() => setF2fOpen(true)}>
-            {t('settings.f2f.card.btn')}
-          </Button>
-        </Space>
-      </Card>
-
+      <GroupTitle title={t('settings.tab.configsync')} desc={t('settings.f2f.card.body')} />
+      <Button type="primary" icon={<SwapOutlined />} onClick={() => setF2fOpen(true)}>
+        {t('settings.f2f.card.btn')}
+      </Button>
       <FaceToFaceSyncModal open={f2fOpen} onClose={() => setF2fOpen(false)} />
     </div>
   )
@@ -561,7 +747,10 @@ function AITab() {
     if (!account) return
     replaceAllMemory(
       account.id,
-      val.split('\n').map((l) => l.replace(/^[-*•\d.)\s]+/, '').trim()).filter(Boolean),
+      val
+        .split('\n')
+        .map((l) => l.replace(/^[-*•\d.)\s]+/, '').trim())
+        .filter(Boolean),
     )
   }
 
@@ -596,24 +785,14 @@ function AITab() {
 
   return (
     <div style={{ maxWidth: 560 }}>
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-        message={t('settings.ai.info.title')}
-        description={
-          usingPlatform
-            ? t('settings.ai.info.platform')
-            : t('settings.ai.info.custom')
-        }
-      />
+      <GroupTitle title={t('settings.tab.ai')} />
+      <Notice kind="info" title={t('settings.ai.info.title')}>
+        {usingPlatform ? t('settings.ai.info.platform') : t('settings.ai.info.custom')}
+      </Notice>
       {usingPlatform && (
-        <Alert
-          type="warning"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message={t('settings.ai.platform.warn')}
-        />
+        <Notice kind="warning" title={t('settings.ai.platform.warn')}>
+          {t('settings.ai.radio.platform')}
+        </Notice>
       )}
 
       <Form layout="vertical">
@@ -624,7 +803,14 @@ function AITab() {
             optionType="button"
             buttonStyle="solid"
             options={[
-              { label: platformEnabled === true ? t('settings.ai.radio.platform') : t('settings.ai.radio.platformOff'), value: 'platform', disabled: platformEnabled !== true },
+              {
+                label:
+                  platformEnabled === true
+                    ? t('settings.ai.radio.platform')
+                    : t('settings.ai.radio.platformOff'),
+                value: 'platform',
+                disabled: platformEnabled !== true,
+              },
               { label: t('settings.ai.radio.custom'), value: 'custom' },
             ]}
           />
@@ -632,52 +818,50 @@ function AITab() {
       </Form>
 
       {!usingPlatform && (
-        <>
-      <Form layout="vertical">
-        <Form.Item label={t('settings.ai.baseUrl')}>
-          <Input
-            placeholder="https://api.你的服务商.com/v1"
-            value={settings.ai.baseUrl}
-            onChange={(e) => setAI({ baseUrl: e.target.value })}
-          />
-        </Form.Item>
-        <Form.Item label={t('settings.ai.apiKey')}>
-          <Input.Password
-            placeholder="sk-..."
-            value={settings.ai.apiKey}
-            onChange={(e) => setAI({ apiKey: e.target.value })}
-          />
-        </Form.Item>
-        <Form.Item label={t('settings.ai.model')}>
-          <Input
-            placeholder="填写服务商文档中的模型名称"
-            value={settings.ai.model}
-            onChange={(e) => setAI({ model: e.target.value })}
-          />
-        </Form.Item>
-        <Space wrap>
-          <Button type="primary" icon={<RobotOutlined />} onClick={handleTest}>
-            {t('settings.ai.test')}
-          </Button>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {t('settings.ai.autosave')}
-          </Text>
-        </Space>
-      </Form>
-        </>
+        <Form layout="vertical">
+          <Form.Item label={t('settings.ai.baseUrl')}>
+            <Input
+              placeholder="https://api.你的服务商.com/v1"
+              value={settings.ai.baseUrl}
+              onChange={(e) => setAI({ baseUrl: e.target.value })}
+            />
+          </Form.Item>
+          <Form.Item label={t('settings.ai.apiKey')}>
+            <Input.Password
+              placeholder="sk-..."
+              value={settings.ai.apiKey}
+              onChange={(e) => setAI({ apiKey: e.target.value })}
+            />
+          </Form.Item>
+          <Form.Item label={t('settings.ai.model')}>
+            <Input
+              placeholder="填写服务商文档中的模型名称"
+              value={settings.ai.model}
+              onChange={(e) => setAI({ model: e.target.value })}
+            />
+          </Form.Item>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Button type="primary" icon={<RobotOutlined />} onClick={handleTest}>
+              {t('settings.ai.test')}
+            </Button>
+            <span className="faint" style={{ fontSize: 12 }}>
+              {t('settings.ai.autosave')}
+            </span>
+          </div>
+        </Form>
       )}
 
-      <Divider />
+      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--app-rule)' }} />
 
       <Form layout="vertical">
         <Form.Item
           label={
-            <Space>
-              <Text strong>{t('settings.ai.prompt.label')}</Text>
-              <Tag color={settings.ai.customPrompt ? 'green' : 'default'} style={{ fontSize: 11 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontWeight: 600 }}>{t('settings.ai.prompt.label')}</span>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--app-ink-faint)' }}>
                 {settings.ai.customPrompt ? t('settings.ai.prompt.custom') : t('settings.ai.prompt.default')}
-              </Tag>
-            </Space>
+              </span>
+            </span>
           }
           help={t('settings.ai.prompt.help')}
         >
@@ -686,7 +870,7 @@ function AITab() {
             placeholder={SYSTEM_PROMPT}
             value={settings.ai.customPrompt}
             onChange={(e) => setAI({ customPrompt: e.target.value })}
-            style={{ fontFamily: 'monospace', fontSize: 12 }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}
           />
         </Form.Item>
         <Space>
@@ -711,19 +895,19 @@ function AITab() {
         </Space>
       </Form>
 
-      <Divider />
+      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--app-rule)' }} />
 
       <Form layout="vertical">
         <Form.Item
           label={
-            <Space>
-              <Text strong>{t('settings.ai.memory.label')}</Text>
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontWeight: 600 }}>{t('settings.ai.memory.label')}</span>
               {account && listMemory(account.id).length > 0 && (
-                <Tag color="green" style={{ fontSize: 11 }}>
+                <span className="mono" style={{ fontSize: 11, color: 'var(--app-ink-faint)' }}>
                   {t('settings.ai.memory.count', { n: listMemory(account.id).length })}
-                </Tag>
+                </span>
               )}
-            </Space>
+            </span>
           }
           help={t('settings.ai.memory.help')}
         >
@@ -732,10 +916,10 @@ function AITab() {
             placeholder={t('settings.ai.memory.placeholder')}
             value={memoryLines}
             onChange={(e) => handleMemoryChange(e.target.value)}
-            style={{ fontFamily: 'monospace', fontSize: 12 }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}
           />
         </Form.Item>
-        <Space>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
           <Button
             size="small"
             danger
@@ -748,10 +932,10 @@ function AITab() {
           >
             {t('settings.ai.memory.clear')}
           </Button>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <span className="faint" style={{ fontSize: 12 }}>
             {t('settings.ai.memory.localNote')}
-          </Text>
-        </Space>
+          </span>
+        </div>
       </Form>
     </div>
   )
@@ -779,11 +963,16 @@ function BackupTab() {
 
   const triggerLabel = (tr: SnapshotSummary['trigger']): string => {
     switch (tr) {
-      case 'manual': return t('settings.snap.trigger.manual')
-      case 'transfer': return t('settings.snap.trigger.transfer')
-      case 'import': return t('settings.snap.trigger.import')
-      case 'pre-restore': return t('settings.snap.trigger.preRestore')
-      default: return tr
+      case 'manual':
+        return t('settings.snap.trigger.manual')
+      case 'transfer':
+        return t('settings.snap.trigger.transfer')
+      case 'import':
+        return t('settings.snap.trigger.import')
+      case 'pre-restore':
+        return t('settings.snap.trigger.preRestore')
+      default:
+        return tr
     }
   }
 
@@ -843,6 +1032,8 @@ function BackupTab() {
     // （TWA/安卓 WebView 里下载是异步启动的，立即 revoke 会得到空文件）。
     downloadBlob(`备份_${dayjs().format('YYYYMMDD_HHmmss')}.json`, file)
     message.success(t('settings.backup.exported'))
+    // 价值时刻（R3/M2）：记录「首次成功导出备份」里程碑（support.ts 内部 markMilestone）
+    noteBackupExported(account.id)
   }
 
   const handleImport = (file: File) => {
@@ -888,62 +1079,76 @@ function BackupTab() {
 
   return (
     <div style={{ maxWidth: 560 }}>
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-        message={t('settings.backup.info.title')}
-        description={t('settings.backup.info.body')}
-      />
-      <Space direction="vertical" style={{ width: '100%' }}>
-        <Button icon={<DownloadOutlined />} onClick={handleExport} block>
+      <GroupTitle title={t('settings.tab.backup')} desc={t('settings.backup.info.body')} />
+      <Notice kind="info" title={t('settings.backup.info.title')}>
+        {t('settings.backup.cloudNote')}
+      </Notice>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button icon={<DownloadOutlined />} onClick={handleExport}>
           {t('settings.backup.export')}
         </Button>
         <Upload beforeUpload={handleImport} showUploadList={false} accept=".json">
-          <Button icon={<UploadOutlined />} block>
-            {t('settings.backup.import')}
-          </Button>
+          <Button icon={<UploadOutlined />}>{t('settings.backup.import')}</Button>
         </Upload>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          <DatabaseOutlined /> {t('settings.backup.cloudNote')}
-        </Text>
-      </Space>
+      </div>
 
-      <Divider style={{ margin: '20px 0 12px' }} />
-      <Card size="small" title={<span><HistoryOutlined /> {t('settings.snap.title')}</span>}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-          <Text type="secondary" style={{ fontSize: 12 }}>{t('settings.snap.hint', { max: MAX_SNAPSHOTS })}</Text>
-          <Button size="small" icon={<PlusOutlined />} loading={snapLoading} onClick={() => void handleManualSnapshot()}>
-            {t('settings.snap.create')}
-          </Button>
-        </Space>
+      <div style={{ margin: '28px 0 16px', borderTop: '1px solid var(--app-rule)' }} />
 
-        {snapshots.length === 0 ? (
-          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>{t('settings.snap.empty')}</Text>
-        ) : (
-          <div style={{ marginTop: 4 }}>
-            {snapshots.map((s) => (
-              <div
-                key={s.id}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--app-border-soft)', gap: 8 }}
-              >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <Text style={{ fontSize: 13, display: 'block' }}>{dayjs(s.createdAt).format('YYYY-MM-DD HH:mm')}</Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {triggerLabel(s.trigger)} · {t('settings.snap.counts', { libs: s.libraries, items: s.items })}
-                  </Text>
-                </div>
-                <Space size={4}>
-                  <Button size="small" icon={<RollbackOutlined />} onClick={() => handleRestoreSnapshot(s)}>
-                    {t('settings.snap.restore.btn')}
-                  </Button>
-                  <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteSnapshot(s)} />
-                </Space>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        <h3 className="serif" style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+          <HistoryOutlined style={{ fontSize: 15, marginRight: 6 }} />
+          {t('settings.snap.title')}
+        </h3>
+        <Button size="small" icon={<PlusOutlined />} loading={snapLoading} onClick={() => void handleManualSnapshot()}>
+          {t('settings.snap.create')}
+        </Button>
+      </div>
+      <p className="faint" style={{ fontSize: 12, margin: '0 0 8px', lineHeight: 1.7 }}>
+        {t('settings.snap.hint', { max: MAX_SNAPSHOTS })}
+      </p>
+
+      {snapshots.length === 0 ? (
+        <p className="faint" style={{ fontSize: 12, margin: 0 }}>
+          {t('settings.snap.empty')}
+        </p>
+      ) : (
+        <div>
+          {snapshots.map((s) => (
+            <div
+              key={s.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 0',
+                borderBottom: '1px solid var(--app-rule)',
+                gap: 8,
+              }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <span className="mono" style={{ fontSize: 12, color: 'var(--app-ink)', display: 'block' }}>
+                  {dayjs(s.createdAt).format('YYYY-MM-DD HH:mm')}
+                </span>
+                <span className="faint" style={{ fontSize: 12 }}>
+                  {triggerLabel(s.trigger)} · {t('settings.snap.counts', { libs: s.libraries, items: s.items })}
+                </span>
               </div>
-            ))}
-          </div>
-        )}
-      </Card>
+              <Space size={4}>
+                <Button size="small" icon={<RollbackOutlined />} onClick={() => handleRestoreSnapshot(s)}>
+                  {t('settings.snap.restore.btn')}
+                </Button>
+                <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteSnapshot(s)} />
+              </Space>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="faint" style={{ fontSize: 12, margin: '20px 0 0' }}>
+        <DatabaseOutlined style={{ marginRight: 6 }} />
+        {t('settings.backup.cloudNote')}
+      </p>
     </div>
   )
 }

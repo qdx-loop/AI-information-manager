@@ -11,10 +11,25 @@ database_name = "info-manager"
 database_id = "633bb5c3-878c-476a-9ca8-f2f77e3a6c40"
 
 # 机密变量（不要写进本文件，用命令设置）：
-#   npx wrangler pages secret put AUTH_SECRET     ← 随机长字符串，用于令牌签名
+#   npx wrangler pages secret put AUTH_SECRET     ← 随机长字符串（必须 >= 32 字符），用于令牌签名
+#                                                    缺失/过短时登录/注册/改密一律 503 SERVER_MISCONFIGURED
 #   npx wrangler pages secret put ADMIN_PASSWORD  ← 你的管理后台密码
+#   npx wrangler pages secret put TURNSTILE_SECRET      ← Turnstile 服务端校验密钥（可选但强烈建议）
+#   npx wrangler pages secret put TURNSTILE_HOSTNAMES   ← 允许的主机名，逗号分隔（与上一条同时配置才生效）
 #
 # 可选：平台代管 AI（配置后买家在「设置 → AI 配置」选"平台提供"即可零配置使用）
 #   npx wrangler pages secret put PLATFORM_AI_BASEURL  ← 上游地址，如 https://api.deepseek.com/v1
 #   npx wrangler pages secret put PLATFORM_AI_KEY      ← 上游 API Key
 #   npx wrangler pages secret put PLATFORM_AI_MODEL    ← 统一模型名，如 deepseek-chat
+#   备用档（主档连接失败/429/5xx 时自动切换，最多两档）：
+#   PLATFORM_AI_FALLBACK_1_{BASEURL,KEY,MODEL} / PLATFORM_AI_FALLBACK_2_{BASEURL,KEY,MODEL}
+#
+# 可选：限速与开关（默认值见 DEPLOY.md「限速与开关」）
+#   AI_RATE_MAX / AI_RATE_WINDOW_MS   ← 平台 AI 每账号调用上限（默认 120 次/小时）
+#   TRACK_RATE_MAX                    ← /api/track 每账号上报上限（默认 120 次/小时）
+#   FETCH_RATE_MAX                    ← /api/ai/fetch 每账号抓取上限（默认 60 次/小时）
+#   REGISTRATION_OPEN=0               ← 紧急关闭注册；删除该变量即恢复开放
+#
+# 数据库升级顺序（老库）：migration-pwd-epoch.sql → migration-p2p-signals.sql →
+# migration-free-accounts.sql（三者都不幂等，只跑一次）；新库只跑 schema.sql。
+# 详见 DEPLOY.md「迁移清单」。

@@ -20,6 +20,7 @@ import {
   clientIp,
   checkWindowCount,
   logAdmin,
+  ensureAuthSecret,
 } from '../../lib/_auth'
 import { verifyTurnstile } from '../../lib/turnstile'
 
@@ -43,6 +44,10 @@ export async function onRequestGet({ env }) {
 }
 
 export async function onRequestPost({ request, env }) {
+  // 注册成功即签发令牌：AUTH_SECRET 缺失/过短必须在这里 fail-closed（503），不能等到 issueUserToken 抛错
+  const misconfig = ensureAuthSecret(env)
+  if (misconfig) return misconfig
+
   if (!registrationOpen(env)) {
     return errorJson('暂时关闭了注册，请稍后再试', 403, 'REGISTRATION_CLOSED')
   }

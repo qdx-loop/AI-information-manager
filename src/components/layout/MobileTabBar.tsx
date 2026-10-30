@@ -60,7 +60,7 @@ export default function MobileTabBar({
       },
       {
         key: 'ai',
-        label: t('app.aiAssistant'),
+        label: t('ai.clerk'),
         icon: <RobotOutlined />,
         active: aiOpen,
         onClick: () => { onDismiss?.(); setAiOpen(!aiOpen) },

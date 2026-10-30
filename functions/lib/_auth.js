@@ -8,6 +8,11 @@ const ITERATIONS = 100000
 const TOKEN_TTL_USER = 7 * 24 * 3600 // 用户令牌最长 7 天，到期前需重新登录
 const TOKEN_TTL_ADMIN = 12 * 3600 // 管理后台令牌 12 小时
 
+// AUTH_SECRET 的最小长度。审计实测：缺失时 TextEncoder 得到零长度 key，
+// WebCrypto 会抛 DataError（登录/注册 500）；若某个运行时把 undefined 字符串化，
+// 就等价于一把人人可猜的固定弱密钥 → 令牌可伪造。两种结果都只能靠启动期 fail-closed 兜住。
+export const MIN_AUTH_SECRET_LEN = 32
+
 // ———— 基础工具 ————
 
 function bytesToHex(buf) {
@@ -83,6 +88,34 @@ export async function verifyPassword(password, stored) {
   }
 }
 
+// ———— 环境自检 ————
+
+// 所有签发/校验令牌的入口都先过这里：AUTH_SECRET 缺失或过短时返回 503（fail-closed），
+// 而不是让 crypto.subtle 抛错变成 500、更不是静默用空密钥签名。
+// 注意：只报「缺什么」，绝不把 secret 本身写进日志或响应。
+export function ensureAuthSecret(env) {
+  const secret = env?.AUTH_SECRET
+  if (typeof secret !== 'string' || secret.length === 0) {
+    console.error('[auth] 缺少 AUTH_SECRET 环境变量，已拒绝签发/校验令牌（fail-closed）')
+    return errorJson(
+      '服务端未配置登录密钥（AUTH_SECRET），暂时无法登录，请联系管理员',
+      503,
+      'SERVER_MISCONFIGURED',
+    )
+  }
+  if (secret.length < MIN_AUTH_SECRET_LEN) {
+    console.error(
+      `[auth] AUTH_SECRET 过短（需至少 ${MIN_AUTH_SECRET_LEN} 字符），已拒绝签发/校验令牌（fail-closed）`,
+    )
+    return errorJson(
+      `服务端登录密钥配置过短（AUTH_SECRET 至少 ${MIN_AUTH_SECRET_LEN} 字符），请联系管理员`,
+      503,
+      'SERVER_MISCONFIGURED',
+    )
+  }
+  return null
+}
+
 // ———— 无状态令牌（HMAC-SHA256 签名，无需会话表）————
 
 async function hmac(payload, secret) {
@@ -153,12 +186,16 @@ function getBearer(request) {
 
 // 校验用户令牌 + 账户状态。成功返回账户行；失败返回 Response。
 export async function requireUser(request, env) {
+  const misconfig = ensureAuthSecret(env)
+  if (misconfig) return { error: misconfig }
   const token = getBearer(request)
   if (!token) return { error: errorJson('未登录', 401, 'NO_TOKEN') }
   const payload = await verifyToken(token, env.AUTH_SECRET)
   if (!payload || payload.t !== 'user') return { error: errorJson('登录已失效，请重新登录', 401, 'BAD_TOKEN') }
+  // 注意：这里必须带 password_hash —— /api/auth/password 要用它校验旧密码。
+  // 之前漏了该列，导致 acc.password_hash === undefined → 改密 100% 返回 403（审计 P1-1）。
   const acc = await env.DB.prepare(
-    'SELECT id, username, contact, disabled, created_at, last_login FROM accounts WHERE id = ?',
+    'SELECT id, username, password_hash, contact, disabled, created_at, last_login FROM accounts WHERE id = ?',
   )
     .bind(payload.aid)
     .first()
@@ -173,6 +210,8 @@ export async function requireUser(request, env) {
 }
 
 export async function requireAdmin(request, env) {
+  const misconfig = ensureAuthSecret(env)
+  if (misconfig) return { error: misconfig }
   const token = getBearer(request)
   if (!token) return { error: errorJson('未登录', 401, 'NO_TOKEN') }
   const payload = await verifyToken(token, env.AUTH_SECRET)
@@ -235,9 +274,14 @@ export function publicAccount(row) {
   }
 }
 
-// ———— 登录限速（D1 固定窗口；仅失败计数，成功清零）————
+// ———— 登录限速（D1 固定窗口）————
 // 表缺失时降级为放行并告警——避免未执行迁移的旧部署直接登录瘫痪。
 // 迁移：npx wrangler d1 execute info-manager --file=./schema.sql --remote
+//
+// 计费规则（2026-10 审计 P1-2）：失败计数，成功只清「同一用户名+IP」的 user 桶；
+// IP 桶（loginip:）只增不清。原因：清 IP 桶等于给「持有任意有效账号的攻击者」发绕过门票——
+// 试 9 次 → 登录自己清桶 → 续试，喷洒限速永久失效。也考虑过「成功衰减 1」，
+// 但同样可被有账号者交替利用（成功一次换回一次失败额度），故不采用。
 
 export function clientIp(request) {
   return (

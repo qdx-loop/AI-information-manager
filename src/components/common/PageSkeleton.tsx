@@ -68,19 +68,23 @@ export function EmptyState({
   return (
     <div
       style={{
+        // 空状态是唯一允许居中的场景（研究 brief §K.9）
         textAlign: 'center',
-        padding: compact ? '28px 16px' : '56px 24px',
+        padding: compact ? '24px 16px' : '48px 24px',
         color: 'var(--app-ink-soft)',
       }}
     >
-      {icon ? <div style={{ marginBottom: 12, opacity: 0.9 }}>{icon}</div> : null}
-      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--app-ink)', marginBottom: 6 }}>
+      {icon ? <div style={{ marginBottom: 10, opacity: 0.9 }}>{icon}</div> : null}
+      <div
+        className="serif"
+        style={{ fontSize: 20, lineHeight: 1.4, fontWeight: 600, color: 'var(--app-ink)', marginBottom: 6 }}
+      >
         {title}
       </div>
       {body ? (
         <div style={{ maxWidth: 440, margin: '0 auto', lineHeight: 1.75, fontSize: 13 }}>{body}</div>
       ) : null}
-      {action ? <div style={{ marginTop: 20 }}>{action}</div> : null}
+      {action ? <div style={{ marginTop: 18 }}>{action}</div> : null}
     </div>
   )
 }

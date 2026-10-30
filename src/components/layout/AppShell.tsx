@@ -177,7 +177,7 @@ export default function AppShell() {
   useBackButtonLayer(sidebarOpen, () => setSidebarOpen(false))
 
   return (
-    <Layout style={{ height: '100vh', display: 'flex' }}>
+    <Layout className="app-shell">
       {!online && (
         <div className="offline-bar" role="status">
           <WifiOutlined />
@@ -204,10 +204,10 @@ export default function AppShell() {
       <Layout>
         <Header
           style={{
-            // 高度要把顶部安全区算进去，否则刘海机型下内容会被挤到状态栏后面
-            height: 'calc(52px + env(safe-area-inset-top, 0px))',
-            lineHeight: '52px',
-            // 顶部安全区：iPhone 灵动岛/刘海会把标题栏压住
+            // 44px：账页的「页眉」——比旧版 52px 矮一档，让首屏多一行数据。
+            // 高度仍要把顶部安全区算进去，否则刘海机型下内容会被挤到状态栏后面。
+            height: 'calc(44px + env(safe-area-inset-top, 0px))',
+            lineHeight: 'normal',
             paddingTop: 'env(safe-area-inset-top, 0px)',
             paddingLeft: '12px',
             paddingRight: '12px',
@@ -232,11 +232,14 @@ export default function AppShell() {
                 不必回头看侧边栏；没有选中库时回落到产品名。 */}
             {/* 当前位置：分类 / 库名。页面主标题属于页面本身，
                 顶栏只留「次要位置感」，不再用大字重压过页面标题。 */}
+            <span className="app-brand-dot" style={{ marginRight: 2 }} />
             <span
+              className="serif"
               style={{
-                fontSize: 13.5,
-                fontWeight: 500,
-                color: currentLib ? 'var(--app-ink-soft)' : 'var(--app-ink)',
+                fontSize: 16,
+                fontWeight: 600,
+                letterSpacing: 0,
+                color: 'var(--app-ink)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -246,7 +249,10 @@ export default function AppShell() {
               {currentLib ? currentLib.name : t('app.brand')}
             </span>
             {currentLib?.category && !isMobile && (
-              <span style={{ fontSize: 12.5, color: 'var(--app-ink-faint)', flexShrink: 0 }}>
+              <span
+                className="mono"
+                style={{ fontSize: 11, letterSpacing: '0.04em', color: 'var(--app-ink-faint)', flexShrink: 0 }}
+              >
                 {currentLib.category}
               </span>
             )}
@@ -264,7 +270,7 @@ export default function AppShell() {
                   gap: 6,
                   color: 'var(--app-ink-faint)',
                   fontWeight: 400,
-                  background: 'var(--app-canvas)',
+                  background: 'var(--app-surface-sunken)',
                 }}
                 icon={<SearchOutlined />}
               >
@@ -330,7 +336,7 @@ export default function AppShell() {
               }}
             >
               <Button type="text" className="tap" aria-label={t('app.signOut')}>
-                <Avatar size={26} style={{ background: 'var(--app-glaze)' }}>
+                <Avatar size={26} style={{ background: 'var(--app-action)', color: 'var(--app-canvas)', fontSize: 12 }}>
                   {(account?.username ?? '?').slice(0, 1).toUpperCase()}
                 </Avatar>
               </Button>
@@ -344,7 +350,7 @@ export default function AppShell() {
             overflow: 'auto',
             background: 'var(--app-canvas)',
             // 手机上给底部标签栏让出位置，否则最后一屏内容被永久遮挡
-            paddingBottom: isMobile ? 'calc(56px + env(safe-area-inset-bottom, 0px))' : 0,
+            paddingBottom: isMobile ? 'calc(48px + env(safe-area-inset-bottom, 0px))' : 0,
           }}
         >
           <Outlet />

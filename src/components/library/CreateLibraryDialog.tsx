@@ -6,6 +6,7 @@ import { useI18n } from '@/i18n'
 import { LIB_TEMPLATES, applyTemplate, copyTemplateToLibrary } from '@/utils/libraryTemplates'
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
 import { getProvider } from '@/db/providerFactory'
+import { LabelText } from './labels'
 
 /**
  * 新建管理库 —— 全应用唯一的建库入口。
@@ -22,6 +23,9 @@ import { getProvider } from '@/db/providerFactory'
  *
  * 现在两边都渲染这一个受控 <Modal>：字段标签齐全、模板可选、
  * 空名/失败时用一个不 settle 的 Promise 把弹窗撑住不关。
+ *
+ * 视觉：字段标签是 12px muted 在上 + 必填朱砂小方点（不用红字星号），
+ * 表单宽度 480，控件 32px / 2px 圆角由 theme 统一。
  */
 export default function CreateLibraryDialog({
   open,
@@ -137,13 +141,16 @@ export default function CreateLibraryDialog({
       confirmLoading={creating}
       destroyOnHidden
       maskClosable={!creating}
+      width={480}
+      style={{ maxWidth: 'calc(100vw - 32px)' }}
     >
       <Form layout="vertical" style={{ marginTop: 8 }} requiredMark={false}>
         <Form.Item
-          label={t('home.create.nameLabel')}
+          label={<LabelText label={t('home.create.nameLabel')} required />}
           required
           validateStatus={name.length > 0 && !name.trim() ? 'error' : undefined}
           help={name.length > 0 && !name.trim() ? t('app.lib.nameRequired') : undefined}
+          style={{ marginBottom: 16 }}
         >
           <Input
             placeholder={t('home.create.placeholder')}
@@ -154,7 +161,7 @@ export default function CreateLibraryDialog({
             disabled={creating}
           />
         </Form.Item>
-        <Form.Item label={t('home.create.parentLabel')} style={{ marginBottom: 12 }}>
+        <Form.Item label={<LabelText label={t('home.create.parentLabel')} />} style={{ marginBottom: 16 }}>
           <Select
             value={parentId ?? undefined}
             onChange={(v) => setParentId(v ?? null)}
@@ -164,7 +171,7 @@ export default function CreateLibraryDialog({
             disabled={creating}
           />
         </Form.Item>
-        <Form.Item label={t('home.create.tplLabel')} style={{ marginBottom: 0 }}>
+        <Form.Item label={<LabelText label={t('home.create.tplLabel')} />} style={{ marginBottom: 8 }}>
           <Select
             value={tplKey}
             onChange={setTplKey}
@@ -177,7 +184,7 @@ export default function CreateLibraryDialog({
           />
         </Form.Item>
       </Form>
-      <div style={{ fontSize: 12, color: 'var(--app-muted, #6b7280)', marginTop: 8 }}>{t('home.create.tplHint')}</div>
+      <div className="faint" style={{ fontSize: 'var(--text-xs)', marginTop: 8 }}>{t('home.create.tplHint')}</div>
     </Modal>
   )
 }

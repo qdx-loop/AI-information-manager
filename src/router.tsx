@@ -1,19 +1,43 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Spin, App as AntdApp } from 'antd'
+import { App as AntdApp } from 'antd'
 import { useAuthStore } from '@/store/authStore'
 import AppShell from '@/components/layout/AppShell'
 import AuthPage from '@/components/auth/AuthPage'
-import AdminPage from '@/components/admin/AdminPage'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
-import Landing from '@/components/public/Landing'
-import HelpPage from '@/components/public/HelpPage'
 import { isAndroidApp } from '@/utils/platform'
 
+/**
+ * 路由级 code-splitting：营销页 / 后台 / 帮助中心都是「特定身份才会看」的页面，
+ * 不该压在已登录用户的首屏包体里（旧版为静态导入，首屏多下载一个营销页 + 后台）。
+ * 用同一份延迟 fallback，避免三套重复的全屏 Spin。
+ */
 const LibraryView = lazy(() => import('@/components/library/LibraryView'))
 const TrashBin = lazy(() => import('@/components/library/TrashBin'))
 const SettingsPage = lazy(() => import('@/components/settings/SettingsPage'))
 const EmptyHome = lazy(() => import('@/components/library/EmptyHome'))
+const Landing = lazy(() => import('@/components/public/Landing'))
+const HelpPage = lazy(() => import('@/components/public/HelpPage'))
+const AdminPage = lazy(() => import('@/components/admin/AdminPage'))
+
+/** 路由等待：一行等宽小字，不用大号 Spin 占满整屏 */
+function RouteFallback() {
+  return (
+    <div
+      style={{
+        height: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--app-canvas)',
+      }}
+    >
+      <span className="mono faint" style={{ fontSize: 11, letterSpacing: '0.08em' }}>
+        LOADING…
+      </span>
+    </div>
+  )
+}
 
 // 根路径分流：
 //   未登录 + 在网页里  → 公开落地页（营销页，给搜索/分享进来的访客看）
@@ -21,13 +45,7 @@ const EmptyHome = lazy(() => import('@/components/library/EmptyHome'))
 //   已登录            → 应用主界面
 function HomeGate() {
   const { account, loading } = useAuthStore()
-  if (loading) {
-    return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin size="large" />
-      </div>
-    )
-  }
+  if (loading) return <RouteFallback />
   if (!account) {
     if (isAndroidApp()) return <Navigate to="/login" replace />
     return <Landing />
@@ -54,13 +72,7 @@ function LogoutReasonBanner() {
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { account, loading } = useAuthStore()
-  if (loading) {
-    return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin size="large" />
-      </div>
-    )
-  }
+  if (loading) return <RouteFallback />
   if (!account) return <Navigate to="/login" replace />
   return <>{children}</>
 }
@@ -68,13 +80,7 @@ function Protected({ children }: { children: React.ReactNode }) {
 // 登录页守卫：loading 时显示 Spin，已登录则跳转主页
 function PublicOnly({ children }: { children: React.ReactNode }) {
   const { account, loading } = useAuthStore()
-  if (loading) {
-    return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin size="large" />
-      </div>
-    )
-  }
+  if (loading) return <RouteFallback />
   if (account) return <Navigate to="/" replace />
   return <>{children}</>
 }
@@ -87,13 +93,7 @@ export default function Router() {
   }, [init])
 
   return (
-    <Suspense
-      fallback={
-        <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Spin size="large" />
-        </div>
-      }
-    >
+    <Suspense fallback={<RouteFallback />}>
       <ErrorBoundary>
       <LogoutReasonBanner />
       <Routes>

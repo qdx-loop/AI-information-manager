@@ -11,12 +11,17 @@ import {
   logAdmin,
   sha256Hex,
   timingSafeEqualHex,
+  ensureAuthSecret,
 } from '../../lib/_auth'
 
 export async function onRequestPost({ request, env }) {
   if (!env.ADMIN_PASSWORD) {
     return errorJson('服务端未配置 ADMIN_PASSWORD 环境变量', 500, 'NOT_CONFIGURED')
   }
+  // 后台登录同样要签发令牌：AUTH_SECRET 缺失/过短时 fail-closed（503），
+  // 否则密码正确也会因零长度 HMAC key 抛错变成 500。
+  const misconfig = ensureAuthSecret(env)
+  if (misconfig) return misconfig
   const ip = clientIp(request)
   const limit = await checkRateLimit(env, `admin:${ip}`, 5, 15 * 60_000)
   if (!limit.allowed) {

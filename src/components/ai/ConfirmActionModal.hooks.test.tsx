@@ -63,5 +63,8 @@ describe('ConfirmActionModal Hooks 顺序', () => {
     const hookErrors = errSpy.mock.calls.filter((c) => /rendered (more|fewer) hooks/i.test(String(c[0])))
     expect(hookErrors).toHaveLength(0)
     errSpy.mockRestore()
-  })
+    // jsdom + antd Modal 的挂载/卸载 motion 是异步计时器，单跑约 3s；全量并行时
+    // 会超过 vitest 默认 5s 上限（断言本身是同步的，不是用例逻辑变慢）。
+    // 显式放大超时，避免用「删断言」或「mock 掉 backButton」的方式换假绿。
+  }, 20_000)
 })

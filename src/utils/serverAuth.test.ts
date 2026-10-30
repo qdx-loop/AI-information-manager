@@ -7,7 +7,10 @@ import {
   checkWindowCount,
   validateRegistration,
   publicAccount,
+  recordLoginFailure,
+  clearLoginFailures,
   MIN_PASSWORD,
+  MIN_AUTH_SECRET_LEN,
 } from '../../functions/lib/_auth'
 
 // 最小 D1 mock：按 SQL 子串路由，内存保存 accounts / login_attempts 状态
@@ -31,6 +34,15 @@ function makeDb(state: DbState = {}) {
           last_login: null,
         }
       : state.account
+  // 按 SELECT 的列名做投影：否则「SELECT 漏了 password_hash」这类缺陷在 mock 上永远测不出来
+  function project(row: Record<string, unknown>, sql: string) {
+    const m = /SELECT\s+([\s\S]+?)\s+FROM/i.exec(sql)
+    if (!m) return { ...row }
+    const cols = m[1].split(',').map((c) => c.trim().split(/\s+/)[0]).filter(Boolean)
+    const out: Record<string, unknown> = {}
+    for (const c of cols) out[c] = row[c]
+    return out
+  }
   const db = {
     prepare(sql: string) {
       return {
@@ -41,8 +53,13 @@ function makeDb(state: DbState = {}) {
                 if (state.pwdEpochColumnMissing) throw new Error('no such column: pwd_epoch')
                 return { pwd_epoch: state.pwdEpoch ?? 0 }
               }
-              if (sql.includes('FROM accounts WHERE id')) return account
+              if (sql.includes('FROM accounts WHERE id')) return account ? project(account, sql) : null
               if (sql.includes('SELECT count, window_start FROM login_attempts')) {
+                if (state.attemptsTableMissing) throw new Error('no such table: login_attempts')
+                return attempts.get(String(args[0])) ?? null
+              }
+              // recordLoginFailure 只读 window_start（不读 count）
+              if (sql.includes('SELECT window_start FROM login_attempts')) {
                 if (state.attemptsTableMissing) throw new Error('no such table: login_attempts')
                 return attempts.get(String(args[0])) ?? null
               }
@@ -55,6 +72,8 @@ function makeDb(state: DbState = {}) {
               } else if (sql.includes('UPDATE login_attempts SET count = count + 1')) {
                 const cur = attempts.get(String(args[0]))
                 if (cur) cur.count += 1
+              } else if (sql.includes('DELETE FROM login_attempts')) {
+                attempts.delete(String(args[0]))
               }
               return {}
             },
@@ -80,7 +99,8 @@ function makeRequest(token: string | null) {
   }
 }
 
-const SECRET = 'test-auth-secret'
+// 必须是 >= MIN_AUTH_SECRET_LEN 的真实长度：过短的 secret 现在会被 fail-closed 拒掉（503）
+const SECRET = 'test-auth-secret-0123456789abcdef'
 const freshAccount = () => ({ id: 'acc-1', expires_at: Date.now() + 86_400_000 })
 
 describe('改密吊销令牌（pwd_epoch 纪元）', () => {
@@ -130,6 +150,54 @@ describe('改密吊销令牌（pwd_epoch 纪元）', () => {
     const res = await requireUser(makeRequest(token), env)
     expect(res.account).toBeDefined()
     expect(res.error).toBeUndefined()
+  })
+})
+
+// ———— P1-1 回归：改密接口依赖 requireUser 返回 password_hash ————
+describe('requireUser 返回字段（改密 100% 失败的根因）', () => {
+  it('账户行必须包含 password_hash，否则 verifyPassword 永远拿不到旧哈希', async () => {
+    const { db } = makeDb()
+    const env = { DB: db, AUTH_SECRET: SECRET }
+    const token = await issueUserToken(freshAccount(), SECRET, env)
+    const res = await requireUser(makeRequest(token), env)
+    expect(res.account).toBeDefined()
+    expect(typeof res.account!.password_hash).toBe('string')
+  })
+})
+
+// ———— P1-2 回归：成功登录只清 user 桶，IP 桶必须保留 ————
+describe('登录限速桶：成功不清 IP 桶', () => {
+  it('clearLoginFailures 只删指定 key；IP 桶计数原样保留', async () => {
+    const { db, attempts } = makeDb()
+    const env = { DB: db, AUTH_SECRET: SECRET }
+    const userKey = 'user:tiger4821:203.0.113.7'
+    const ipKey = 'loginip:203.0.113.7'
+    await recordLoginFailure(env, userKey)
+    await recordLoginFailure(env, ipKey)
+    await recordLoginFailure(env, ipKey)
+    // 登录成功的正确行为：只清 user:<username>:<ip>，不清 loginip:<ip>
+    await clearLoginFailures(env, userKey)
+    expect(attempts.has(userKey)).toBe(false)
+    expect(attempts.get(ipKey)?.count).toBe(2)
+  })
+})
+
+// ———— P1-7 回归：AUTH_SECRET 缺失/过短必须 fail-closed 503 ————
+describe('AUTH_SECRET 配置校验', () => {
+  it('缺失时 requireUser 返回 503 SERVER_MISCONFIGURED（而不是 500/空密钥签名）', async () => {
+    const { db } = makeDb()
+    const res = await requireUser(makeRequest('any.token'), { DB: db })
+    expect(res.account).toBeUndefined()
+    const err = res.error as Response
+    expect(err.status).toBe(503)
+    expect(await err.json()).toMatchObject({ code: 'SERVER_MISCONFIGURED' })
+  })
+
+  it('过短（< MIN_AUTH_SECRET_LEN）同样 503', async () => {
+    const { db } = makeDb()
+    const env = { DB: db, AUTH_SECRET: 'x'.repeat(MIN_AUTH_SECRET_LEN - 1) }
+    const res = await requireUser(makeRequest('any.token'), env)
+    expect((res.error as Response).status).toBe(503)
   })
 })
 

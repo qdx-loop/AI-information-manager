@@ -76,8 +76,10 @@ export function readChartTokens(dark: boolean): ChartTokens {
     canvas: v('--app-canvas', '#F5F7F8'),
     danger: v('--app-danger', dark ? '#F4785F' : '#C5351F'),
     series,
+    // 图表文字跟随应用的系统字链（不再引用 Plus Jakarta Sans：它既未随包分发，
+    // 也不在用户的系统字体里，写了等于静默回退）。中文由系统黑体渲染，数字用 tabular。
     font:
-      "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif",
   }
 }
 

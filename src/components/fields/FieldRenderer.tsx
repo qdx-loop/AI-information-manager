@@ -14,6 +14,7 @@ interface Props {
 }
 
 // 字段输入渲染器：按 type 渲染对应输入控件
+// 控件高度/圆角由 theme + 全局 antd 收编统一（32px / 2px），这里只管语义。
 export default function FieldRenderer({ field, value, onChange, autoFocus, compact }: Props) {
   const sz = compact ? ('small' as const) : ('middle' as const)
   const t = useI18n()
@@ -21,12 +22,25 @@ export default function FieldRenderer({ field, value, onChange, autoFocus, compa
     case 'text':
       return <Input size={sz} autoFocus={autoFocus} value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={t('field.inputPlaceholder', { name: field.label })} />
     case 'textarea':
-      return <Input.TextArea size={sz} autoFocus={autoFocus} value={(value as string) ?? ''} rows={compact ? 2 : 3} onChange={(e) => onChange(e.target.value)} placeholder={t('field.inputPlaceholder', { name: field.label })} />
+      return (
+        <Input.TextArea
+          size={sz}
+          autoFocus={autoFocus}
+          value={(value as string) ?? ''}
+          rows={compact ? 2 : 3}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={t('field.inputPlaceholder', { name: field.label })}
+          // 长文本是「阅读区」：16/1.75（中文正文行高），不是 14/1.6
+          style={compact ? undefined : { fontSize: 'var(--text-md)', lineHeight: 1.75 }}
+        />
+      )
     case 'number':
+      // 数字右对齐 + tabular：金额/数量列要与表头账栏对齐
       return <InputNumber size={sz} autoFocus={autoFocus} value={value as number} onChange={(v) => onChange(v ?? null)} style={{ width: '100%' }} placeholder={t('field.numberPlaceholder')} />
     case 'date':
       return (
         <DatePicker
+          className="mono"
           value={value ? dayjs(value as string) : null}
           onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : null)}
           style={{ width: '100%' }}
@@ -48,6 +62,7 @@ export default function FieldRenderer({ field, value, onChange, autoFocus, compa
     case 'checkbox':
       return <Checkbox autoFocus={autoFocus} checked={!!value} onChange={(e) => onChange(e.target.checked)}>{t('field.yes')}</Checkbox>
     case 'rating':
+      // 评分在编辑器里是交互控件，仍用 antd Rate；表格里的只读渲染走 SmartValue
       return <Rate style={{ fontSize: compact ? 14 : 18 }} value={(value as number) ?? 0} onChange={(v) => onChange(v)} />
     default:
       return <Input value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} />

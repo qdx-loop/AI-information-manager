@@ -1,20 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import {
-  Input,
-  Button,
-  Typography,
-  Spin,
-  Empty,
-  Tag,
-  Tooltip,
-  Collapse,
-  App,
-  Upload,
-  Dropdown,
-  Space,
-  theme as antdTheme,
-} from 'antd'
-import { SendOutlined, UndoOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useState, useRef, useEffect, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { Input, App, Upload, Dropdown } from 'antd'
+import { SendOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
@@ -57,7 +43,8 @@ import { processAttachment, type Attachment } from '@/ai/attachments'
 import { API_BASE, getToken } from '@/lib/serverApi'
 import { normalizeChartOption } from '@/ai/chartUtils'
 import { useI18n, tNow } from '@/i18n'
-import { AutoConfirmContext } from '@/ai/autoConfirm'
+import { AutoConfirmContext, canAutoConfirm, type AutoConfirmKey } from '@/ai/autoConfirm'
+import { plainStepLabel } from './clerkText'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ContentPart } from '@/ai/types'
@@ -68,7 +55,29 @@ import { newId } from '@/utils/id'
 import ConfirmActionModal from './ConfirmActionModal'
 import ConfirmLibActionModal from './ConfirmLibActionModal'
 
-const { Text } = Typography
+/**
+ * 字号只引用 TOKENS §3 的档位；`--text-*` 由 Lead 在 theme 注入，
+ * 这里带 px 兜底值，避免变量未就绪时字号掉回浏览器默认 16px 之外的意外值。
+ */
+const T = {
+  md: 'var(--text-md, 16px)',
+  base: 'var(--text-base, 14px)',
+  sm: 'var(--text-sm, 13px)',
+  xs: 'var(--text-xs, 12px)',
+  xxs: 'var(--text-2xs, 11px)',
+}
+
+/** 顶栏/输入区的文字按钮：无底色、无边框，只靠颜色与字重区分 */
+const textButton = {
+  background: 'transparent',
+  border: 'none',
+  padding: '0 6px',
+  height: 24,
+  fontSize: T.xs,
+  lineHeight: '24px',
+  color: 'var(--app-ink-soft)',
+  cursor: 'pointer',
+} as const
 
 interface UndoInfo {
   label: string
@@ -96,7 +105,6 @@ export default function AIPanel() {
   const navigate = useNavigate()
   const { message, modal } = App.useApp()
   const t = useI18n()
-  const { token } = antdTheme.useToken()
   const { settings } = useAppStore()
   const { account } = useAuthStore()
   const confirmResolverRef = useRef<((action: ItemAction | null) => void) | null>(null)
@@ -236,9 +244,36 @@ export default function AIPanel() {
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [parsingFile, setParsingFile] = useState(false)
   const [chartPayload, setChartPayload] = useState<ChartPayload | null>(null)
+
+  // —— 「本会话内不再询问」：按动作分键；引用保持最新（任务闭包捕获的是渲染时的值）——
   const autoConfirmRef = useRef<Set<string>>(new Set())
-  const setAlwaysAllowFor = (k: string) => autoConfirmRef.current.add(k)
-  // 内嵌图表：图表定义为消息附件
+  const [alwaysAllow, setAlwaysAllow] = useState<ReadonlySet<string>>(() => new Set<string>())
+  const setAlwaysAllowFor = useCallback((key: AutoConfirmKey) => {
+    // 先写进 ref（runConversation 的闭包读 ref），再同步一份到 state（弹窗 UI 读 state）
+    autoConfirmRef.current.add(key)
+    setAlwaysAllow(new Set(autoConfirmRef.current))
+  }, [])
+
+  // —— 撤回栈：同一轮多个写操作全部入栈，可连续「撤回上一操作」——
+  // 原来的实现把 undo 挂在「最近一条 assistant 消息」上，同轮多个 tool_calls
+  // 会互相覆盖，只剩最后一个能撤回（03-ai.md 风险 P1-1）。
+  // 只保留最近 MAX_UNDO 步：够覆盖一次批量录入，又不会把整段会话的闭包一直挂在内存里。
+  const MAX_UNDO = 20
+  const [undoStack, setUndoStack] = useState<UndoInfo[]>([])
+  // 执行步骤默认收起；按消息下标记展开态
+  const [openedSteps, setOpenedSteps] = useState<ReadonlySet<number>>(() => new Set<number>())
+  const [undoBusy, setUndoBusy] = useState(false)
+  const pushUndo = useCallback((info: UndoInfo) => {
+    setUndoStack((prev) => [...prev, info].slice(-MAX_UNDO))
+  }, [])
+
+  // 切换/新建会话时清空撤回栈与步骤展开态：
+  // 撤回按钮属于「当前这段工作」，不该跨会话残留；步骤展开态是按消息下标记的，
+  // 换会话后下标会指向另一条消息。
+  useEffect(() => {
+    setUndoStack([])
+    setOpenedSteps(new Set<number>())
+  }, [sessionId])
 
 
   // 服务端是否已配置平台代管 AI（GET 仅返回布尔值）
@@ -382,7 +417,7 @@ export default function AIPanel() {
           setMessages((m) =>
             m.map((msg, i) => {
               if (i !== m.length - 1) return msg
-              const errContent = `⚠️ ${(e2 as Error).message}`
+              const errContent = `出错了：${(e2 as Error).message}`
               return {
                 ...msg,
                 content: msg.content ? msg.content + '\n\n' + errContent : errContent,
@@ -396,7 +431,7 @@ export default function AIPanel() {
           m.map((msg, i) => {
             if (i !== m.length - 1) return msg
             // 保留已流式生成的内容，仅在内容为空时显示错误
-            const errContent = `⚠️ ${errMsg}`
+            const errContent = `出错了：${errMsg}`
             return {
               ...msg,
               content: msg.content ? msg.content + '\n\n' + errContent : errContent,
@@ -500,6 +535,9 @@ export default function AIPanel() {
   ) {
     let rounds = 0
     const currentMessages = [...chatMessages]
+    // 思考过程不再进 UI（改版：文档里不出现「折叠的思考盒」），但数据照旧写进
+    // message.thinking 保留可追溯性；开发态额外打到 console，便于排查模型行为。
+    let reasoningLog = ''
     while (rounds < MAX_ROUNDS) {
       rounds++
       const reply = await chat({
@@ -518,6 +556,7 @@ export default function AIPanel() {
           )
         },
         onReasoning: (delta) => {
+          if (import.meta.env.DEV) reasoningLog += delta
           setMessages((m) =>
             m.map((msg, i) =>
               i === m.length - 1
@@ -527,6 +566,11 @@ export default function AIPanel() {
           )
         },
       })
+
+      if (import.meta.env.DEV && reasoningLog) {
+        console.debug('[clerk] reasoning:', reasoningLog)
+        reasoningLog = ''
+      }
 
       currentMessages.push(reply)
 
@@ -554,14 +598,18 @@ export default function AIPanel() {
 
         if (tc.function.name === 'locate_item') {
           const itemId = (args as { itemId?: string }).itemId
-          if (itemId) {
-            await locateAndFocus(itemId, contexts)
-            pushStep(t('ai.step.locate'))
-          }
+          // 如实回报：找不到就说找不到。以前无论找没找到都回「已定位并高亮显示」，
+          // 模型会据此认为定位成功（03-ai.md 风险 P2-4）。
+          const found = itemId ? await locateAndFocus(itemId, contexts) : false
+          if (found) pushStep(t('ai.step.locate'))
           currentMessages.push({
             role: 'tool',
             tool_call_id: tc.id,
-            content: '已定位并高亮显示。',
+            content: found
+              ? '已定位并高亮显示。'
+              : itemId
+                ? `未找到条目 ${itemId}，未定位。请确认 id 是否正确、是否属于当前可访问的管理库。`
+                : '缺少 itemId，未定位。',
           })
         } else if (tc.function.name === 'execute_item_action') {
           const libId = (args as { libraryId?: string }).libraryId ?? ''
@@ -581,8 +629,9 @@ export default function AIPanel() {
             ? libCtx?.items.find((i) => i.id === action.itemId) ?? null
             : null
 
-          // 弹窗等待用户确认；会话级 autoConfirm 直跳过
-          const confirmed = autoConfirmRef.current.has('item')
+          // 弹窗等待用户确认；仅当用户对「同一个动作」勾过「不再询问」才跳过。
+          // 删除永不跳过（canAutoConfirm 内部硬性拒绝破坏性动作）。
+          const confirmed = canAutoConfirm(autoConfirmRef.current, 'item', action.action)
             ? action
             : await new Promise<ItemAction | null>((resolve) => {
                 confirmResolverRef.current = resolve
@@ -615,19 +664,8 @@ export default function AIPanel() {
               tool_call_id: tc.id,
               content: result,
             })
-            // 将 undo 信息附加到最近一条 assistant 消息
-            if (undo) {
-              // 反向找最新一条非 pending 的 assistant 消息附加撤回按钮，避免挂到历史消息上
-              setMessages((m) => {
-                for (let i = m.length - 1; i >= 0; i--) {
-                  const msg = m[i]
-                  if (msg.role === 'assistant' && !msg.pending) {
-                    return [...m.slice(0, i), { ...msg, undo }, ...m.slice(i + 1)]
-                  }
-                }
-                return m
-              })
-            }
+            // 撤回句柄入栈：同一轮多个 tool_calls 全部保留，可连续撤回
+            if (undo) pushUndo(undo)
           } catch (e) {
             currentMessages.push({
               role: 'tool',
@@ -637,11 +675,27 @@ export default function AIPanel() {
           }
         } else if (tc.function.name === 'save_memory') {
           // 结构化记忆：add / update / remove / replaceAll
-          // 记忆跨会话生效且影响 AI 后续行为，必须经用户确认——防提示注入静默篡改（红队报告 P7）
-          const op = (args as { op?: string }).op ?? 'replaceAll'
+          // 记忆跨会话生效且影响 AI 后续行为，必须经用户确认——防提示注入静默篡改（红队报告 P7）。
+          // 这里**始终**确认：记忆的破坏性（replaceAll 能一次抹掉全部）比条目操作更隐蔽，
+          // 不提供「不再询问」。另外 op 缺失不再默认成 replaceAll（旧实现会在模型漏参时
+          // 整体覆盖记忆，03-ai.md 风险 P1-5）。
+          const rawOp = (args as { op?: unknown }).op
+          const MEM_OPS = ['add', 'update', 'remove', 'replaceAll'] as const
+          const op =
+            typeof rawOp === 'string' && (MEM_OPS as readonly string[]).includes(rawOp)
+              ? rawOp
+              : null
           const texts = Array.isArray((args as { texts?: unknown }).texts)
             ? ((args as { texts: string[] }).texts as string[])
             : []
+          if (!op) {
+            currentMessages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: '缺少有效的 op（add / update / remove / replaceAll），已拒绝执行。',
+            })
+            continue
+          }
           const OP_LABEL: Record<string, string> = {
             add: t('ai.confirm.memory.title.add'),
             update: t('ai.confirm.memory.title.update'),
@@ -655,9 +709,6 @@ export default function AIPanel() {
           let result = ''
           if (!account) {
             result = '当前未登录，无法保存记忆。'
-          } else if (autoConfirmRef.current.has('memory')) {
-            // 会话内始终允许记忆更新：直接执行（防重复骚扰）
-            result = execMemoryOp(op, texts)
           } else {
             const allowed = await new Promise<boolean>((resolve) => {
               modal.confirm({
@@ -892,7 +943,7 @@ export default function AIPanel() {
             ? contexts.find((c) => c.library.id === libAction.libraryId)?.library
             : undefined
 
-          const confirmed = autoConfirmRef.current.has('lib')
+          const confirmed = canAutoConfirm(autoConfirmRef.current, 'lib', libAction.action)
             ? true
             : await new Promise<boolean>((resolve) => {
                 libConfirmResolverRef.current = resolve
@@ -910,18 +961,7 @@ export default function AIPanel() {
             useLibraryStore.getState().bumpDataVersion()
             pushStep(t('ai.step.libAction', { action: libAction.action }))
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
-            if (undo) {
-              // 反向找最新一条非 pending 的 assistant 消息附加撤回按钮，避免挂到历史消息上
-              setMessages((m) => {
-                for (let i = m.length - 1; i >= 0; i--) {
-                  const msg = m[i]
-                  if (msg.role === 'assistant' && !msg.pending) {
-                    return [...m.slice(0, i), { ...msg, undo }, ...m.slice(i + 1)]
-                  }
-                }
-                return m
-              })
-            }
+            if (undo) pushUndo(undo)
           } catch (e) {
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: `执行失败：${(e as Error).message}` })
           }
@@ -934,7 +974,7 @@ export default function AIPanel() {
           const libCtx = contexts.find((c) => c.library.id === tplAction.libraryId)
           const libFields = libCtx?.fields ?? []
 
-          const confirmed = autoConfirmRef.current.has('tpl')
+          const confirmed = canAutoConfirm(autoConfirmRef.current, 'tpl', tplAction.action)
             ? true
             : await new Promise<boolean>((resolve) => {
                 libConfirmResolverRef.current = resolve
@@ -952,18 +992,7 @@ export default function AIPanel() {
             useLibraryStore.getState().bumpDataVersion()
             pushStep(t('ai.step.tplAction', { action: tplAction.action }))
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
-            if (undo) {
-              // 反向找最新一条非 pending 的 assistant 消息附加撤回按钮，避免挂到历史消息上
-              setMessages((m) => {
-                for (let i = m.length - 1; i >= 0; i--) {
-                  const msg = m[i]
-                  if (msg.role === 'assistant' && !msg.pending) {
-                    return [...m.slice(0, i), { ...msg, undo }, ...m.slice(i + 1)]
-                  }
-                }
-                return m
-              })
-            }
+            if (undo) pushUndo(undo)
           } catch (e) {
             currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: `执行失败：${(e as Error).message}` })
           }
@@ -984,7 +1013,8 @@ export default function AIPanel() {
     )
   }
 
-  async function locateAndFocus(itemId: string, contexts: LibraryContext[]) {
+  /** 定位并高亮条目；返回是否真的找到（调用方据此如实回报工具结果） */
+  async function locateAndFocus(itemId: string, contexts: LibraryContext[]): Promise<boolean> {
     for (const c of contexts) {
       const found = c.items.find((i) => i.id === itemId)
       if (found) {
@@ -993,9 +1023,10 @@ export default function AIPanel() {
           navigate(`/library/${c.library.id}`)
         }
         focusItem(itemId)
-        return
+        return true
       }
     }
+    return false
   }
 
   async function executeAction(action: ItemAction): Promise<{ result: string; undo?: UndoInfo }> {
@@ -1291,6 +1322,7 @@ export default function AIPanel() {
   const handleClear = () => {
     // 清空当前会话内容（保留会话本身）
     setMessages([])
+    setUndoStack([])
     if (account && sessionId) {
       try {
         saveSession(account.id, sessions.find((s) => s.id === sessionId) ?? { id: sessionId, title: '', updatedAt: Date.now() }, [])
@@ -1300,26 +1332,28 @@ export default function AIPanel() {
     }
   }
 
-  const handleUndo = useCallback(async (msgIndex: number) => {
-    const msg = messages[msgIndex]
-    if (!msg?.undo) return
+  /**
+   * 撤回上一操作（可连续点）。
+   * 失败时**不从栈里删除**、按钮保留，用户能再试一次；成功才出栈。
+   * 旧实现是挂在消息上的单个闭包按钮，同轮多写只剩最后一个、刷新即失效。
+   */
+  const handleUndoLast = useCallback(async () => {
+    const top = undoStack[undoStack.length - 1]
+    if (!top || undoBusy) return
+    setUndoBusy(true)
     try {
-      await msg.undo.undo()
-      // 移除 undo 信息，标记已撤回
-      setMessages((m) =>
-        m.map((mm, i) =>
-          i === msgIndex
-            ? { ...mm, undo: undefined, content: mm.content + tNow('ai.undoDone') }
-            : mm,
-        ),
-      )
+      await top.undo()
+      setUndoStack((prev) => prev.slice(0, -1))
       message.success(tNow('ai.undoSuccess'))
     } catch (e) {
       message.error(tNow('ai.undoFailed', { msg: (e as Error).message }))
+    } finally {
+      setUndoBusy(false)
     }
-  }, [messages, message])
+  }, [undoStack, undoBusy, message])
 
-  // 渲染消息内容：把 (id=xxx) 转成可点击 chip；assistant 消息按 markdown 渲染
+  // 渲染消息内容：把 (id=xxx) 转成可点击的行内条目引用；assistant 消息按 markdown 渲染。
+  // 改版要点：条目引用不再用彩色 Tag（那是「卡片/胶囊」语汇），改成朱砂文字 + 点线下划线。
   const renderContent = (text: string, contexts: LibraryContext[] | null, isAssistant = false) => {
     if (!text) return null
     const parts = text.split(/(\(id=[^)]+\))/g)
@@ -1332,20 +1366,38 @@ export default function AIPanel() {
         if (item) {
           const summary = Object.values(item.fields).filter((v) => v != null && v !== '').join(' ')
           return (
-            <Tooltip key={i} title={summary}>
-              <Tag
-                color="green"
-                style={{ cursor: 'pointer', margin: '0 2px' }}
-                onClick={() => locateAndFocus(itemId, contexts).catch((e) => message.error('定位条目失败：' + (e as Error).message))}
-              >
-                {summary.slice(0, 12) || itemId.slice(0, 6)}
-              </Tag>
-            </Tooltip>
+            <button
+              key={i}
+              type="button"
+              title={summary}
+              onClick={() =>
+                void locateAndFocus(itemId, contexts).catch((e) =>
+                  message.error(t('ai.locate.failed', { msg: (e as Error).message })),
+                )
+              }
+              style={{
+                border: 'none',
+                background: 'transparent',
+                padding: '0 2px',
+                color: 'var(--app-accent-text)',
+                fontFamily: 'var(--font-mono)',
+                fontVariantNumeric: 'tabular-nums',
+                fontSize: '0.86em',
+                cursor: 'pointer',
+                textDecorationLine: 'underline',
+                textDecorationStyle: 'dotted',
+                textUnderlineOffset: 3,
+              }}
+            >
+              {summary.slice(0, 12) || itemId.slice(0, 6)}
+            </button>
           )
         }
       }
       if (!part) return null
       if (isAssistant) {
+        // `.ai-md` 由 Lead 的全局排版样式接管正文（16/1.75、段间距）；
+        // 这里不回退成聊天气泡的 maxWidth/底色。
         return (
           <div key={i} className="ai-md">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{part}</ReactMarkdown>
@@ -1359,321 +1411,548 @@ export default function AIPanel() {
   // 缓存最近一次上下文供 renderContent 用（在 handleSend 中更新）
   const lastContextsRef = useRef<LibraryContext[] | null>(null)
 
+  // 执行步骤：一行「已核对 N 步 ▾」，展开是 01/02/03 的编号小字。
+  // 旧实现用 antd Collapse + emoji 文案，看起来像聊天组件而不是批注。
+  const toggleSteps = (idx: number) => {
+    setOpenedSteps((prev) => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      return next
+    })
+  }
+
+  // ⌘/Ctrl+Enter 发送；Enter 直接发送、Shift+Enter 换行（保留原有的粘贴 Excel 场景）
+  const handleComposerKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
+    e.preventDefault()
+    void handleSend()
+  }
+
+  const renderSteps = (m: UIMessage, idx: number) => {
+    if (!m.steps || m.steps.length === 0) return null
+    const open = openedSteps.has(idx)
+    return (
+      <div style={{ marginBottom: 12 }}>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => toggleSteps(idx)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            height: 20,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: T.xs,
+            lineHeight: '20px',
+            color: 'var(--app-ink-faint)',
+            cursor: 'pointer',
+          }}
+        >
+          <span>{t('ai.steps.summary', { n: m.steps.length })}</span>
+          <span
+            aria-hidden
+            style={{
+              fontSize: 10,
+              transform: open ? 'rotate(180deg)' : 'none',
+              transition: 'transform 160ms cubic-bezier(.2,.7,.2,1)',
+            }}
+          >
+            ▾
+          </span>
+        </button>
+        {open && (
+          <ol style={{ margin: '8px 0 0', padding: 0, listStyle: 'none' }}>
+            {m.steps.map((s, si) => (
+              <li
+                key={si}
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  padding: '1px 0',
+                  fontSize: T.xs,
+                  lineHeight: 1.6,
+                  color: 'var(--app-ink-soft)',
+                }}
+              >
+                <span
+                  className="mono num"
+                  style={{ minWidth: 18, color: 'var(--app-ink-faint)', fontSize: T.xxs }}
+                >
+                  {String(si + 1).padStart(2, '0')}
+                </span>
+                <span style={{ minWidth: 0, wordBreak: 'break-word' }}>{plainStepLabel(s)}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    )
+  }
+
+  // 运行态：12px 文字 + 2px 朱砂短条（静态，不闪不呼吸）。
+  // TOKENS §6 禁止无限循环动画，`.clerk-run` 的外观由 Lead 的全局 CSS 定义。
+  const runningLine = (
+    <div style={{ margin: '4px 0 20px' }} aria-live="polite">
+      <div style={{ fontSize: T.xs, color: 'var(--app-ink-faint)', marginBottom: 6 }}>
+        {t('ai.running')}
+      </div>
+      <div
+        role="progressbar"
+        aria-label={t('ai.running')}
+        style={{ height: 2, background: 'var(--app-rule)', overflow: 'hidden' }}
+      >
+        <div
+          className="clerk-run"
+          style={{ height: 2, width: '32%', background: 'var(--app-accent)' }}
+        />
+      </div>
+    </div>
+  )
+
   if (!aiConfigured) {
     return (
       // 说明文字是长句，必须是块级并限宽，否则在停靠面板里会横向溢出被裁掉
-      <div style={{ padding: 24, height: '100%', minWidth: 0, overflow: 'auto' }}>
-        <Empty
-          image={false}
-          description={<span style={{ color: 'var(--app-ink-soft)', fontSize: 13.5 }}>{t('ai.notConfigured')}</span>}
+      <div style={{ padding: '24px 20px', height: '100%', minWidth: 0, overflow: 'auto' }}>
+        <div
+          className="serif"
+          style={{ fontSize: 20, lineHeight: 1.4, color: 'var(--app-ink)', marginBottom: 10 }}
         >
-          <div
-            style={{
-              maxWidth: 320,
-              margin: '0 auto',
-              lineHeight: 1.75,
-              fontSize: 13,
-              color: 'var(--app-ink-faint)',
-            }}
-          >
-            {t('ai.notConfiguredHint')}
-          </div>
-        </Empty>
+          {t('ai.notConfigured')}
+        </div>
+        <div
+          style={{
+            maxWidth: 320,
+            lineHeight: 1.75,
+            fontSize: T.sm,
+            color: 'var(--app-ink-faint)',
+          }}
+        >
+          {t('ai.notConfiguredHint')}
+        </div>
       </div>
     )
   }
 
   return (
-    <AutoConfirmContext.Provider
-      value={{ alwaysAllowFor: autoConfirmRef.current, setAlwaysAllowFor }}
-    >
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div
-        style={{
-          padding: '8px 12px',
-          borderBottom: `1px solid ${token.colorBorderSecondary}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        <Dropdown
-          open={sessionSwitcherOpen}
-          onOpenChange={setSessionSwitcherOpen}
-          trigger={['click']}
-          menu={{
-            items: [
-              ...sessions.map((s) => ({
-                key: s.id,
-                label: (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, minWidth: 180 }}>
-                    <span style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: s.id === sessionId ? 600 : 400 }}>
-                      {s.title || t('ai.session.untitled')}
-                    </span>
-                    <Button
-                      size="small"
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={(e) => { e.stopPropagation(); removeSession(s.id) }}
-                    />
-                  </div>
-                ),
-              })),
-              { type: 'divider' as const },
-              { key: '__new__', label: <Space><PlusOutlined />{t('ai.session.new')}</Space> },
-            ],
-            onClick: ({ key }) => { if (key === '__new__') startNewSession(); else switchSession(key) },
+    <AutoConfirmContext.Provider value={{ alwaysAllowFor: alwaysAllow, setAlwaysAllowFor }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
+        {/* 顶部 40px 工具栏：衬线 16「书记员」+ 会话/清空文字按钮 */}
+        <div
+          style={{
+            height: 40,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '0 12px',
+            borderBottom: '1px solid var(--app-rule)',
           }}
         >
-          <Button size="small" type="text" icon={<MessageOutlined />} style={{ maxWidth: 140 }}>
-            <span style={{ maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {sessions.find((s) => s.id === sessionId)?.title || t('ai.session.untitled')}
-            </span>
-          </Button>
-        </Dropdown>
-        <Text type="secondary" style={{ fontSize: 12, flex: 1 }}>{t('ai.allLibraries')}</Text>
-        <Button
-          size="small"
-          // 原来用 ReloadOutlined（刷新）表示「清空会话」，语义完全不对，
-          // 而且一键抹掉整段对话没有任何确认
-          icon={<DeleteOutlined />}
-          onClick={() =>
-            modal.confirm({
-              title: t('ai.session.clearTitle'),
-              content: t('ai.session.delConfirm'),
-              okText: t('common.confirm'),
-              okButtonProps: { danger: true },
-              cancelText: t('common.cancel'),
-              onOk: handleClear,
-            })
-          }
-          type="text"
-          aria-label={t('ai.session.clearTitle')}
-          title={t('ai.session.clearTitle')}
-        />
-      </div>
-
-      <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', padding: 12 }}>
-        {messages.length === 0 ? (
-          <Empty
-            image={false}
-            description={
-              <span style={{ color: 'var(--ant-color-text-secondary)' }}>
-                {t('ai.emptyHint')}
-              </span>
-            }
-          />
-        ) : (
-          messages.map((m, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                gap: 8,
-                marginBottom: 12,
-                flexDirection: m.role === 'user' ? 'row-reverse' : 'row',
-              }}
-            >
-              {/* 不再放机器人/用户头像圆组——气泡颜色和左右对齐已区分角色，
-                  头像圆圈只是聊天模板的装饰件 */}
-              <div
-                style={{
-                  background: m.role === 'user' ? 'var(--app-glaze)' : token.colorFillTertiary,
-                  color: m.role === 'user' ? '#fff' : token.colorText,
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  maxWidth: '80%',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                }}
-              >
-                {/* AI 思考过程（默认折叠） */}
-                {m.thinking && (
-                  <Collapse
-                    size="small"
-                    style={{
-                      marginBottom: 8,
-                      background: 'transparent',
-                      border: 'none',
-                    }}
-                    items={[{
-                      key: 'thinking',
-                      label: <span style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>{t('ai.thinking')}</span>,
-                      children: (
-                        <pre style={{ margin: 0, fontSize: 12, color: 'var(--ant-color-text-secondary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                          {m.thinking}
-                        </pre>
-                      ),
-                    }]}
-                  />
-                )}
-                {/* Agent 执行步骤（默认折叠） */}
-                {m.steps && m.steps.length > 0 && (
-                  <Collapse
-                    size="small"
-                    style={{
-                      marginBottom: 8,
-                      background: 'transparent',
-                      border: 'none',
-                    }}
-                    items={[{
-                      key: 'steps',
-                      label: <span style={{ fontSize: 12, color: 'var(--app-glaze)' }}>{t('ai.steps', { n: m.steps.length })}</span>,
-                      children: (
-                        <div style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>
-                          {m.steps.map((s, si) => (
-                            <div key={si} style={{ padding: '1px 0' }}>{si + 1}. {s}</div>
-                          ))}
-                        </div>
-                      ),
-                    }]}
-                  />
-                )}
-                {m.pending && !m.content ? (
-                  <Spin size="small" />
-                ) : renderContent(m.content, lastContextsRef.current, m.role === 'assistant')}
-                {m.chart && (
-                  <div
-                    onClick={() => setChartPayload(m.chart as ChartPayload)}
-                    style={{
-                      marginTop: 10,
-                      padding: '10px 12px',
-                      border: `1px solid ${token.colorBorderSecondary}`,
-                      borderRadius: 10,
-                      background: 'rgba(128,128,128,0.05)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                    }}
-                  >
-                    <BarChartOutlined style={{ fontSize: 18, color: 'var(--app-glaze)' }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: token.colorText }}>{m.chart.title}</div>
-                      <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
-                        {t('ai.chart.thumbHint')}
-                      </div>
+          <span className="serif" style={{ fontSize: 16, lineHeight: '40px', color: 'var(--app-ink)' }}>
+            {t('ai.clerk')}
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }} />
+          <Dropdown
+            open={sessionSwitcherOpen}
+            onOpenChange={setSessionSwitcherOpen}
+            trigger={['click']}
+            menu={{
+              items: [
+                ...sessions.map((s) => ({
+                  key: s.id,
+                  label: (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 8,
+                        minWidth: 180,
+                      }}
+                    >
+                      <span
+                        style={{
+                          maxWidth: 150,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontSize: T.xs,
+                          fontWeight: s.id === sessionId ? 600 : 400,
+                        }}
+                      >
+                        {s.title || t('ai.session.untitled')}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={t('common.delete')}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeSession(s.id)
+                        }}
+                        style={{ ...textButton, padding: '0 2px', height: 20, color: 'var(--app-ink-faint)' }}
+                      >
+                        <DeleteOutlined style={{ fontSize: 12 }} />
+                      </button>
                     </div>
-                  </div>
-                )}
-                {/* 撤回按钮 */}
-                {m.undo && (
-                  <Button
-                    size="small"
-                    type="link"
-                    icon={<UndoOutlined />}
-                    onClick={() => handleUndo(i)}
-                    style={{ marginTop: 4, padding: 0, height: 'auto', fontSize: 12 }}
-                  >
-                    {t('ai.undo', { label: m.undo.label })}
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div style={{ padding: 12, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
-        {attachments.length > 0 && (
-          <div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {attachments.map((a) => (
-              <Tag
-                key={a.id}
-                closable
-                closeIcon={<CloseOutlined style={{ fontSize: 10 }} />}
-                onClose={() => setAttachments((p) => p.filter((x) => x.id !== a.id))}
-                icon={a.kind === 'image' ? <PictureOutlined /> : <FileTextOutlined />}
-              >
-                {a.name}
-              </Tag>
-            ))}
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Upload
-            accept="*/*"
-            showUploadList={false}
-            multiple
-            beforeUpload={(file) => {
-              void (async () => {
-                try {
-                  setParsingFile(true)
-                  const att = await processAttachment(file as File)
-                  setAttachments((prev) => [...prev, att])
-                } catch (e) {
-                  message.error((e as Error).message)
-                } finally {
-                  setParsingFile(false)
-                }
-              })()
-              return false
+                  ),
+                })),
+                { type: 'divider' as const },
+                {
+                  key: '__new__',
+                  label: (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: T.xs }}>
+                      <PlusOutlined style={{ fontSize: 12 }} />
+                      {t('ai.session.new')}
+                    </span>
+                  ),
+                },
+              ],
+              onClick: ({ key }) => {
+                if (key === '__new__') startNewSession()
+                else switchSession(key)
+              },
             }}
           >
-            <Button
-              size="small"
-              icon={<PaperClipOutlined />}
-              loading={parsingFile}
-              title={t('ai.upload.tooltip')}
-              aria-label={t('ai.upload.tooltip')}
-            />
-          </Upload>
-          {/* 必须是多行：占位符宣传的是「粘贴 Excel 交给 AI 录入」，
-              单行 Input 会把粘贴来的 20 行压成一行、且无法换行补说明。
-              Enter 发送、Shift+Enter 换行，是聊天输入的通用约定。 */}
-          <Input.TextArea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onPressEnter={(e) => {
-              if (e.shiftKey || e.nativeEvent.isComposing) return
-              e.preventDefault()
-              handleSend()
-            }}
-            placeholder={t('ai.inputPlaceholder')}
-            disabled={loading}
-            autoSize={{ minRows: 1, maxRows: 6 }}
-            style={{ flex: 1, resize: 'none' }}
-            aria-label={t('ai.inputPlaceholder')}
-          />
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            onClick={handleSend}
-            loading={loading}
-            disabled={!input.trim()}
-            aria-label={t('ai.send')}
-          />
+            <button
+              type="button"
+              style={textButton}
+              title={t('ai.session.switch')}
+              aria-label={t('ai.session.switch')}
+            >
+              <span
+                style={{
+                  maxWidth: 96,
+                  display: 'inline-block',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  verticalAlign: 'bottom',
+                }}
+              >
+                {sessions.find((s) => s.id === sessionId)?.title || t('ai.session.untitled')}
+              </span>
+            </button>
+          </Dropdown>
+          <button
+            type="button"
+            // 一键抹掉整段对话必须确认；图标换成文字，避免纯图标按钮承载破坏性操作
+            onClick={() =>
+              modal.confirm({
+                title: t('ai.session.clearTitle'),
+                content: t('ai.session.delConfirm'),
+                okText: t('common.confirm'),
+                okButtonProps: { danger: true },
+                cancelText: t('common.cancel'),
+                onOk: handleClear,
+              })
+            }
+            style={textButton}
+            aria-label={t('ai.session.clear')}
+            title={t('ai.session.clear')}
+          >
+            {t('ai.session.clear')}
+          </button>
         </div>
-        {loading && (
-          <Button size="small" type="link" onClick={handleStop} style={{ marginTop: 4 }}>
-            {t('ai.stop')}
-          </Button>
-        )}
+
+        {/* 主体 = 一篇文档：用户输入左侧朱砂立线，AI 输出正文；没有气泡与头像 */}
+        <div
+          ref={scrollRef}
+          className="doc"
+          style={{ flex: 1, overflow: 'auto', padding: '20px 16px 4px', minWidth: 0 }}
+        >
+          {messages.length === 0 ? (
+            <div className="empty-state" style={{ paddingTop: 24, maxWidth: 320 }}>
+              <div
+                className="serif"
+                style={{ fontSize: 20, lineHeight: 1.4, color: 'var(--app-ink)', marginBottom: 10 }}
+              >
+                {t('ai.clerk')}
+              </div>
+              <div style={{ fontSize: T.sm, lineHeight: 1.75, color: 'var(--app-ink-faint)' }}>
+                {t('ai.emptyHint')}
+              </div>
+            </div>
+          ) : (
+            messages.map((m, i) =>
+              m.role === 'user' ? (
+                <div
+                  key={i}
+                  style={{
+                    borderLeft: '2px solid var(--app-accent)',
+                    paddingLeft: 12,
+                    marginBottom: 20,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: T.base,
+                      lineHeight: 1.6,
+                      color: 'var(--app-ink)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {renderContent(m.content, lastContextsRef.current)}
+                  </div>
+                </div>
+              ) : (
+                <div key={i} style={{ marginBottom: 24, minWidth: 0 }}>
+                  {renderSteps(m, i)}
+                  {m.content ? (
+                    <div
+                      style={{
+                        fontSize: T.md,
+                        lineHeight: 1.75,
+                        color: 'var(--app-ink)',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {renderContent(m.content, lastContextsRef.current, true)}
+                    </div>
+                  ) : null}
+                  {/* 图表缩略：一行标题 + mono 图注，点击进弹窗 */}
+                  {m.chart && (
+                    <button
+                      type="button"
+                      onClick={() => setChartPayload(m.chart as ChartPayload)}
+                      style={{
+                        marginTop: 10,
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        gap: 8,
+                        flexWrap: 'wrap',
+                        background: 'transparent',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: T.base,
+                          color: 'var(--app-ink)',
+                          textDecorationLine: 'underline',
+                          textDecorationStyle: 'dotted',
+                          textUnderlineOffset: 3,
+                        }}
+                      >
+                        {m.chart.title}
+                      </span>
+                      <span className="mono" style={{ fontSize: T.xxs, color: 'var(--app-ink-faint)' }}>
+                        {t('ai.chart.thumbHint')}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              ),
+            )
+          )}
+          {loading && runningLine}
+        </div>
+
+        {/* 输入区：32px 输入条 + 墨色发送键；撤回栈入口放在输入条上方右侧 */}
+        <div
+          style={{
+            flexShrink: 0,
+            borderTop: '1px solid var(--app-rule)',
+            padding: '8px 12px 10px',
+          }}
+        >
+          {undoStack.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+              <button
+                type="button"
+                disabled={undoBusy}
+                onClick={() => void handleUndoLast()}
+                style={{
+                  ...textButton,
+                  height: 20,
+                  lineHeight: '20px',
+                  fontSize: T.xs,
+                  color: 'var(--app-ink-soft)',
+                  opacity: undoBusy ? 0.38 : 1,
+                  cursor: undoBusy ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {t('ai.undo.last')}
+                {undoStack[undoStack.length - 1]?.label
+                  ? ` · ${undoStack[undoStack.length - 1].label}`
+                  : ''}
+              </button>
+            </div>
+          )}
+          {attachments.length > 0 && (
+            <div style={{ marginBottom: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {attachments.map((a) => (
+                <span
+                  key={a.id}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: T.xs,
+                    color: 'var(--app-ink-soft)',
+                    border: '1px solid var(--app-border)',
+                    borderRadius: 2,
+                    padding: '2px 6px',
+                  }}
+                >
+                  {a.kind === 'image' ? (
+                    <PictureOutlined style={{ fontSize: 12 }} />
+                  ) : (
+                    <FileTextOutlined style={{ fontSize: 12 }} />
+                  )}
+                  <span
+                    style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
+                    {a.name}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={t('common.close')}
+                    onClick={() => setAttachments((p) => p.filter((x) => x.id !== a.id))}
+                    style={{ ...textButton, height: 16, lineHeight: '16px', padding: 0 }}
+                  >
+                    <CloseOutlined style={{ fontSize: 10 }} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+            <Upload
+              accept="*/*"
+              showUploadList={false}
+              multiple
+              beforeUpload={(file) => {
+                void (async () => {
+                  try {
+                    setParsingFile(true)
+                    const att = await processAttachment(file as File)
+                    setAttachments((prev) => [...prev, att])
+                  } catch (e) {
+                    message.error((e as Error).message)
+                  } finally {
+                    setParsingFile(false)
+                  }
+                })()
+                return false
+              }}
+            >
+              <button
+                type="button"
+                title={t('ai.upload.tooltip')}
+                aria-label={t('ai.upload.tooltip')}
+                style={{
+                  ...textButton,
+                  width: 32,
+                  height: 32,
+                  display: 'grid',
+                  placeItems: 'center',
+                  padding: 0,
+                  color: parsingFile ? 'var(--app-ink-faint)' : 'var(--app-ink-soft)',
+                  opacity: parsingFile ? 0.38 : 1,
+                }}
+              >
+                <PaperClipOutlined style={{ fontSize: 16 }} />
+              </button>
+            </Upload>
+            {/* 必须保留多行：占位符宣传的是「粘贴 Excel 交给 AI 录入」，
+                单行输入会把粘贴来的 20 行压成一行。视觉上仍是 32px 输入条。 */}
+            <Input.TextArea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleComposerKeyDown}
+              placeholder={t('ai.inputPlaceholder')}
+              disabled={loading}
+              autoSize={{ minRows: 1, maxRows: 5 }}
+              style={{
+                flex: 1,
+                minHeight: 32,
+                padding: '5px 8px',
+                fontSize: T.sm,
+                lineHeight: 1.6,
+                background: 'transparent',
+                border: '1px solid var(--app-border)',
+                borderRadius: 2,
+                boxShadow: 'none',
+                resize: 'none',
+              }}
+              aria-label={t('ai.inputPlaceholder')}
+            />
+            <button
+              type="button"
+              onClick={() => void handleSend()}
+              disabled={!input.trim() || loading}
+              aria-label={t('ai.send')}
+              title={t('ai.send')}
+              style={{
+                width: 32,
+                height: 32,
+                flexShrink: 0,
+                display: 'grid',
+                placeItems: 'center',
+                borderRadius: 4,
+                border: '1px solid transparent',
+                background: !input.trim() || loading ? 'var(--app-border)' : 'var(--app-action)',
+                color: 'var(--app-canvas)',
+                cursor: !input.trim() || loading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <SendOutlined style={{ fontSize: 14 }} />
+            </button>
+          </div>
+          <div
+            style={{
+              marginTop: 6,
+              minHeight: 16,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ fontSize: T.xxs, color: 'var(--app-ink-faint)' }}>
+              {loading ? t('ai.running') : ''}
+            </span>
+            {loading && (
+              <button
+                type="button"
+                onClick={handleStop}
+                style={{ ...textButton, height: 16, lineHeight: '16px', fontSize: T.xs }}
+              >
+                {t('ai.stop')}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <ChartModal payload={chartPayload} onClose={() => setChartPayload(null)} />
+
+        <ConfirmActionModal
+          open={!!pendingAction}
+          action={pendingAction?.action ?? null}
+          library={pendingAction?.library}
+          fields={pendingAction?.fields ?? []}
+          existingItem={pendingAction?.existingItem ?? null}
+          onConfirm={handleConfirmAction}
+          onCancel={handleCancelAction}
+        />
+
+        <ConfirmLibActionModal
+          open={!!pendingLibAction}
+          libAction={pendingLibAction?.libAction ?? null}
+          tplAction={pendingLibAction?.tplAction ?? null}
+          library={pendingLibAction?.library}
+          fields={pendingLibAction?.fields ?? []}
+          onConfirm={handleConfirmLibAction}
+          onCancel={handleCancelLibAction}
+        />
       </div>
-
-      <ChartModal payload={chartPayload} onClose={() => setChartPayload(null)} />
-
-      <ConfirmActionModal
-        open={!!pendingAction}
-        action={pendingAction?.action ?? null}
-        library={pendingAction?.library}
-        fields={pendingAction?.fields ?? []}
-        existingItem={pendingAction?.existingItem ?? null}
-        onConfirm={handleConfirmAction}
-        onCancel={handleCancelAction}
-      />
-
-      <ConfirmLibActionModal
-        open={!!pendingLibAction}
-        libAction={pendingLibAction?.libAction ?? null}
-        tplAction={pendingLibAction?.tplAction ?? null}
-        library={pendingLibAction?.library}
-        fields={pendingLibAction?.fields ?? []}
-        onConfirm={handleConfirmLibAction}
-        onCancel={handleCancelLibAction}
-      />
-    </div>
     </AutoConfirmContext.Provider>
   )
 }

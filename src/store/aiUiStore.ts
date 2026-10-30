@@ -34,7 +34,7 @@ interface AiUiState {
 
 const MIN_W = 340
 const MAX_W = 720
-const DEF_W = 440
+const DEF_W = 380
 const W_KEY = 'info-mgmt-ai-dock-width'
 
 function readWidth(): number {

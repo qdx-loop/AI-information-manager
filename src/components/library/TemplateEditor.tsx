@@ -1,5 +1,5 @@
-import { Modal, Button, Input, Select, Switch, Space, App, Empty } from 'antd'
-import { PlusOutlined, DeleteOutlined, HolderOutlined } from '@ant-design/icons'
+import { Modal, Button, Input, Select, Switch, App, Empty } from 'antd'
+import { DeleteOutlined, HolderOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import {
   DndContext,
@@ -8,6 +8,8 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -30,10 +32,19 @@ interface Props {
   onSave: (fields: FieldDef[]) => Promise<void>
 }
 
+/**
+ * 字段模板编辑器（账目表样）。
+ *
+ * 视觉：一行一个字段，36px 高、只有底边一条账线，没有卡片、没有圆角盒子；
+ * 拖拽只给两种反馈——行位移 + 1px 朱砂插入线，不做缩放/阴影/背景高亮。
+ * 逻辑（校验 label/key 唯一、sortOrder 重排、保存）与原来完全一致。
+ */
 export default function TemplateEditor({ open, libraryId, fields, onCancel, onSave }: Props) {
   const { message } = App.useApp()
   const t = useI18n()
   const [list, setList] = useState<FieldDef[]>(fields)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const handleOpen = () => setList(fields)
@@ -71,8 +82,13 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
     setList(list.filter((f) => f.id !== id))
   }
 
+  const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id))
+  const onDragOver = (e: DragOverEvent) => setOverId(e.over ? String(e.over.id) : null)
+
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e
+    setActiveId(null)
+    setOverId(null)
     if (!over || active.id === over.id) return
     setList((prev) => {
       const oldIdx = prev.findIndex((f) => f.id === active.id)
@@ -108,29 +124,58 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
       open={open}
       onCancel={onCancel}
       onOk={handleSave}
+      okText={t('common.save')}
+      cancelText={t('common.cancel')}
       width="90%"
       style={{ maxWidth: 720 }}
       afterOpenChange={(o) => o && handleOpen()}
+      styles={{ body: { maxHeight: 'calc(100vh - 240px)', overflowY: 'auto' } }}
     >
-      <Space style={{ marginBottom: 12 }}>
-        <Button icon={<PlusOutlined />} onClick={addField}>{t('lib.tpl.addField')}</Button>
-        <span style={{ color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>{t('lib.tpl.dragHint')}</span>
-      </Space>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <Button onClick={addField}>{t('lib.tpl.addField')}</Button>
+        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>{t('lib.tpl.dragHint')}</span>
+      </div>
 
       {list.length === 0 ? (
-        <Empty description={t('lib.tpl.empty')} />
+        <Empty image={false} description={t('lib.tpl.empty')} />
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDragCancel={() => {
+            setActiveId(null)
+            setOverId(null)
+          }}
+          onDragEnd={onDragEnd}
+        >
           <SortableContext items={list.map((f) => f.id)} strategy={verticalListSortingStrategy}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* 表头：一行 11px 眉题，和真实表格的栏名同一口径 */}
+            <div
+              className="eyebrow"
+              style={{ display: 'flex', gap: 8, padding: '0 8px 6px', borderBottom: '1px solid var(--app-border-strong)' }}
+            >
+              <span style={{ width: 16, flexShrink: 0 }} />
+              <span style={{ flex: 1 }}>{t('lib.tpl.fieldName')}</span>
+              <span style={{ width: 128, flexShrink: 0 }}>{t('lib.trash.col.type')}</span>
+              <span style={{ width: 168, flexShrink: 0 }}>{t('common.required')} / {t('common.visible')}</span>
+            </div>
+            <div>
               {list.map((f) => (
-                <FieldRow
-                  key={f.id}
-                  field={f}
-                  fieldTypes={fieldTypes}
-                  onChange={(patch) => updateField(f.id, patch)}
-                  onRemove={() => removeField(f.id)}
-                />
+                <div key={f.id}>
+                  {/* 插入线：拖拽时只出现这一条 1px 朱砂线，不做缩放/阴影 */}
+                  {activeId && overId === f.id && activeId !== f.id ? (
+                    <div style={{ height: 1, background: 'var(--app-accent)', margin: '1px 0' }} />
+                  ) : null}
+                  <FieldRow
+                    field={f}
+                    fieldTypes={fieldTypes}
+                    dragging={activeId === f.id}
+                    onChange={(patch) => updateField(f.id, patch)}
+                    onRemove={() => removeField(f.id)}
+                  />
+                </div>
               ))}
             </div>
           </SortableContext>
@@ -145,69 +190,84 @@ function FieldRow({
   fieldTypes,
   onChange,
   onRemove,
+  dragging,
 }: {
   field: FieldDef
   fieldTypes: { label: string; value: FieldType }[]
   onChange: (patch: Partial<FieldDef>) => void
   onRemove: () => void
+  dragging: boolean
 }) {
   const t = useI18n()
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+  const { attributes, listeners, setNodeRef, transform } = useSortable({
     id: field.id,
   })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    // 拖拽只跟手，不给回弹动画（TOKENS §6：禁止过冲/缩放入场）
+    transition: undefined,
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
-    padding: '8px 12px',
-    background: 'var(--app-surface-sunken)',
-    borderRadius: 6,
-    border: '1px solid var(--app-border-soft)',
+    minHeight: 36,
+    // 含「选项」的字段行允许换行变高（36 是常态行高，不是硬顶）
+    padding: '4px 8px',
+    background: 'transparent',
+    borderRadius: 2,
+    borderBottom: '1px solid var(--app-rule)',
+    // 拖起来的那行只降低不透明度，其他视觉一律不变
+    opacity: dragging ? 0.5 : 1,
   }
   return (
     <div ref={setNodeRef} style={style}>
-      <span {...attributes} {...listeners} style={{ cursor: 'grab', color: 'var(--app-ink-faint)' }}>
+      <span
+        {...attributes}
+        {...listeners}
+        style={{ cursor: 'grab', color: 'var(--app-ink-faint)', width: 16, flexShrink: 0, display: 'inline-flex' }}
+      >
         <HolderOutlined />
       </span>
       <Input
+        size="small"
         value={field.label}
         onChange={(e) => onChange({ label: e.target.value })}
-        style={{ width: 140, flex: 1, minWidth: 100 }}
+        style={{ width: 160, flex: 1, minWidth: 100 }}
         placeholder={t('lib.tpl.fieldName')}
         autoFocus
       />
       <Select
+        size="small"
         value={field.type}
         onChange={(v) => onChange({ type: v })}
         options={fieldTypes}
-        style={{ width: 140, flexShrink: 0 }}
+        style={{ width: 128, flexShrink: 0 }}
       />
       {field.type === 'select' && (
         <Select
+          size="small"
           mode="tags"
           value={field.options}
           onChange={(v) => onChange({ options: v })}
-          style={{ flex: 1 }}
+          style={{ flex: '1 1 140px', minWidth: 120 }}
           placeholder={t('lib.tpl.optionsPlaceholder')}
         />
       )}
-      <Space size="small">
-        <span style={{ fontSize: 12 }}>{t('common.required')}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>{t('common.required')}</span>
         <Switch size="small" checked={field.required} onChange={(v) => onChange({ required: v })} />
-        <span style={{ fontSize: 12 }}>{t('common.visible')}</span>
+        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>{t('common.visible')}</span>
         <Switch size="small" checked={field.visible} onChange={(v) => onChange({ visible: v })} />
         <Button
           type="text"
           danger
+          size="small"
           aria-label={t('tpl.field.remove')}
           title={t('tpl.field.remove')}
           icon={<DeleteOutlined />}
           onClick={onRemove}
         />
-      </Space>
+      </div>
     </div>
   )
 }

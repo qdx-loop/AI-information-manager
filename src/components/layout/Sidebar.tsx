@@ -374,7 +374,7 @@ function SidebarBody({
         }}
       >
         <button ref={aiRef} type="button" className="app-foot-item" onClick={onOpenPanel}>
-          <span>{collapsed ? '' : t('app.aiAssistant')}</span>
+          <span>{collapsed ? '' : t('ai.clerk')}</span>
           {!collapsed && (
             // ⌘ 只在苹果平台存在；Win/Linux 上写 Ctrl，避免假快捷键说明
             <span className="app-foot-kbd">
@@ -422,8 +422,8 @@ export default function Sidebar({
       collapsible
       collapsed={collapsed}
       onCollapse={setCollapsed}
-      width={240}
-      style={{ height: '100vh', overflow: 'auto' }}
+      width={220}
+      style={{ height: '100dvh', overflow: 'auto' }}
       theme={isDark ? 'dark' : 'light'}
     >
       <SidebarBody state={state} collapsed={collapsed} onOpenPanel={onOpenPanel} aiRef={aiRef} />
@@ -442,7 +442,7 @@ export function SidebarContent({
   const state = useSidebarState(onNavigate)
 
   return (
-    <div style={{ height: '100vh', overflow: 'auto', background: 'var(--app-surface)' }}>
+    <div style={{ height: '100dvh', overflow: 'auto', background: 'var(--app-surface)' }}>
       <SidebarBody state={state} collapsed={false} onOpenPanel={onOpenPanel} />
     </div>
   )

@@ -13,6 +13,16 @@ import { json, errorJson, requireUser } from '../../lib/_auth'
 
 const TTL_MS = 10 * 60_000 // 信令 10 分钟自动过期
 
+// 输入上限（审计 §4.8）：信令只该装几 KB 的 SDP，没有上限时任何人可写超长字符串
+// 占用 D1 存储/带宽；deviceId 由前端生成，128 字符足够且能挡住脏数据。
+const MAX_SDP_CHARS = 64 * 1024
+const MAX_DEVICE_ID_CHARS = 128
+const MAX_ROW_ID_CHARS = 128
+
+function isUsableId(v, max) {
+  return typeof v === 'string' && v.length > 0 && v.length <= max
+}
+
 function newId() {
   return crypto.randomUUID()
 }
@@ -26,6 +36,9 @@ export async function onRequest({ request, env }) {
     if (request.method === 'GET') {
       const deviceId = url.searchParams.get('deviceId') || ''
       if (!deviceId) return errorJson('缺少 deviceId', 400)
+      if (!isUsableId(deviceId, MAX_DEVICE_ID_CHARS)) {
+        return errorJson('deviceId 无效或过长', 400, 'BAD_DEVICE_ID')
+      }
 
       // 清理同账号下过期信令（含已完成的，避免残留）
       await env.DB.prepare('DELETE FROM p2p_signals WHERE created_at < ? AND account_id = ?')
@@ -69,9 +82,15 @@ export async function onRequest({ request, env }) {
       const body = await request.json().catch(() => ({}))
       const { role, deviceId, offer, answer, rowId } = body || {}
       if (!deviceId) return errorJson('缺少 deviceId', 400)
+      if (!isUsableId(deviceId, MAX_DEVICE_ID_CHARS)) {
+        return errorJson('deviceId 无效或过长', 400, 'BAD_DEVICE_ID')
+      }
 
       if (role === 'host') {
-        if (!offer) return errorJson('缺少 offer', 400)
+        if (typeof offer !== 'string' || !offer) return errorJson('缺少 offer', 400)
+        if (offer.length > MAX_SDP_CHARS) {
+          return errorJson(`offer 过大（上限 ${MAX_SDP_CHARS / 1024}KB）`, 413, 'TOO_LARGE')
+        }
         // 一个设备同时只保留一条等待中的 host 请求：先作废旧请求（按设备隔离，不影响其他设备）
         await env.DB.prepare(
           `UPDATE p2p_signals SET status = 'cancelled' WHERE account_id = ? AND device_id = ? AND role = 'host' AND status = 'waiting'`,
@@ -88,12 +107,21 @@ export async function onRequest({ request, env }) {
       }
 
       if (role === 'guest') {
-        if (!rowId || !answer) return errorJson('缺少 rowId 或 answer', 400)
-        // 校验目标行属于同账号、是 host 发出的、且处于等待中
+        if (typeof rowId !== 'string' || !rowId || typeof answer !== 'string' || !answer) {
+          return errorJson('缺少 rowId 或 answer', 400)
+        }
+        if (!isUsableId(rowId, MAX_ROW_ID_CHARS)) {
+          return errorJson('rowId 无效或过长', 400, 'BAD_ROW_ID')
+        }
+        if (answer.length > MAX_SDP_CHARS) {
+          return errorJson(`answer 过大（上限 ${MAX_SDP_CHARS / 1024}KB）`, 413, 'TOO_LARGE')
+        }
+        // 校验目标行属于同账号、是 host 发出的、处于等待中，**且未过期**：
+        // 只靠 GET 时的清理不够——host 不再轮询时过期行不会被删，后来的 guest 会继续认领（审计 §4.8）
         const row = await env.DB.prepare(
-          `SELECT id, device_id, role, status FROM p2p_signals WHERE id = ? AND account_id = ?`,
+          `SELECT id, device_id, role, status FROM p2p_signals WHERE id = ? AND account_id = ? AND created_at >= ?`,
         )
-          .bind(rowId, acc.id)
+          .bind(rowId, acc.id, Date.now() - TTL_MS)
           .first()
         if (!row || row.role !== 'host' || row.status !== 'waiting') {
           return errorJson('该配对请求已失效，请让对端重新发起', 409, 'STALE')
@@ -111,6 +139,9 @@ export async function onRequest({ request, env }) {
       const body = await request.json().catch(() => ({}))
       const { deviceId } = body || {}
       if (!deviceId) return errorJson('缺少 deviceId', 400)
+      if (!isUsableId(deviceId, MAX_DEVICE_ID_CHARS)) {
+        return errorJson('deviceId 无效或过长', 400, 'BAD_DEVICE_ID')
+      }
       await env.DB.prepare(`DELETE FROM p2p_signals WHERE account_id = ? AND device_id = ?`)
         .bind(acc.id, deviceId)
         .run()
@@ -124,6 +155,8 @@ export async function onRequest({ request, env }) {
     if (msg.includes('p2p_signals') || msg.includes('no such table')) {
       return errorJson('服务端尚未启用局域网同步信令，请联系管理员执行数据库迁移', 503, 'NO_SIGNAL_TABLE')
     }
-    return errorJson('信令服务异常：' + msg, 500)
+    // 原始 DB 错误只进服务端日志：直接回给客户端会泄露表名/驱动细节（审计 §4.8）
+    console.error('[signal] 未预期异常:', msg)
+    return errorJson('信令服务异常，请稍后重试', 500, 'SIGNAL_INTERNAL')
   }
 }

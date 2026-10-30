@@ -12,6 +12,7 @@ import {
   recordLoginFailure,
   clearLoginFailures,
   clientIp,
+  ensureAuthSecret,
 } from '../../lib/_auth'
 
 const DUMMY_SALT = '0123456789abcdef0123456789abcdef'
@@ -24,6 +25,10 @@ const IP_MAX_FAILURES = 30
 const IP_WINDOW_MS = 15 * 60_000
 
 export async function onRequestPost({ request, env }) {
+  // AUTH_SECRET 缺失/过短就别往下走了：这里要签发令牌，走不到 fail-closed 就只会 500
+  const misconfig = ensureAuthSecret(env)
+  if (misconfig) return misconfig
+
   let body
   try {
     body = await request.json()
@@ -69,8 +74,9 @@ export async function onRequestPost({ request, env }) {
   }
   if (acc.disabled) return errorJson('账户已被停用，请联系管理员', 403, 'DISABLED')
 
+  // 成功只清「同一用户名+IP」的 user 桶；IP 桶（loginip:）只增不清。
+  // 清 IP 桶 = 给持有任意有效账号的人一张无限尝试门票（审计 P1-2 的绕过路径），故删掉那行。
   await clearLoginFailures(env, rateKey)
-  await clearLoginFailures(env, `loginip:${ip}`)
   const now = Date.now()
   await env.DB.prepare('UPDATE accounts SET last_login = ? WHERE id = ?')
     .bind(now, acc.id)

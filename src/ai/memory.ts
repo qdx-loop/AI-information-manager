@@ -103,21 +103,31 @@ export function replaceAllMemory(accountId: string, texts: string[]) {
   )
 }
 
-// 按「编号(提示词里的序号，从1开始)或原文」删除记忆。返回删除条数。
+/**
+ * 把「编号 / 原文」解析成唯一一条记忆的下标，解析不出就返回 -1。
+ *
+ * 旧实现用双向 `includes` 匹配：模型传一个很短的 ref（例如「用户」）就会
+ * 命中并删除多条记忆——这是不可逆的数据损失（见 03-ai.md 风险 P2-2）。
+ * 现在的规则只有两条：
+ *   1. 纯数字（允许 `#3` 前缀）且落在 1..n 内 → 按提示词里的编号定位；
+ *   2. 否则必须与某条记忆文本**完全相等**（trim 后）。
+ * 都不满足即视为未匹配，由调用方如实回报「未找到」，绝不猜。
+ */
+function resolveMemoryIndex(entries: MemoryEntry[], ref: string): number {
+  const s = String(ref ?? '').trim()
+  if (!s) return -1
+  const n = Number(s.replace(/^#/, ''))
+  if (Number.isInteger(n) && n >= 1 && n <= entries.length) return n - 1
+  return entries.findIndex((e) => e.text === s)
+}
+
+// 按「编号(提示词里的序号，从1开始)或完全相等的原文」删除记忆。返回删除条数。
 export function removeMemoryByIdxOrText(accountId: string, refs: string[]): number {
   const entries = loadRaw(accountId)
   const toRemove = new Set<string>()
   for (const rawRef of refs) {
-    const s = String(rawRef).trim()
-    if (!s) continue
-    const n = Number(s.replace(/^#/, ''))
-    if (Number.isInteger(n) && n >= 1 && n <= entries.length) {
-      toRemove.add(entries[n - 1].id)
-      continue
-    }
-    for (const e of entries) {
-      if (e.text === s || e.text.includes(s) || s.includes(e.text)) toRemove.add(e.id)
-    }
+    const idx = resolveMemoryIndex(entries, String(rawRef))
+    if (idx >= 0) toRemove.add(entries[idx].id)
   }
   if (toRemove.size === 0) return 0
   save(
@@ -127,17 +137,11 @@ export function removeMemoryByIdxOrText(accountId: string, refs: string[]): numb
   return toRemove.size
 }
 
-// 按「编号或原文」修改单条记忆
+// 按「编号或完全相等的原文」修改单条记忆；解析不出唯一目标时返回 false
 export function updateMemoryByIdxOrText(accountId: string, ref: string, newText: string): boolean {
   const entries = loadRaw(accountId)
-  let target: MemoryEntry | undefined
-  const s = String(ref).trim()
-  const n = Number(s.replace(/^#/, ''))
-  if (Number.isInteger(n) && n >= 1 && n <= entries.length) {
-    target = entries[n - 1]
-  } else {
-    target = entries.find((e) => e.text === s || e.text.includes(s))
-  }
+  const idx = resolveMemoryIndex(entries, ref)
+  const target = idx >= 0 ? entries[idx] : undefined
   if (!target) return false
   target.text = newText.trim()
   target.at = Date.now()
