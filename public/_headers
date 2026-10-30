@@ -1,7 +1,11 @@
 # 安全响应头（Cloudflare Pages 的 _headers 只对 Pages 静态响应生效）
 #
 # CSP 取舍（先保守、保证不白屏）：
-#   - script-src 只放 'self' + Turnstile（注册页必须能加载 challenges.cloudflare.com/api.js）；
+#   - script-src 放 'self' + Turnstile + Cloudflare 注入脚本。**必须带 'unsafe-inline'**：
+#     Cloudflare 的 challenge-platform 会在每个 HTML 响应尾部注入一段内联脚本
+#     （内容里带每次请求都不同的 ray id，无法用 hash/nonce 锁定）；不透传会让
+#     Console 每页报 CSP 错误、并削弱 CF 的机器人检测。应用本身不用 innerHTML，
+#     XSS 面主要来自 markdown 链接（react-markdown 已转义），因此接受这一项放宽。
 #   - style-src 必须 'unsafe-inline'：antd/echarts 大量写内联样式，main.tsx 的兜底错误页也用 style 属性；
 #   - img-src 放 data:/blob:：图表导出、PWA 图标、粘贴的图片都是 data URL；
 #   - connect-src 放 'self' + https:：应用允许用户自填 AI baseUrl 与 Supabase URL，直接按任意
@@ -10,7 +14,7 @@
 #   - frame-src 只放 Turnstile，frame-ancestors 'none' + X-Frame-Options: DENY 防点击劫持（后台无 UI 入口，尤其需要）。
 # 改动后请用 npm run build + 浏览器 Network/Console 验证没有 CSP 报错。
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
