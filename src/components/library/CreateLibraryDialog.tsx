@@ -24,8 +24,8 @@ import { LabelText } from './labels'
  * 现在两边都渲染这一个受控 <Modal>：字段标签齐全、模板可选、
  * 空名/失败时用一个不 settle 的 Promise 把弹窗撑住不关。
  *
- * 视觉：字段标签是 12px muted 在上 + 必填朱砂小方点（不用红字星号），
- * 表单宽度 480，控件 32px / 2px 圆角由 theme 统一。
+ * 视觉（v3）：字段标签 13/500 muted + 必填 accent 圆点，表单宽度 480，
+ * 控件 36px / 8px 圆角、弹窗 12px 圆角由 theme + 全局 CSS 统一。
  */
 export default function CreateLibraryDialog({
   open,
@@ -142,7 +142,8 @@ export default function CreateLibraryDialog({
       destroyOnHidden
       maskClosable={!creating}
       width={480}
-      style={{ maxWidth: 'calc(100vw - 32px)' }}
+      centered
+      style={{ maxWidth: 'calc(100vw - 32px)', top: 0 }}
     >
       <Form layout="vertical" style={{ marginTop: 8 }} requiredMark={false}>
         <Form.Item

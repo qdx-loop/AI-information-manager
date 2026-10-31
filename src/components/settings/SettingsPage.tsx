@@ -42,14 +42,14 @@ import { useI18n } from '@/i18n'
 import { downloadBlob } from '@/utils/csv'
 
 /**
- * 设置页 ·『官纸账簿』
+ * 设置页 ·『石墨信号』（v3 现代产品感）
  *
- * 桌面：左侧 180px 垂直目录（6 项，选中 = 2px 朱砂左线 + 墨字），右侧单列表单 max-width 640，
+ * 桌面：左侧 200px 白卡目录（选中 = 3px accent 左线 + accent-wash），右侧白卡内容 max-width 720，
  *        组间 32px + 1px 账线。移动端回退为 Tabs（保留，因为窄屏目录会占掉半屏）。
  * 第 6 项「关于与支持」支持 `?tab=support` 直达（帮助页/落地页的文末链接指向这里）。
  *
  * 视觉原则：不用 Card 包裹、不用彩色 Alert 色块、不用 Tag 胶囊；
- * 说明类信息一律「文字 + 左侧朱砂/赭色细线」，危险操作放底部。
+ * 说明类信息用 sunken 块或正文，危险操作放独立 danger 卡并置底。
  */
 
 type TabKey = 'account' | 'ai' | 'backup' | 'configsync' | 'storage' | 'support'
@@ -77,10 +77,10 @@ function Notice({
 }) {
   const color =
     kind === 'warning'
-      ? 'var(--app-warning)'
+      ? 'var(--warning)'
       : kind === 'danger'
-        ? 'var(--app-danger)'
-        : 'var(--app-border-strong)'
+        ? 'var(--danger)'
+        : 'var(--border-strong)'
   return (
     <div
       style={{
@@ -89,26 +89,26 @@ function Notice({
         marginBottom: 20,
         fontSize: 13,
         lineHeight: 1.7,
-        color: 'var(--app-ink-soft)',
+        color: 'var(--ink-muted)',
       }}
     >
       {title && (
-        <div style={{ fontWeight: 600, color: 'var(--app-ink)', marginBottom: 2 }}>{title}</div>
+        <div style={{ fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>{title}</div>
       )}
       {children}
     </div>
   )
 }
 
-/** 组标题：20 衬线 + 一行说明 */
+/** 组标题：20/600 无衬线 + 一行说明 */
 function GroupTitle({ title, desc }: { title: string; desc?: string }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <h2 className="serif" style={{ fontSize: 20, fontWeight: 600, margin: 0, color: 'var(--app-ink)' }}>
+      <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 0, color: 'var(--ink)' }}>
         {title}
       </h2>
       {desc && (
-        <p className="muted" style={{ fontSize: 13, margin: '4px 0 0', lineHeight: 1.6 }}>
+        <p className="muted" style={{ fontSize: 'var(--text-xs)', margin: '4px 0 0', lineHeight: 1.5 }}>
           {desc}
         </p>
       )}
@@ -133,8 +133,8 @@ function SyncStatusBanner() {
   const when = st.at ? new Date(st.at).toLocaleString() : ''
   if (st.phase === 'off') {
     return (
-      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--app-ink-faint)' }}>
-        <span style={{ color: 'var(--app-ink-soft)' }}>{t('settings.sync.off')}</span>
+      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink-faint)' }}>
+        <span style={{ color: 'var(--ink-muted)' }}>{t('settings.sync.off')}</span>
         {' · '}
         {t('settings.sync.offDesc')}
       </div>
@@ -144,14 +144,14 @@ function SyncStatusBanner() {
     return (
       <div
         style={{
-          borderLeft: '2px solid var(--app-danger)',
+          borderLeft: '2px solid var(--danger)',
           paddingLeft: 10,
           fontSize: 12.5,
           lineHeight: 1.7,
-          color: 'var(--app-ink-soft)',
+          color: 'var(--ink-muted)',
         }}
       >
-        <span style={{ color: 'var(--app-danger)', fontWeight: 500 }}>{t('settings.sync.error')}</span>
+        <span style={{ color: 'var(--danger)', fontWeight: 500 }}>{t('settings.sync.error')}</span>
         {' · '}
         {t('settings.sync.lastOk')}: {when || '—'}
         {st.message ? ` · ${st.message}` : ''}
@@ -160,14 +160,14 @@ function SyncStatusBanner() {
   }
   if (st.phase === 'syncing') {
     return (
-      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--app-ink-soft)' }}>
+      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink-muted)' }}>
         <SyncOutlined style={{ marginRight: 6, fontSize: 12 }} />
         {t('settings.sync.syncing')} · {t('settings.sync.syncingDesc')}
       </div>
     )
   }
   return (
-    <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--app-ink-faint)' }}>
+    <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink-faint)' }}>
       <CloudOutlined style={{ marginRight: 6, fontSize: 12 }} />
       {t('settings.sync.ok')} · {t('settings.sync.lastOk')}: {when || t('settings.sync.never')}
     </div>
@@ -206,12 +206,10 @@ export default function SettingsPage() {
 
   return (
     <div style={{ padding: wide ? '24px 32px 48px' : 16, height: '100%', overflow: 'auto' }}>
-      <header style={{ marginBottom: 28 }}>
-        <h1 className="serif page-title" style={{ margin: 0 }}>
-          {t('settings.pageTitle')}
-        </h1>
-        <div style={{ marginTop: 8 }}>
-          <SyncStatusBanner />
+      <header className="page-head">
+        <div className="page-head-main">
+          <h1 className="page-title">{t('settings.pageTitle')}</h1>
+          <p className="page-lede">{t('settings.pageLede')}</p>
         </div>
       </header>
 
@@ -219,12 +217,12 @@ export default function SettingsPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '180px minmax(0, 1fr)',
-            gap: 48,
+            gridTemplateColumns: '200px minmax(0, 1fr)',
+            gap: 24,
             alignItems: 'start',
           }}
         >
-          <nav aria-label={t('settings.pageTitle')}>
+          <nav aria-label={t('settings.pageTitle')} className="surface-card" style={{ padding: 8 }}>
             {items.map((it) => {
               const active = it.key === tab
               return (
@@ -236,17 +234,16 @@ export default function SettingsPage() {
                     display: 'block',
                     width: '100%',
                     textAlign: 'left',
-                    background: 'none',
+                    background: active ? 'var(--accent-wash)' : 'none',
                     border: 'none',
-                    borderLeft: active
-                      ? '2px solid var(--app-accent)'
-                      : '2px solid transparent',
-                    padding: '7px 0 7px 10px',
+                    borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
+                    borderRadius: 'var(--r-1)',
+                    padding: '9px 10px',
                     marginBottom: 2,
                     cursor: 'pointer',
                     font: 'inherit',
-                    fontSize: 13,
-                    color: active ? 'var(--app-ink)' : 'var(--app-ink-soft)',
+                    fontSize: 'var(--text-sm)',
+                    color: active ? 'var(--ink)' : 'var(--ink-muted)',
                     fontWeight: active ? 600 : 400,
                   }}
                 >
@@ -255,17 +252,35 @@ export default function SettingsPage() {
               )
             })}
           </nav>
-          <div style={{ maxWidth: 640 }}>{panels[tab]}</div>
+          <div style={{ maxWidth: 720 }}>
+            {/* 「关于与支持」的 RewardCard 自身就是白卡，外包一层会变成双卡 */}
+            {tab === 'support' ? (
+              <RewardCard />
+            ) : (
+              <div className="surface-card" style={{ padding: wide ? 24 : 16 }}>
+                {panels[tab]}
+              </div>
+            )}
+          </div>
         </div>
       ) : (
-        <div style={{ maxWidth: 640 }}>
+        <div style={{ maxWidth: 720 }}>
           <Tabs
             activeKey={tab}
             onChange={(k) => select(k as TabKey)}
             items={items.map((it) => ({
               key: it.key,
               label: it.label,
-              children: it.key === tab ? panels[tab] : null,
+              children:
+                it.key === tab ? (
+                  it.key === 'support' ? (
+                    <RewardCard />
+                  ) : (
+                    <div className="surface-card" style={{ padding: 16 }}>
+                      {panels[tab]}
+                    </div>
+                  )
+                ) : null,
             }))}
           />
         </div>
@@ -320,12 +335,12 @@ function AccountTab() {
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13 }}>
             <span className="faint">{t('settings.account.current')}</span>
-            <span style={{ fontWeight: 600, color: 'var(--app-ink)' }}>{account.username}</span>
+            <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{account.username}</span>
           </div>
           {account.contact && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, marginTop: 4 }}>
               <span className="faint">{t('settings.account.contact')}</span>
-              <span style={{ color: 'var(--app-ink)' }}>{account.contact}</span>
+              <span style={{ color: 'var(--ink)' }}>{account.contact}</span>
             </div>
           )}
         </div>
@@ -338,8 +353,8 @@ function AccountTab() {
       </div>
 
       {pwdOpen && (
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--app-rule)' }}>
-          <h3 className="serif" style={{ fontSize: 20, fontWeight: 600, margin: '0 0 12px' }}>
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border-rule)' }}>
+          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 12px' }}>
             {t('settings.account.pwdCard')}
           </h3>
           <Input.Password
@@ -380,18 +395,29 @@ function AccountTab() {
         className="muted"
         style={{ fontSize: 13, lineHeight: 1.7, margin: '24px 0 0', maxWidth: 480 }}
       >
-        <span style={{ fontWeight: 600, color: 'var(--app-ink)' }}>
+        <span style={{ fontWeight: 600, color: 'var(--ink)' }}>
           {t('settings.account.pwdInfo.title')}
         </span>
         {' · '}
         {t('settings.account.pwdInfo.body')}
       </p>
 
-      {/* 危险区放最底部：退出登录会清空本机会话数据 */}
-      <div style={{ marginTop: 32, paddingTop: 16, borderTop: '1px solid var(--app-rule)' }}>
-        <h3 className="serif" style={{ fontSize: 20, fontWeight: 600, margin: '0 0 12px' }}>
+      {/* 危险区：独立 danger 卡（v3 契约） */}
+      <div
+        style={{
+          marginTop: 32,
+          background: 'var(--danger-wash)',
+          border: '1px solid var(--danger)',
+          borderRadius: 'var(--r-3)',
+          padding: 16,
+        }}
+      >
+        <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 6px' }}>
           {t('app.signOut')}
         </h3>
+        <p className="muted" style={{ fontSize: 'var(--text-xs)', margin: '0 0 12px', lineHeight: 1.5 }}>
+          {t('settings.account.logoutHint')}
+        </p>
         <Button
           danger
           onClick={async () => {
@@ -548,12 +574,12 @@ function StorageTab() {
   }
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div>
       <GroupTitle title={t('settings.tab.storage')} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <Switch checked={settings.storageMode === 'cloud'} onChange={handleToggle} />
-        <span style={{ fontSize: 13, color: 'var(--app-ink)' }}>
+        <span style={{ fontSize: 13, color: 'var(--ink)' }}>
           {settings.storageMode === 'cloud'
             ? t('settings.storage.mode.cloudOn')
             : t('settings.storage.mode.localOn')}
@@ -587,7 +613,7 @@ function StorageTab() {
       <details style={{ margin: '8px 0 24px' }}>
         <summary
           className="mono"
-          style={{ cursor: 'pointer', fontSize: 12, color: 'var(--app-ink-soft)', padding: '4px 0' }}
+          style={{ cursor: 'pointer', fontSize: 12, color: 'var(--ink-muted)', padding: '4px 0' }}
         >
           {t('settings.storage.sqlTitle')}
         </summary>
@@ -599,9 +625,9 @@ function StorageTab() {
             overflow: 'auto',
             margin: '8px 0 0',
             padding: 12,
-            background: 'var(--app-surface-sunken)',
+            background: 'var(--bg-sunken)',
             borderRadius: 2,
-            color: 'var(--app-ink)',
+            color: 'var(--ink)',
           }}
         >
 {`-- 已经建过表的话，在 Supabase SQL Editor 里再跑一次这三句补列
@@ -657,8 +683,8 @@ alter table items disable row level security;`}
       </details>
 
       {settings.cloud.url && settings.cloud.anonKey ? (
-        <div style={{ paddingTop: 16, borderTop: '1px solid var(--app-rule)' }}>
-          <h3 className="serif" style={{ fontSize: 20, fontWeight: 600, margin: '0 0 12px' }}>
+        <div style={{ paddingTop: 16, borderTop: '1px solid var(--border-rule)' }}>
+          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 12px' }}>
             {t('settings.storage.syncTitle')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -706,7 +732,7 @@ function ConfigSyncTab() {
   const [f2fOpen, setF2fOpen] = useState(false)
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div>
       <GroupTitle title={t('settings.tab.configsync')} desc={t('settings.f2f.card.body')} />
       <Button type="primary" icon={<SwapOutlined />} onClick={() => setF2fOpen(true)}>
         {t('settings.f2f.card.btn')}
@@ -784,7 +810,7 @@ function AITab() {
   }
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div>
       <GroupTitle title={t('settings.tab.ai')} />
       <Notice kind="info" title={t('settings.ai.info.title')}>
         {usingPlatform ? t('settings.ai.info.platform') : t('settings.ai.info.custom')}
@@ -851,14 +877,14 @@ function AITab() {
         </Form>
       )}
 
-      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--app-rule)' }} />
+      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--border-rule)' }} />
 
       <Form layout="vertical">
         <Form.Item
           label={
             <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontWeight: 600 }}>{t('settings.ai.prompt.label')}</span>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--app-ink-faint)' }}>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--ink-faint)' }}>
                 {settings.ai.customPrompt ? t('settings.ai.prompt.custom') : t('settings.ai.prompt.default')}
               </span>
             </span>
@@ -895,7 +921,7 @@ function AITab() {
         </Space>
       </Form>
 
-      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--app-rule)' }} />
+      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--border-rule)' }} />
 
       <Form layout="vertical">
         <Form.Item
@@ -903,7 +929,7 @@ function AITab() {
             <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontWeight: 600 }}>{t('settings.ai.memory.label')}</span>
               {account && listMemory(account.id).length > 0 && (
-                <span className="mono" style={{ fontSize: 11, color: 'var(--app-ink-faint)' }}>
+                <span className="mono" style={{ fontSize: 11, color: 'var(--ink-faint)' }}>
                   {t('settings.ai.memory.count', { n: listMemory(account.id).length })}
                 </span>
               )}
@@ -1078,7 +1104,10 @@ function BackupTab() {
   }
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <SyncStatusBanner />
+      </div>
       <GroupTitle title={t('settings.tab.backup')} desc={t('settings.backup.info.body')} />
       <Notice kind="info" title={t('settings.backup.info.title')}>
         {t('settings.backup.cloudNote')}
@@ -1093,10 +1122,10 @@ function BackupTab() {
         </Upload>
       </div>
 
-      <div style={{ margin: '28px 0 16px', borderTop: '1px solid var(--app-rule)' }} />
+      <div style={{ margin: '28px 0 16px', borderTop: '1px solid var(--border-rule)' }} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <h3 className="serif" style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+        <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 0 }}>
           <HistoryOutlined style={{ fontSize: 15, marginRight: 6 }} />
           {t('settings.snap.title')}
         </h3>
@@ -1122,12 +1151,12 @@ function BackupTab() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 0',
-                borderBottom: '1px solid var(--app-rule)',
+                borderBottom: '1px solid var(--border-rule)',
                 gap: 8,
               }}
             >
               <div style={{ minWidth: 0, flex: 1 }}>
-                <span className="mono" style={{ fontSize: 12, color: 'var(--app-ink)', display: 'block' }}>
+                <span className="mono" style={{ fontSize: 12, color: 'var(--ink)', display: 'block' }}>
                   {dayjs(s.createdAt).format('YYYY-MM-DD HH:mm')}
                 </span>
                 <span className="faint" style={{ fontSize: 12 }}>

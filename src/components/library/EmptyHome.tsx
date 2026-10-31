@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from 'antd'
-import { useLibraryStore } from '@/store/libraryStore'
-import { useAuthStore } from '@/store/authStore'
+import { InfoCircleOutlined, CloseOutlined } from '@ant-design/icons'
 import { useAppStore } from '@/store/appStore'
 import { useI18n } from '@/i18n'
 import HomeDashboard from './HomeDashboard'
-import GettingStarted from './GettingStarted'
 import CreateLibraryDialog from './CreateLibraryDialog'
 import { usePagePadding } from './pageFrame'
 
@@ -28,9 +26,7 @@ const RISK_KEY = 'info-mgmt-safari-risk-dismissed'
 export default function EmptyHome() {
   const t = useI18n()
   const pad = usePagePadding()
-  const { account } = useAuthStore()
   const { settings } = useAppStore()
-  const { libraries } = useLibraryStore()
 
   // 建库命名弹窗（替代原先一键创建"未命名管理库"的草率路径）
   const [namingOpen, setNamingOpen] = useState(false)
@@ -51,68 +47,43 @@ export default function EmptyHome() {
     <div style={{ ...pad, height: '100%', overflow: 'auto' }}>
       {/*
         数据风险提示。
-        原来是 antd <Alert type="warning" showIcon> 大色块：一整条黄底 + 警告图标，
-        在暖纸底上等于给页面开了一个黄色窗口（第三种色相）。
-        现在是一行文字 + 朱砂/赭色小方点 + 关闭文字链，信息一条不少，色块归零。
+        v3 是所有内容都要有「表面」：这里用一张轻量白卡承载警告，而不是整条黄色 Alert 色块；
+        也不再用颜色当唯一信息通道 —— 文案说清「什么会发生、该做什么」。
       */}
       {safariRisk && !riskDismissed && (
         <div
+          className="surface-card"
           style={{
             display: 'flex',
             alignItems: 'flex-start',
             gap: 12,
-            padding: '10px 0',
+            padding: '14px 16px',
             marginBottom: 16,
-            borderBottom: '1px solid var(--app-rule)',
           }}
         >
-          <span className="tag-dot" style={{ color: 'var(--app-warning)', flexShrink: 0, marginTop: 2 }}>
-            {t('home.safari.title')}
-          </span>
-          <span className="muted" style={{ fontSize: 'var(--text-xs)', flex: '1 1 auto', lineHeight: 1.6 }}>
-            {t('home.safari.body')}
-          </span>
-          <button
-            type="button"
-            className="link-quiet"
-            style={{ font: 'inherit', fontSize: 'var(--text-xs)', background: 'none', border: 0, padding: 0, cursor: 'pointer', flexShrink: 0 }}
+          <InfoCircleOutlined style={{ fontSize: 18, color: 'var(--warning)', flexShrink: 0, marginTop: 2 }} aria-hidden />
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink)' }}>{t('home.safari.title')}</div>
+            <div className="muted" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.6, marginTop: 2 }}>
+              {t('home.safari.body')}
+            </div>
+          </div>
+          <Button
+            type="text"
+            className="icon-btn"
+            aria-label={t('common.close')}
+            icon={<CloseOutlined />}
             onClick={() => {
               localStorage.setItem(RISK_KEY, '1')
               setRiskDismissed(true)
             }}
-          >
-            {t('common.close')}
-          </button>
+          />
         </div>
       )}
 
-      {/* 首页头：编辑部式 greeting——文字就是主视觉，不需要插图和盒子。
-          26px 衬线是页面唯一的大标题；说明 13 muted；标题行高 40（与库页一致）。 */}
-      <header style={{ marginBottom: 16 }}>
-        <h1 className="page-title" style={{ display: 'flex', alignItems: 'baseline', minHeight: 40, flexWrap: 'wrap', gap: 12 }}>
-          {t('home.greeting', { name: account?.username ?? '' })}
-        </h1>
-        <p className="page-lede" style={{ margin: '4px 0 0' }}>
-          {libraries.length > 0 ? t('home.pick') : t('home.empty')}
-        </p>
-      </header>
-
-      <div style={{ marginBottom: 24 }}>
-        {/* 主按钮：墨色（colorPrimary 已换墨），32px 高、4px 圆角由 theme 统一 */}
-        <Button type="primary" onClick={openNaming}>
-          {t('home.createFirst')}
-        </Button>
-      </div>
-
-      <GettingStarted />
-
-      {libraries.length > 0 ? (
-        <HomeDashboard />
-      ) : (
-        <p className="faint" style={{ margin: '12px 0 0', fontSize: 'var(--text-sm)' }}>
-          {t('home.tip')}
-        </p>
-      )}
+      {/* 首页主体（页头 + KPI 白卡 + 两栏白卡）由 HomeDashboard 负责；
+          这里只承载建库弹窗与 iOS 存储风险提示。 */}
+      <HomeDashboard onCreate={openNaming} />
 
       <CreateLibraryDialog open={namingOpen} onClose={() => setNamingOpen(false)} />
     </div>

@@ -1,5 +1,18 @@
+/**
+ * 登录 / 注册 · v3『石墨信号』
+ *
+ * 两栏：左 45% `--bg-sunken` 品牌区（标 + 32/600 标题 + 3 条 13 说明）＋右 55% 画布上的白卡表单。
+ * 表单卡 .login-card（380 / 白面 + 1px + shadow-2 + 12 圆角 + 32 内边距）；输入 40、主按钮墨黑 40 全宽。
+ *
+ * 三个刻意决定：
+ * 1) 品牌只出现一次（左栏），右栏不再重复 logo/名字 —— v2 一屏出现两遍。
+ * 2) Turnstile 未就绪时**不再预留 65px 空洞**：按钮保持可点，点击时才提示「校验还没完成」，
+ *    这样脚本被墙/加载失败时表单仍是完整的（行为仍由服务端兜底，见 useTurnstile）。
+ * 3) 注册成功：写一次性 welcome pending → navigate('/')，**不弹「注册成功」toast**，
+ *    否则欢迎卡 0.5s 内会再「欢迎」一次（05-first-run-support §D.3）。
+ */
 import { useState, useEffect, useCallback } from 'react'
-import { Form, Input, Button, Checkbox, App, Spin } from 'antd'
+import { Form, Input, Button, Checkbox, App } from 'antd'
 import { SafetyOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store/authStore'
 import { apiRegistrationOpen } from '@/lib/serverApi'
@@ -7,7 +20,7 @@ import { useI18n } from '@/i18n'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTurnstile } from './useTurnstile'
 import { isAndroidApp } from '@/utils/platform'
-import SealMark from '@/components/public/SealMark'
+import { markWelcomePending } from '@/utils/welcome'
 
 type Mode = 'login' | 'register'
 
@@ -17,6 +30,8 @@ interface RegisterValues {
   confirm: string
   contact?: string
 }
+
+const FIELD_STYLE: React.CSSProperties = { height: 40, borderRadius: 'var(--r-2)' }
 
 export default function AuthPage() {
   const { message } = App.useApp()
@@ -32,20 +47,17 @@ export default function AuthPage() {
   const t = useI18n()
   const [regOpen, setRegOpen] = useState<boolean | null>(null)
   const inApp = isAndroidApp()
-  // 内联错误：错误不再只靠顶部 toast（toast 会消失，用户回头看表单时不知道错在哪）
+  // 内联错误：错误不只在顶部 toast 一闪而过，表单里留一行
   const [errorText, setErrorText] = useState('')
   // Turnstile token：拿不到时留空，服务端会按故障降级逻辑处理
   const [tsToken, setTsToken] = useState('')
   const onTsToken = useCallback((tok: string) => setTsToken(tok), [])
-  // 只在注册页签下才挂载 Turnstile 宿主；enabled 变化会让 hook 重跑并重新 render widget
   const { hostRef: tsHost, status: tsStatus, reset: tsReset } = useTurnstile(
     onTsToken,
     mode === 'register',
   )
 
-  // 人机验证没过 / 加载失败都禁用提交。
-  // 关键：不能因为「脚本没加载出来」就放行——那等于给机器人发通行证。
-  // 服务端只在自己观察到 siteverify 故障时才会降级放行，客户端无权声明。
+  // 人机验证没过 / 加载失败都由按钮点击时拦截（不再用禁用态 + 空洞占位）
   const tsBlocking = tsStatus !== 'passed'
 
   // 如果 init() 在跳转到 /login 后才完成恢复，自动跳回主页
@@ -89,6 +101,11 @@ export default function AuthPage() {
   }
 
   const onRegister = async (values: RegisterValues) => {
+    // 回车提交同样要过 Turnstile 检查（否则会绕过按钮上的拦截）
+    if (tsBlocking) {
+      setErrorText(t('auth.ts.notReady'))
+      return
+    }
     setErrorText('')
     setLoading(true)
     try {
@@ -101,7 +118,8 @@ export default function AuthPage() {
         },
         remember,
       )
-      message.success(t('auth.reg.ok'))
+      // 一次性 pending → AppShell 消费并弹欢迎卡；不打 toast（避免欢迎卡前又「欢迎」一次）
+      markWelcomePending()
       navigate('/')
     } catch (e) {
       setErrorText((e as Error).message)
@@ -112,23 +130,20 @@ export default function AuthPage() {
     }
   }
 
-  const features = [
-    { num: '01', text: t('auth.f1') },
-    { num: '02', text: t('auth.f2') },
-    { num: '03', text: t('auth.f3') },
-  ]
+  const features = [t('auth.f1'), t('auth.f2'), t('auth.f3')]
 
-  // 错误态：一行文字 + 朱砂左线（不只靠颜色，也不弹气泡框）
   const errorLine = errorText ? (
     <div
       role="alert"
       style={{
-        borderLeft: '2px solid var(--app-danger)',
-        paddingLeft: 10,
+        background: 'var(--danger-wash)',
+        border: '1px solid var(--danger)',
+        borderRadius: 'var(--r-2)',
+        padding: '8px 12px',
         marginBottom: 16,
-        fontSize: 13,
-        lineHeight: 1.6,
-        color: 'var(--app-danger)',
+        fontSize: 'var(--text-xs)',
+        lineHeight: 1.5,
+        color: 'var(--danger)',
       }}
     >
       {errorText}
@@ -136,14 +151,7 @@ export default function AuthPage() {
   ) : null
 
   const tabs = (
-    <div
-      style={{
-        display: 'flex',
-        gap: 20,
-        borderBottom: '1px solid var(--app-border-soft)',
-        marginBottom: 20,
-      }}
-    >
+    <div style={{ display: 'flex', gap: 20, borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
       {(['login', 'register'] as const).map((k) => (
         <button
           key={k}
@@ -156,10 +164,10 @@ export default function AuthPage() {
             padding: '0 0 8px',
             marginBottom: -1,
             cursor: 'pointer',
-            fontSize: 13,
+            fontSize: 'var(--text-sm)',
             fontWeight: mode === k ? 600 : 400,
-            color: mode === k ? 'var(--app-ink)' : 'var(--app-ink-faint)',
-            borderBottom: mode === k ? '2px solid var(--app-accent)' : '2px solid transparent',
+            color: mode === k ? 'var(--ink)' : 'var(--ink-muted)',
+            borderBottom: mode === k ? '2px solid var(--accent)' : '2px solid transparent',
           }}
         >
           {t(k === 'login' ? 'auth.tab.login' : 'auth.tab.register')}
@@ -181,7 +189,7 @@ export default function AuthPage() {
           placeholder={t('auth.username')}
           autoComplete="username"
           aria-label={t('auth.username')}
-          style={{ height: 32, borderRadius: 2 }}
+          style={FIELD_STYLE}
         />
       </Form.Item>
       <Form.Item
@@ -195,16 +203,17 @@ export default function AuthPage() {
           placeholder={t('auth.password')}
           autoComplete="current-password"
           aria-label={t('auth.password')}
-          style={{ height: 32, borderRadius: 2 }}
+          style={FIELD_STYLE}
         />
       </Form.Item>
       <Form.Item style={{ marginBottom: 16 }}>
         <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
-          <span style={{ fontSize: 13, color: 'var(--app-ink-soft)' }}>{t('auth.remember')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
+            {t('auth.remember')}
+          </span>
         </Checkbox>
       </Form.Item>
-
-      <Button type="primary" htmlType="submit" block loading={loading}>
+      <Button type="primary" htmlType="submit" block loading={loading} style={{ height: 40 }}>
         {t('auth.login')}
       </Button>
     </Form>
@@ -215,18 +224,17 @@ export default function AuthPage() {
       {regOpen === false && (
         <div
           style={{
-            borderLeft: '2px solid var(--app-warning)',
-            background: 'var(--app-warning-wash)',
+            background: 'var(--warning-wash)',
+            border: '1px solid var(--warning)',
+            borderRadius: 'var(--r-2)',
             padding: '8px 12px',
             marginBottom: 16,
-            fontSize: 12.5,
-            lineHeight: 1.7,
-            color: 'var(--app-ink-soft)',
+            fontSize: 'var(--text-xs)',
+            lineHeight: 1.5,
+            color: 'var(--ink)',
           }}
         >
-          <div style={{ fontWeight: 600, color: 'var(--app-ink)', marginBottom: 2 }}>
-            {t('auth.reg.closedTitle')}
-          </div>
+          <div style={{ fontWeight: 600, marginBottom: 2 }}>{t('auth.reg.closedTitle')}</div>
           {t('auth.reg.closedBody')}
         </div>
       )}
@@ -242,17 +250,14 @@ export default function AuthPage() {
           name="username"
           rules={[
             { required: true, message: t('auth.err.username') },
-            {
-              pattern: /^[A-Za-z0-9_]{3,20}$/,
-              message: t('auth.err.usernamePattern'),
-            },
+            { pattern: /^[A-Za-z0-9_]{3,20}$/, message: t('auth.err.usernamePattern') },
           ]}
         >
           <Input
             placeholder={t('auth.reg.username')}
             autoComplete="username"
             aria-label={t('auth.reg.username')}
-            style={{ height: 32, borderRadius: 2 }}
+            style={FIELD_STYLE}
           />
         </Form.Item>
         <Form.Item
@@ -266,7 +271,7 @@ export default function AuthPage() {
             placeholder={t('auth.reg.password')}
             autoComplete="new-password"
             aria-label={t('auth.reg.password')}
-            style={{ height: 32, borderRadius: 2 }}
+            style={FIELD_STYLE}
           />
         </Form.Item>
         <Form.Item
@@ -286,36 +291,27 @@ export default function AuthPage() {
             placeholder={t('auth.reg.confirm')}
             autoComplete="new-password"
             aria-label={t('auth.reg.confirm')}
-            style={{ height: 32, borderRadius: 2 }}
+            style={FIELD_STYLE}
           />
         </Form.Item>
         <Form.Item
           name="contact"
           rules={[{ max: 120, message: t('auth.err.contactMax') }]}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 12 }}
         >
           <Input
             placeholder={t('auth.reg.contact')}
             autoComplete="email"
             aria-label={t('auth.reg.contact')}
-            style={{ height: 32, borderRadius: 2 }}
+            style={FIELD_STYLE}
           />
         </Form.Item>
 
-        {/* 人机验证：挡住脚本自动注册。脚本加载失败时显示降级提示并照常允许提交 */}
-        <div style={{ marginBottom: 12, minHeight: 65 }}>
+        {/* 人机验证：Turnstile 显式渲染的宿主；脚本没就绪时不占位（v2 这里留了 65px 空洞） */}
+        <div style={{ marginBottom: 8 }}>
           <div ref={tsHost} />
           {tsStatus === 'loading' && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 12.5,
-                color: 'var(--app-ink-faint)',
-              }}
-            >
-              <Spin size="small" />
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-faint)', lineHeight: 1.5 }}>
               {t('auth.reg.ts.loading')}
             </div>
           )}
@@ -325,8 +321,8 @@ export default function AuthPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                fontSize: 12.5,
-                color: 'var(--app-danger)',
+                fontSize: 'var(--text-2xs)',
+                color: 'var(--danger)',
               }}
             >
               <SafetyOutlined />
@@ -334,20 +330,12 @@ export default function AuthPage() {
             </div>
           )}
           {tsStatus === 'unavailable' && (
-            <div
-              style={{
-                borderLeft: '2px solid var(--app-warning)',
-                paddingLeft: 10,
-                fontSize: 12,
-                color: 'var(--app-ink-soft)',
-                lineHeight: 1.6,
-              }}
-            >
+            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-muted)', lineHeight: 1.5 }}>
               {t('auth.reg.ts.unavailable')}
               <Button
                 type="link"
                 size="small"
-                style={{ padding: '0 0 0 6px', fontSize: 12 }}
+                style={{ padding: '0 0 0 4px', fontSize: 'var(--text-2xs)' }}
                 onClick={() => {
                   // 当前 URL 可能是 /login（没有 mode 参数），直接 reload 会再次
                   // 停在登录页签、再次失败。先把 mode=register 补进地址栏。
@@ -368,11 +356,15 @@ export default function AuthPage() {
           htmlType="submit"
           block
           loading={loading}
-          disabled={regOpen === false || tsBlocking}
+          disabled={regOpen === false}
+          style={{ height: 40 }}
         >
           {t('auth.reg.submit')}
         </Button>
-        <p className="faint" style={{ marginTop: 12, marginBottom: 0, fontSize: 12, lineHeight: 1.7 }}>
+        <p
+          className="faint"
+          style={{ marginTop: 12, marginBottom: 0, fontSize: 'var(--text-2xs)', lineHeight: 1.6 }}
+        >
           {t('auth.reg.privacy')}
         </p>
       </Form>
@@ -380,82 +372,70 @@ export default function AuthPage() {
   )
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--app-canvas)' }}>
-      {/* 左栏：一张纸 + 一枚印（≥900px 显示；底色与分栏线由 .login-brand 负责） */}
-      <div className="login-brand" style={{ flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ maxWidth: 400 }}>
+    <div className="login-page">
+      {/* 左栏（≥960px 显示）：品牌只在这里出现一次 */}
+      <div className="login-brand">
+        <div style={{ maxWidth: 380 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
-            <SealMark />
-            <span className="serif" style={{ fontSize: 16, fontWeight: 600, color: 'var(--app-ink)' }}>
+            <span className="app-brand-dot" aria-hidden />
+            <span style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--ink)' }}>
               {t('auth.brand')}
             </span>
           </div>
           <h1
-            className="serif"
-            style={{ fontSize: 26, lineHeight: 1.3, fontWeight: 600, margin: '0 0 12px', color: 'var(--app-ink)' }}
+            style={{
+              fontSize: 'var(--text-2xl)',
+              lineHeight: 1.2,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              margin: '0 0 12px',
+              color: 'var(--ink)',
+            }}
           >
             {t('auth.hero.title')}
           </h1>
           <p
             style={{
-              fontSize: 14,
+              fontSize: 'var(--text-sm)',
               lineHeight: 1.7,
-              color: 'var(--app-ink-soft)',
+              color: 'var(--ink-muted)',
               margin: '0 0 28px',
             }}
           >
             {t('auth.hero.subtitle')}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {features.map((f) => (
-              <div key={f.num} style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+            {features.map((text, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
                 <span
-                  className="mono"
+                  aria-hidden
                   style={{
-                    fontSize: 11,
-                    letterSpacing: '0.06em',
-                    color: 'var(--app-ink-faint)',
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--accent)',
                     flexShrink: 0,
                   }}
-                >
-                  {f.num}
-                </span>
-                <span style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--app-ink-soft)' }}>
-                  {f.text}
+                />
+                <span style={{ fontSize: 'var(--text-xs)', lineHeight: 1.6, color: 'var(--ink-muted)' }}>
+                  {text}
                 </span>
               </div>
             ))}
           </div>
-        </div>
-        <div className="faint" style={{ marginTop: 48, fontSize: 12 }}>
-          {t('auth.footerNote')}
+          <div className="faint" style={{ marginTop: 40, fontSize: 'var(--text-2xs)', lineHeight: 1.6 }}>
+            {t('auth.footerNote')}
+          </div>
         </div>
       </div>
 
-      {/* 右栏：无卡片，表单宽 320，垂直略偏上 */}
+      {/* 右栏：画布 + 白卡表单 */}
       <div className="login-form-side">
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 320,
-            padding: '0 24px',
-            transform: 'translateY(-6vh)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
-            <SealMark size={12} />
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--app-ink)' }}>
-              {t('auth.brand')}
-            </span>
-          </div>
-
-          <h2
-            className="serif"
-            style={{ fontSize: 20, fontWeight: 600, margin: '0 0 6px', color: 'var(--app-ink)' }}
-          >
+        <div className="login-card">
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 6px', color: 'var(--ink)' }}>
             {t('auth.welcome')}
           </h2>
-          <p className="muted" style={{ fontSize: 12.5, margin: '0 0 20px', lineHeight: 1.6 }}>
+          <p className="muted" style={{ fontSize: 'var(--text-xs)', margin: '0 0 20px', lineHeight: 1.6 }}>
             {t('auth.hint')}
           </p>
 
@@ -463,8 +443,10 @@ export default function AuthPage() {
           {errorLine}
           {mode === 'login' ? loginPane : registerPane}
 
-          <p className="faint" style={{ marginTop: 24, fontSize: 12, lineHeight: 1.8 }}>
-            {/* App 里 `/` 会被分流回登录页，这个链接点了没反应，所以在壳内隐藏 */}
+          <p
+            className="faint"
+            style={{ marginTop: 20, marginBottom: 0, fontSize: 'var(--text-2xs)', lineHeight: 1.7 }}
+          >
             {!inApp && (
               <>
                 <a
@@ -482,10 +464,8 @@ export default function AuthPage() {
             )}
             {t('auth.cloudHint')}
           </p>
-          {/* 注意：这里刻意不放「管理员入口」。
-              /admin 是后台控制台，按需从书签/直链访问；
-              任何出现在用户界面里的入口都会让普通用户误点进去后看到
-              「无权访问」，反而制造困惑。管理员由运营方单独告知地址。 */}
+          {/* 刻意不放「管理员入口」：/admin 由运营方单独告知地址，
+              出现在用户界面会让普通用户误点后看到「无权访问」。 */}
         </div>
       </div>
     </div>

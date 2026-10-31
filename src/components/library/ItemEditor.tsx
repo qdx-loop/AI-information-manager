@@ -1,13 +1,12 @@
 import { Modal, Form, App, DatePicker, Select, Button } from 'antd'
+import { InfoCircleOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useEffect, useRef, useState } from 'react'
 import dayjs from 'dayjs'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import FieldRenderer from '@/components/fields/FieldRenderer'
 import { useI18n } from '@/i18n'
 import { REMINDER_FIELD_KEY, REMINDER_REPEAT_KEY, getReminderAt, getReminderRepeat, isoToLocalTs } from '@/utils/reminder'
-import { useAuthStore } from '@/store/authStore'
 import { getProvider } from '@/db/providerFactory'
-import { markObStep } from '@/utils/onboarding'
 import { notificationSupported } from '@/utils/reminderNotify'
 import { LabelText } from './labels'
 
@@ -25,7 +24,6 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
   const { message, modal } = App.useApp()
   const [form] = Form.useForm()
   const t = useI18n()
-  const { account } = useAuthStore()
 
   /**
    * 这个环境到底能不能弹提醒。分三种「不能」：
@@ -113,7 +111,6 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
       const reminder = values[REMINDER_FIELD_KEY]
       if (reminder && dayjs.isDayjs(reminder)) {
         values[REMINDER_FIELD_KEY] = reminder.format('YYYY-MM-DD')
-        if (account) markObStep(account.id, 'reminder')
       } else {
         delete values[REMINDER_FIELD_KEY]
         delete values[REMINDER_REPEAT_KEY]
@@ -139,12 +136,12 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
       title={item ? t('lib.editor.editTitle') : t('lib.editor.newTitle')}
       open={open}
       onCancel={handleCancel}
+      // 底部操作条：左「删除」danger 文字 / 右「取消」+「保存」墨黑主按钮。
+      // body 内部滚动 + 固定 footer = sticky 操作条，长表单时按钮不会滚出屏幕。
       footer={
-        // 底部操作栏：删除是文字 danger（破坏性操作不抢眼），保存是墨色主按钮。
-        // 用自定义 footer + body 限高滚动实现「sticky」：打开长表单时操作栏始终在底部。
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {item && onDelete ? (
-            <Button type="text" danger onClick={() => onDelete(item)}>
+            <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(item)}>
               {t('common.delete')}
             </Button>
           ) : null}
@@ -156,21 +153,19 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
           </div>
         </div>
       }
-      width={680}
-      // 垂直居中 + 限高：长表单时底部操作栏不出屏（sticky 效果靠 body 内部滚动实现）
+      width={720}
       centered
       style={{ maxWidth: 'calc(100vw - 32px)', top: 0 }}
-      styles={{ body: { maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' } }}
+      styles={{ body: { maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' } }}
       destroyOnHidden
     >
-      {/* 单列表单，阅读宽度 680（`.doc` 的口径）；字段间距 16 */}
-      <Form form={form} layout="vertical" requiredMark={false} style={{ maxWidth: 680 }}>
+      {/* 单列表单，阅读宽度 720；控件 36/8 由 theme 统一 */}
+      <Form form={form} layout="vertical" requiredMark={false} style={{ maxWidth: 720 }}>
         {visibleFields.map((f, i) => (
           <Form.Item
             key={f.key}
             name={f.key}
             label={<LabelText label={f.label} required={f.required} />}
-            // 打开后第一个字段直接可以打字，少按一次 Tab
             rules={f.required ? [{ required: true, message: t('common.requiredField', { name: f.label }) }] : []}
             style={{ marginBottom: 16 }}
           >
@@ -178,11 +173,10 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
           </Form.Item>
         ))}
         {visibleFields.length === 0 && (
-          <p className="muted" style={{ textAlign: 'left' }}>{t('lib.editor.noFields')}</p>
+          <p className="muted" style={{ textAlign: 'left', fontSize: 'var(--text-sm)' }}>{t('lib.editor.noFields')}</p>
         )}
 
-        {/* 提醒区：一条账线分隔，不再用 antd Divider 的默认虚线/大间距 */}
-        <div className="rule" style={{ margin: '20px 0 16px' }} />
+        <div className="divider" style={{ margin: '20px 0 16px' }} />
         <Form.Item
           name={REMINDER_FIELD_KEY}
           label={<LabelText label={t('reminder.label')} />}
@@ -197,14 +191,13 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
           但永远不会有任何通知。
           之前界面上完全看不出这一点，用户只能自己发现「提醒从来没响过」。
           所以在设置提醒的地方直接说明它在这个环境里会不会生效。
-          表现方式：13px 文字 + 赭色小方点（不是 Alert 黄色块——那会引入第三种色相）。
         */}
         {notifyState !== 'ok' && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            <span
-              aria-hidden
-              style={{ width: 6, height: 6, background: 'var(--app-warning)', flexShrink: 0, marginTop: 6 }}
-            />
+          <div
+            className="surface-sunken"
+            style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', marginBottom: 16 }}
+          >
+            <InfoCircleOutlined style={{ fontSize: 16, color: 'var(--warning)', flexShrink: 0, marginTop: 1 }} aria-hidden />
             <span className="muted" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
               {t(`reminder.unavailable.${notifyState}`)}
             </span>

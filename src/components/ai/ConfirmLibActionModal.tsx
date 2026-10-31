@@ -7,11 +7,12 @@ import { autoConfirmKey, isDestructiveAction, useAutoConfirm } from '@/ai/autoCo
 
 import { useBackButtonLayer } from '@/utils/backButton'
 
+// TOKENS-v3 §2.4：弹窗正文 14/1.6，注脚 13，mono 图注 12
 const T = {
-  base: 'var(--text-base, 14px)',
-  sm: 'var(--text-sm, 13px)',
-  xs: 'var(--text-xs, 12px)',
-  xxs: 'var(--text-2xs, 11px)',
+  body: 'var(--text-sm)',
+  sm: 'var(--text-xs)',
+  mono: 'var(--text-2xs)',
+  title: 'var(--text-lg)',
 }
 
 interface Props {
@@ -30,11 +31,11 @@ interface Row {
 }
 
 /**
- * 管理库 / 字段模板操作的确认弹窗。
+ * 管理库 / 字段模板操作的确认弹窗（v3：440 宽、标题 20/600、正文 14/1.6、按钮右对齐）。
  *
- * 与 `ConfirmActionModal` 同语言：宽 400~440、衬线标题、右侧按钮、
- * 「不再询问」按动作粒度授权；**删库 / 删字段永不提供自动放行**
- * （删库连条目一起进回收站、删字段会改模板，两者都不是可轻率重复的动作）。
+ * 与 `ConfirmActionModal` 同语言；「不再询问」按动作粒度授权；
+ * **删库 / 删字段永不提供自动放行**（删库会连条目一起进回收站、
+ * 删字段会改模板，两者都不是可轻率重复的动作）。
  */
 export default function ConfirmLibActionModal({
   open,
@@ -105,12 +106,15 @@ export default function ConfirmLibActionModal({
     }
   }
 
-  // 结构化行：不再用 Descriptions 的表格外观，改成「标签 + 值」两列文本
+  // 结构化行：标签 + 值两列文本（无表格边框，v3 弹窗内不再叠一层表格）
   const rows: Row[] = []
   if (libAction) {
     rows.push({ label: t('ai.confirm.lib.op'), value: actionLabel })
     if (libAction.action !== 'create') {
-      rows.push({ label: t('ai.confirm.lib.targetLib'), value: library?.name ?? libAction.libraryId ?? '—' })
+      rows.push({
+        label: t('ai.confirm.lib.targetLib'),
+        value: library?.name ?? libAction.libraryId ?? '—',
+      })
     }
     if ((libAction.action === 'create' || libAction.action === 'rename') && libAction.name) {
       rows.push({ label: t('ai.confirm.lib.name'), value: libAction.name })
@@ -130,7 +134,10 @@ export default function ConfirmLibActionModal({
     }
     if (tplAction.label) rows.push({ label: '字段名', value: tplAction.label })
     if (tplAction.type) {
-      rows.push({ label: t('ai.confirm.lib.fieldType'), value: FIELD_TYPE_LABEL[tplAction.type] ?? tplAction.type })
+      rows.push({
+        label: t('ai.confirm.lib.fieldType'),
+        value: FIELD_TYPE_LABEL[tplAction.type] ?? tplAction.type,
+      })
     }
     if (tplAction.options && tplAction.options.length > 0) {
       rows.push({ label: t('ai.confirm.lib.options'), value: tplAction.options.join('、') })
@@ -143,10 +150,12 @@ export default function ConfirmLibActionModal({
     }
   }
 
+  const labelStyle = { minWidth: 76, flexShrink: 0, color: 'var(--ink-muted)' }
+
   return (
     <Modal
       title={
-        <span className="serif" style={{ fontSize: 20, lineHeight: 1.4, color: 'var(--app-ink)' }}>
+        <span style={{ fontSize: T.title, fontWeight: 600, lineHeight: 1.35, color: 'var(--ink)' }}>
           {t('ai.confirm.libTitle')}
         </span>
       }
@@ -154,7 +163,14 @@ export default function ConfirmLibActionModal({
       onCancel={onCancel}
       width={440}
       footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 'var(--space-2)',
+            marginTop: 'var(--space-1)',
+          }}
+        >
           <Button type="text" onClick={onCancel}>
             {t('common.cancel')}
           </Button>
@@ -164,12 +180,19 @@ export default function ConfirmLibActionModal({
         </div>
       }
     >
-      <div style={{ fontSize: T.base, lineHeight: 1.6, color: 'var(--app-ink)' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
-          <span style={{ color: isDelete ? 'var(--app-danger)' : 'var(--app-accent-text)', fontWeight: 500 }}>
+      <div style={{ fontSize: T.body, lineHeight: 1.6, color: 'var(--ink)' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 'var(--space-2)',
+            marginBottom: 'var(--space-3)',
+          }}
+        >
+          <span style={{ color: isDelete ? 'var(--danger)' : 'var(--accent)', fontWeight: 500 }}>
             {actionLabel}
           </span>
-          <span style={{ color: 'var(--app-ink-faint)', fontSize: T.sm }}>
+          <span style={{ color: 'var(--ink-muted)', fontSize: T.sm }}>
             {library?.name ?? libAction?.libraryId ?? tplAction?.libraryId ?? ''}
           </span>
         </div>
@@ -177,23 +200,30 @@ export default function ConfirmLibActionModal({
         {(libAction || tplAction)!.reason && (
           <p
             style={{
-              margin: '0 0 16px',
-              paddingTop: 10,
-              borderTop: '1px solid var(--app-rule)',
-              fontSize: T.sm,
-              color: 'var(--app-ink-soft)',
+              margin: '0 0 var(--space-4)',
+              paddingTop: 'var(--space-2)',
+              borderTop: '1px solid var(--border-rule)',
+              color: 'var(--ink-muted)',
             }}
           >
-            <span style={{ color: 'var(--app-ink-faint)' }}>{t('ai.confirm.reason')}</span>
+            <span style={{ color: 'var(--ink-faint)' }}>{t('ai.confirm.reason')}</span>
             {(libAction || tplAction)!.reason}
           </p>
         )}
 
-        <div style={{ borderTop: '1px solid var(--app-rule)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div
+          style={{
+            borderTop: '1px solid var(--border-rule)',
+            paddingTop: 'var(--space-3)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-1)',
+          }}
+        >
           {rows.map((r) => (
-            <div key={r.label} style={{ display: 'flex', gap: 8, fontSize: T.sm, lineHeight: 1.6 }}>
-              <span style={{ minWidth: 76, flexShrink: 0, color: 'var(--app-ink-faint)' }}>{r.label}</span>
-              <span style={{ minWidth: 0, wordBreak: 'break-word', color: 'var(--app-ink)' }}>{r.value}</span>
+            <div key={r.label} style={{ display: 'flex', gap: 'var(--space-2)', lineHeight: 1.6 }}>
+              <span style={labelStyle}>{r.label}</span>
+              <span style={{ minWidth: 0, wordBreak: 'break-word', color: 'var(--ink)' }}>{r.value}</span>
             </div>
           ))}
         </div>
@@ -203,7 +233,7 @@ export default function ConfirmLibActionModal({
             checked={always}
             disabled={alreadyRemembered}
             onChange={(e) => setAlways(e.target.checked)}
-            style={{ marginTop: 14, fontSize: T.xs, color: 'var(--app-ink-soft)' }}
+            style={{ marginTop: 'var(--space-3)', fontSize: T.sm, color: 'var(--ink-muted)' }}
           >
             {t('ai.confirm.always', { action: actionLabel })}
           </Checkbox>
@@ -211,10 +241,11 @@ export default function ConfirmLibActionModal({
 
         <p
           style={{
-            marginTop: 12,
-            fontSize: T.xs,
+            marginTop: 'var(--space-3)',
+            marginBottom: 0,
+            fontSize: T.sm,
             lineHeight: 1.6,
-            color: isDelete ? 'var(--app-danger)' : 'var(--app-ink-faint)',
+            color: isDelete ? 'var(--danger)' : 'var(--ink-muted)',
           }}
         >
           {t('ai.confirm.lib.note')}

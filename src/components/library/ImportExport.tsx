@@ -1,5 +1,6 @@
 import { Button, Modal, Select, App } from 'antd'
 import { Fragment, useImperativeHandle, useRef, useState, forwardRef } from 'react'
+import { CheckCircleOutlined, InboxOutlined } from '@ant-design/icons'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import { itemsToCSV, parseCSV, downloadCSV } from '@/utils/csv'
 import { itemsToExcel, parseExcel } from '@/utils/excel'
@@ -21,7 +22,10 @@ interface Props {
   onImport: (rows: Record<string, FieldValue>[]) => Promise<void>
 }
 
-/** 三步编号步骤条：01 选择文件 → 02 字段映射 → 03 完成（mono 编号 + 1px 连线，当前步朱砂） */
+/**
+ * 三步步骤条：01 选择文件 → 02 字段映射 → 03 完成。
+ * 编号是 24px 圆环，当前步 accent 底 + 深/浅反相字，步与步之间 1px 连线。
+ */
 function StepBar({ current }: { current: 1 | 2 | 3 }) {
   const t = useI18n()
   const steps = [
@@ -30,25 +34,41 @@ function StepBar({ current }: { current: 1 | 2 | 3 }) {
     { n: '03', label: t('lib.importExport.import') },
   ]
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-      {steps.map((s, i) => (
-        <Fragment key={s.n}>
-          {i > 0 ? <div style={{ flex: '1 1 0%', height: 1, background: 'var(--app-rule)' }} /> : null}
-          <div
-            aria-current={current === i + 1 ? 'step' : undefined}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'baseline',
-              gap: 6,
-              flexShrink: 0,
-              color: current === i + 1 ? 'var(--app-accent-text)' : 'var(--app-ink-faint)',
-            }}
-          >
-            <span className="mono num" style={{ fontSize: 'var(--text-2xs)', letterSpacing: '0.06em' }}>{s.n}</span>
-            <span style={{ fontSize: 'var(--text-xs)' }}>{s.label}</span>
-          </div>
-        </Fragment>
-      ))}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+      {steps.map((s, i) => {
+        const active = current === i + 1
+        return (
+          <Fragment key={s.n}>
+            {i > 0 ? <div style={{ flex: '1 1 0%', height: 1, background: 'var(--border-rule)' }} /> : null}
+            <div
+              aria-current={active ? 'step' : undefined}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}
+            >
+              <span
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 999,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--text-2xs)',
+                  fontWeight: 500,
+                  background: active ? 'var(--accent)' : 'var(--bg-sunken)',
+                  color: active ? 'var(--bg-surface)' : 'var(--ink-faint)',
+                  border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                }}
+              >
+                {s.n}
+              </span>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 500, color: active ? 'var(--ink)' : 'var(--ink-faint)' }}>
+                {s.label}
+              </span>
+            </div>
+          </Fragment>
+        )
+      })}
     </div>
   )
 }
@@ -56,12 +76,10 @@ function StepBar({ current }: { current: 1 | 2 | 3 }) {
 /**
  * 导入 / 导出。
  *
- * 导入原来只有「点按钮 → 系统文件框 → 一个字段映射弹窗」，步骤不可见，
- * 用户不知道自己在第几步、后面还有什么。现在做成三步过账：
- *   01 选择文件（虚线框，可点可拖） → 02 字段映射（左侧对应、右侧账页预览）→ 03 完成
+ * 导入做成三步过账式流程：
+ *   01 选择文件（虚线框，可点可拖） → 02 字段映射（左侧对应、右侧预览）→ 03 完成
  * 映射/类型转换/逐行写入的逻辑与原来完全一致（coerceValue 没有改动）。
- *
- * 导出保持「菜单里两个选项」，不再是一个图标按钮；真正的 Blob 下载逻辑没动。
+ * 导出保持「菜单里两个选项」；真正的 Blob 下载逻辑没动。
  */
 const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport(
   { fields, items, onImport },
@@ -182,7 +200,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
 
   useBackButtonLayer(modalOpen, closeModal)
 
-  // 右侧账页预览的列：只显示已映射到字段的那些列
+  // 右侧预览的列：只显示已映射到字段的那些列
   const previewCols = headers
     .filter((h) => mapping[h])
     .map((h) => {
@@ -216,7 +234,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
         open={modalOpen}
         onCancel={closeModal}
         footer={null}
-        width={step === 2 ? 760 : 520}
+        width={step === 2 ? 820 : 520}
         style={{ maxWidth: 'calc(100vw - 32px)' }}
         destroyOnHidden
       >
@@ -235,16 +253,17 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
               const f = e.dataTransfer.files?.[0]
               if (f) void handleFile(f)
             }}
+            className="surface-sunken"
             style={{
-              // 1px 虚线框、圆角 2；拖动到上面时边框变朱砂
-              border: `1px dashed ${dragging ? 'var(--app-accent)' : 'var(--app-border)'}`,
-              borderRadius: 2,
-              padding: '40px 16px',
+              border: `1px dashed ${dragging ? 'var(--accent)' : 'var(--border-strong)'}`,
+              borderRadius: 'var(--r-3)',
+              padding: '44px 20px',
               textAlign: 'center',
-              background: 'transparent',
+              background: 'var(--bg-sunken)',
             }}
           >
-            <div className="muted" style={{ fontSize: 'var(--text-sm)', marginBottom: 16 }}>
+            <InboxOutlined style={{ fontSize: 40, color: 'var(--ink-faint)' }} aria-hidden />
+            <div className="muted" style={{ fontSize: 'var(--text-sm)', margin: '12px 0 16px' }}>
               {t('lib.importExport.dropHint')}
             </div>
             <Button type="primary" onClick={() => fileInputRef.current?.click()}>
@@ -257,14 +276,16 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
         )}
 
         {step === 2 && (
-          <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            {/* 左：文件列 → 库字段 的对应表，一行一条账线 */}
-            <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>{t('lib.importExport.mapTitle')}</div>
-              <div className="muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 8 }}>
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            {/* 左：文件列 → 库字段 的对应表 */}
+            <div style={{ flex: '1 1 340px', minWidth: 0 }}>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink)', marginBottom: 4 }}>
+                {t('lib.importExport.mapTitle')}
+              </div>
+              <div className="muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 10 }}>
                 {t('lib.importExport.mapIntro', { n: parsedRows.length })}
               </div>
-              <div style={{ borderTop: '1px solid var(--app-border-strong)' }}>
+              <div style={{ borderTop: '1px solid var(--border)' }}>
                 {headers.map((h) => (
                   <div
                     key={h}
@@ -272,16 +293,19 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
                       display: 'flex',
                       alignItems: 'center',
                       gap: 12,
-                      minHeight: 36,
-                      borderBottom: '1px solid var(--app-rule)',
+                      minHeight: 40,
+                      borderBottom: '1px solid var(--border-rule)',
                     }}
                   >
-                    <span style={{ flex: '1 1 0%', minWidth: 0, fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={h}>
+                    <span
+                      style={{ flex: '1 1 0%', minWidth: 0, fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={h}
+                    >
                       {h}
                     </span>
                     <Select
                       size="small"
-                      style={{ width: 180, flexShrink: 0 }}
+                      style={{ width: 184, flexShrink: 0 }}
                       value={mapping[h]}
                       onChange={(v) => setMapping({ ...mapping, [h]: v })}
                       options={[
@@ -295,27 +319,30 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
               </div>
             </div>
 
-            {/* 右：账页预览——只显示已映射的列，前 4 行，横向账线、数字右对齐 */}
+            {/* 右：预览——只显示已映射的列，前 4 行，数字右对齐 */}
             <div style={{ flex: '1 1 300px', minWidth: 0 }}>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>{t('lib.importExport.preview')}</div>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink)', marginBottom: 10 }}>
+                {t('lib.importExport.preview')}
+              </div>
               {previewCols.length === 0 ? (
                 <div className="faint" style={{ fontSize: 'var(--text-xs)', padding: '12px 0' }}>
                   {t('lib.importExport.skip')}
                 </div>
               ) : (
-                <div className="sheet" style={{ padding: '4px 8px', overflowX: 'auto' }}>
+                <div className="surface-sunken" style={{ padding: '4px 12px', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                     <thead>
                       <tr>
                         {previewCols.map((c) => (
                           <th
                             key={c.header}
-                            className="eyebrow"
                             style={{
-                              padding: '6px 8px',
+                              padding: '8px',
                               textAlign: c.numeric ? 'right' : 'left',
-                              borderBottom: '1px solid var(--app-border-strong)',
+                              borderBottom: '1px solid var(--border)',
                               fontWeight: 500,
+                              fontSize: 'var(--text-2xs)',
+                              color: 'var(--ink-faint)',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
@@ -333,12 +360,13 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
                             <td
                               key={c.header}
                               style={{
-                                padding: '5px 8px',
+                                padding: '8px',
                                 fontSize: 'var(--text-xs)',
+                                color: 'var(--ink)',
                                 textAlign: c.numeric ? 'right' : 'left',
                                 fontFamily: c.numeric ? 'var(--font-mono)' : undefined,
                                 fontVariantNumeric: c.numeric ? 'tabular-nums' : undefined,
-                                borderBottom: '1px solid var(--app-rule)',
+                                borderBottom: '1px solid var(--border-rule)',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
@@ -358,13 +386,16 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
         )}
 
         {step === 3 && (
-          <div className="empty-state" style={{ padding: '24px 0 8px' }}>
-            <div className="empty-state-title">{t('lib.importExport.imported', { n: importedCount })}</div>
+          <div style={{ textAlign: 'center', padding: '32px 0 8px' }}>
+            <CheckCircleOutlined style={{ fontSize: 48, color: 'var(--success)' }} aria-hidden />
+            <div className="page-title-sm" style={{ marginTop: 16 }}>
+              {t('lib.importExport.imported', { n: importedCount })}
+            </div>
           </div>
         )}
 
-        {/* 底部操作：上一步是文字项，导入/完成是墨色主按钮 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 20 }}>
+        {/* 底部操作：上一步是文字项；导入/完成是墨黑主按钮 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 24 }}>
           {step === 2 ? (
             <Button type="text" onClick={() => setStep(1)}>
               {t('common.back')}

@@ -1,8 +1,8 @@
 /**
- * 表单字段标签：12px muted 在上，必填用 6×6 朱砂小方点标记。
+ * 表单字段标签：13px/500 muted，必填用 4px accent 圆点标记。
  *
- * 不用 antd 默认的红色星号：星号 + 红字是一套「后台表单」的视觉指纹；
- * 账簿里的必填标记是一枚小方点（朱砂只做标记，不做整块填充）。
+ * v3 是现代产品感：标签是「说明文字」而不是标题，所以 500 字重、muted 色；
+ * 必填标记不是红色星号（后台表单的旧符号），而是一枚 accent 小圆点。
  */
 export function LabelText({ label, required }: { label: string; required?: boolean }) {
   return (
@@ -12,13 +12,21 @@ export function LabelText({ label, required }: { label: string; required?: boole
         alignItems: 'center',
         gap: 6,
         fontSize: 'var(--text-xs)',
-        color: 'var(--app-ink-soft)',
+        fontWeight: 500,
+        color: 'var(--ink-muted)',
       }}
     >
       {required ? (
         <span
           aria-hidden
-          style={{ width: 6, height: 6, background: 'var(--app-accent)', display: 'inline-block', flexShrink: 0 }}
+          style={{
+            width: 4,
+            height: 4,
+            borderRadius: 999,
+            background: 'var(--accent)',
+            display: 'inline-block',
+            flexShrink: 0,
+          }}
         />
       ) : null}
       {label}

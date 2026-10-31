@@ -121,7 +121,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
     return isSheet ? (
       <button type="button" className="ai-sheet-peek" onClick={() => setCollapsed(false)}>
         <span className="ai-dock-title">AI</span>
-        <span>{t('ai.clerk')}</span>
+        <span>{t('app.aiAssistant')}</span>
         {running ? <span className="ai-pulse" /> : <span className="ai-peek-open">{t('ai.open')}</span>}
       </button>
     ) : (
@@ -205,7 +205,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           </div>
         )}
         <header className="ai-dock-head">
-          <span className="ai-dock-title">{t('ai.clerk')}</span>
+          <span className="ai-dock-title">{t('app.aiAssistant')}</span>
           {/^Mac|iP(hone|ad)/.test(navigator.platform) ? <span className="app-foot-kbd">⌘J</span> : null}
           {running && (
             <span className="ai-dock-running" title={t('ai.runningInBackground')}>

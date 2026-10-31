@@ -1,19 +1,17 @@
 /**
- * 设计系统 · 主题层（2026-10 第二轮大改版）
+ * 设计系统 · 主题层 v3『石墨信号 Graphite Signal』
  *
- * 方向：『官纸账簿 The Ledger』
- *   暖纸底 + 墨字 + 朱砂标记 + 账线；衬线只做 ≥20px 标题，无衬线做 UI，
- *   等宽做数字/日期/ID；圆角 ≤6、零卡片阴影、零渐变、零 emoji、零无限动画。
+ * 方向（用户选定）：现代产品感 —— Linear / Notion / Figma / Arc 那一类成熟商业产品。
+ * 核心结构：白卡浮在浅灰画布上 + 1px 精致描边 + 三级阴影 + 一个鲜亮强调色（电靛蓝）
+ * + 墨黑主按钮 + 全站无衬线 + 500 字重基线 + 8–12px 圆角 + 三档动效。
  *
- * 依据：redesign-brief/01-ui-research.md（§D 方向选择、§E token、§K 禁止清单）。
- * 与上一版（青瓷工作台）的关系是「换骨不换筋」：三层 token 结构、对比度纪律、
- * 色盲安全图表色全部保留；品牌色从青瓷釉退场，界面骨架改由「墨」承担动作、
- * 「朱砂」只承担标记（选中/焦点/AI 批注/印章），任何一屏彩度面积 ≤3%。
+ * v1（青瓷 SaaS）与 v2（官纸账簿：暖纸/墨/朱砂/衬线）均已弃用，原因见
+ * redesign-brief/03-ui-research-v2.md：v2 的画布与表面明度只差 0.02，导致「表面消失」、
+ * 整屏一张米色纸；零强调色让眼睛找不到落点；中文衬线在 UI 里显旧。v3 用用户已被
+ * 训练过的「高级产品」视觉共识重建层级，而不是再换一个配色隐喻。
  *
- * 三层结构（不变）：
- *   1) primitive 原始色阶（PAPER / INK / CINNABAR / DANGER …）
- *   2) semantic  语义角色（surface / ink / accent / action …），亮暗各一套
- *   3) component antd 组件 token（统一收编默认外观）
+ * 命名与结构沿用三层 token：primitive → semantic → component，业务只消费 CSS 变量
+ * （由 main.tsx 注入 <html>）与 antd 主题，不直接引用本文件的常量。
  */
 
 import { theme, type ThemeConfig } from 'antd'
@@ -24,181 +22,133 @@ export type ThemeMode = 'light' | 'dark'
 // 第 1 层 · Primitive
 // ══════════════════════════════════════════════════════════════
 
-/** 纸（暖中性）。同一色温，由浅到深；画布不是纯白，避免「AI SaaS 冷白」。 */
-const PAPER = {
-  canvas: '#F7F4ED',
-  surface: '#FDFBF6',
-  sunken: '#EFEBE1',
-  raised: '#FFFDF9',
-  overlay: 'rgba(28, 26, 22, 0.42)',
+const LIGHT = {
+  canvas: '#FAFAF9',
+  surface: '#FFFFFF',
+  sunken: '#F2F3F5',
+  raised: '#FFFFFF',
+  overlay: 'rgba(16, 18, 22, 0.40)',
+  ink: '#18191C',
+  inkMuted: '#5B616E',
+  inkFaint: '#6B7280',
+  border: '#E4E6EA',
+  borderStrong: '#C9CED8',
+  borderRule: '#EDEFF2',
+  accent: '#3D5AFE',
+  accentHover: '#2F49D6',
+  accentWash: '#EEF1FF',
+  accentRing: 'rgba(61, 90, 254, 0.28)',
+  action: '#1B1D22',
+  actionHover: '#2C2F36',
+  danger: '#C0303E',
+  dangerWash: '#FDECEE',
+  success: '#1E7F4F',
+  successWash: '#E9F6EF',
+  warning: '#9A5B00',
+  warningWash: '#FBF1E2',
 } as const
 
-/** 墨阶（暖灰黑）。正文 15.68:1、次要 8.56:1、注脚 5.10:1（对 canvas，WCAG 实测）。 */
-const INK = {
-  strong: '#1C1B18',
-  soft: '#4A463D',
-  faint: '#6E6759',
-} as const
-
-/** 朱砂（印章红）。低彩偏褐，只做标记；当文字时用 text 档（7.31:1）。 */
-const CINNABAR = {
-  base: '#A63D2C',
-  text: '#8C3325',
-  wash: '#F6E7E1',
-} as const
-
-/** 墨色主按钮（白字 15.50:1）。暗色模式反相成亮底深字。 */
-const ACTION = {
-  base: '#26241F',
-  hover: '#3A3730',
-} as const
-
-const LINE = {
-  border: '#D9D3C5',
-  strong: '#B9B0A0',
-  soft: '#E6E1D5',
-} as const
-
-const STATE_L = {
-  success: '#3F6B4A',
-  warning: '#8A5A22',
-  warningWash: '#F6EDDE',
-  danger: '#A82A1F',
-  dangerWash: '#F7E4E1',
-} as const
-
-/** 暗色：墨底（不是纯黑），纸与墨整体反转，朱砂提亮。 */
-const DARK_PRIMITIVE = {
-  canvas: '#141310',
-  surface: '#1B1917',
-  sunken: '#232019',
-  raised: '#26221C',
+const DARK = {
+  canvas: '#0B0C0E',
+  surface: '#141619',
+  sunken: '#1A1D22',
+  raised: '#21242A',
   overlay: 'rgba(0, 0, 0, 0.62)',
-  ink: '#E8E4DA',
-  inkSoft: '#B9B2A4',
-  inkFaint: '#948C7D',
-  border: '#33302A',
-  borderStrong: '#4A453C',
-  borderSoft: '#2A2722',
-  accent: '#E0785F',
-  accentText: '#E0785F',
-  accentWash: '#33231F',
-  action: '#E8E4DA',
-  actionHover: '#F2EEE4',
-  success: '#7FB08C',
-  warning: '#D6A05C',
-  warningWash: '#33291C',
-  danger: '#F0785F',
-  dangerWash: '#3A2320',
+  ink: '#EDEEF1',
+  inkMuted: '#A9AFBA',
+  inkFaint: '#7B828E',
+  border: '#2A2E35',
+  borderStrong: '#3A3F48',
+  borderRule: '#23262C',
+  accent: '#7C8CFF',
+  accentHover: '#9AA6FF',
+  accentWash: '#1B2140',
+  accentRing: 'rgba(124, 140, 255, 0.30)',
+  /** 暗色主按钮反相为亮底深字 */
+  action: '#EDEEF1',
+  actionHover: '#FFFFFF',
+  danger: '#F27A85',
+  dangerWash: '#3A2124',
+  success: '#5FBF8F',
+  successWash: '#13291F',
+  warning: '#E0A03A',
+  warningWash: '#2E2413',
 } as const
 
 /**
- * 图表分类色：Okabe-Ito/Wong 色盲安全 5 色子集（Wong 2011, Nat Methods）。
- * 上一轮已用 Machado(2009) 标准矩阵验证：正常/绿色盲/红色盲下无危险色对。
- * 这是数据产品的核心输出，**不要为了配合新配色而改动**。
+ * 图表分类色：沿用上一轮已验证的 Okabe-Ito/Wong 色盲安全 5 色子集
+ * （Wong 2011, Nat Methods；Machado 2009 矩阵实测正常/绿色盲/红色盲无危险色对）。
+ * 数据产品里这部分不要为了配合 UI 配色而改。
  */
-const SERIES_L = ['#009E73', '#0072B2', '#D55E00', '#CC79A7', '#1A1A1A'] as const
-const SERIES_D = ['#009E73', '#0072B2', '#D55E00', '#CC79A7', '#B4BCC6'] as const
+const SERIES_L = ['#0072B2', '#009E73', '#D55E00', '#CC79A7', '#404040'] as const
+const SERIES_D = ['#4C9BD6', '#4FBF8F', '#E07340', '#D98BC4', '#B4BCC6'] as const
 
 // ══════════════════════════════════════════════════════════════
 // 第 2 层 · Semantic
 // ══════════════════════════════════════════════════════════════
 
-/**
- * 亮色语义。
- *
- * 兼容字段说明（旧组件依赖，值已按新体系重映射）：
- * - glaze / glazeText = 墨（旧的「品牌色」位置现在由墨承担动作语义）
- * - glazeSoft / glazeSoftStrong = 纸的凹陷面
- * - kiln / kilnText / kilnWash / kilnWashed = 朱砂（旧「窑火琥珀」位置）
- */
 const SEMANTIC_L = {
-  surface: PAPER.surface,
-  surfaceSunken: PAPER.sunken,
-  surfaceRaised: PAPER.raised,
-  canvas: PAPER.canvas,
-  overlay: PAPER.overlay,
+  canvas: LIGHT.canvas,
+  surface: LIGHT.surface,
+  sunken: LIGHT.sunken,
+  raised: LIGHT.raised,
+  overlay: LIGHT.overlay,
 
-  ink: INK.strong,
-  inkSoft: INK.soft,
-  inkFaint: INK.faint,
+  ink: LIGHT.ink,
+  inkMuted: LIGHT.inkMuted,
+  inkFaint: LIGHT.inkFaint,
 
-  border: LINE.border,
-  borderStrong: LINE.strong,
-  borderSoft: LINE.soft,
-  rule: LINE.soft,
+  border: LIGHT.border,
+  borderStrong: LIGHT.borderStrong,
+  borderRule: LIGHT.borderRule,
 
-  /** 朱砂：选中标记、焦点环、AI 批注、印章 */
-  accent: CINNABAR.base,
-  accentText: CINNABAR.text,
-  accentWash: CINNABAR.wash,
-  /** 主按钮（墨） */
-  action: ACTION.base,
-  actionHover: ACTION.hover,
+  accent: LIGHT.accent,
+  accentHover: LIGHT.accentHover,
+  accentWash: LIGHT.accentWash,
+  accentRing: LIGHT.accentRing,
+  action: LIGHT.action,
+  actionHover: LIGHT.actionHover,
+  focus: LIGHT.accent,
 
-  // —— 旧字段兼容映射 ——
-  glaze: ACTION.base,
-  glazeText: ACTION.base,
-  glazeSoft: PAPER.sunken,
-  glazeSoftStrong: LINE.soft,
-
-  kiln: CINNABAR.base,
-  kilnText: CINNABAR.text,
-  kilnWash: CINNABAR.wash,
-  kilnWashed: CINNABAR.wash,
-  pinnedWash: CINNABAR.wash,
-
-  success: STATE_L.success,
-  warning: STATE_L.warning,
-  warningWash: STATE_L.warningWash,
-  danger: STATE_L.danger,
-  dangerText: STATE_L.danger,
-  dangerWash: STATE_L.dangerWash,
-  focus: CINNABAR.base,
+  danger: LIGHT.danger,
+  dangerWash: LIGHT.dangerWash,
+  success: LIGHT.success,
+  successWash: LIGHT.successWash,
+  warning: LIGHT.warning,
+  warningWash: LIGHT.warningWash,
 
   series: SERIES_L,
 } as const
 
 const SEMANTIC_D = {
-  surface: DARK_PRIMITIVE.surface,
-  surfaceSunken: DARK_PRIMITIVE.sunken,
-  surfaceRaised: DARK_PRIMITIVE.raised,
-  canvas: DARK_PRIMITIVE.canvas,
-  overlay: DARK_PRIMITIVE.overlay,
+  canvas: DARK.canvas,
+  surface: DARK.surface,
+  sunken: DARK.sunken,
+  raised: DARK.raised,
+  overlay: DARK.overlay,
 
-  ink: DARK_PRIMITIVE.ink,
-  inkSoft: DARK_PRIMITIVE.inkSoft,
-  inkFaint: DARK_PRIMITIVE.inkFaint,
+  ink: DARK.ink,
+  inkMuted: DARK.inkMuted,
+  inkFaint: DARK.inkFaint,
 
-  border: DARK_PRIMITIVE.border,
-  borderStrong: DARK_PRIMITIVE.borderStrong,
-  borderSoft: DARK_PRIMITIVE.borderSoft,
-  rule: DARK_PRIMITIVE.borderSoft,
+  border: DARK.border,
+  borderStrong: DARK.borderStrong,
+  borderRule: DARK.borderRule,
 
-  accent: DARK_PRIMITIVE.accent,
-  accentText: DARK_PRIMITIVE.accentText,
-  accentWash: DARK_PRIMITIVE.accentWash,
-  action: DARK_PRIMITIVE.action,
-  actionHover: DARK_PRIMITIVE.actionHover,
+  accent: DARK.accent,
+  accentHover: DARK.accentHover,
+  accentWash: DARK.accentWash,
+  accentRing: DARK.accentRing,
+  action: DARK.action,
+  actionHover: DARK.actionHover,
+  focus: DARK.accent,
 
-  glaze: DARK_PRIMITIVE.action,
-  glazeText: DARK_PRIMITIVE.action,
-  glazeSoft: DARK_PRIMITIVE.sunken,
-  glazeSoftStrong: DARK_PRIMITIVE.borderSoft,
-
-  kiln: DARK_PRIMITIVE.accent,
-  kilnText: DARK_PRIMITIVE.accentText,
-  kilnWash: DARK_PRIMITIVE.accentWash,
-  kilnWashed: DARK_PRIMITIVE.accentWash,
-  pinnedWash: DARK_PRIMITIVE.accentWash,
-
-  success: DARK_PRIMITIVE.success,
-  warning: DARK_PRIMITIVE.warning,
-  warningWash: DARK_PRIMITIVE.warningWash,
-  danger: DARK_PRIMITIVE.danger,
-  dangerText: DARK_PRIMITIVE.danger,
-  dangerWash: DARK_PRIMITIVE.dangerWash,
-  focus: DARK_PRIMITIVE.accent,
+  danger: DARK.danger,
+  dangerWash: DARK.dangerWash,
+  success: DARK.success,
+  successWash: DARK.successWash,
+  warning: DARK.warning,
+  warningWash: DARK.warningWash,
 
   series: SERIES_D,
 } as const
@@ -206,117 +156,115 @@ const SEMANTIC_D = {
 export type Semantic = typeof SEMANTIC_L
 
 // ══════════════════════════════════════════════════════════════
-// 第 3 层 · antd 组件 token
+// 第 3 层 · 字体与 antd token
 // ══════════════════════════════════════════════════════════════
 
-const FONT_STACK =
-  "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Source Han Sans SC', Roboto, sans-serif"
-
-/** 衬线：只用于 ≥20px 中文标题、空状态主句、大数字。禁止网络字体。 */
-export const SERIF_STACK =
-  "'Noto Serif CJK SC', 'Source Han Serif SC', 'Songti SC', 'STSong', 'SimSun', 'Noto Serif SC', serif"
-
-/** 等宽：数字/日期/ID/编号/快捷键。中文正文绝不用等宽。 */
-export const MONO_STACK =
-  "'Noto Sans Mono CJK SC', ui-monospace, 'SF Mono', 'Cascadia Mono', Roboto Mono, Menlo, Consolas, monospace"
-
 /**
- * 基准 token。
- * 旧版 controlHeight 34 / borderRadius 8 是「后台模板感」的来源之一：
- * 控件偏大、圆角偏软。新基线 32 / 4（输入框在组件层再收到 2）。
+ * Inter 自托管（public/fonts/inter-var.woff2，OFL，latin 子集，约 48KB）。
+ * 中文不引入网络字体，走系统黑体链。禁止 Google Fonts/CDN（目标市场被墙）。
  */
+const FONT_STACK =
+  "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif"
+
+/** 等宽：数字/日期/ID/快捷键。中文正文绝不进等宽。 */
+export const MONO_STACK =
+  "ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', 'Noto Sans Mono CJK SC', Menlo, Consolas, monospace"
+
+/** 兼容导出：v3 已全站去衬线，serif 栈直接回退到无衬线（旧代码引用不会消失）。 */
+export const SERIF_STACK = FONT_STACK
+
 const BASE = {
-  borderRadius: 4,
-  borderRadiusLG: 6,
-  borderRadiusSM: 2,
+  borderRadius: 8,
+  borderRadiusLG: 12,
+  borderRadiusSM: 4,
+  borderRadiusXS: 4,
   fontFamily: FONT_STACK,
   fontFamilyCode: MONO_STACK,
   fontSize: 14,
   fontSizeSM: 13,
   fontSizeLG: 16,
-  fontSizeHeading1: 34,
-  fontSizeHeading2: 26,
+  fontSizeHeading1: 32,
+  fontSizeHeading2: 24,
   fontSizeHeading3: 20,
   fontSizeHeading4: 16,
   fontSizeHeading5: 14,
-  lineHeight: 1.6,
+  lineHeight: 1.55,
   lineHeightHeading1: 1.2,
   lineHeightHeading2: 1.3,
-  lineHeightHeading3: 1.4,
+  lineHeightHeading3: 1.35,
   wireframe: false,
-  controlHeight: 32,
-  controlHeightSM: 28,
+  controlHeight: 36,
+  controlHeightSM: 32,
   controlHeightLG: 40,
-  motionDurationMid: '0.16s',
+  motionDurationFast: '0.08s',
+  motionDurationMid: '0.14s',
+  motionDurationSlow: '0.2s',
   motionEaseInOut: 'cubic-bezier(0.2, 0.7, 0.2, 1)',
-  boxShadow: 'none',
-  boxShadowSecondary: '0 1px 2px rgba(28,26,22,.06), 0 8px 24px rgba(28,26,22,.10)',
+  boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
+  boxShadowSecondary: '0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.08)',
+  boxShadowTertiary: '0 12px 32px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.06)',
 } as const
 
-const LIGHT: ThemeConfig['token'] = {
+const TOKEN_LIGHT: ThemeConfig['token'] = {
   ...BASE,
-  colorPrimary: SEMANTIC_L.action,
-  colorInfo: SEMANTIC_L.inkSoft,
-  colorLink: SEMANTIC_L.accentText,
-  colorLinkHover: SEMANTIC_L.accent,
-  colorLinkActive: SEMANTIC_L.accentText,
+  colorPrimary: SEMANTIC_L.accent,
+  colorInfo: SEMANTIC_L.accent,
+  colorLink: SEMANTIC_L.accent,
+  colorLinkHover: SEMANTIC_L.accentHover,
+  colorLinkActive: SEMANTIC_L.accentHover,
   colorSuccess: SEMANTIC_L.success,
   colorWarning: SEMANTIC_L.warning,
   colorError: SEMANTIC_L.danger,
   colorBgLayout: SEMANTIC_L.canvas,
   colorBgContainer: SEMANTIC_L.surface,
-  colorBgElevated: SEMANTIC_L.surfaceRaised,
-  colorBgSpotlight: SEMANTIC_L.ink,
+  colorBgElevated: SEMANTIC_L.raised,
+  colorBgSpotlight: SEMANTIC_L.action,
   colorText: SEMANTIC_L.ink,
-  colorTextSecondary: SEMANTIC_L.inkSoft,
+  colorTextSecondary: SEMANTIC_L.inkMuted,
   colorTextTertiary: SEMANTIC_L.inkFaint,
-  colorTextDescription: SEMANTIC_L.inkFaint,
+  colorTextDescription: SEMANTIC_L.inkMuted,
   colorTextPlaceholder: SEMANTIC_L.inkFaint,
+  colorTextLightSolid: '#FFFFFF',
   colorBorder: SEMANTIC_L.border,
-  colorBorderSecondary: SEMANTIC_L.borderSoft,
-  colorSplit: SEMANTIC_L.rule,
-  colorFillQuaternary: 'rgba(28, 26, 22, 0.04)',
-  colorFillTertiary: 'rgba(28, 26, 22, 0.06)',
-  colorFillSecondary: 'rgba(28, 26, 22, 0.08)',
+  colorBorderSecondary: SEMANTIC_L.borderRule,
+  colorSplit: SEMANTIC_L.borderRule,
+  colorFillQuaternary: 'rgba(16, 18, 22, 0.03)',
+  colorFillTertiary: 'rgba(16, 18, 22, 0.05)',
+  colorFillSecondary: 'rgba(16, 18, 22, 0.07)',
 }
 
-const DARK: ThemeConfig['token'] = {
+const TOKEN_DARK: ThemeConfig['token'] = {
   ...BASE,
-  colorPrimary: SEMANTIC_D.action,
-  colorInfo: SEMANTIC_D.inkSoft,
-  colorLink: SEMANTIC_D.accentText,
-  colorLinkHover: '#F09A84',
-  colorLinkActive: SEMANTIC_D.accentText,
+  colorPrimary: SEMANTIC_D.accent,
+  colorInfo: SEMANTIC_D.accent,
+  colorLink: SEMANTIC_D.accent,
+  colorLinkHover: SEMANTIC_D.accentHover,
+  colorLinkActive: SEMANTIC_D.accentHover,
   colorSuccess: SEMANTIC_D.success,
   colorWarning: SEMANTIC_D.warning,
   colorError: SEMANTIC_D.danger,
   colorBgLayout: SEMANTIC_D.canvas,
   colorBgContainer: SEMANTIC_D.surface,
-  colorBgElevated: SEMANTIC_D.surfaceRaised,
-  colorBgSpotlight: '#2C2821',
+  colorBgElevated: SEMANTIC_D.raised,
+  colorBgSpotlight: '#2C2F36',
   colorText: SEMANTIC_D.ink,
-  colorTextSecondary: SEMANTIC_D.inkSoft,
+  colorTextSecondary: SEMANTIC_D.inkMuted,
   colorTextTertiary: SEMANTIC_D.inkFaint,
-  colorTextDescription: SEMANTIC_D.inkFaint,
+  colorTextDescription: SEMANTIC_D.inkMuted,
   colorTextPlaceholder: SEMANTIC_D.inkFaint,
+  colorTextLightSolid: '#0B0C0E',
   colorBorder: SEMANTIC_D.border,
-  colorBorderSecondary: SEMANTIC_D.borderSoft,
-  colorSplit: SEMANTIC_D.rule,
-  colorFillQuaternary: 'rgba(255, 255, 255, 0.04)',
-  colorFillTertiary: 'rgba(255, 255, 255, 0.06)',
-  colorFillSecondary: 'rgba(255, 255, 255, 0.08)',
+  colorBorderSecondary: SEMANTIC_D.borderRule,
+  colorSplit: SEMANTIC_D.borderRule,
+  colorFillQuaternary: 'rgba(255, 255, 255, 0.03)',
+  colorFillTertiary: 'rgba(255, 255, 255, 0.05)',
+  colorFillSecondary: 'rgba(255, 255, 255, 0.07)',
 }
 
-/**
- * 组件级收编。原则：
- * - 卡片/按钮/表格行/输入框一律 0 阴影；只有浮层允许 `boxShadowSecondary`。
- * - 表格只保留横线（无竖线、无斑马）；表头 sunken 底 + 11px 字。
- * - 侧栏选中 = 朱砂 wash + 左侧 2px 立线，不做整行反白。
- */
 const COMPONENTS_COMMON: NonNullable<ThemeConfig['components']> = {
   Layout: {
-    headerHeight: 44,
-    headerPadding: '0 12px',
+    headerHeight: 52,
+    headerPadding: '0 16px',
     bodyBg: 'transparent',
     triggerBg: 'transparent',
   },
@@ -324,86 +272,86 @@ const COMPONENTS_COMMON: NonNullable<ThemeConfig['components']> = {
     boxShadow: 'none',
     headerBg: 'transparent',
     headerFontSize: 16,
-    bodyPadding: 16,
-    borderRadiusLG: 4,
+    bodyPadding: 20,
+    borderRadiusLG: 10,
   },
   Table: {
-    headerBg: SEMANTIC_L.surfaceSunken,
+    headerBg: SEMANTIC_L.sunken,
     headerColor: SEMANTIC_L.inkFaint,
     headerSplitColor: 'transparent',
     headerBorderRadius: 0,
-    rowHoverBg: 'rgba(246, 231, 225, 0.55)',
-    cellPaddingBlock: 6,
+    rowHoverBg: '#F6F7F9',
+    cellPaddingBlock: 8,
     cellPaddingInline: 12,
-    borderColor: SEMANTIC_L.rule,
+    borderColor: SEMANTIC_L.borderRule,
     footerBg: 'transparent',
     stickyScrollBarBg: SEMANTIC_L.borderStrong,
   },
   Menu: {
-    itemHeight: 30,
+    itemHeight: 36,
     itemMarginInline: 0,
-    itemMarginBlock: 1,
-    itemBorderRadius: 2,
+    itemMarginBlock: 2,
+    itemBorderRadius: 8,
     itemSelectedBg: SEMANTIC_L.accentWash,
     itemSelectedColor: SEMANTIC_L.ink,
-    itemHoverBg: SEMANTIC_L.surfaceSunken,
+    itemHoverBg: SEMANTIC_L.sunken,
     itemHoverColor: SEMANTIC_L.ink,
-    itemColor: SEMANTIC_L.inkSoft,
-    iconSize: 14,
-    activeBarWidth: 2,
+    itemColor: SEMANTIC_L.inkMuted,
+    iconSize: 16,
+    activeBarWidth: 3,
     activeBarBorderWidth: 0,
     subMenuItemBg: 'transparent',
   },
   Button: {
     fontWeight: 500,
-    primaryShadow: 'none',
+    primaryShadow: '0 1px 2px rgba(16, 24, 40, 0.12)',
     defaultShadow: 'none',
-    dangerShadow: 'none',
+    dangerShadow: '0 1px 2px rgba(192, 48, 62, 0.16)',
     defaultBg: SEMANTIC_L.surface,
     defaultColor: SEMANTIC_L.ink,
-    defaultBorderColor: SEMANTIC_L.border,
-    defaultHoverBg: SEMANTIC_L.surfaceSunken,
-    defaultHoverBorderColor: SEMANTIC_L.borderStrong,
+    defaultBorderColor: SEMANTIC_L.borderStrong,
+    defaultHoverBg: SEMANTIC_L.sunken,
+    defaultHoverBorderColor: SEMANTIC_L.inkFaint,
     defaultHoverColor: SEMANTIC_L.ink,
-    textHoverBg: SEMANTIC_L.surfaceSunken,
+    textHoverBg: SEMANTIC_L.sunken,
     paddingInline: 16,
-    paddingInlineSM: 10,
+    paddingInlineSM: 12,
   },
   Input: {
-    paddingBlock: 4,
-    paddingInline: 10,
-    borderRadius: 2,
+    paddingBlock: 6,
+    paddingInline: 12,
+    borderRadius: 8,
     activeBg: SEMANTIC_L.surface,
     hoverBg: SEMANTIC_L.surface,
-    activeBorderColor: SEMANTIC_L.ink,
+    activeBorderColor: SEMANTIC_L.accent,
     hoverBorderColor: SEMANTIC_L.borderStrong,
-    activeShadow: 'none',
+    activeShadow: '0 0 0 3px rgba(61, 90, 254, 0.18)',
   },
   InputNumber: {
-    borderRadius: 2,
-    activeBorderColor: SEMANTIC_L.ink,
+    borderRadius: 8,
+    activeBorderColor: SEMANTIC_L.accent,
     hoverBorderColor: SEMANTIC_L.borderStrong,
-    activeShadow: 'none',
+    activeShadow: '0 0 0 3px rgba(61, 90, 254, 0.18)',
   },
   Select: {
-    borderRadius: 2,
+    borderRadius: 8,
     optionSelectedBg: SEMANTIC_L.accentWash,
-    optionSelectedColor: SEMANTIC_L.ink,
-    optionActiveBg: SEMANTIC_L.surfaceSunken,
-    optionHeight: 30,
-    activeBorderColor: SEMANTIC_L.ink,
+    optionSelectedColor: SEMANTIC_L.accent,
+    optionActiveBg: SEMANTIC_L.sunken,
+    optionHeight: 34,
+    activeBorderColor: SEMANTIC_L.accent,
     hoverBorderColor: SEMANTIC_L.borderStrong,
     activeOutlineColor: 'transparent',
   },
   DatePicker: {
-    borderRadius: 2,
-    activeBorderColor: SEMANTIC_L.ink,
+    borderRadius: 8,
+    activeBorderColor: SEMANTIC_L.accent,
     hoverBorderColor: SEMANTIC_L.borderStrong,
-    activeShadow: 'none',
+    activeShadow: '0 0 0 3px rgba(61, 90, 254, 0.18)',
   },
   Tabs: {
-    inkBarColor: SEMANTIC_L.ink,
-    itemColor: SEMANTIC_L.inkSoft,
+    inkBarColor: SEMANTIC_L.accent,
+    itemColor: SEMANTIC_L.inkMuted,
     itemSelectedColor: SEMANTIC_L.ink,
     itemHoverColor: SEMANTIC_L.ink,
     horizontalItemPadding: '10px 0',
@@ -411,176 +359,187 @@ const COMPONENTS_COMMON: NonNullable<ThemeConfig['components']> = {
   },
   Segmented: {
     itemSelectedBg: SEMANTIC_L.surface,
-    trackBg: SEMANTIC_L.surfaceSunken,
-    borderRadius: 2,
+    trackBg: SEMANTIC_L.sunken,
+    borderRadius: 8,
     itemSelectedColor: SEMANTIC_L.ink,
   },
   Modal: {
     titleFontSize: 20,
-    contentBg: SEMANTIC_L.surfaceRaised,
+    contentBg: SEMANTIC_L.surface,
     headerBg: 'transparent',
     footerBg: 'transparent',
-    borderRadiusLG: 6,
+    borderRadiusLG: 12,
   },
   Drawer: {
     colorBgElevated: SEMANTIC_L.surface,
-    paddingLG: 16,
+    paddingLG: 24,
   },
   Tag: {
-    defaultBg: 'transparent',
-    defaultColor: SEMANTIC_L.inkSoft,
-    borderRadiusSM: 2,
+    defaultBg: SEMANTIC_L.sunken,
+    defaultColor: SEMANTIC_L.inkMuted,
+    borderRadiusSM: 4,
   },
   Alert: {
-    defaultPadding: '8px 0',
-    withDescriptionPadding: '8px 0',
-    borderRadiusLG: 2,
+    defaultPadding: '10px 14px',
+    withDescriptionPadding: '14px 16px',
+    borderRadiusLG: 8,
   },
   Tooltip: {
-    borderRadius: 3,
-    colorBgSpotlight: SEMANTIC_L.ink,
+    borderRadius: 6,
+    colorBgSpotlight: SEMANTIC_L.action,
+  },
+  Dropdown: {
+    borderRadiusLG: 10,
+    controlItemBgHover: SEMANTIC_L.sunken,
+  },
+  Popover: {
+    borderRadiusLG: 10,
+  },
+  Progress: {
+    defaultColor: SEMANTIC_L.accent,
+    remainingColor: SEMANTIC_L.sunken,
+  },
+  Checkbox: {
+    borderRadiusSM: 4,
+  },
+  Radio: {
+    borderRadiusSM: 4,
+  },
+  Switch: {
+    handleShadow: '0 1px 2px rgba(16, 24, 40, 0.14)',
+  },
+  Notification: {
+    borderRadiusLG: 12,
+  },
+  Message: {
+    borderRadiusLG: 8,
+    contentBg: SEMANTIC_L.surface,
   },
   Empty: {
     colorTextDescription: SEMANTIC_L.inkFaint,
   },
   Statistic: {
-    contentFontSize: 26,
-    fontFamily: MONO_STACK,
+    contentFontSize: 24,
+    fontFamily: FONT_STACK,
   },
   Descriptions: {
-    labelBg: SEMANTIC_L.surfaceSunken,
+    labelBg: SEMANTIC_L.sunken,
     titleMarginBottom: 12,
   },
   Divider: {
-    colorSplit: SEMANTIC_L.rule,
+    colorSplit: SEMANTIC_L.borderRule,
     marginLG: 24,
   },
-  Dropdown: {
-    borderRadiusLG: 4,
-    controlItemBgHover: SEMANTIC_L.surfaceSunken,
+  Pagination: {
+    borderRadius: 6,
+    itemActiveBg: SEMANTIC_L.surface,
+    colorPrimary: SEMANTIC_L.ink,
   },
-  Popover: {
-    borderRadiusLG: 4,
-  },
-  Progress: {
-    defaultColor: SEMANTIC_L.accent,
-    remainingColor: SEMANTIC_L.surfaceSunken,
-  },
-  Checkbox: {
-    borderRadiusSM: 2,
-  },
-  Radio: {
-    borderRadiusSM: 2,
-  },
-  Switch: {
-    handleShadow: 'none',
-  },
-  Notification: {
-    borderRadiusLG: 4,
-  },
-  Message: {
-    borderRadiusLG: 4,
-    contentBg: SEMANTIC_L.surfaceRaised,
+  Upload: {
+    borderRadiusLG: 8,
   },
 }
 
 const COMPONENTS_LIGHT: ThemeConfig['components'] = {
   ...COMPONENTS_COMMON,
-  Layout: { ...COMPONENTS_COMMON.Layout, headerBg: PAPER.surface, siderBg: PAPER.surface },
-  Table: {
-    ...COMPONENTS_COMMON.Table,
-    headerBg: SEMANTIC_L.surfaceSunken,
-    rowHoverBg: 'rgba(246, 231, 225, 0.55)',
-  },
+  Layout: { ...COMPONENTS_COMMON.Layout, headerBg: LIGHT.surface, siderBg: LIGHT.surface },
 }
 
 const COMPONENTS_DARK: ThemeConfig['components'] = {
   ...COMPONENTS_COMMON,
-  Layout: { ...COMPONENTS_COMMON.Layout, headerBg: SEMANTIC_D.surface, siderBg: SEMANTIC_D.surface },
+  Layout: { ...COMPONENTS_COMMON.Layout, headerBg: DARK.surface, siderBg: DARK.surface },
   Table: {
     ...COMPONENTS_COMMON.Table,
-    headerBg: SEMANTIC_D.surfaceSunken,
-    headerColor: SEMANTIC_D.inkFaint,
-    rowHoverBg: 'rgba(51, 35, 31, 0.55)',
-    borderColor: SEMANTIC_D.rule,
+    headerBg: DARK.sunken,
+    headerColor: DARK.inkFaint,
+    rowHoverBg: '#1D2026',
+    borderColor: DARK.borderRule,
   },
   Menu: {
     ...COMPONENTS_COMMON.Menu,
-    itemSelectedBg: SEMANTIC_D.accentWash,
-    itemSelectedColor: SEMANTIC_D.ink,
-    itemHoverBg: SEMANTIC_D.surfaceSunken,
-    itemHoverColor: SEMANTIC_D.ink,
-    itemColor: SEMANTIC_D.inkSoft,
+    itemSelectedBg: DARK.accentWash,
+    itemSelectedColor: DARK.ink,
+    itemHoverBg: DARK.sunken,
+    itemHoverColor: DARK.ink,
+    itemColor: DARK.inkMuted,
   },
   Button: {
     ...COMPONENTS_COMMON.Button,
-    defaultBg: SEMANTIC_D.surface,
-    defaultColor: SEMANTIC_D.ink,
-    defaultBorderColor: SEMANTIC_D.border,
-    defaultHoverBg: SEMANTIC_D.surfaceSunken,
-    defaultHoverBorderColor: SEMANTIC_D.borderStrong,
-    defaultHoverColor: SEMANTIC_D.ink,
-    textHoverBg: SEMANTIC_D.surfaceSunken,
+    primaryShadow: 'none',
+    defaultBg: DARK.surface,
+    defaultColor: DARK.ink,
+    defaultBorderColor: DARK.borderStrong,
+    defaultHoverBg: DARK.sunken,
+    defaultHoverBorderColor: DARK.inkFaint,
+    defaultHoverColor: DARK.ink,
+    textHoverBg: DARK.sunken,
   },
   Input: {
     ...COMPONENTS_COMMON.Input,
-    activeBg: SEMANTIC_D.surface,
-    hoverBg: SEMANTIC_D.surface,
-    activeBorderColor: SEMANTIC_D.accent,
-    hoverBorderColor: SEMANTIC_D.borderStrong,
+    activeBg: DARK.raised,
+    hoverBg: DARK.raised,
+    activeBorderColor: DARK.accent,
+    hoverBorderColor: DARK.borderStrong,
+    activeShadow: '0 0 0 3px rgba(124, 140, 255, 0.20)',
+  },
+  InputNumber: {
+    ...COMPONENTS_COMMON.InputNumber,
+    activeBorderColor: DARK.accent,
+    hoverBorderColor: DARK.borderStrong,
+    activeShadow: '0 0 0 3px rgba(124, 140, 255, 0.20)',
   },
   Select: {
     ...COMPONENTS_COMMON.Select,
-    optionSelectedBg: SEMANTIC_D.accentWash,
-    optionSelectedColor: SEMANTIC_D.ink,
-    optionActiveBg: SEMANTIC_D.surfaceSunken,
-    activeBorderColor: SEMANTIC_D.accent,
+    optionSelectedBg: DARK.accentWash,
+    optionSelectedColor: DARK.accent,
+    optionActiveBg: DARK.sunken,
+    activeBorderColor: DARK.accent,
+  },
+  DatePicker: {
+    ...COMPONENTS_COMMON.DatePicker,
+    activeBorderColor: DARK.accent,
+    activeShadow: '0 0 0 3px rgba(124, 140, 255, 0.20)',
   },
   Tabs: {
     ...COMPONENTS_COMMON.Tabs,
-    inkBarColor: SEMANTIC_D.ink,
-    itemColor: SEMANTIC_D.inkSoft,
-    itemSelectedColor: SEMANTIC_D.ink,
-    itemHoverColor: SEMANTIC_D.ink,
+    inkBarColor: DARK.accent,
+    itemColor: DARK.inkMuted,
+    itemSelectedColor: DARK.ink,
+    itemHoverColor: DARK.ink,
   },
-  Modal: {
-    ...COMPONENTS_COMMON.Modal,
-    contentBg: SEMANTIC_D.surfaceRaised,
-  },
-  Drawer: { ...COMPONENTS_COMMON.Drawer, colorBgElevated: SEMANTIC_D.surface },
+  Modal: { ...COMPONENTS_COMMON.Modal, contentBg: DARK.surface },
+  Drawer: { ...COMPONENTS_COMMON.Drawer, colorBgElevated: DARK.surface },
   Segmented: {
     ...COMPONENTS_COMMON.Segmented,
-    itemSelectedBg: SEMANTIC_D.surface,
-    trackBg: SEMANTIC_D.surfaceSunken,
+    itemSelectedBg: DARK.raised,
+    trackBg: DARK.sunken,
   },
-  Tooltip: { ...COMPONENTS_COMMON.Tooltip, colorBgSpotlight: '#2C2821' },
-  Descriptions: { ...COMPONENTS_COMMON.Descriptions, labelBg: SEMANTIC_D.surfaceSunken },
+  Tag: { ...COMPONENTS_COMMON.Tag, defaultBg: DARK.sunken, defaultColor: DARK.inkMuted },
+  Tooltip: { ...COMPONENTS_COMMON.Tooltip, colorBgSpotlight: '#2C2F36' },
+  Descriptions: { ...COMPONENTS_COMMON.Descriptions, labelBg: DARK.sunken },
+  Message: { ...COMPONENTS_COMMON.Message, contentBg: DARK.surface },
+  Statistic: { ...COMPONENTS_COMMON.Statistic, fontFamily: FONT_STACK },
 }
 
 export function buildTheme(mode: ThemeMode): ThemeConfig {
   const dark = mode === 'dark'
   return {
-    // cssVar 让业务代码可以用 var(--ant-color-*)，替代写死的灰阶
     cssVar: true,
     hashed: false,
     algorithm: dark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-    token: dark ? DARK : LIGHT,
+    token: dark ? TOKEN_DARK : TOKEN_LIGHT,
     components: dark ? COMPONENTS_DARK : COMPONENTS_LIGHT,
   }
 }
 
-/** 取某套主题的语义色，供 CSS 变量注入使用 */
 export function semanticOf(mode: ThemeMode): Semantic {
   return (mode === 'dark' ? SEMANTIC_D : SEMANTIC_L) as Semantic
 }
 
-export { PAPER, INK, CINNABAR, ACTION, LINE, FONT_STACK }
+export { LIGHT, DARK, FONT_STACK }
 export const BRAND = {
-  /** 动作色（主按钮/选中文字）——墨 */
-  ink: { light: ACTION.base, dark: DARK_PRIMITIVE.action },
-  /** 标记色（印章/焦点/批注）——朱砂 */
-  accent: { light: CINNABAR.base, dark: DARK_PRIMITIVE.accent },
+  accent: { light: LIGHT.accent, dark: DARK.accent },
+  action: { light: LIGHT.action, dark: DARK.action },
   fontStack: FONT_STACK,
-  serifStack: SERIF_STACK,
   monoStack: MONO_STACK,
 }

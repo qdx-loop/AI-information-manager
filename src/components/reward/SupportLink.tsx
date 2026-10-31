@@ -36,9 +36,9 @@ export default function SupportLink({ label, style, className }: SupportLinkProp
 
 const styles = {
   link: {
-    fontSize: 13,
+    fontSize: 'var(--text-xs, 13px)',
     lineHeight: 1.5,
-    color: 'var(--app-ink-soft)',
+    color: 'var(--ink-muted)',
     textDecoration: 'underline',
     textUnderlineOffset: 2,
     cursor: 'pointer',

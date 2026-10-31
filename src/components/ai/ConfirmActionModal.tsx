@@ -17,17 +17,18 @@ interface Props {
   onCancel: () => void
 }
 
+// TOKENS-v3 §2.4：弹窗正文 14/1.6，注脚 13，mono 图注 12
 const T = {
-  base: 'var(--text-base, 14px)',
-  sm: 'var(--text-sm, 13px)',
-  xs: 'var(--text-xs, 12px)',
-  xxs: 'var(--text-2xs, 11px)',
+  body: 'var(--text-sm)',
+  sm: 'var(--text-xs)',
+  mono: 'var(--text-2xs)',
+  title: 'var(--text-lg)',
 }
 
 /**
- * AI 写操作的确认弹窗（改版：宽 400、衬线标题、按钮右对齐、无颜色胶囊）。
+ * AI 写操作的确认弹窗（v3：440 宽、标题 20/600、正文 14/1.6、按钮右对齐）。
  *
- * 两个安全改进（对应 03-ai.md 风险 P0-1 / P0-2）：
+ * 两个安全改进（对应 03-ai.md 风险 P0-1 / P0-2；本轮只改视觉，逻辑保持）：
  *  1. 删除时渲染**被删条目的只读字段快照**——旧版只显示 itemId，用户无法核对
  *     删的是什么，等于盲签。
  *  2. 「不再询问」按动作粒度授权，且**删除类永不提供**该选项。
@@ -81,40 +82,50 @@ export default function ConfirmActionModal({
 
   const visibleFields = fields.filter((f) => f.visible)
   const actionLabel = t('ai.action.' + action.action)
+  const labelStyle = { minWidth: 76, flexShrink: 0, color: 'var(--ink-muted)' }
 
   return (
     <Modal
       title={
-        <span className="serif" style={{ fontSize: 20, lineHeight: 1.4, color: 'var(--app-ink)' }}>
+        <span style={{ fontSize: T.title, fontWeight: 600, lineHeight: 1.35, color: 'var(--ink)' }}>
           {t('ai.confirm.itemTitle')}
         </span>
       }
       open={open}
       onCancel={onCancel}
-      width={400}
+      width={440}
       footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 'var(--space-2)',
+            marginTop: 'var(--space-1)',
+          }}
+        >
           <Button type="text" onClick={onCancel}>
             {t('common.cancel')}
           </Button>
-          <Button
-            type="primary"
-            danger={isDelete}
-            loading={loading}
-            onClick={() => void handleOk()}
-          >
+          <Button type="primary" danger={isDelete} loading={loading} onClick={() => void handleOk()}>
             {t('ai.confirm.ok')}
           </Button>
         </div>
       }
     >
-      <div style={{ fontSize: T.base, lineHeight: 1.6, color: 'var(--app-ink)' }}>
-        {/* 头部一行：动作 + 目标库名，代替旧的彩色 Tag */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
-          <span style={{ color: isDelete ? 'var(--app-danger)' : 'var(--app-accent-text)', fontWeight: 500 }}>
+      <div style={{ fontSize: T.body, lineHeight: 1.6, color: 'var(--ink)' }}>
+        {/* 头部一行：动作 + 目标库名 */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 'var(--space-2)',
+            marginBottom: 'var(--space-3)',
+          }}
+        >
+          <span style={{ color: isDelete ? 'var(--danger)' : 'var(--accent)', fontWeight: 500 }}>
             {actionLabel}
           </span>
-          <span style={{ color: 'var(--app-ink-faint)', fontSize: T.sm }}>
+          <span style={{ color: 'var(--ink-muted)', fontSize: T.sm }}>
             {library?.name ?? action.libraryId}
           </span>
         </div>
@@ -122,54 +133,50 @@ export default function ConfirmActionModal({
         {action.reason && (
           <p
             style={{
-              margin: '0 0 16px',
-              paddingTop: 10,
-              borderTop: '1px solid var(--app-rule)',
-              fontSize: T.sm,
-              color: 'var(--app-ink-soft)',
+              margin: '0 0 var(--space-4)',
+              paddingTop: 'var(--space-2)',
+              borderTop: '1px solid var(--border-rule)',
+              color: 'var(--ink-muted)',
             }}
           >
-            <span style={{ color: 'var(--app-ink-faint)' }}>{t('ai.confirm.reason')}</span>
+            <span style={{ color: 'var(--ink-faint)' }}>{t('ai.confirm.reason')}</span>
             {action.reason}
           </p>
         )}
 
         {/* 删除：渲染被删条目的只读快照（用户必须能核对删的是什么） */}
         {isDelete ? (
-          <div style={{ borderTop: '1px solid var(--app-rule)', paddingTop: 12 }}>
+          <div style={{ borderTop: '1px solid var(--border-rule)', paddingTop: 'var(--space-3)' }}>
             <div
               className="eyebrow"
               style={{
-                fontSize: T.xxs,
-                letterSpacing: '0.06em',
-                fontFamily: 'var(--font-mono)',
-                color: 'var(--app-ink-faint)',
-                marginBottom: 8,
+                fontSize: T.mono,
+                letterSpacing: '0.04em',
+                color: 'var(--ink-faint)',
+                marginBottom: 'var(--space-2)',
               }}
             >
               {t('ai.confirm.snapshot')}
             </div>
             {existingItem ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                 {(visibleFields.length > 0 ? visibleFields : fields).map((f) => (
-                  <div key={f.key} style={{ display: 'flex', gap: 8, fontSize: T.sm, lineHeight: 1.6 }}>
-                    <span style={{ minWidth: 76, flexShrink: 0, color: 'var(--app-ink-faint)' }}>
-                      {f.label}
-                    </span>
-                    <span style={{ minWidth: 0, wordBreak: 'break-word', color: 'var(--app-ink)' }}>
+                  <div key={f.key} style={{ display: 'flex', gap: 'var(--space-2)', lineHeight: 1.6 }}>
+                    <span style={labelStyle}>{f.label}</span>
+                    <span style={{ minWidth: 0, wordBreak: 'break-word', color: 'var(--ink)' }}>
                       {String(existingItem.fields[f.key] ?? '—')}
                     </span>
                   </div>
                 ))}
                 <div
-                  className="mono num"
-                  style={{ marginTop: 4, fontSize: T.xxs, color: 'var(--app-ink-faint)' }}
+                  className="mono"
+                  style={{ marginTop: 'var(--space-1)', fontSize: T.mono, color: 'var(--ink-faint)' }}
                 >
                   {existingItem.id}
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: T.sm, color: 'var(--app-ink-faint)' }}>
+              <div style={{ color: 'var(--ink-muted)' }}>
                 {t('ai.confirm.snapshotMissing')}
                 <span className="mono" style={{ marginLeft: 6 }}>
                   {action.itemId ?? '—'}
@@ -178,44 +185,35 @@ export default function ConfirmActionModal({
             )}
           </div>
         ) : (
-          <div style={{ borderTop: '1px solid var(--app-rule)', paddingTop: 12 }}>
+          <div style={{ borderTop: '1px solid var(--border-rule)', paddingTop: 'var(--space-3)' }}>
             {action.action !== 'create' && (
               <div
                 className="mono"
-                style={{ fontSize: T.xxs, color: 'var(--app-ink-faint)', marginBottom: 8 }}
+                style={{ fontSize: T.mono, color: 'var(--ink-faint)', marginBottom: 'var(--space-2)' }}
               >
                 {t('ai.confirm.targetItem')}
-                <span style={{ marginLeft: 6, color: 'var(--app-ink-soft)' }}>{action.itemId}</span>
+                <span style={{ marginLeft: 6, color: 'var(--ink-muted)' }}>{action.itemId}</span>
               </div>
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
               {visibleFields.map((f) => {
                 const newVal = action.fields?.[f.key]
                 const oldVal = existingItem?.fields[f.key]
                 const changed = action.action === 'create' || String(newVal) !== String(oldVal)
                 return (
-                  <div key={f.key} style={{ display: 'flex', gap: 8, fontSize: T.sm, lineHeight: 1.6 }}>
-                    <span style={{ minWidth: 76, flexShrink: 0, color: 'var(--app-ink-faint)' }}>
-                      {f.label}
-                    </span>
+                  <div key={f.key} style={{ display: 'flex', gap: 'var(--space-2)', lineHeight: 1.6 }}>
+                    <span style={labelStyle}>{f.label}</span>
                     <span style={{ minWidth: 0, wordBreak: 'break-word' }}>
                       {action.action === 'update' && changed ? (
                         <>
-                          <span
-                            style={{
-                              textDecorationLine: 'line-through',
-                              color: 'var(--app-ink-faint)',
-                            }}
-                          >
+                          <span style={{ textDecorationLine: 'line-through', color: 'var(--ink-faint)' }}>
                             {String(oldVal ?? '-')}
                           </span>
-                          <span style={{ margin: '0 4px', color: 'var(--app-ink-faint)' }}>→</span>
-                          <span style={{ color: 'var(--app-ink)', fontWeight: 500 }}>
-                            {String(newVal ?? '-')}
-                          </span>
+                          <span style={{ margin: '0 4px', color: 'var(--ink-faint)' }}>→</span>
+                          <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{String(newVal ?? '-')}</span>
                         </>
                       ) : (
-                        <span style={{ color: 'var(--app-ink)' }}>{String(newVal ?? '-')}</span>
+                        <span style={{ color: 'var(--ink)' }}>{String(newVal ?? '-')}</span>
                       )}
                     </span>
                   </div>
@@ -230,7 +228,7 @@ export default function ConfirmActionModal({
             checked={always}
             disabled={alreadyRemembered}
             onChange={(e) => setAlways(e.target.checked)}
-            style={{ marginTop: 14, fontSize: T.xs, color: 'var(--app-ink-soft)' }}
+            style={{ marginTop: 'var(--space-3)', fontSize: T.sm, color: 'var(--ink-muted)' }}
           >
             {t('ai.confirm.always', { action: actionLabel })}
           </Checkbox>
@@ -238,10 +236,11 @@ export default function ConfirmActionModal({
 
         <p
           style={{
-            marginTop: 12,
-            fontSize: T.xs,
+            marginTop: 'var(--space-3)',
+            marginBottom: 0,
+            fontSize: T.sm,
             lineHeight: 1.6,
-            color: isDelete ? 'var(--app-danger)' : 'var(--app-ink-faint)',
+            color: isDelete ? 'var(--danger)' : 'var(--ink-muted)',
           }}
         >
           {t('ai.confirm.note')}

@@ -37,35 +37,91 @@ export interface ChartPayload {
   option: Record<string, unknown>
 }
 
+// TOKENS-v3 §2.4：弹窗标题 20/600、副标 12 muted、页脚 mono 12
 const T = {
-  base: 'var(--text-base, 14px)',
-  sm: 'var(--text-sm, 13px)',
-  xs: 'var(--text-xs, 12px)',
-  xxs: 'var(--text-2xs, 11px)',
+  title: 'var(--text-lg)',
+  xs: 'var(--text-xs)',
+  mono: 'var(--text-2xs)',
 }
 
-/**
- * 图表弹窗（改版：纸面风格）。
- *
- * - 图表区无边框/无阴影，网格线与正文色取自 CSS 变量（`chartStyle` 读
- *   `--app-border-soft`，其值与 `--app-rule` 相同）
- * - 关闭 ECharts 入场动画（TOKENS §6 禁止图表入场动画），减少「仪表盘」感
- * - 底部一行 mono 11「数据来源 · 生成时间」
- */
-/** house style + 纸面约束：关闭入场动画、统一系统字链（画布不解析 CSS 变量，需取值） */
-function paperOption(option: Record<string, unknown>, dark: boolean): Record<string, unknown> {
-  const styled = styleChart(option, dark) as Record<string, unknown>
-  const fontSans =
-    typeof document !== 'undefined'
-      ? getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim()
-      : ''
+/** canvas 不解析 CSS 变量，画之前把 v3 token 读成具体值 */
+function readTokens() {
+  const cs = typeof document !== 'undefined' ? getComputedStyle(document.documentElement) : null
+  const v = (name: string) => (cs?.getPropertyValue(name) ?? '').trim()
   return {
-    ...styled,
-    animation: false,
-    ...(fontSans ? { textStyle: { ...(styled.textStyle as object), fontFamily: fontSans } } : {}),
+    fontSans: v('--font-sans'),
+    ink: v('--ink'),
+    inkMuted: v('--ink-muted'),
+    borderRule: v('--border-rule'),
+    border: v('--border'),
+    surface: v('--bg-surface'),
+    raised: v('--bg-raised'),
   }
 }
 
+type AxisLike = Record<string, unknown> & {
+  axisLine?: Record<string, unknown>
+  axisLabel?: Record<string, unknown>
+  splitLine?: Record<string, unknown>
+  nameTextStyle?: Record<string, unknown>
+}
+
+/** 把 axis 上的线/字颜色强制成 v3 token（不改结构，只覆盖颜色） */
+function paintAxis(axis: unknown, tk: ReturnType<typeof readTokens>): unknown {
+  if (!axis || typeof axis !== 'object' || Array.isArray(axis)) return axis
+  const a = axis as AxisLike
+  return {
+    ...a,
+    axisLine: { ...(a.axisLine ?? {}), lineStyle: { ...((a.axisLine?.lineStyle as object) ?? {}), color: tk.borderRule } },
+    axisLabel: { ...(a.axisLabel ?? {}), color: tk.inkMuted, fontFamily: tk.fontSans },
+    splitLine: { ...(a.splitLine ?? {}), lineStyle: { ...((a.splitLine?.lineStyle as object) ?? {}), color: tk.borderRule } },
+    nameTextStyle: { ...(a.nameTextStyle ?? {}), color: tk.inkMuted, fontFamily: tk.fontSans },
+  }
+}
+
+/**
+ * house style + v3 视觉约束：
+ * - 关闭入场动画（TOKENS-v3 §4 动效：只允许交互过渡）
+ * - 网格线 `--border-rule`、坐标/图例文字 `--ink-muted`、图例无底色
+ * - 字体换 v3 系统字链（chartStyle 内部写死了旧字链，这里统一覆盖）
+ */
+function paperOption(option: Record<string, unknown>, dark: boolean): Record<string, unknown> {
+  const styled = styleChart(option, dark) as Record<string, unknown>
+  const tk = readTokens()
+  const legend = styled.legend as Record<string, unknown> | undefined
+  return {
+    ...styled,
+    animation: false,
+    textStyle: { ...(styled.textStyle as object), fontFamily: tk.fontSans, color: tk.inkMuted },
+    xAxis: paintAxis(styled.xAxis, tk),
+    yAxis: paintAxis(styled.yAxis, tk),
+    ...(legend
+      ? {
+          legend: {
+            ...legend,
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+            textStyle: {
+              ...((legend.textStyle as object) ?? {}),
+              color: tk.inkMuted,
+              fontFamily: tk.fontSans,
+            },
+          },
+        }
+      : {}),
+    tooltip: {
+      ...((styled.tooltip as object) ?? {}),
+      backgroundColor: tk.raised || tk.surface,
+      borderColor: tk.border,
+      textStyle: { ...(((styled.tooltip as { textStyle?: object })?.textStyle) ?? {}), color: tk.ink },
+    },
+  }
+}
+
+/**
+ * 图表弹窗（v3：白卡、标题 20/600 + 12 muted 副标、图表区白底、
+ * 网格线 `--border-rule`、无入场动画、底部 mono 12「数据来源 · 生成时间」）。
+ */
 export default function ChartModal({
   payload,
   onClose,
@@ -173,10 +229,10 @@ export default function ChartModal({
       // 标题在弹窗头部，ECharts 里不再重复画一遍
       title={
         <div>
-          <div className="serif" style={{ fontSize: 20, lineHeight: 1.4, color: 'var(--app-ink)' }}>
+          <div style={{ fontSize: T.title, fontWeight: 600, lineHeight: 1.35, color: 'var(--ink)' }}>
             {payload?.title ?? ''}
           </div>
-          <div style={{ fontSize: T.xs, lineHeight: 1.5, color: 'var(--app-ink-faint)', marginTop: 2 }}>
+          <div style={{ fontSize: T.mono, lineHeight: 1.4, color: 'var(--ink-muted)', marginTop: 2 }}>
             {t('ai.chart.defaultName')}
           </div>
         </div>
@@ -185,7 +241,14 @@ export default function ChartModal({
       onCancel={onClose}
       afterOpenChange={(open) => open && setReady(true)}
       footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 'var(--space-2)',
+            marginTop: 'var(--space-1)',
+          }}
+        >
           <Button type="text" onClick={onClose}>
             {t('common.close')}
           </Button>
@@ -196,8 +259,11 @@ export default function ChartModal({
       }
     >
       <div style={{ position: 'relative', minHeight: 460 }}>
-        {/* 图表区：纸面、无边框；网格线/文字色由 chartStyle 从 CSS 变量读取 */}
-        <div ref={chartDivRef} style={{ width: '100%', height: 460, background: 'transparent' }} />
+        {/* 图表区：白底、无边框；网格线/文字色在 paperOption 里强制成 v3 token */}
+        <div
+          ref={chartDivRef}
+          style={{ width: '100%', height: 460, background: 'var(--bg-surface)' }}
+        />
         {loading && (
           <div
             style={{
@@ -207,7 +273,7 @@ export default function ChartModal({
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: T.xs,
-              color: 'var(--app-ink-faint)',
+              color: 'var(--ink-muted)',
             }}
           >
             {t('ai.chart.loading')}
@@ -217,12 +283,12 @@ export default function ChartModal({
       <div
         className="mono"
         style={{
-          marginTop: 8,
-          paddingTop: 8,
-          borderTop: '1px solid var(--app-rule)',
-          fontSize: T.xxs,
+          marginTop: 'var(--space-2)',
+          paddingTop: 'var(--space-2)',
+          borderTop: '1px solid var(--border-rule)',
+          fontSize: T.mono,
           letterSpacing: '0.02em',
-          color: 'var(--app-ink-faint)',
+          color: 'var(--ink-faint)',
         }}
       >
         {t('ai.chart.foot', { time: openedAt })}

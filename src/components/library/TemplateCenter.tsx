@@ -1,5 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Modal, Button, Checkbox, Input, App } from 'antd'
+import {
+  AppstoreOutlined,
+  TeamOutlined,
+  InboxOutlined,
+  HomeOutlined,
+  HeartOutlined,
+  AccountBookOutlined,
+  IdcardOutlined,
+  CheckSquareOutlined,
+  CarOutlined,
+  WarningOutlined,
+  MedicineBoxOutlined,
+} from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { LIB_TEMPLATES, applyTemplate, applySampleData, type LibTemplate } from '@/utils/libraryTemplates'
 import { useLibraryStore } from '@/store/libraryStore'
@@ -8,13 +21,26 @@ import { useI18n } from '@/i18n'
 
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
 
+/** 模板图标：每个模板一个线性图标（只用 Outlined），比在卡片里放缩略图更克制 */
+const TPL_ICONS: Record<string, ReactNode> = {
+  customer: <TeamOutlined />,
+  inventory: <InboxOutlined />,
+  realestate: <HomeOutlined />,
+  fitness: <HeartOutlined />,
+  ledger: <AccountBookOutlined />,
+  staff: <IdcardOutlined />,
+  tasks: <CheckSquareOutlined />,
+  vehicle: <CarOutlined />,
+  mistakes: <WarningOutlined />,
+  medicine: <MedicineBoxOutlined />,
+}
+
 /**
  * 模板中心：按行业分组展示所有模板，一键建库并套用字段结构（可选附带示例数据）。
  *
- * 视觉从「两列模板卡」改成「左目录 + 右表样」：
- * 模板是一份账目表样，用户要先看见「栏目长什么样」再决定用不用。
- * 左列只放名称 + 字段数（mono），右侧是一张纸面预览——横向账线、字段名在左、类型在右，
- * 与真实表格同一套行线口径（01-ui-research §F8/F9）。
+ * v3：左侧是一列白卡（图标 + 名称 + 字段数），右侧是白纸预览（细线表格 + 字段类型），
+ * 选中靠 accent 边框 + wash 底表达。业务逻辑（建库 → 套字段 → 可选示例数据 → 跳转）
+ * 与原来完全一致。
  */
 export default function TemplateCenter({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { message, modal } = App.useApp()
@@ -90,7 +116,7 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
       open={open}
       onCancel={onClose}
       footer={null}
-      width={760}
+      width={880}
       style={{ maxWidth: 'calc(100vw - 32px)' }}
     >
       <p className="page-lede" style={{ margin: '0 0 12px' }}>{t('tpl.center.subtitle')}</p>
@@ -101,74 +127,78 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
       {grouped.length === 0 ? (
         <p className="faint" style={{ fontSize: 'var(--text-sm)' }}>{t('lib.tpl.empty')}</p>
       ) : (
-        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-          {/* 左：模板目录（名称 + 字段数），选中 = 2px 朱砂左线 + wash 底 */}
-          <div
-            style={{
-              width: 280,
-              flexShrink: 0,
-              borderRight: '1px solid var(--app-rule)',
-              paddingRight: 12,
-              maxHeight: 420,
-              overflowY: 'auto',
-            }}
-          >
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {/* 左：模板卡（白卡 + 图标 + 名称 + 字段数），选中 = accent 边框 + wash 底 */}
+          <div style={{ width: 300, flexShrink: 0, maxHeight: 440, overflowY: 'auto', paddingRight: 4 }}>
             {grouped.map(([cat, tpls]) => (
-              <div key={cat} style={{ marginBottom: 8 }}>
-                <div className="eyebrow" style={{ padding: '8px 6px 4px' }}>{cat}</div>
-                {tpls.map((tpl) => {
-                  const on = tpl.key === selectedKey
-                  return (
-                    <button
-                      key={tpl.key}
-                      type="button"
-                      onClick={() => setSelectedKey(tpl.key)}
-                      aria-current={on ? 'true' : undefined}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'baseline',
-                        justifyContent: 'space-between',
-                        gap: 8,
-                        width: '100%',
-                        minHeight: 32,
-                        padding: '4px 6px 4px 10px',
-                        margin: 0,
-                        border: 0,
-                        borderLeft: on ? '2px solid var(--app-accent)' : '2px solid transparent',
-                        background: on ? 'var(--app-accent-wash)' : 'transparent',
-                        font: 'inherit',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        color: 'inherit',
-                      }}
-                    >
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: on ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {tpl.name}
-                      </span>
-                      <span className="mono num faint" style={{ fontSize: 'var(--text-xs)', flexShrink: 0 }}>
-                        {tpl.fields.length} {t('tpl.center.fields')}
-                      </span>
-                    </button>
-                  )
-                })}
+              <div key={cat} style={{ marginBottom: 12 }}>
+                <div className="eyebrow" style={{ padding: '6px 4px' }}>{cat}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {tpls.map((tpl) => {
+                    const on = tpl.key === selectedKey
+                    return (
+                      <button
+                        key={tpl.key}
+                        type="button"
+                        onClick={() => setSelectedKey(tpl.key)}
+                        aria-current={on ? 'true' : undefined}
+                        className="surface-card"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderColor: on ? 'var(--accent)' : 'var(--border)',
+                          background: on ? 'var(--accent-wash)' : 'var(--bg-surface)',
+                          boxShadow: on ? '0 0 0 3px var(--accent-ring)' : undefined,
+                          font: 'inherit',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          color: 'inherit',
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          style={{
+                            fontSize: 18,
+                            display: 'inline-flex',
+                            color: on ? 'var(--accent)' : 'var(--ink-faint)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {TPL_ICONS[tpl.key] ?? <AppstoreOutlined />}
+                        </span>
+                        <span style={{ flex: '1 1 auto', minWidth: 0 }}>
+                          <span style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {tpl.name}
+                          </span>
+                          <span className="faint" style={{ display: 'block', fontSize: 'var(--text-2xs)', marginTop: 2 }}>
+                            {tpl.fields.length} {t('tpl.center.fields')}
+                          </span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             ))}
           </div>
 
-          {/* 右：一张纸的「表样」——横向账线、字段名在左、类型在右 */}
-          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+          {/* 右：白纸预览——细线表格，字段名左、类型右 */}
+          <div className="surface-card" style={{ flex: '1 1 360px', minWidth: 0, padding: 20 }}>
             {selected ? (
-              <div className="sheet" style={{ padding: '16px 20px' }}>
+              <>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                   <span className="page-title-sm">{selected.name}</span>
-                  <span className="mono num faint" style={{ fontSize: 'var(--text-xs)' }}>
+                  <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>
                     {selected.fields.length} {t('tpl.center.fields')}
                   </span>
                 </div>
-                <p className="muted" style={{ margin: '4px 0 12px', fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
+                <p className="muted" style={{ margin: '4px 0 16px', fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
                   {selected.desc}
                 </p>
-                <div style={{ borderTop: '1px solid var(--app-border-strong)' }}>
+                <div style={{ borderTop: '1px solid var(--border)' }}>
                   {selected.fields.map((f) => (
                     <div
                       key={f.key}
@@ -177,25 +207,25 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
                         alignItems: 'baseline',
                         justifyContent: 'space-between',
                         gap: 12,
-                        height: 28,
-                        borderBottom: '1px solid var(--app-rule)',
+                        height: 36,
+                        borderBottom: '1px solid var(--border-rule)',
                       }}
                     >
-                      <span style={{ fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {f.label}
                       </span>
-                      <span className="faint" style={{ fontSize: 'var(--text-xs)', flexShrink: 0 }}>
+                      <span className="faint" style={{ fontSize: 'var(--text-2xs)', flexShrink: 0 }}>
                         {t(`lib.tpl.type.${f.type}`)}
                       </span>
                     </div>
                   ))}
                 </div>
-                <div style={{ marginTop: 16 }}>
+                <div style={{ marginTop: 20 }}>
                   <Button type="primary" onClick={() => applyLibTemplate(selected)}>
                     {t('tpl.center.use')}
                   </Button>
                 </div>
-              </div>
+              </>
             ) : (
               <p className="faint" style={{ fontSize: 'var(--text-sm)' }}>{t('lib.tpl.empty')}</p>
             )}

@@ -1,5 +1,5 @@
-import { Modal, Button, Input, Select, Switch, App, Empty } from 'antd'
-import { DeleteOutlined, HolderOutlined } from '@ant-design/icons'
+import { Modal, Button, Input, Select, Switch, App } from 'antd'
+import { DeleteOutlined, HolderOutlined, PlusOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import {
   DndContext,
@@ -21,6 +21,7 @@ import { CSS } from '@dnd-kit/utilities'
 import type { FieldDef, FieldType } from '@/types'
 import { newId } from '@/utils/id'
 import { useI18n } from '@/i18n'
+import EmptyPanel from './EmptyPanel'
 
 // 字段类型选项在组件内按当前语言生成（fieldTypes）
 
@@ -33,10 +34,10 @@ interface Props {
 }
 
 /**
- * 字段模板编辑器（账目表样）。
+ * 字段模板编辑器。
  *
- * 视觉：一行一个字段，36px 高、只有底边一条账线，没有卡片、没有圆角盒子；
- * 拖拽只给两种反馈——行位移 + 1px 朱砂插入线，不做缩放/阴影/背景高亮。
+ * v3：一行一个字段（行高 36、只有底边 1px 行线），拖拽只给两种反馈——
+ * 行位移 + 1px accent 插入线，不做缩放/阴影/背景高亮。
  * 逻辑（校验 label/key 唯一、sortOrder 重排、保存）与原来完全一致。
  */
 export default function TemplateEditor({ open, libraryId, fields, onCancel, onSave }: Props) {
@@ -127,17 +128,17 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
       okText={t('common.save')}
       cancelText={t('common.cancel')}
       width="90%"
-      style={{ maxWidth: 720 }}
+      style={{ maxWidth: 760 }}
       afterOpenChange={(o) => o && handleOpen()}
-      styles={{ body: { maxHeight: 'calc(100vh - 240px)', overflowY: 'auto' } }}
+      styles={{ body: { maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' } }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        <Button onClick={addField}>{t('lib.tpl.addField')}</Button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <Button icon={<PlusOutlined />} onClick={addField}>{t('lib.tpl.addField')}</Button>
         <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>{t('lib.tpl.dragHint')}</span>
       </div>
 
       {list.length === 0 ? (
-        <Empty image={false} description={t('lib.tpl.empty')} />
+        <EmptyPanel surface={false} title={t('lib.tpl.empty')} />
       ) : (
         <DndContext
           sensors={sensors}
@@ -151,22 +152,22 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
           onDragEnd={onDragEnd}
         >
           <SortableContext items={list.map((f) => f.id)} strategy={verticalListSortingStrategy}>
-            {/* 表头：一行 11px 眉题，和真实表格的栏名同一口径 */}
+            {/* 表头：一行 12 mono 眉题，与真实表格的栏名同一口径 */}
             <div
               className="eyebrow"
-              style={{ display: 'flex', gap: 8, padding: '0 8px 6px', borderBottom: '1px solid var(--app-border-strong)' }}
+              style={{ display: 'flex', gap: 8, padding: '0 8px 8px', borderBottom: '1px solid var(--border)' }}
             >
               <span style={{ width: 16, flexShrink: 0 }} />
               <span style={{ flex: 1 }}>{t('lib.tpl.fieldName')}</span>
               <span style={{ width: 128, flexShrink: 0 }}>{t('lib.trash.col.type')}</span>
-              <span style={{ width: 168, flexShrink: 0 }}>{t('common.required')} / {t('common.visible')}</span>
+              <span style={{ width: 176, flexShrink: 0 }}>{t('common.required')} / {t('common.visible')}</span>
             </div>
             <div>
               {list.map((f) => (
                 <div key={f.id}>
-                  {/* 插入线：拖拽时只出现这一条 1px 朱砂线，不做缩放/阴影 */}
+                  {/* 插入线：拖拽时只出现这一条 1px accent 线，不做缩放/阴影 */}
                   {activeId && overId === f.id && activeId !== f.id ? (
-                    <div style={{ height: 1, background: 'var(--app-accent)', margin: '1px 0' }} />
+                    <div style={{ height: 1, background: 'var(--accent)', margin: '1px 0' }} />
                   ) : null}
                   <FieldRow
                     field={f}
@@ -204,18 +205,16 @@ function FieldRow({
   })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    // 拖拽只跟手，不给回弹动画（TOKENS §6：禁止过冲/缩放入场）
+    // 拖拽只跟手，不给回弹动画（v3：只动颜色/边框/透明度/位移，200ms 内）
     transition: undefined,
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
     minHeight: 36,
-    // 含「选项」的字段行允许换行变高（36 是常态行高，不是硬顶）
-    padding: '4px 8px',
+    padding: '2px 8px',
     background: 'transparent',
-    borderRadius: 2,
-    borderBottom: '1px solid var(--app-rule)',
+    borderBottom: '1px solid var(--border-rule)',
     // 拖起来的那行只降低不透明度，其他视觉一律不变
     opacity: dragging ? 0.5 : 1,
   }
@@ -224,7 +223,7 @@ function FieldRow({
       <span
         {...attributes}
         {...listeners}
-        style={{ cursor: 'grab', color: 'var(--app-ink-faint)', width: 16, flexShrink: 0, display: 'inline-flex' }}
+        style={{ cursor: 'grab', color: 'var(--ink-faint)', width: 16, flexShrink: 0, display: 'inline-flex' }}
       >
         <HolderOutlined />
       </span>
@@ -249,7 +248,8 @@ function FieldRow({
           mode="tags"
           value={field.options}
           onChange={(v) => onChange({ options: v })}
-          style={{ flex: '1 1 140px', minWidth: 120 }}
+          // 选项多时独占第二行（order 10 让它排在开关之后），避免把「必填/显示」挤到第三行
+          style={{ order: 10, flex: '1 1 100%', minWidth: 0, marginLeft: 24 }}
           placeholder={t('lib.tpl.optionsPlaceholder')}
         />
       )}

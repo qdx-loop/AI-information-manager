@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Button } from 'antd'
+import { Button, Grid } from 'antd'
 import { InlineSkeleton } from '@/components/common/PageSkeleton'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
+import {
+  AppstoreOutlined,
+  ArrowRightOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  DeleteOutlined,
+  RobotOutlined,
+} from '@ant-design/icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAuthStore } from '@/store/authStore'
 import { gatherInsights, itemDisplayName, type InsightData } from '@/utils/insights'
@@ -10,8 +18,9 @@ import { getProvider } from '@/db/providerFactory'
 import type { Library } from '@/types'
 import { useI18n } from '@/i18n'
 import TemplateCenter from './TemplateCenter'
+import EmptyPanel from './EmptyPanel'
 
-/** 首页「最近修改」的一行：只保留渲染需要的字段，避免把整份 Item 拖进 state */
+/** 首页「最近动态」的一行：只保留渲染需要的字段，避免把整份 Item 拖进 state */
 interface RecentEntry {
   key: string
   itemId: string
@@ -22,7 +31,7 @@ interface RecentEntry {
 }
 
 /**
- * 最近修改的 10 条。
+ * 最近修改的 6 条。
  *
  * 首页要回答「最近动了什么」，而 `gatherInsights` 的返回（统计 + 提醒）里
  * 没有这一项，utils 层不在本任务的写入范围内，所以在组件侧单独读一次。
@@ -51,99 +60,76 @@ async function loadRecentItems(libraries: Library[]): Promise<RecentEntry[]> {
   return perLib
     .flat()
     .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, 10)
+    .slice(0, 6)
 }
 
-// 相对日期提示：已逾期 / 今天 / N 天后。
-// 不再用彩色 Tag 药丸——临期用「朱砂文字 + 6px 方点」，非临期用弱化等宽数字，
-// 时间和紧急度本就是提醒内容的一部分，不需要第三种颜色。
-function useDateTag() {
-  const t = useI18n()
-  return (at: number) => {
-    const now = dayjs().startOf('day')
-    const target = dayjs(at).startOf('day')
-    const diff = target.diff(now, 'day')
-    if (diff < 0)
-      return (
-        <span className="tag-dot" style={{ color: 'var(--app-danger)', justifyContent: 'flex-end' }}>
-          {t('dash.overdue', { n: -diff })}
-        </span>
-      )
-    if (diff === 0)
-      return (
-        <span className="tag-dot" style={{ color: 'var(--app-accent-text)', justifyContent: 'flex-end' }}>
-          {t('dash.today')}
-        </span>
-      )
-    return (
-      <span className="mono num faint" style={{ justifyContent: 'flex-end' }}>
-        {t('dash.inDays', { n: diff })}
-      </span>
-    )
-  }
+/** 千分位：KPI 数字要能一眼读出量级 */
+function fmt(n: number): string {
+  return n.toLocaleString('en-US')
 }
 
-/** 账页行：40px 高、只有一条横线、无卡片、无背景（账本的行） */
-const rowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  width: '100%',
-  height: 40,
-  padding: '0 4px',
-  margin: 0,
-  background: 'transparent',
-  border: 0,
-  borderBottom: '1px solid var(--app-rule)',
-  font: 'inherit',
-  textAlign: 'left',
-  color: 'inherit',
-  cursor: 'pointer',
+/** KPI 变化值的语义色：正向 is-up / 风险 is-down，其余中性（颜色由 CSS 负责） */
+function KpiCard({ label, value, delta, tone = 'muted' }: { label: string; value: string; delta: string; tone?: 'up' | 'down' | 'muted' }) {
+  const cls = tone === 'up' ? 'kpi-delta is-up' : tone === 'down' ? 'kpi-delta is-down' : 'kpi-delta'
+  return (
+    <div className="kpi-card">
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{value}</div>
+      <div className={cls}>{delta}</div>
+    </div>
+  )
 }
 
-/** 段标题行：40px，标题与右侧注脚同一基线（Lead 约定） */
-const sectionHeadStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'baseline',
-  justifyContent: 'space-between',
-  gap: 12,
-  minHeight: 40,
-  flexWrap: 'wrap',
+/** 列表行：div + role=button，样式全部交给 .card-row（含 hover/行线），避免内联覆盖 */
+function CardRow({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className="card-row"
+      style={{ minHeight: 44, padding: '0 20px' }}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+    >
+      {children}
+    </div>
+  )
 }
 
-export default function HomeDashboard() {
+export default function HomeDashboard({ onCreate }: { onCreate: () => void }) {
   const navigate = useNavigate()
   const t = useI18n()
+  const bp = Grid.useBreakpoint()
+  const narrow = !bp.md
   const libraries = useLibraryStore((s) => s.libraries)
   const dataVersion = useLibraryStore((s) => s.dataVersion)
   const focusItem = useLibraryStore((s) => s.focusItem)
-  const accountId = useAuthStore((s) => s.account?.id ?? '')
+  const account = useAuthStore((s) => s.account)
+  const accountId = account?.id ?? ''
   const [data, setData] = useState<InsightData | null>(null)
   const [recent, setRecent] = useState<RecentEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
   const [tplOpen, setTplOpen] = useState(false)
-  const dateTag = useDateTag()
 
   useEffect(() => {
     let alive = true
     setLoading(true)
     setError(null)
-    Promise.all([
-      gatherInsights(libraries, { accountId, dataVersion }),
-      loadRecentItems(libraries),
-    ])
+    Promise.all([gatherInsights(libraries, { accountId, dataVersion }), loadRecentItems(libraries)])
       .then(([d, r]) => {
         if (!alive) return
         setData(d)
         setRecent(r)
       })
-      // 原来这里是 `.catch(() => {})`：失败后 data 保持 null，
-      // 于是 Statistic 落到 `?? 0`，首页显示「0 条数据」，
-      // 提醒区显示「没有提醒」。用户完全看不出是加载失败，
-      // 只会以为自己的数据没了 —— 而数据其实好好地在本机。
-      // 失败必须说出来，并且能重试。
+      // 失败必须说出来，并且能重试：之前 `.catch(() => {})` 会让首页显示「0 条数据」，
+      // 用户以为数据丢了 —— 而数据其实好好地在本机。
       .catch((e: unknown) => {
         if (!alive) return
         setError(e instanceof Error ? e.message : String(e))
@@ -179,176 +165,227 @@ export default function HomeDashboard() {
     .sort((a, b) => a.at - b.at)
     .slice(0, 12)
 
+  const today = dayjs().startOf('day')
+  /** 距今天数：负数 = 已逾期 */
+  const daysLeft = (at: number): number => dayjs(at).startOf('day').diff(today, 'day')
+  const overdueCount = alerts.filter((a) => daysLeft(a.at) < 0).length
+
+  const totalItems = data?.totalItems ?? 0
+  const totalLibs = data?.totalLibs ?? libraries.length
+  const itemsThisWeek = data?.itemsThisWeek ?? 0
+  const subLibs = libraries.filter((l) => l.parentId).length
+  const perLib = totalLibs > 0 ? Math.round(totalItems / totalLibs) : 0
+
+  const todoRow = (a: (typeof alerts)[number]) => {
+    const diff = daysLeft(a.at)
+    // 剩余天数用 status-pill：已逾期 danger、今天/≤3 天 warning、其余中性
+    const pillCls = diff < 0 ? 'status-pill is-danger' : diff <= 3 ? 'status-pill is-warning' : 'status-pill'
+    const pillText =
+      diff < 0 ? t('dash.overdue', { n: -diff }) : diff === 0 ? t('dash.today') : t('dash.inDays', { n: diff })
+    return (
+      <CardRow
+        key={a.key}
+        onClick={() => {
+          focusItem(a.itemId)
+          navigate(`/library/${a.libId}`)
+        }}
+      >
+        <span className="mono tabular faint" style={{ fontSize: 'var(--text-xs)', flexShrink: 0, width: 84 }}>
+          {dayjs(a.at).format('YYYY-MM-DD')}
+        </span>
+        <span
+          style={{
+            flex: '1 1 auto',
+            minWidth: 0,
+            fontSize: 'var(--text-sm)',
+            fontWeight: 500,
+            color: 'var(--ink)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {a.title}
+        </span>
+        <span
+          className="faint"
+          style={{ fontSize: 'var(--text-2xs)', flexShrink: 0, maxWidth: '34%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {a.libName} · {a.sub}
+        </span>
+        <span className={pillCls} style={{ flexShrink: 0 }}>{pillText}</span>
+      </CardRow>
+    )
+  }
+
+  const recentRow = (r: RecentEntry) => (
+    <CardRow
+      key={r.key}
+      onClick={() => {
+        focusItem(r.itemId)
+        navigate(`/library/${r.libId}`)
+      }}
+    >
+      <span
+        style={{
+          flex: '1 1 auto',
+          minWidth: 0,
+          fontSize: 'var(--text-sm)',
+          fontWeight: 500,
+          color: 'var(--ink)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {r.title}
+      </span>
+      <span className="faint" style={{ fontSize: 'var(--text-2xs)', flexShrink: 0 }}>
+        {r.libName}
+      </span>
+      <span className="mono tabular faint" style={{ fontSize: 'var(--text-2xs)', flexShrink: 0, width: 88, textAlign: 'right', whiteSpace: 'nowrap' }}>
+        {dayjs(r.updatedAt).format('MM-DD HH:mm')}
+      </span>
+    </CardRow>
+  )
+
+  const quickActions = [
+    { key: 'tpl', icon: <AppstoreOutlined />, label: t('tpl.center.entry'), onClick: () => setTplOpen(true) },
+    { key: 'trash', icon: <DeleteOutlined />, label: t('lib.trash.title'), onClick: () => navigate('/trash') },
+    {
+      key: 'ai',
+      icon: <RobotOutlined />,
+      label: t('app.aiAssistant'),
+      onClick: () => window.dispatchEvent(new Event('open-ai-panel')),
+    },
+  ]
+
   return (
     <div>
-      {/*
-        指标条的上一版是 4 个 <Card>，再上一版是带图标前缀的 Statistic，
-        再上一版是三张卡片并排。这一版是**账目摘要行**：
-        标签 + 衬线大数字，1px 竖线分隔，没有外框、没有圆角、没有阴影、没有图标。
-        数字是账本上最先被扫读的东西，所以它用 34px 衬线 + tabular-nums。
-      */}
-      <div className="eyebrow" style={{ marginBottom: 8 }}>{t('dash.eyebrow')}</div>
-      <div className="stat-strip" style={{ marginBottom: 32 }}>
-        <div className="stat-cell">
-          <div className="stat-num">{loading ? '—' : data?.totalLibs ?? libraries.length}</div>
-          <div className="stat-label">{t('dash.stat.libs')}</div>
+      {/* 页头：24 标题 + 日期/说明 + 主操作（墨黑） */}
+      <div className="page-head">
+        <div className="page-head-main">
+          <h1 className="page-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {t('home.greeting', { name: account?.username ?? '' })}
+          </h1>
+          <p className="page-lede">
+            {dayjs().format('YYYY-MM-DD')} · {libraries.length > 0 ? t('home.pick') : t('home.empty')}
+          </p>
         </div>
-        <div className="stat-cell">
-          <div className="stat-num">{loading || error ? '—' : data?.totalItems ?? 0}</div>
-          <div className="stat-label">{t('dash.stat.items')}</div>
-        </div>
-        <div className="stat-cell">
-          <div className="stat-num">{loading || error ? '—' : data?.itemsThisWeek ?? 0}</div>
-          <div className="stat-label">{t('dash.stat.week')}</div>
+        <div className="page-head-actions">
+          <Button type="primary" onClick={onCreate}>{t('home.createFirst')}</Button>
         </div>
       </div>
 
-      {/* ———— 待办账目：一屏回答「今天要处理什么」 ———— */}
-      <section aria-labelledby="dash-todo" style={{ marginBottom: 32 }}>
-        <div style={sectionHeadStyle}>
-          <h2 id="dash-todo" className="page-title-sm">{t('dash.section.todo')}</h2>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-            <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>{t('dash.alerts.hint')}</span>
-            <button
-              type="button"
-              className="link-quiet"
-              style={{ fontSize: 'var(--text-xs)' }}
-              onClick={() => setTplOpen(true)}
-            >
-              {t('tpl.center.entry')}
-            </button>
-          </div>
-        </div>
-        <div className="rule" />
+      {/* KPI 白卡：24/600 tabular 数字 + 12 标签 + 变化值 */}
+      <div className="kpi-grid" style={{ marginBottom: 16 }}>
+        <KpiCard
+          label={t('dash.stat.items')}
+          value={loading || error ? '—' : fmt(totalItems)}
+          delta={t('dash.kpi.delta.week', { n: itemsThisWeek })}
+          tone="up"
+        />
+        <KpiCard
+          label={t('dash.stat.week')}
+          value={loading || error ? '—' : fmt(itemsThisWeek)}
+          delta={t('dash.kpi.delta.avg', { n: perLib })}
+        />
+        <KpiCard
+          label={t('dash.stat.libs')}
+          value={loading || error ? '—' : fmt(totalLibs)}
+          delta={t('dash.kpi.delta.subLibs', { n: subLibs })}
+        />
+        <KpiCard
+          label={t('dash.kpi.todo')}
+          value={loading || error ? '—' : fmt(alerts.length)}
+          delta={t('dash.kpi.delta.overdue', { n: overdueCount })}
+          tone={overdueCount > 0 ? 'down' : 'muted'}
+        />
+      </div>
 
-        {error ? (
-          // 错误态：文字 + 2px 朱砂立线，而不是 Alert 色块；再给一个「重试」出口
-          <div
-            style={{
-              borderLeft: '2px solid var(--app-danger)',
-              padding: '12px 0 12px 12px',
-              marginTop: 16,
-            }}
-          >
-            <div className="danger-text" style={{ fontSize: 'var(--text-base)' }}>{t('dash.loadFailed')}</div>
-            <div className="faint" style={{ fontSize: 'var(--text-xs)', marginTop: 4, wordBreak: 'break-all' }}>{error}</div>
-            <div style={{ marginTop: 12 }}>
-              <Button onClick={() => setRetryKey((n) => n + 1)}>{t('dash.retry')}</Button>
-            </div>
+      {/* 两栏：左「待办与临期」60%，右「最近动态 / 快捷入口」40% */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : 'minmax(0, 3fr) minmax(0, 2fr)',
+          gap: 16,
+          alignItems: 'start',
+        }}
+      >
+        <section className="card-list" aria-labelledby="home-todo">
+          <div className="card-list-head">
+            <h2 id="home-todo" className="card-list-title">{t('dash.todo.title')}</h2>
+            <span className="faint" style={{ fontSize: 'var(--text-2xs)' }}>{t('dash.alerts.hint')}</span>
           </div>
-        ) : loading ? (
-          <InlineSkeleton rows={4} />
-        ) : alerts.length === 0 ? (
-          // 空态：一句话（衬线 20）+ 一个动作
-          <div className="empty-state" style={{ padding: '28px 0 8px', textAlign: 'left' }}>
-            <div className="empty-state-title">{t('dash.alerts.empty')}</div>
-            <div className="empty-state-body">
-              {libraries.length === 0 ? t('dash.alerts.emptyNoLib') : t('dash.alerts.emptyHint')}
+          {error ? (
+            <div style={{ padding: 20 }}>
+              <div className="danger-text" style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{t('dash.loadFailed')}</div>
+              <div className="faint" style={{ fontSize: 'var(--text-2xs)', marginTop: 4, wordBreak: 'break-all' }}>{error}</div>
+              <Button style={{ marginTop: 12 }} onClick={() => setRetryKey((n) => n + 1)}>
+                {t('dash.retry')}
+              </Button>
             </div>
-            <div className="empty-state-actions">
-              <Button onClick={() => setTplOpen(true)}>{t('tpl.center.entry')}</Button>
+          ) : loading ? (
+            <div style={{ padding: 12 }}>
+              <InlineSkeleton rows={5} />
             </div>
+          ) : alerts.length === 0 ? (
+            <EmptyPanel
+              surface={false}
+              title={t('dash.alerts.empty')}
+              body={libraries.length === 0 ? t('dash.alerts.emptyNoLib') : t('dash.alerts.emptyHint')}
+              action={
+                libraries.length === 0 ? (
+                  <Button type="primary" onClick={onCreate}>{t('home.createFirst')}</Button>
+                ) : (
+                  <Button onClick={() => setTplOpen(true)}>{t('tpl.center.entry')}</Button>
+                )
+              }
+            />
+          ) : (
+            <div>{alerts.map(todoRow)}</div>
+          )}
+        </section>
+
+        <section className="card-list" aria-labelledby="home-recent">
+          <div className="card-list-head">
+            <h2 id="home-recent" className="card-list-title">{t('dash.recent.title')}</h2>
+            <CheckCircleOutlined style={{ fontSize: 16, color: 'var(--ink-faint)' }} aria-hidden />
           </div>
-        ) : (
+          {loading ? (
+            <div style={{ padding: 12 }}>
+              <InlineSkeleton rows={3} />
+            </div>
+          ) : recent.length === 0 ? (
+            <div className="faint" style={{ fontSize: 'var(--text-sm)', padding: '20px' }}>
+              {t('dash.recent.empty')}
+            </div>
+          ) : (
+            <div>{recent.map(recentRow)}</div>
+          )}
+
+          <div className="divider" style={{ margin: 0 }} />
+          <div className="card-list-head" style={{ paddingBottom: 8 }}>
+            <h2 className="card-list-title" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-faint)', fontWeight: 500 }}>
+              {t('dash.quick.title')}
+            </h2>
+          </div>
           <div>
-            {alerts.map((a) => (
-              <button
-                key={a.key}
-                type="button"
-                style={rowStyle}
-                onClick={() => {
-                  focusItem(a.itemId)
-                  navigate(`/library/${a.libId}`)
-                }}
-              >
-                <span
-                  className="mono num faint"
-                  style={{ fontSize: 'var(--text-xs)', flexShrink: 0, width: 88 }}
-                >
-                  {dayjs(a.at).format('YYYY-MM-DD')}
-                </span>
-                <span
-                  style={{
-                    fontSize: 'var(--text-base)',
-                    color: 'var(--app-ink)',
-                    flex: '1 1 auto',
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {a.title}
-                </span>
-                <span
-                  className="faint"
-                  style={{ fontSize: 'var(--text-xs)', flexShrink: 0, maxWidth: '30%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                >
-                  {a.libName} · {a.sub}
-                </span>
-                <span
-                  className="mono num"
-                  style={{ fontSize: 'var(--text-xs)', flexShrink: 0, width: 112, display: 'inline-flex', justifyContent: 'flex-end' }}
-                >
-                  {dateTag(a.at)}
-                </span>
-              </button>
+            {quickActions.map((q) => (
+              <CardRow key={q.key} onClick={q.onClick}>
+                <span style={{ fontSize: 16, display: 'inline-flex', color: 'var(--ink-faint)' }} aria-hidden>{q.icon}</span>
+                <span style={{ flex: '1 1 auto', fontSize: 'var(--text-sm)', color: 'var(--ink-muted)' }}>{q.label}</span>
+                <ArrowRightOutlined style={{ fontSize: 12, color: 'var(--ink-faint)' }} aria-hidden />
+              </CardRow>
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      </div>
 
-      {/* ———— 最近修改：行式列表，不带「查看全部」这类空入口 ———— */}
-      <section aria-labelledby="dash-recent">
-        <div style={sectionHeadStyle}>
-          <h2 id="dash-recent" className="page-title-sm">{t('dash.section.recent')}</h2>
-        </div>
-        <div className="rule" />
-        {loading || error ? (
-          loading ? <InlineSkeleton rows={3} /> : null
-        ) : recent.length === 0 ? (
-          <div className="faint" style={{ fontSize: 'var(--text-sm)', padding: '16px 0' }}>
-            {t('dash.recent.empty')}
-          </div>
-        ) : (
-          <div>
-            {recent.map((r) => (
-              <button
-                key={r.key}
-                type="button"
-                style={rowStyle}
-                onClick={() => {
-                  focusItem(r.itemId)
-                  navigate(`/library/${r.libId}`)
-                }}
-              >
-                <span className="mono num faint" style={{ fontSize: 'var(--text-xs)', flexShrink: 0, width: 88 }}>
-                  {dayjs(r.updatedAt).format('YYYY-MM-DD')}
-                </span>
-                <span
-                  style={{
-                    fontSize: 'var(--text-base)',
-                    color: 'var(--app-ink)',
-                    flex: '1 1 auto',
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {r.title}
-                </span>
-                <span
-                  className="faint"
-                  style={{ fontSize: 'var(--text-xs)', flexShrink: 0, maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                >
-                  {r.libName}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+      <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <ClockCircleOutlined style={{ fontSize: 12, color: 'var(--ink-faint)' }} aria-hidden />
+        <span className="faint" style={{ fontSize: 'var(--text-2xs)' }}>{t('home.tip')}</span>
+      </div>
 
       <TemplateCenter open={tplOpen} onClose={() => setTplOpen(false)} />
     </div>

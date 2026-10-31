@@ -20,8 +20,8 @@ import CreateLibraryDialog from './CreateLibraryDialog'
  * 现在点开是这个底部抽屉：完整库树 + 当前库高亮 + 就地新建。
  * 「主目的地一个都不许藏」是当初引入底栏的理由，切库就不该再藏回抽屉里。
  *
- * 视觉：一行一个库（40px、只有横线），当前库 = 2px 朱砂左线 + wash 底，
- * 不做圆角卡片、不做药丸、不放图标（库列表不需要图标）。
+ * 视觉（v3）：一行一个库（44px、白卡列表行），当前库 = 3px accent 左条 + accent-wash 底；
+ * 不做药丸、不放图标（库列表不需要图标）。
  */
 export default function LibraryPickerSheet({
   open,
@@ -92,7 +92,7 @@ export default function LibraryPickerSheet({
           className="libpicker-catcher"
           onClick={onClose}
           aria-hidden
-          style={{ position: 'fixed', inset: 0, zIndex: 869, background: 'var(--app-overlay)' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 869, background: 'var(--bg-overlay)' }}
         />
       )}
       <Drawer
@@ -118,7 +118,8 @@ export default function LibraryPickerSheet({
           <>
             {groups.map(([cat, rows]) => (
               <div key={cat} style={{ marginBottom: 12 }}>
-                <div className="eyebrow" style={{ padding: '4px 6px 6px' }}>{cat}</div>
+                <div className="eyebrow" style={{ padding: '4px 4px 8px' }}>{cat}</div>
+                <div className="surface-card" style={{ overflow: 'hidden' }}>
                 {rows.map(({ lib, depth }) => {
                   const on = currentLibraryId === lib.id || location.pathname === `/library/${lib.id}`
                   return (
@@ -132,15 +133,15 @@ export default function LibraryPickerSheet({
                         alignItems: 'center',
                         gap: 10,
                         width: '100%',
-                        minHeight: 40,
-                        padding: `4px 10px 4px ${10 + depth * 16}px`,
+                        minHeight: 44,
+                        padding: `8px 12px 8px ${12 + depth * 16}px`,
                         margin: 0,
-                        // 账页行：只有横线，选中用 2px 朱砂左线 + wash 底，不做整行反白
+                        // v3 列表行：白卡内 1px 行线，选中 = accent-wash 底 + 左侧 3px accent 条
                         border: 0,
-                        borderBottom: '1px solid var(--app-rule)',
-                        borderLeft: on ? '2px solid var(--app-accent)' : '2px solid transparent',
+                        borderBottom: '1px solid var(--border-rule)',
+                        borderLeft: on ? '3px solid var(--accent)' : '3px solid transparent',
                         borderRadius: 0,
-                        background: on ? 'var(--app-accent-wash)' : 'transparent',
+                        background: on ? 'var(--accent-wash)' : 'transparent',
                         font: 'inherit',
                         textAlign: 'left',
                         cursor: 'pointer',
@@ -162,6 +163,7 @@ export default function LibraryPickerSheet({
                     </button>
                   )
                 })}
+                </div>
               </div>
             ))}
             <Button type="primary" block onClick={() => setCreating(true)} style={{ marginTop: 4 }}>

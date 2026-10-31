@@ -1,5 +1,12 @@
 import { Tooltip } from 'antd'
-import { PhoneOutlined, MailOutlined, LinkOutlined } from '@ant-design/icons'
+import {
+  PhoneOutlined,
+  MailOutlined,
+  LinkOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  StarOutlined,
+} from '@ant-design/icons'
 import type { FieldDef, FieldValue } from '@/types'
 import { isAndroidApp } from '@/utils/platform'
 import { tNow } from '@/i18n'
@@ -27,7 +34,7 @@ export function detectSmartLink(value: string): SmartLink | null {
 // 只保留线性（Outlined）图标：Filled/TwoTone 是「AI 味」的第二来源（01-ui-research §H）
 const ICONS = { phone: <PhoneOutlined />, mail: <MailOutlined />, link: <LinkOutlined /> }
 
-const DASH = <span className="faint">-</span>
+const DASH = <span className="faint">—</span>
 
 /** 空值统一占位，避免表格里出现一片空白 */
 function isEmpty(v: FieldValue): boolean {
@@ -42,16 +49,25 @@ function isEmpty(v: FieldValue): boolean {
  * 现在先按字段类型渲染（复选→是/否、评分→星级、日期→格式化），
  * 文本类再走链接识别，桌面表格 / 移动卡片 / 条目标题三处口径统一。
  *
- * 账页语言：所有数字/日期/ID 走 `.mono num`（等宽 + tabular-nums），
- * 纵向扫读时数位不跳；状态不再用彩色图标（原来 是/否 用的 CheckCircleFilled
- * 是 Filled 图标，且绿色会引入第三种色相），改为文字 + 墨阶。
+ * v3 语言：数字/日期/ID 走 `.mono num`（等宽 + tabular-nums），纵向扫读不跳；
+ * 布尔值用线性图标 + 文字（成功/中性色），评分用 StarOutlined（禁止 Filled 图标），
+ * 链接继承 accent 色。所有颜色/字号来自 token，不写死。
  */
 export default function SmartValue({ field, value }: { field: FieldDef; value: FieldValue }) {
   if (field.type === 'checkbox') {
     if (isEmpty(value)) return DASH
+    if (value) {
+      return (
+        <span style={{ color: 'var(--success)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <CheckOutlined style={{ fontSize: 14 }} />
+          {tNow('field.yes')}
+        </span>
+      )
+    }
     return (
-      <span className={value ? undefined : 'faint'} style={{ color: value ? 'var(--app-ink)' : undefined }}>
-        {value ? tNow('field.yes') : tNow('field.no')}
+      <span className="faint" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <CloseOutlined style={{ fontSize: 14 }} />
+        {tNow('field.no')}
       </span>
     )
   }
@@ -60,11 +76,12 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
     if (isEmpty(value)) return DASH
     const n = Math.max(0, Math.min(5, Number(value) || 0))
     if (n === 0) return <span className="faint">{tNow('field.no')}</span>
-    // ★ 是账簿里的「钉」不是 emoji；填满的星走朱砂，空星走 faint
+    // 只允许 Outlined 图标：用 5 个 StarOutlined 表示评分，填满的走 accent，空星走 faint
     return (
-      <span className="mono num" style={{ color: 'var(--app-accent)', letterSpacing: 1 }}>
-        {'★'.repeat(n)}
-        <span className="faint">{'★'.repeat(5 - n)}</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: 'var(--accent)' }} aria-label={tNow('field.stars', { n: String(n) })}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <StarOutlined key={i} style={{ fontSize: 13, color: i < n ? 'var(--accent)' : 'var(--border-strong)' }} />
+        ))}
       </span>
     )
   }
@@ -96,7 +113,7 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
               window.open(link.href, '_self')
             }
           }}
-          style={{ wordBreak: 'break-all' }}
+          style={{ wordBreak: 'break-all', color: 'var(--accent)' }}
         >
           {ICONS[link.icon]} {str}
         </a>

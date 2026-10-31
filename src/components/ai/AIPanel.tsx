@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { Input, App, Upload, Dropdown } from 'antd'
-import { SendOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { Input, Button, App, Upload, Dropdown } from 'antd'
+import { SendOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, PlusOutlined, DeleteOutlined, MessageOutlined, DownOutlined, UndoOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
 import { useAiUiStore } from '@/store/aiUiStore'
 import { useAuthStore } from '@/store/authStore'
-import { markObStep } from '@/utils/onboarding'
 import {
   listSessions,
   newSession,
@@ -56,28 +55,16 @@ import ConfirmActionModal from './ConfirmActionModal'
 import ConfirmLibActionModal from './ConfirmLibActionModal'
 
 /**
- * 字号只引用 TOKENS §3 的档位；`--text-*` 由 Lead 在 theme 注入，
- * 这里带 px 兜底值，避免变量未就绪时字号掉回浏览器默认 16px 之外的意外值。
+ * 字阶只引用 TOKENS-v3 §2.4 的档位（12/13/14/16/20），全部走 CSS 变量；
+ * 行高按契约写死比例（1.4/1.45/1.5/1.7/1.35），避免继承到外部 line-height。
  */
 const T = {
-  md: 'var(--text-md, 16px)',
-  base: 'var(--text-base, 14px)',
-  sm: 'var(--text-sm, 13px)',
-  xs: 'var(--text-xs, 12px)',
-  xxs: 'var(--text-2xs, 11px)',
+  base: 'var(--text-base)',
+  sm: 'var(--text-sm)',
+  xs: 'var(--text-xs)',
+  xxs: 'var(--text-2xs)',
+  lg: 'var(--text-lg)',
 }
-
-/** 顶栏/输入区的文字按钮：无底色、无边框，只靠颜色与字重区分 */
-const textButton = {
-  background: 'transparent',
-  border: 'none',
-  padding: '0 6px',
-  height: 24,
-  fontSize: T.xs,
-  lineHeight: '24px',
-  color: 'var(--app-ink-soft)',
-  cursor: 'pointer',
-} as const
 
 interface UndoInfo {
   label: string
@@ -337,7 +324,6 @@ export default function AIPanel() {
 
     setInput('')
     track('ai_message_sent')
-    if (account) markObStep(account.id, 'ai')
     const userMsg: UIMessage = { role: 'user', content: fullText }
     const assistantMsg: UIMessage = { role: 'assistant', content: '', pending: true }
     setMessages((m) => [...m, userMsg, assistantMsg])
@@ -1353,7 +1339,7 @@ export default function AIPanel() {
   }, [undoStack, undoBusy, message])
 
   // 渲染消息内容：把 (id=xxx) 转成可点击的行内条目引用；assistant 消息按 markdown 渲染。
-  // 改版要点：条目引用不再用彩色 Tag（那是「卡片/胶囊」语汇），改成朱砂文字 + 点线下划线。
+  // 条目引用用 accent 色 + 等宽字，替代 v2 的彩色 Tag（v3 只允许一个强调色）。
   const renderContent = (text: string, contexts: LibraryContext[] | null, isAssistant = false) => {
     if (!text) return null
     const parts = text.split(/(\(id=[^)]+\))/g)
@@ -1378,15 +1364,12 @@ export default function AIPanel() {
               style={{
                 border: 'none',
                 background: 'transparent',
-                padding: '0 2px',
-                color: 'var(--app-accent-text)',
+                padding: 0,
+                color: 'var(--accent)',
                 fontFamily: 'var(--font-mono)',
                 fontVariantNumeric: 'tabular-nums',
-                fontSize: '0.86em',
+                fontSize: '0.88em',
                 cursor: 'pointer',
-                textDecorationLine: 'underline',
-                textDecorationStyle: 'dotted',
-                textUnderlineOffset: 3,
               }}
             >
               {summary.slice(0, 12) || itemId.slice(0, 6)}
@@ -1396,8 +1379,6 @@ export default function AIPanel() {
       }
       if (!part) return null
       if (isAssistant) {
-        // `.ai-md` 由 Lead 的全局排版样式接管正文（16/1.75、段间距）；
-        // 这里不回退成聊天气泡的 maxWidth/底色。
         return (
           <div key={i} className="ai-md">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{part}</ReactMarkdown>
@@ -1411,8 +1392,7 @@ export default function AIPanel() {
   // 缓存最近一次上下文供 renderContent 用（在 handleSend 中更新）
   const lastContextsRef = useRef<LibraryContext[] | null>(null)
 
-  // 执行步骤：一行「已核对 N 步 ▾」，展开是 01/02/03 的编号小字。
-  // 旧实现用 antd Collapse + emoji 文案，看起来像聊天组件而不是批注。
+  // 执行步骤：一行 13 muted 折叠行（chevron），展开为 12 mono 编号列表。
   const toggleSteps = (idx: number) => {
     setOpenedSteps((prev) => {
       const next = new Set(prev)
@@ -1422,18 +1402,23 @@ export default function AIPanel() {
     })
   }
 
-  // ⌘/Ctrl+Enter 发送；Enter 直接发送、Shift+Enter 换行（保留原有的粘贴 Excel 场景）
   const handleComposerKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
     e.preventDefault()
     void handleSend()
   }
 
+  // 运行中文案：新 i18n key 尚未落库时先用约定文案兜底，key 上线后自动切走。
+  // （key 已报给 Lead，由 frontend-analyst 落 src/i18n/index.ts）
+  const runningKey = 'ai.runningChecking'
+  const runningText = t(runningKey)
+  const runningLabel = runningText === runningKey ? '正在核对…' : runningText
+
   const renderSteps = (m: UIMessage, idx: number) => {
     if (!m.steps || m.steps.length === 0) return null
     const open = openedSteps.has(idx)
     return (
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 'var(--space-3)' }}>
         <button
           type="button"
           aria-expanded={open}
@@ -1442,45 +1427,41 @@ export default function AIPanel() {
             background: 'transparent',
             border: 'none',
             padding: 0,
-            height: 20,
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
             fontSize: T.xs,
-            lineHeight: '20px',
-            color: 'var(--app-ink-faint)',
+            lineHeight: 1.45,
+            color: 'var(--ink-muted)',
             cursor: 'pointer',
           }}
         >
           <span>{t('ai.steps.summary', { n: m.steps.length })}</span>
-          <span
-            aria-hidden
+          <DownOutlined
             style={{
               fontSize: 10,
               transform: open ? 'rotate(180deg)' : 'none',
-              transition: 'transform 160ms cubic-bezier(.2,.7,.2,1)',
+              transition: 'transform 160ms var(--ease-std, ease)',
             }}
-          >
-            ▾
-          </span>
+          />
         </button>
         {open && (
-          <ol style={{ margin: '8px 0 0', padding: 0, listStyle: 'none' }}>
+          <ol style={{ margin: 'var(--space-2) 0 0', padding: 0, listStyle: 'none' }}>
             {m.steps.map((s, si) => (
               <li
                 key={si}
                 style={{
                   display: 'flex',
-                  gap: 8,
-                  padding: '1px 0',
-                  fontSize: T.xs,
-                  lineHeight: 1.6,
-                  color: 'var(--app-ink-soft)',
+                  gap: 'var(--space-2)',
+                  padding: '2px 0',
+                  fontSize: T.xxs,
+                  lineHeight: 1.4,
+                  color: 'var(--ink-muted)',
                 }}
               >
                 <span
-                  className="mono num"
-                  style={{ minWidth: 18, color: 'var(--app-ink-faint)', fontSize: T.xxs }}
+                  className="mono"
+                  style={{ minWidth: 18, color: 'var(--ink-faint)', fontVariantNumeric: 'tabular-nums' }}
                 >
                   {String(si + 1).padStart(2, '0')}
                 </span>
@@ -1493,45 +1474,23 @@ export default function AIPanel() {
     )
   }
 
-  // 运行态：12px 文字 + 2px 朱砂短条（静态，不闪不呼吸）。
-  // TOKENS §6 禁止无限循环动画，`.clerk-run` 的外观由 Lead 的全局 CSS 定义。
-  const runningLine = (
-    <div style={{ margin: '4px 0 20px' }} aria-live="polite">
-      <div style={{ fontSize: T.xs, color: 'var(--app-ink-faint)', marginBottom: 6 }}>
-        {t('ai.running')}
-      </div>
-      <div
-        role="progressbar"
-        aria-label={t('ai.running')}
-        style={{ height: 2, background: 'var(--app-rule)', overflow: 'hidden' }}
-      >
-        <div
-          className="clerk-run"
-          style={{ height: 2, width: '32%', background: 'var(--app-accent)' }}
-        />
-      </div>
-    </div>
-  )
-
   if (!aiConfigured) {
     return (
-      // 说明文字是长句，必须是块级并限宽，否则在停靠面板里会横向溢出被裁掉
-      <div style={{ padding: '24px 20px', height: '100%', minWidth: 0, overflow: 'auto' }}>
-        <div
-          className="serif"
-          style={{ fontSize: 20, lineHeight: 1.4, color: 'var(--app-ink)', marginBottom: 10 }}
-        >
-          {t('ai.notConfigured')}
-        </div>
-        <div
-          style={{
-            maxWidth: 320,
-            lineHeight: 1.75,
-            fontSize: T.sm,
-            color: 'var(--app-ink-faint)',
-          }}
-        >
-          {t('ai.notConfiguredHint')}
+      // 未配置态：面板内白卡 + 空状态版式（v3 禁止无表面的裸内容区）
+      <div
+        style={{
+          height: '100%',
+          minWidth: 0,
+          overflow: 'auto',
+          background: 'var(--bg-surface)',
+          padding: 'var(--space-4)',
+        }}
+      >
+        <div className="surface-card empty-state" style={{ padding: 'var(--space-6)' }}>
+          <div className="empty-state-title">{t('ai.notConfigured')}</div>
+          <div className="empty-state-body" style={{ marginTop: 'var(--space-2)', lineHeight: 1.6 }}>
+            {t('ai.notConfiguredHint')}
+          </div>
         </div>
       </div>
     )
@@ -1539,22 +1498,51 @@ export default function AIPanel() {
 
   return (
     <AutoConfirmContext.Provider value={{ alwaysAllowFor: alwaysAllow, setAlwaysAllowFor }}>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
-        {/* 顶部 40px 工具栏：衬线 16「书记员」+ 会话/清空文字按钮 */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minWidth: 0,
+          background: 'var(--bg-surface)',
+        }}
+      >
+        {/* 头部 52px：白底 + 底边线；标题 14/600 + 状态点；右侧图标按钮（会话/清空） */}
         <div
           style={{
-            height: 40,
+            height: 52,
             flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            padding: '0 12px',
-            borderBottom: '1px solid var(--app-rule)',
+            gap: 'var(--space-2)',
+            padding: '0 var(--space-3) 0 var(--space-4)',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--bg-surface)',
           }}
         >
-          <span className="serif" style={{ fontSize: 16, lineHeight: '40px', color: 'var(--app-ink)' }}>
-            {t('ai.clerk')}
+          <span
+            style={{
+              fontSize: T.sm,
+              fontWeight: 600,
+              lineHeight: 1.5,
+              color: 'var(--ink)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {t('app.aiAssistant')}
           </span>
+          {/* 状态点：运行中 accent，空闲用弱边框色（不闪烁、不呼吸） */}
+          <span
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              flexShrink: 0,
+              background: loading ? 'var(--accent)' : 'var(--border-strong)',
+              transition: 'background 80ms linear',
+            }}
+          />
           <span style={{ flex: 1, minWidth: 0 }} />
           <Dropdown
             open={sessionSwitcherOpen}
@@ -1570,7 +1558,7 @@ export default function AIPanel() {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: 8,
+                        gap: 'var(--space-2)',
                         minWidth: 180,
                       }}
                     >
@@ -1593,9 +1581,16 @@ export default function AIPanel() {
                           e.stopPropagation()
                           removeSession(s.id)
                         }}
-                        style={{ ...textButton, padding: '0 2px', height: 20, color: 'var(--app-ink-faint)' }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          padding: 2,
+                          height: 20,
+                          color: 'var(--ink-faint)',
+                          cursor: 'pointer',
+                        }}
                       >
-                        <DeleteOutlined style={{ fontSize: 12 }} />
+                        <DeleteOutlined style={{ fontSize: 14 }} />
                       </button>
                     </div>
                   ),
@@ -1605,7 +1600,7 @@ export default function AIPanel() {
                   key: '__new__',
                   label: (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: T.xs }}>
-                      <PlusOutlined style={{ fontSize: 12 }} />
+                      <PlusOutlined style={{ fontSize: 14 }} />
                       {t('ai.session.new')}
                     </span>
                   ),
@@ -1617,29 +1612,20 @@ export default function AIPanel() {
               },
             }}
           >
-            <button
-              type="button"
-              style={textButton}
-              title={t('ai.session.switch')}
+            <Button
+              type="text"
               aria-label={t('ai.session.switch')}
-            >
-              <span
-                style={{
-                  maxWidth: 96,
-                  display: 'inline-block',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  verticalAlign: 'bottom',
-                }}
-              >
-                {sessions.find((s) => s.id === sessionId)?.title || t('ai.session.untitled')}
-              </span>
-            </button>
+              title={t('ai.session.switch')}
+              icon={<MessageOutlined />}
+              style={{ width: 32, height: 32, color: 'var(--ink-muted)' }}
+            />
           </Dropdown>
-          <button
-            type="button"
-            // 一键抹掉整段对话必须确认；图标换成文字，避免纯图标按钮承载破坏性操作
+          <Button
+            type="text"
+            aria-label={t('ai.session.clear')}
+            title={t('ai.session.clear')}
+            icon={<DeleteOutlined />}
+            style={{ width: 32, height: 32, color: 'var(--ink-muted)' }}
             onClick={() =>
               modal.confirm({
                 title: t('ai.session.clearTitle'),
@@ -1650,48 +1636,56 @@ export default function AIPanel() {
                 onOk: handleClear,
               })
             }
-            style={textButton}
-            aria-label={t('ai.session.clear')}
-            title={t('ai.session.clear')}
-          >
-            {t('ai.session.clear')}
-          </button>
+          />
         </div>
 
-        {/* 主体 = 一篇文档：用户输入左侧朱砂立线，AI 输出正文；没有气泡与头像 */}
+        {/* 运行中：顶部 2px accent 静态条（非无限动画）+ 13px「正在核对…」 */}
         <div
-          ref={scrollRef}
-          className="doc"
-          style={{ flex: 1, overflow: 'auto', padding: '20px 16px 4px', minWidth: 0 }}
-        >
+          aria-hidden={!loading}
+          style={{
+            height: 2,
+            flexShrink: 0,
+            background: loading ? 'var(--accent)' : 'transparent',
+            transition: 'background 140ms var(--ease-std, ease)',
+          }}
+        />
+        {loading && (
+          <div
+            aria-live="polite"
+            style={{
+              flexShrink: 0,
+              padding: 'var(--space-2) var(--space-4) 0',
+              fontSize: T.xs,
+              lineHeight: 1.45,
+              color: 'var(--ink-muted)',
+            }}
+          >
+            {runningLabel}
+          </div>
+        )}
+
+        {/* 主体：白面消息流。用户消息右对齐浅灰圆角块，AI 输出无底色正文。 */}
+        <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', padding: 'var(--space-4)', minWidth: 0 }}>
           {messages.length === 0 ? (
-            <div className="empty-state" style={{ paddingTop: 24, maxWidth: 320 }}>
-              <div
-                className="serif"
-                style={{ fontSize: 20, lineHeight: 1.4, color: 'var(--app-ink)', marginBottom: 10 }}
-              >
-                {t('ai.clerk')}
-              </div>
-              <div style={{ fontSize: T.sm, lineHeight: 1.75, color: 'var(--app-ink-faint)' }}>
+            <div className="surface-card empty-state" style={{ padding: 'var(--space-6)' }}>
+              <div className="empty-state-title">{t('app.aiAssistant')}</div>
+              <div className="empty-state-body" style={{ marginTop: 'var(--space-2)', lineHeight: 1.6 }}>
                 {t('ai.emptyHint')}
               </div>
             </div>
           ) : (
             messages.map((m, i) =>
               m.role === 'user' ? (
-                <div
-                  key={i}
-                  style={{
-                    borderLeft: '2px solid var(--app-accent)',
-                    paddingLeft: 12,
-                    marginBottom: 20,
-                  }}
-                >
+                <div key={i} style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-4)' }}>
                   <div
                     style={{
-                      fontSize: T.base,
-                      lineHeight: 1.6,
-                      color: 'var(--app-ink)',
+                      maxWidth: '85%',
+                      background: 'var(--bg-sunken)',
+                      borderRadius: 'var(--r-2)',
+                      padding: 'var(--space-2) var(--space-3)',
+                      fontSize: T.sm,
+                      lineHeight: 1.5,
+                      color: 'var(--ink)',
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
                     }}
@@ -1700,14 +1694,15 @@ export default function AIPanel() {
                   </div>
                 </div>
               ) : (
-                <div key={i} style={{ marginBottom: 24, minWidth: 0 }}>
+                <div key={i} style={{ marginBottom: 'var(--space-5)', minWidth: 0 }}>
                   {renderSteps(m, i)}
                   {m.content ? (
                     <div
+                      className="ai-md"
                       style={{
-                        fontSize: T.md,
-                        lineHeight: 1.75,
-                        color: 'var(--app-ink)',
+                        fontSize: T.base,
+                        lineHeight: 1.7,
+                        color: 'var(--ink)',
                         wordBreak: 'break-word',
                       }}
                     >
@@ -1720,10 +1715,10 @@ export default function AIPanel() {
                       type="button"
                       onClick={() => setChartPayload(m.chart as ChartPayload)}
                       style={{
-                        marginTop: 10,
+                        marginTop: 'var(--space-3)',
                         display: 'flex',
                         alignItems: 'baseline',
-                        gap: 8,
+                        gap: 'var(--space-2)',
                         flexWrap: 'wrap',
                         background: 'transparent',
                         border: 'none',
@@ -1732,18 +1727,10 @@ export default function AIPanel() {
                         textAlign: 'left',
                       }}
                     >
-                      <span
-                        style={{
-                          fontSize: T.base,
-                          color: 'var(--app-ink)',
-                          textDecorationLine: 'underline',
-                          textDecorationStyle: 'dotted',
-                          textUnderlineOffset: 3,
-                        }}
-                      >
+                      <span style={{ fontSize: T.sm, lineHeight: 1.5, color: 'var(--accent)' }}>
                         {m.chart.title}
                       </span>
-                      <span className="mono" style={{ fontSize: T.xxs, color: 'var(--app-ink-faint)' }}>
+                      <span className="mono" style={{ fontSize: T.xxs, color: 'var(--ink-faint)' }}>
                         {t('ai.chart.thumbHint')}
                       </span>
                     </button>
@@ -1752,60 +1739,53 @@ export default function AIPanel() {
               ),
             )
           )}
-          {loading && runningLine}
         </div>
 
-        {/* 输入区：32px 输入条 + 墨色发送键；撤回栈入口放在输入条上方右侧 */}
+        {/* 输入区：白底 + 顶线；输入 36、发送 32×32 墨黑、附件图标 */}
         <div
           style={{
             flexShrink: 0,
-            borderTop: '1px solid var(--app-rule)',
-            padding: '8px 12px 10px',
+            borderTop: '1px solid var(--border)',
+            background: 'var(--bg-surface)',
+            padding: 'var(--space-3) var(--space-3) var(--space-3) var(--space-4)',
           }}
         >
           {undoStack.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
-              <button
-                type="button"
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-2)' }}>
+              <Button
+                type="text"
+                size="small"
                 disabled={undoBusy}
                 onClick={() => void handleUndoLast()}
-                style={{
-                  ...textButton,
-                  height: 20,
-                  lineHeight: '20px',
-                  fontSize: T.xs,
-                  color: 'var(--app-ink-soft)',
-                  opacity: undoBusy ? 0.38 : 1,
-                  cursor: undoBusy ? 'not-allowed' : 'pointer',
-                }}
+                icon={<UndoOutlined />}
+                style={{ fontSize: T.xs, color: 'var(--ink-muted)', paddingInline: 6 }}
               >
                 {t('ai.undo.last')}
-                {undoStack[undoStack.length - 1]?.label
-                  ? ` · ${undoStack[undoStack.length - 1].label}`
-                  : ''}
-              </button>
+              </Button>
             </div>
           )}
           {attachments.length > 0 && (
-            <div style={{ marginBottom: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ marginBottom: 'var(--space-2)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
               {attachments.map((a) => (
                 <span
                   key={a.id}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 4,
+                    gap: 6,
                     fontSize: T.xs,
-                    color: 'var(--app-ink-soft)',
-                    border: '1px solid var(--app-border)',
-                    borderRadius: 2,
+                    lineHeight: 1.45,
+                    color: 'var(--ink-muted)',
+                    background: 'var(--bg-sunken)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--r-1)',
                     padding: '2px 6px',
                   }}
                 >
                   {a.kind === 'image' ? (
-                    <PictureOutlined style={{ fontSize: 12 }} />
+                    <PictureOutlined style={{ fontSize: 14 }} />
                   ) : (
-                    <FileTextOutlined style={{ fontSize: 12 }} />
+                    <FileTextOutlined style={{ fontSize: 14 }} />
                   )}
                   <span
                     style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
@@ -1816,15 +1796,22 @@ export default function AIPanel() {
                     type="button"
                     aria-label={t('common.close')}
                     onClick={() => setAttachments((p) => p.filter((x) => x.id !== a.id))}
-                    style={{ ...textButton, height: 16, lineHeight: '16px', padding: 0 }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      padding: 0,
+                      height: 16,
+                      color: 'var(--ink-faint)',
+                      cursor: 'pointer',
+                    }}
                   >
-                    <CloseOutlined style={{ fontSize: 10 }} />
+                    <CloseOutlined style={{ fontSize: 12 }} />
                   </button>
                 </span>
               ))}
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <Upload
               accept="*/*"
               showUploadList={false}
@@ -1844,26 +1831,16 @@ export default function AIPanel() {
                 return false
               }}
             >
-              <button
-                type="button"
-                title={t('ai.upload.tooltip')}
+              <Button
+                type="text"
+                icon={<PaperClipOutlined />}
                 aria-label={t('ai.upload.tooltip')}
-                style={{
-                  ...textButton,
-                  width: 32,
-                  height: 32,
-                  display: 'grid',
-                  placeItems: 'center',
-                  padding: 0,
-                  color: parsingFile ? 'var(--app-ink-faint)' : 'var(--app-ink-soft)',
-                  opacity: parsingFile ? 0.38 : 1,
-                }}
-              >
-                <PaperClipOutlined style={{ fontSize: 16 }} />
-              </button>
+                title={t('ai.upload.tooltip')}
+                loading={parsingFile}
+                style={{ width: 32, height: 32, color: 'var(--ink-muted)' }}
+              />
             </Upload>
-            {/* 必须保留多行：占位符宣传的是「粘贴 Excel 交给 AI 录入」，
-                单行输入会把粘贴来的 20 行压成一行。视觉上仍是 32px 输入条。 */}
+            {/* 保留多行：占位符宣传「粘贴 Excel 交给 AI 录入」，视觉上仍是 36px 输入条 */}
             <Input.TextArea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -1873,60 +1850,47 @@ export default function AIPanel() {
               autoSize={{ minRows: 1, maxRows: 5 }}
               style={{
                 flex: 1,
-                minHeight: 32,
-                padding: '5px 8px',
+                minHeight: 36,
+                padding: '7px 10px',
                 fontSize: T.sm,
-                lineHeight: 1.6,
-                background: 'transparent',
-                border: '1px solid var(--app-border)',
-                borderRadius: 2,
+                lineHeight: 1.5,
+                background: 'var(--bg-sunken)',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 'var(--r-2)',
                 boxShadow: 'none',
                 resize: 'none',
               }}
               aria-label={t('ai.inputPlaceholder')}
             />
-            <button
-              type="button"
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
               onClick={() => void handleSend()}
               disabled={!input.trim() || loading}
               aria-label={t('ai.send')}
               title={t('ai.send')}
-              style={{
-                width: 32,
-                height: 32,
-                flexShrink: 0,
-                display: 'grid',
-                placeItems: 'center',
-                borderRadius: 4,
-                border: '1px solid transparent',
-                background: !input.trim() || loading ? 'var(--app-border)' : 'var(--app-action)',
-                color: 'var(--app-canvas)',
-                cursor: !input.trim() || loading ? 'not-allowed' : 'pointer',
-              }}
-            >
-              <SendOutlined style={{ fontSize: 14 }} />
-            </button>
+              style={{ width: 32, height: 32, padding: 0, borderRadius: 'var(--r-2)' }}
+            />
           </div>
+          {/* 运行状态只出现在头部下方（2px accent 条 + 13px 文案），这里只放「停止」 */}
           <div
             style={{
-              marginTop: 6,
-              minHeight: 16,
+              marginTop: 'var(--space-1)',
+              minHeight: 18,
               display: 'flex',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               alignItems: 'center',
             }}
           >
-            <span style={{ fontSize: T.xxs, color: 'var(--app-ink-faint)' }}>
-              {loading ? t('ai.running') : ''}
-            </span>
             {loading && (
-              <button
-                type="button"
+              <Button
+                type="text"
+                size="small"
                 onClick={handleStop}
-                style={{ ...textButton, height: 16, lineHeight: '16px', fontSize: T.xs }}
+                style={{ fontSize: T.xs, color: 'var(--ink-muted)' }}
               >
                 {t('ai.stop')}
-              </button>
+              </Button>
             )}
           </div>
         </div>

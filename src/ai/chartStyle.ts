@@ -79,7 +79,7 @@ export function readChartTokens(dark: boolean): ChartTokens {
     // 图表文字跟随应用的系统字链（不再引用 Plus Jakarta Sans：它既未随包分发，
     // 也不在用户的系统字体里，写了等于静默回退）。中文由系统黑体渲染，数字用 tabular。
     font:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif",
+      "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
   }
 }
 

@@ -1,6 +1,6 @@
 import { Table, Button, Tooltip, Pagination } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, StarOutlined } from '@ant-design/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FieldDef, FieldValue, Item } from '@/types'
 import FieldRenderer, { renderCellValue } from '@/components/fields/FieldRenderer'
@@ -31,14 +31,31 @@ function useIsMobile(): boolean {
   return isMobile
 }
 
-/** 账页单元格内边距：横向 12 / 纵向 6，让 13px 文字落在 32px 行高里 */
-const CELL_PAD = '6px 12px'
-
-/** 行内操作按钮：18px 高，避免把 32px 的账页行撑高 */
-const actionBtnStyle: React.CSSProperties = { height: 18, width: 22, minWidth: 0, padding: 0 }
-
-/** 数字 / 日期列：右对齐 + 等宽 tabular（账本里金额与日期要能上下对齐比较） */
+/** 数字 / 日期列：右对齐 + tabular（v3 数字列必须右对齐） */
 const isNumericField = (type: FieldType): boolean => type === 'number' || type === 'date'
+
+/**
+ * 哪些 select 字段是「状态列」。
+ *
+ * 城市、单位这类 select 只是普通文本列，不能全都渲染成色片；
+ * 只有列名带状态语义（状态/阶段/结果/等级…）时才用 `.status-pill`。
+ */
+function isStatusField(f: FieldDef): boolean {
+  return f.type === 'select' && /状态|阶段|结果|等级|级别|进度|类型/.test(f.label)
+}
+
+/**
+ * 状态列语义 → `.status-pill` 变体。
+ *
+ * 只按文案做视觉归类，不改任何数据：选中的词决定 pill 的颜色语义。
+ * 认不出来的值退回 neutral（灰），不会误报成成功/失败。
+ */
+function statusVariant(text: string): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (/成交|成功|完成|已付|正常|通过|已签|收入|有效/.test(text)) return 'success'
+  if (/流失|失败|拒绝|取消|停用|逾期|支出|无效|关闭/.test(text)) return 'danger'
+  if (/跟进|待|进行|中|暂停|意向|处理|新/.test(text)) return 'warning'
+  return 'neutral'
+}
 
 export default function LibraryTable({ fields, items, focusItemId, onEdit, onDelete, onPin, onPatch }: Props) {
   const t = useI18n()
@@ -57,7 +74,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
   const [draft, setDraft] = useState<FieldValue>(null)
   const [savingCell, setSavingCell] = useState(false)
   const gridRef = useRef<HTMLTableElement | null>(null)
-  // 内联编辑失败时在单元格里留一行错误文字（原来只弹 toast，行内没有痕迹）
+  // 内联编辑失败时在单元格里留一行错误文字（只弹 toast 的话行内没有痕迹）
   const [cellError, setCellError] = useState<string | null>(null)
   // 末列操作「hover 才出现」：用行 hover 状态而不是 CSS（内联样式拿不到 :hover）
   const [hoverId, setHoverId] = useState<string | null>(null)
@@ -118,7 +135,27 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
     [visibleFields],
   )
 
-  // ———— 移动端：账页卡（0 圆角、上下 hairline、字段名 11px mono） ————
+  /** 收藏（置顶）：StarOutlined，不用 ★ 字形，也不用 Filled 图标 */
+  const starButton = (it: Item) => (
+    <Tooltip title={it.pinned ? t('common.unpinned') : t('common.pinned')}>
+      <Button
+        type="text"
+        className="icon-btn"
+        aria-label={it.pinned ? t('common.unpinned') : t('common.pinned')}
+        onClick={(e) => {
+          e.stopPropagation()
+          onPin(it, !it.pinned)
+        }}
+        icon={
+          <StarOutlined
+            style={{ fontSize: 16, color: it.pinned ? 'var(--accent)' : 'var(--ink-faint)' }}
+          />
+        }
+      />
+    </Tooltip>
+  )
+
+  // ———— 移动端：白卡列表（10px 圆角 + shadow-1 + 字段两列网格） ————
   if (isMobile) {
     // items 变少（搜索命中 3 条、刚删过几条）后，page 可能停在越界的位置上：
     // slice 出来是空数组，而分页器只在 items.length > PAGE_SIZE 时渲染
@@ -126,85 +163,79 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
     const start = (clampedPage - 1) * PAGE_SIZE
     const paged = items.slice(start, start + PAGE_SIZE)
     return (
-      <div ref={tableRef}>
-        {/* 手机上一屏能看到的记录数就是效率：字段行压到 ~24px/行。
-            这里刻意不用 antd Card：账页卡是 0 圆角 + 上下 1px 线，没有阴影、没有底色。
-            单列纵向排列（不用 .lib-grid 的多列网格，否则会出现竖线分隔）。 */}
-        <div style={{ borderBottom: '1px solid var(--app-rule)' }}>
-          {paged.map((it) => (
-            <div
-              key={it.id}
-              data-item-id={it.id}
-              style={{
-                borderTop: '1px solid var(--app-rule)',
-                padding: '8px 0 6px',
-                background: it.id === focusItemId ? 'var(--app-accent-wash)' : 'transparent',
-                boxShadow: it.id === focusItemId ? 'inset 2px 0 0 var(--app-accent)' : undefined,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                <Tooltip title={it.pinned ? t('common.unpinned') : t('common.pinned')}>
-                  <button
-                    type="button"
-                    aria-label={it.pinned ? t('common.unpinned') : t('common.pinned')}
-                    onClick={() => onPin(it, !it.pinned)}
-                    className="tap-action"
-                    style={{
-                      flexShrink: 0,
-                      width: 24,
-                      height: 24,
-                      padding: 0,
-                      border: 0,
-                      background: 'none',
-                      cursor: 'pointer',
-                      color: it.pinned ? 'var(--app-accent)' : 'var(--app-ink-faint)',
-                      fontSize: 'var(--text-sm)',
-                    }}
-                  >
-                    {it.pinned ? '★' : '☆'}
-                  </button>
-                </Tooltip>
-                <span
-                  style={{
-                    flex: '1 1 auto',
-                    minWidth: 0,
-                    fontWeight: 600,
-                    fontSize: 'var(--text-base)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {primaryOf(it)}
-                </span>
-                <Button type="text" size="small" className="tap-action" onClick={() => onEdit(it)}>
-                  {t('common.edit')}
-                </Button>
-                <Button type="text" size="small" danger className="tap-action" onClick={() => onDelete(it)}>
-                  {t('common.delete')}
-                </Button>
-              </div>
+      <div ref={tableRef} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {paged.map((it) => (
+          <div
+            key={it.id}
+            data-item-id={it.id}
+            className="surface-card"
+            style={{
+              padding: '14px 16px',
+              borderColor: it.id === focusItemId ? 'var(--accent)' : 'var(--border)',
+              boxShadow: it.id === focusItemId ? '0 0 0 3px var(--accent-ring)' : undefined,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              {starButton(it)}
+              <span
+                style={{
+                  flex: '1 1 auto',
+                  minWidth: 0,
+                  fontWeight: 600,
+                  fontSize: 'var(--text-base)',
+                  color: 'var(--ink)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {primaryOf(it)}
+              </span>
+              <Button
+                type="text"
+                className="icon-btn"
+                aria-label={t('common.edit')}
+                icon={<EditOutlined />}
+                onClick={() => onEdit(it)}
+              />
+              <Button
+                type="text"
+                className="icon-btn"
+                danger
+                aria-label={t('common.delete')}
+                icon={<DeleteOutlined />}
+                onClick={() => onDelete(it)}
+              />
+            </div>
+
+            {/* 字段两列网格：标签 12 muted / 值 14 500 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', marginTop: 12 }}>
               {restFields(it).map((f) => (
-                <div key={f.key} className="card-field">
-                  {/* 字段名：11px 等宽 + 字距，像账页上的栏名（样式在 .card-field-label） */}
-                  <span className="card-field-label" title={f.label}>
+                <div key={f.key} style={{ minWidth: 0 }}>
+                  <div className="faint" style={{ fontSize: 'var(--text-2xs)', marginBottom: 2 }}>
                     {f.label}
-                  </span>
-                  <span className="card-field-value">
-                    <SmartValue field={f} value={it.fields[f.key]} />
-                  </span>
+                  </div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {isStatusField(f) && it.fields[f.key] != null && String(it.fields[f.key]).trim() !== '' ? (
+                      <span className={`status-pill is-${statusVariant(String(it.fields[f.key]))}`}>
+                        {String(it.fields[f.key])}
+                      </span>
+                    ) : (
+                      <SmartValue field={f} value={it.fields[f.key]} />
+                    )}
+                  </div>
                 </div>
               ))}
-              {restFields(it).length === 0 && (
-                <div className="faint" style={{ fontSize: 'var(--text-xs)', padding: '3px 0 0 34px' }}>
-                  {t('lib.card.onlyTitle')}
-                </div>
-              )}
             </div>
-          ))}
-        </div>
+            {restFields(it).length === 0 && (
+              <div className="faint" style={{ fontSize: 'var(--text-xs)', marginTop: 10 }}>
+                {t('lib.card.onlyTitle')}
+              </div>
+            )}
+          </div>
+        ))}
         {items.length > PAGE_SIZE && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
             <Pagination
               simple
               current={clampedPage}
@@ -300,110 +331,87 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
     el?.focus()
   }
 
-  // ———— 桌面端：一张账表 ————
-  // 表头 36px（11px mono +0.04em、surface-sunken 底、下边 1px border-strong）；
-  // 行高 32px、只有横线、无竖线、无斑马；数字/日期右对齐 + tabular；表头吸顶。
-  const headCell = (right = false): React.CSSProperties => ({
-    height: 36,
-    padding: '0 12px',
-    ...(right ? { textAlign: 'right' as const } : null),
-  })
-  const bodyCell = (f?: FieldDef): React.CSSProperties => ({
-    padding: CELL_PAD,
-    verticalAlign: 'middle',
-    // 行高按 32px 账页反推：13px × 1.3 ≈ 17，加上下 padding 12 与 1px 行线正好 30–32
-    lineHeight: 1.3,
-    ...(f && isNumericField(f.type)
-      ? { textAlign: 'right' as const, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }
-      : null),
-  })
+  // ———— 桌面端：现代数据库视图（表头 40 / 行 38，仅横线） ————
+  /** 数字/日期列统一右对齐；等宽 + tabular 由 .mono/.tabular 负责 */
+  /** 单元格统一 20px 行盒：14px 文字 + 上下 padding 8 + 1px 行线 = 37，行高钉在 38 */
+  const CELL_LINE_HEIGHT = '20px'
+  /** 数字/日期列统一右对齐；等宽 + tabular 由 .mono/.tabular 负责 */
+  const cellStyle = (f: FieldDef): React.CSSProperties =>
+    isNumericField(f.type) ? { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } : {}
 
   const columns: ColumnsType<Item> = [
     {
       title: '',
       dataIndex: 'pinned',
-      width: 36,
-      onHeaderCell: () => ({ style: { ...headCell(), padding: '0 4px' } }),
-      onCell: () => ({ style: { padding: '0 4px', verticalAlign: 'middle' as const, lineHeight: 1 } }),
+      width: 48,
+      onHeaderCell: () => ({ style: { height: 40 } }),
+      // 行高 38 的钉：按钮 32 高，用负 margin 吃掉差值，视觉上仍是 32px 热区
       render: (_, record) => (
-        <Tooltip title={record.pinned ? t('common.unpinned') : t('common.pinned')}>
-          {/* 置顶是「★ 朱砂小图标」，不是按钮块：18px 高的行内热区才能让账页行恒为 32px */}
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label={record.pinned ? t('common.unpinned') : t('common.pinned')}
-            onClick={(e) => {
-              e.stopPropagation()
-              onPin(record, !record.pinned)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                onPin(record, !record.pinned)
-              }
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 20,
-              height: 18,
-              lineHeight: 1,
-              cursor: 'pointer',
-              fontSize: 'var(--text-sm)',
-              color: record.pinned ? 'var(--app-accent)' : 'var(--app-ink-faint)',
-            }}
-          >
-            {record.pinned ? '★' : '☆'}
-          </span>
-        </Tooltip>
+        <div style={{ display: 'flex', justifyContent: 'center', margin: '-6px 0' }}>
+          {starButton(record)}
+        </div>
       ),
     },
     // 第一个可见字段当作「标识列」：给足宽度 + 加粗，让每行第一眼就能认出是哪条。
     // 研究里反复出现的一条：表格的第一职责是可扫读性，标识列必须排在最前并占最大权重。
     ...visibleFields.map((f, i) => ({
-      title: <span className="eyebrow">{f.label}</span>,
+      title: f.label,
       dataIndex: ['fields', f.key],
       key: f.key,
-      ellipsis: true,
-      onHeaderCell: () => ({ style: headCell(isNumericField(f.type)) }),
+      // 只为长文本开 ellipsis：电话/金额/日期这类短值被省略号截断会变成错信息，
+      // 宁可让表格横向滚动，也不要把 138****1274 显示成 138****127。
+      ellipsis: f.type === 'textarea',
+      onHeaderCell: () => ({ style: { height: 40, textAlign: isNumericField(f.type) ? 'right' : 'left' } }),
       // 对齐必须走 onCell 的内联 style：antd 的 align 生成的是运行时 cssinjs 样式，
       // 而 index.css 是构建期打包的，两者同为作者级、后者插入，会被 antd 覆盖。
-      // 编辑中的单元格：用 inset 2px 朱砂描边（不改布局），由 td 承担，避免行内元素被裁
       onCell: (record: Item) => {
         const editing = editCell?.id === record.id && editCell.key === f.key
         return {
           style: {
-            ...bodyCell(f),
-            ...(editing ? { boxShadow: 'inset 0 0 0 2px var(--app-accent)' } : {}),
+            lineHeight: CELL_LINE_HEIGHT,
+            ...cellStyle(f),
+            // 标识列加 500 字重：表格第一职责是扫读，第一列要最快被认出来
+            ...(i === 0 ? { fontWeight: 500 } : {}),
+            ...(editing ? { boxShadow: 'inset 0 0 0 2px var(--accent)' } : {}),
           },
-          className: isNumericField(f.type) ? (f.type === 'date' ? 'align-date' : 'align-num') : undefined,
         }
       },
-      className: i === 0 ? 'cell-primary' : undefined,
-      width: i === 0 ? 220 : undefined,
+      // 按字段类型给最小宽度：短值列不参与等分，避免被挤到截断
+      width:
+        i === 0
+          ? 200
+          : f.type === 'textarea'
+            ? 240
+            : f.type === 'number' || f.type === 'date'
+              ? 120
+              : f.type === 'select'
+                ? 120
+                : f.type === 'rating'
+                  ? 110
+                  : f.type === 'checkbox'
+                    ? 90
+                    : 140,
       render: (_: unknown, record: Item, rowIndex: number) => {
+        const value = record.fields[f.key]
         const isEditing = editCell?.id === record.id && editCell.key === f.key
         if (isEditing) {
           return (
             <div
               className={`cell-editing${savingCell ? ' is-saving' : ''}`}
-              // 编辑器控件 28px 高，用 -5px 上下外边距吃掉差值，账页行高不跳动
-              style={{ margin: '-5px 0' }}
+              style={{ margin: '-6px 0' }}
               onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  e.stopPropagation()
-                  cancelEdit()
-                } else if (e.key === 'Enter' && !e.shiftKey && f.type !== 'textarea') {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  void commitEdit('down')
-                } else if (e.key === 'Tab') {
-                  e.preventDefault()
-                  void commitEdit('right')
-                }
-              }}
-            >
+              if (e.key === 'Escape') {
+                e.stopPropagation()
+                cancelEdit()
+              } else if (e.key === 'Enter' && !e.shiftKey && f.type !== 'textarea') {
+                e.preventDefault()
+                e.stopPropagation()
+                void commitEdit('down')
+              } else if (e.key === 'Tab') {
+                e.preventDefault()
+                void commitEdit('right')
+              }
+            }}>
               <FieldRenderer field={f} value={draft} onChange={setDraft} autoFocus compact />
               {cellError ? (
                 <div className="danger-text" style={{ fontSize: 'var(--text-2xs)', marginTop: 2, lineHeight: 1.4 }}>
@@ -418,10 +426,11 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
             tabIndex={0}
             role="button"
             data-cell={`${rowIndex}-${i}`}
-            className={`cell-edit${record.pinned && i === 0 ? ' is-pinned' : ''}`}
-            aria-label={`${record.fields[visibleFields[0]?.key ?? ''] ?? ''} · ${f.label}`}
-            title={t('lib.cell.editHint')}
+            className="cell-edit"
+            aria-label={`${record.fields[visibleFields[0]?.key ?? ''] ?? ''} · ${f.label} · ${t('lib.cell.editHint')}`}
+            title={value == null || value === '' ? undefined : String(value)}
             onClick={() => beginEdit(record, rowIndex, f)}
+            style={{ margin: '-5px -6px' }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === 'F2') {
                 e.preventDefault(); beginEdit(record, rowIndex, f)
@@ -429,38 +438,35 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
                 onGridKeyDown(e, rowIndex, i)
               }
             }}
-            style={{
-              width: '100%',
-              outlineOffset: 0,
-              // 抵消 .cell-edit 的 24px min-height/上下 padding：账页行恒为 32px
-              minHeight: 17,
-              padding: '0 6px',
-              lineHeight: 1.3,
-            }}
           >
-            <SmartValue field={f} value={record.fields[f.key]} />
+            {/* 状态列用 .status-pill（浅 wash + 深字 + 6px 圆点）；其余走字段渲染器 */}
+            {isStatusField(f) && value != null && String(value).trim() !== '' ? (
+              <span className={`status-pill is-${statusVariant(String(value))}`}>{String(value)}</span>
+            ) : (
+              <SmartValue field={f} value={value} />
+            )}
           </div>
         )
       },
     })) as ColumnsType<Item>,
     {
-      title: <span className="eyebrow">{t('lib.col.createdAt')}</span>,
+      title: t('lib.col.createdAt'),
       dataIndex: 'createdAt',
-      width: 120,
-      onHeaderCell: () => ({ style: headCell(true) }),
-      onCell: () => ({ style: bodyCell() }),
+      width: 132,
+      onHeaderCell: () => ({ style: { height: 40, textAlign: 'right' } }),
+      onCell: () => ({ style: { textAlign: 'right', lineHeight: CELL_LINE_HEIGHT } }),
       render: (v: number) => (
-        <span className="mono num" title={dayjs(v).format('YYYY-MM-DD HH:mm')}>
+        <span className="mono tabular" style={{ fontSize: 'var(--text-xs)' }} title={dayjs(v).format('YYYY-MM-DD HH:mm')}>
           {dayjs(v).format('YYYY-MM-DD')}
         </span>
       ),
     },
     {
-      title: <span className="eyebrow">{t('lib.col.actions')}</span>,
+      title: t('lib.col.actions'),
       key: 'action',
-      width: 88,
-      onHeaderCell: () => ({ style: headCell(true) }),
-      onCell: () => ({ style: { padding: '0 8px', textAlign: 'right' as const, verticalAlign: 'middle' as const, lineHeight: 1 } }),
+      width: 96,
+      onHeaderCell: () => ({ style: { height: 40, textAlign: 'right' } }),
+      onCell: () => ({ style: { textAlign: 'right', lineHeight: CELL_LINE_HEIGHT } }),
       render: (_, record) => {
         // 末列操作 hover 才出现；键盘聚焦时也要出现，否则 Tab 到按钮却看不见。
         const shown = hoverId === record.id || actionFocusId === record.id
@@ -469,31 +475,30 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 0,
+              gap: 2,
+              margin: '-6px 0',
               opacity: shown ? 1 : 0,
-              transition: 'opacity 120ms cubic-bezier(.2,.7,.2,1)',
+              transition: 'opacity 140ms cubic-bezier(.2,.7,.2,1)',
             }}
           >
             <Button
               type="text"
-              size="small"
+              className="icon-btn"
               aria-label={t('common.edit')}
               icon={<EditOutlined />}
               onClick={() => onEdit(record)}
               onFocus={() => setActionFocusId(record.id)}
               onBlur={() => setActionFocusId(null)}
-              style={actionBtnStyle}
             />
             <Button
               type="text"
-              size="small"
+              className="icon-btn"
               danger
               aria-label={t('common.delete')}
               icon={<DeleteOutlined />}
               onClick={() => onDelete(record)}
               onFocus={() => setActionFocusId(record.id)}
               onBlur={() => setActionFocusId(null)}
-              style={actionBtnStyle}
             />
           </div>
         )
@@ -502,16 +507,15 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
   ]
 
   return (
-    <div ref={tableRef}>
+    <div ref={tableRef} className="data-table" style={{ overflow: 'visible' }}>
       <Table<Item>
         rowKey="id"
         columns={columns}
         dataSource={items}
-        size="small"
-        // 表头 36 / 行 32：账页的密度就是信息量，不需要「舒适」的 40px 行
-        onHeaderRow={() => ({ style: { height: 36 } })}
+        // v3：表头 40 / 行 38。全局 antd 样式已收编，这里只钉高度与字号。
+        onHeaderRow={() => ({ style: { height: 40 } })}
         onRow={(record) => ({
-          style: { height: 32, fontSize: 'var(--text-sm)' },
+          style: { height: 38, fontSize: 'var(--text-sm)' },
           onMouseEnter: () => setHoverId(record.id),
           onMouseLeave: () => setHoverId((cur) => (cur === record.id ? null : cur)),
           onClick: () => {

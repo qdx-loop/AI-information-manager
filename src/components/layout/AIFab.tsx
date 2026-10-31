@@ -32,7 +32,7 @@ export default function AIFab({ compact }: { compact?: boolean }) {
       title={running ? t('ai.runningInBackground') : t('ai.open')}
     >
       {running ? <span className="ai-pulse" /> : <span className="ai-mono-mark">记</span>}
-      {!compact && <span className="ai-fab-text">{t('ai.clerk')}</span>}
+      {!compact && <span className="ai-fab-text">{t('app.aiAssistant')}</span>}
       {unseen && !running && <span className="ai-fab-dot" aria-hidden />}
     </button>
   )

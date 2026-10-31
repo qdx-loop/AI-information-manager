@@ -14,7 +14,8 @@ interface Props {
 }
 
 // 字段输入渲染器：按 type 渲染对应输入控件
-// 控件高度/圆角由 theme + 全局 antd 收编统一（32px / 2px），这里只管语义。
+// v3：控件高度 36 / 圆角 8 / sunken 底 + border-strong 边由 theme + 全局 antd 收编统一，
+// 这里只管语义（类型 → 控件）；compact 用于表格内联编辑（32px）。
 export default function FieldRenderer({ field, value, onChange, autoFocus, compact }: Props) {
   const sz = compact ? ('small' as const) : ('middle' as const)
   const t = useI18n()
@@ -30,12 +31,12 @@ export default function FieldRenderer({ field, value, onChange, autoFocus, compa
           rows={compact ? 2 : 3}
           onChange={(e) => onChange(e.target.value)}
           placeholder={t('field.inputPlaceholder', { name: field.label })}
-          // 长文本是「阅读区」：16/1.75（中文正文行高），不是 14/1.6
-          style={compact ? undefined : { fontSize: 'var(--text-md)', lineHeight: 1.75 }}
+          // 长文本是「阅读区」：16/1.7（v3 正文行高），不是 14/1.5
+          style={compact ? undefined : { fontSize: 'var(--text-base)', lineHeight: 1.7 }}
         />
       )
     case 'number':
-      // 数字右对齐 + tabular：金额/数量列要与表头账栏对齐
+      // 数字列右对齐 + tabular：金额/数量纵向比较时不跳位
       return <InputNumber size={sz} autoFocus={autoFocus} value={value as number} onChange={(v) => onChange(v ?? null)} style={{ width: '100%' }} placeholder={t('field.numberPlaceholder')} />
     case 'date':
       return (

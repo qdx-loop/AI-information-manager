@@ -1,3 +1,11 @@
+/**
+ * 管理后台 · v3『石墨信号』（内部工具，密度优先）
+ *
+ * 版式：页头 + 3 张统计白卡（24/600 tabular）+ 顶部筛选条（36 高）+ 紧凑表格（行 32，白卡容器）
+ * + `.status-pill` 状态片 + 危险操作红色。所有颜色走 v3 token，暗色自动反相。
+ * 功能与 v2 完全一致：账户/审计双视图、筛选、搜索、CSV、刷新、重置密码（生成/复制）、
+ * 停用/恢复/删除、近 7 天行为、说明——一个都没删。
+ */
 import { useEffect, useState, useCallback } from 'react'
 import { Segmented, Table, Button, Input, Modal, App, Popconfirm } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -27,34 +35,23 @@ import {
 
 import { useBackButtonLayer } from '@/utils/backButton'
 import { downloadBlob } from '@/utils/csv'
-import SealMark from '@/components/public/SealMark'
 
-/**
- * 管理后台：产品改为「自助注册 + 永久免费」后的运营面板（内部工具，密度优先）。
- *
- * 不再有卖卡/续费。这里的能力围绕另外三件事：
- *   1. 看清谁在用（注册量、活跃、行为分布）
- *   2. 处理异常（停用违规账户、删除垃圾账户）
- *   3. 帮用户找回入口（重置密码——用户自己设的密码，忘记后只能靠管理员）
- *
- * 版式：一行筛选 + 右上导出；统计是等宽数字条（不是 Statistic 卡片）；
- * 表格 28px 行、只有横线；状态是 11px mono 文本 + 6px 方点。
- * 所有颜色走 token（暗色下自动反相），不再在组件里写死色值。
- */
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'accent'
 
-/** 6px 方点：状态只用一个方块 + 一个字，不用彩色胶囊 Tag */
-function Dot({ tone }: { tone: 'ok' | 'warn' | 'off' }) {
-  const color =
-    tone === 'ok' ? 'var(--app-success)' : tone === 'warn' ? 'var(--app-warning)' : 'var(--app-ink-faint)'
-  return (
-    <span
-      aria-hidden
-      style={{ width: 6, height: 6, background: color, display: 'inline-block', marginRight: 6 }}
-    />
-  )
+/** 状态片：6px 圆点 + 12/500 文字（.status-pill 变体） */
+function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+  const cls =
+    tone === 'success'
+      ? 'status-pill is-success'
+      : tone === 'warning'
+        ? 'status-pill is-warning'
+        : tone === 'danger'
+          ? 'status-pill is-danger'
+          : tone === 'accent'
+            ? 'status-pill is-accent'
+            : 'status-pill'
+  return <span className={cls}>{children}</span>
 }
-
-const MONO = { fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' } as const
 
 export default function AdminPage() {
   const { message } = App.useApp()
@@ -79,7 +76,7 @@ export default function AdminPage() {
 
   const load = useCallback(async () => {
     setLoadingList(true)
-    // 审计日志与概览独立容错：未执行迁移的旧部署没有该表时静默降级
+    // 审计与概览独立容错：未执行迁移的旧部署没有该表时静默降级
     adminListAudit()
       .then(setLogs)
       .catch(() => setLogs([]))
@@ -100,10 +97,7 @@ export default function AdminPage() {
     if (logged) load()
   }, [logged, load])
 
-  // 必须在 `if (!logged) return` 之前调用：否则管理员登录成功后
-  // （logged 从 false 变 true）渲染中途多出一个 Hook，React 抛
-  // 「Rendered more hooks than during the previous render」，
-  // 整个管理后台变成错误页 —— 也就是「密码输对了反而进不去」。
+  // 必须在 `if (!logged) return` 之前调用：否则登录成功后 Hook 数量变化会白屏
   useBackButtonLayer(!!resetFor, () => setResetFor(null))
 
   const handleLogin = async () => {
@@ -173,17 +167,18 @@ export default function AdminPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--app-canvas)',
+          background: 'var(--bg-canvas)',
+          padding: 16,
         }}
       >
-        <div style={{ width: '100%', maxWidth: 320, margin: '0 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-            <SealMark />
-            <span className="serif" style={{ fontSize: 20, fontWeight: 600, color: 'var(--app-ink)' }}>
+        <div className="surface-card" style={{ width: '100%', maxWidth: 380, padding: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <span className="app-brand-dot" aria-hidden />
+            <span style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--ink)' }}>
               {t('admin.title')}
             </span>
           </div>
-          <p className="muted" style={{ fontSize: 12.5, margin: '0 0 16px', lineHeight: 1.7 }}>
+          <p className="muted" style={{ fontSize: 'var(--text-xs)', margin: '0 0 16px', lineHeight: 1.5 }}>
             {t('admin.consoleHint')}
           </p>
           <Input.Password
@@ -192,9 +187,16 @@ export default function AdminPage() {
             onChange={(e) => setPassword(e.target.value)}
             onPressEnter={handleLogin}
             autoFocus
-            style={{ height: 32, borderRadius: 2, marginBottom: 12 }}
+            style={{ height: 40, borderRadius: 'var(--r-2)', marginBottom: 12 }}
           />
-          <Button type="primary" block loading={loginLoading} onClick={handleLogin} icon={<KeyOutlined />}>
+          <Button
+            type="primary"
+            block
+            loading={loginLoading}
+            onClick={handleLogin}
+            icon={<KeyOutlined />}
+            style={{ height: 40 }}
+          >
             {t('admin.loginBtn')}
           </Button>
         </div>
@@ -227,40 +229,14 @@ export default function AdminPage() {
       )
     : filtered
 
-  /** 状态：11px mono 文本 + 6px 方点（绿=近期活跃 / 赭=渐冷 / 灰=停用或久未用） */
   function lastSeen(row: AdminAccountRow) {
-    if (row.disabled) {
-      return (
-        <span className="mono" style={{ fontSize: 11, color: 'var(--app-ink-faint)' }}>
-          <Dot tone="off" />
-          {t('admin.status.disabled')}
-        </span>
-      )
-    }
+    if (row.disabled) return <Pill tone="neutral">{t('admin.status.disabled')}</Pill>
     const at = row.lastLogin ?? row.createdAt ?? 0
     const days = Math.floor((now - at) / DAY)
-    if (days <= 7) {
-      return (
-        <span className="mono" style={{ fontSize: 11, color: 'var(--app-ink-soft)' }}>
-          <Dot tone="ok" />
-          {days <= 0 ? t('admin.seen.today') : t('admin.seen.days', { n: days })}
-        </span>
-      )
-    }
-    if (days <= 30) {
-      return (
-        <span className="mono" style={{ fontSize: 11, color: 'var(--app-ink-soft)' }}>
-          <Dot tone="warn" />
-          {t('admin.seen.days', { n: days })}
-        </span>
-      )
-    }
-    return (
-      <span className="mono" style={{ fontSize: 11, color: 'var(--app-ink-faint)' }}>
-        <Dot tone="off" />
-        {t('admin.seen.days', { n: days })}
-      </span>
-    )
+    const label = days <= 0 ? t('admin.seen.today') : t('admin.seen.days', { n: days })
+    if (days <= 7) return <Pill tone="success">{label}</Pill>
+    if (days <= 30) return <Pill tone="warning">{label}</Pill>
+    return <Pill tone="neutral">{label}</Pill>
   }
 
   function exportCsv() {
@@ -282,9 +258,7 @@ export default function AdminPage() {
       lines.push(cells.join(','))
     }
     const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
-    // 走公共下载工具：必须先把 a 挂到文档里再 click（Firefox 会忽略未插入 DOM 的
-    // a 上的 click），且 revoke 不能同步执行（此刻浏览器可能还没开始取 blob）。
-    // 原来这里自己写了一遍，两条都违反，Firefox / 安卓 WebView 上导出「点了没反应」。
+    // 公共下载工具：a 必须先入文档、revoke 必须延后（Firefox / 安卓 WebView 曾有「点了没反应」）
     downloadBlob(`accounts-${dayjs().format('YYYYMMDD')}.csv`, blob)
   }
 
@@ -293,27 +267,35 @@ export default function AdminPage() {
       title: t('admin.col.username'),
       dataIndex: 'username',
       key: 'username',
-      render: (v: string) => <span style={{ fontWeight: 500, color: 'var(--app-ink)' }}>{v}</span>,
+      render: (v: string) => (
+        <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{v}</span>
+      ),
     },
     {
       title: t('admin.col.contact'),
       dataIndex: 'contact',
       key: 'contact',
       render: (v: string | null) =>
-        v ? <span style={{ fontSize: 12, color: 'var(--app-ink-soft)' }}>{v}</span> : <span className="faint">—</span>,
+        v ? (
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>{v}</span>
+        ) : (
+          <span className="faint">—</span>
+        ),
     },
     {
       title: t('admin.col.status'),
       key: 'status',
+      width: 132,
       render: (_, r) => lastSeen(r),
     },
     {
       title: t('admin.col.registered'),
       dataIndex: 'createdAt',
       key: 'createdAt',
+      width: 120,
       render: (v?: number) =>
         v ? (
-          <span className="mono" style={{ fontSize: 12, color: 'var(--app-ink-soft)' }}>
+          <span className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-muted)' }}>
             {dayjs(v).format('YYYY-MM-DD')}
           </span>
         ) : (
@@ -323,8 +305,9 @@ export default function AdminPage() {
     {
       title: t('admin.col.actions'),
       key: 'ops',
+      width: 280,
       render: (_, r) => (
-        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 2, flexWrap: 'nowrap' }} title={t('admin.col.actions')}>
           <Button type="link" size="small" icon={<SafetyCertificateOutlined />} onClick={() => openReset(r)}>
             {t('admin.op.resetPwd')}
           </Button>
@@ -343,7 +326,7 @@ export default function AdminPage() {
               description={t('admin.disableConfirm.body')}
               onConfirm={() => handleOp(r.id, { op: 'disable' }, t('admin.disabled', { name: r.username }))}
             >
-              <Button type="link" size="small" danger icon={<StopOutlined />}>
+              <Button type="link" size="small" icon={<StopOutlined />}>
                 {t('admin.op.disable')}
               </Button>
             </Popconfirm>
@@ -368,8 +351,9 @@ export default function AdminPage() {
       title: t('admin.col.time'),
       dataIndex: 'created_at',
       key: 't',
+      width: 140,
       render: (v: number) => (
-        <span className="mono" style={{ fontSize: 12, color: 'var(--app-ink-soft)' }}>
+        <span className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-muted)' }}>
           {dayjs(v).format('YYYY-MM-DD HH:mm')}
         </span>
       ),
@@ -378,70 +362,45 @@ export default function AdminPage() {
       title: t('admin.col.action'),
       dataIndex: 'action',
       key: 'a',
+      width: 120,
       render: (v: string) => (
-        <span className="mono" style={{ fontSize: 11, color: 'var(--app-ink)' }}>
+        <span className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink)' }}>
           {v}
         </span>
       ),
     },
-    { title: t('admin.col.target'), dataIndex: 'target', key: 'target' },
+    { title: t('admin.col.target'), dataIndex: 'target', key: 'target', width: 160 },
     {
       title: t('admin.col.detail'),
       dataIndex: 'detail',
       key: 'd',
       render: (v: string) => (
-        <span style={{ fontSize: 12, color: 'var(--app-ink-soft)' }}>{v || '—'}</span>
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>{v || '—'}</span>
       ),
     },
     {
       title: 'IP',
       dataIndex: 'ip',
       key: 'ip',
+      width: 130,
       render: (v: string) => (
-        <span className="mono" style={{ fontSize: 11, color: 'var(--app-ink-faint)' }}>
+        <span className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-faint)' }}>
           {v}
         </span>
       ),
     },
   ]
 
-  const statItems: Array<{ label: string; value: number | string; accent?: boolean }> = [
-    { label: t('admin.stat.total'), value: stats?.totalAccounts ?? accounts.length },
-    { label: t('admin.stat.active'), value: activeCount },
-    { label: t('admin.stat.today'), value: registeredToday },
-    { label: t('admin.stat.active7'), value: stats?.activeUsers7 ?? 0 },
-    { label: t('admin.stat.signups7'), value: stats?.signups7 ?? 0 },
-    {
-      label: t('admin.stat.disabled'),
-      value: stats?.disabledAccounts ?? 0,
-      accent: (stats?.disabledAccounts ?? 0) > 0,
-    },
-  ]
-
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--app-canvas)', padding: '20px 24px 40px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-canvas)', padding: '24px 32px 48px' }}>
       <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-        {/* 顶栏：印 + 标题 + 右上操作 */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            flexWrap: 'wrap',
-            marginBottom: 16,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <SealMark size={14} />
-            <span className="serif" style={{ fontSize: 20, fontWeight: 600, color: 'var(--app-ink)' }}>
-              {t('admin.title')}
-            </span>
-            <span className="faint" style={{ fontSize: 12 }}>
-              {t('admin.consoleHint')}
-            </span>
+        {/* 页头 */}
+        <header className="page-head">
+          <div className="page-head-main">
+            <h1 className="page-title">{t('admin.title')}</h1>
+            <p className="page-lede">{t('admin.consoleHint')}</p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="page-head-actions">
             <Button icon={<DownloadOutlined />} onClick={exportCsv}>
               {t('admin.export')}
             </Button>
@@ -449,49 +408,42 @@ export default function AdminPage() {
               {t('admin.refresh')}
             </Button>
           </div>
-        </div>
+        </header>
 
-        {/* 统计条：等宽数字 + 12px 标签，细线分隔（不用 Statistic 卡片） */}
-        <div
-          className="stat-strip"
-          style={{ borderTop: '1px solid var(--app-rule)', borderBottom: '1px solid var(--app-rule)', padding: '12px 0', marginBottom: 16 }}
-        >
-          {statItems.map((s, i) => (
-            <div
-              key={s.label}
-              className="stat-cell"
-              style={{
-                flex: 1,
-                minWidth: 120,
-                paddingLeft: i === 0 ? 0 : 16,
-                borderLeft: i === 0 ? 'none' : '1px solid var(--app-rule)',
-              }}
-            >
-              <div className="stat-label" style={{ fontSize: 11, color: 'var(--app-ink-faint)' }}>
-                {s.label}
-              </div>
-              <div
-                className="stat-num mono"
-                style={{
-                  ...MONO,
-                  fontSize: 26,
-                  lineHeight: 1.2,
-                  color: s.accent ? 'var(--app-accent-text)' : 'var(--app-ink)',
-                }}
-              >
-                {s.value}
-              </div>
+        {/* 3 张统计白卡：主数字 + 12px 标签 + 次要行 */}
+        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 20 }}>
+          <div className="kpi-card">
+            <div className="kpi-label">{t('admin.stat.total')}</div>
+            <div className="kpi-value">{stats?.totalAccounts ?? accounts.length}</div>
+            <div className="kpi-delta">
+              {t('admin.stat.active')} {activeCount}
             </div>
-          ))}
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">{t('admin.stat.today')}</div>
+            <div className="kpi-value">{registeredToday}</div>
+            <div className="kpi-delta">
+              {t('admin.stat.signups7')} {stats?.signups7 ?? 0}
+            </div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">{t('admin.stat.active7')}</div>
+            <div className="kpi-value">{stats?.activeUsers7 ?? 0}</div>
+            <div className="kpi-delta">
+              {t('admin.stat.disabled')} {stats?.disabledAccounts ?? 0}
+            </div>
+          </div>
         </div>
 
-        {/* 筛选行：左 tab + 筛选 + 搜索，右计数 */}
+        {/* 筛选条（36 高）：视图切换 + 筛选 + 搜索 */}
         <div
+          className="toolbar"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 12,
             flexWrap: 'wrap',
+            minHeight: 36,
             marginBottom: 12,
           }}
         >
@@ -511,10 +463,10 @@ export default function AdminPage() {
                     padding: '0 0 6px',
                     marginBottom: -1,
                     cursor: 'pointer',
-                    fontSize: 13,
+                    fontSize: 'var(--text-sm)',
                     fontWeight: active ? 600 : 400,
-                    color: active ? 'var(--app-ink)' : 'var(--app-ink-faint)',
-                    borderBottom: active ? '2px solid var(--app-accent)' : '2px solid transparent',
+                    color: active ? 'var(--ink)' : 'var(--ink-muted)',
+                    borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
                   }}
                 >
                   {label}
@@ -539,10 +491,10 @@ export default function AdminPage() {
               <Input.Search
                 allowClear
                 placeholder={t('admin.searchPlaceholder')}
-                style={{ width: 200 }}
+                style={{ width: 220 }}
                 onChange={(e) => setKeyword(e.target.value)}
               />
-              <span className="mono" style={{ fontSize: 12, color: 'var(--app-ink-faint)' }}>
+              <span className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-faint)' }}>
                 {t('admin.count', { n: shown.length })}
               </span>
             </>
@@ -550,40 +502,44 @@ export default function AdminPage() {
         </div>
 
         {tab === 'accounts' ? (
-          <Table
-            rowKey="id"
-            size="small"
-            columns={accountColumns}
-            dataSource={shown}
-            loading={loadingList}
-            pagination={{ pageSize: 20, showSizeChanger: false }}
-            scroll={{ x: 'max-content' }}
-          />
+          <div className="data-table">
+            <Table
+              rowKey="id"
+              size="small"
+              columns={accountColumns}
+              dataSource={shown}
+              loading={loadingList}
+              pagination={{ pageSize: 20, showSizeChanger: false }}
+              scroll={{ x: 'max-content' }}
+            />
+          </div>
         ) : (
-          <Table
-            rowKey={(r) => `${r.created_at}-${r.action}-${r.target}`}
-            size="small"
-            columns={auditColumns}
-            dataSource={logs}
-            pagination={{ pageSize: 20, showSizeChanger: false }}
-            scroll={{ x: 'max-content' }}
-          />
+          <div className="data-table">
+            <Table
+              rowKey={(r) => `${r.created_at}-${r.action}-${r.target}`}
+              size="small"
+              columns={auditColumns}
+              dataSource={logs}
+              pagination={{ pageSize: 20, showSizeChanger: false }}
+              scroll={{ x: 'max-content' }}
+            />
+          </div>
         )}
 
-        {/* 近 7 天行为：一行 mono 文本，不做卡片 */}
+        {/* 近 7 天行为 + 说明：一行文字，不做卡片 */}
         {stats && stats.events7.length > 0 && (
           <div style={{ marginTop: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'baseline' }}>
             <span className="eyebrow">{t('admin.events.title')}</span>
             {stats.events7.map((e) => (
-              <span key={e.name} className="mono" style={{ fontSize: 11, color: 'var(--app-ink-soft)' }}>
+              <span key={e.name} className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-muted)' }}>
                 {e.name} {e.count}
               </span>
             ))}
           </div>
         )}
 
-        <p className="faint" style={{ fontSize: 12, lineHeight: 1.7, marginTop: 24, maxWidth: 720 }}>
-          <span style={{ color: 'var(--app-ink)', fontWeight: 600 }}>{t('admin.tips.title')}</span>
+        <p className="faint" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.7, marginTop: 24, maxWidth: 720 }}>
+          <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{t('admin.tips.title')}</span>
           {' · '}
           {t('admin.tips.body')}
         </p>
@@ -613,28 +569,24 @@ export default function AdminPage() {
           <>
             <div
               style={{
-                borderLeft: '2px solid var(--app-warning)',
-                paddingLeft: 10,
+                background: 'var(--warning-wash)',
+                border: '1px solid var(--warning)',
+                borderRadius: 'var(--r-2)',
+                padding: '8px 12px',
                 marginBottom: 16,
-                fontSize: 12.5,
-                lineHeight: 1.7,
-                color: 'var(--app-ink-soft)',
+                fontSize: 'var(--text-xs)',
+                lineHeight: 1.5,
+                color: 'var(--warning)',
               }}
             >
               {t('admin.reset.onceWarn')}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13 }}>
-                <span className="faint" style={{ minWidth: 64 }}>
-                  {t('auth.username')}
-                </span>
-                <span style={{ fontWeight: 600, color: 'var(--app-ink)' }}>{resetDone.username}</span>
+            <div className="surface-sunken" style={{ padding: 12, marginBottom: 12 }}>
+              <div className="faint" style={{ fontSize: 'var(--text-2xs)', marginBottom: 4 }}>
+                {resetDone.username}
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
-                <span className="faint" style={{ minWidth: 64 }}>
-                  {t('auth.password')}
-                </span>
-                <span className="mono" style={{ fontWeight: 600, color: 'var(--app-ink)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="mono" style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--ink)' }}>
                   {resetDone.password}
                 </span>
                 <Button
@@ -646,13 +598,13 @@ export default function AdminPage() {
                 </Button>
               </div>
             </div>
-            <p className="faint" style={{ fontSize: 12, margin: '12px 0 0', lineHeight: 1.7 }}>
+            <p className="faint" style={{ fontSize: 'var(--text-xs)', margin: 0, lineHeight: 1.6 }}>
               {t('admin.reset.afterHint')}
             </p>
           </>
         ) : (
           <>
-            <p style={{ fontSize: 13, color: 'var(--app-ink-soft)', marginTop: 0, lineHeight: 1.7 }}>
+            <p className="muted" style={{ fontSize: 'var(--text-sm)', marginTop: 0, lineHeight: 1.6 }}>
               {t('admin.reset.body')}
             </p>
             <Input.Password
@@ -660,8 +612,9 @@ export default function AdminPage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               maxLength={200}
+              style={{ height: 40, borderRadius: 'var(--r-2)' }}
             />
-            <p className="faint" style={{ fontSize: 12, marginBottom: 0, lineHeight: 1.7 }}>
+            <p className="faint" style={{ fontSize: 'var(--text-xs)', margin: '8px 0 0', lineHeight: 1.6 }}>
               {t('admin.reset.blankHint')}
             </p>
           </>

@@ -36,7 +36,7 @@ export function InlineSkeleton({ rows = 3, tip }: { rows?: number; tip?: ReactNo
     <div style={{ padding: 8 }} aria-busy="true">
       <Skeleton active title={false} paragraph={{ rows }} />
       {tip ? (
-        <div style={{ textAlign: 'center', color: 'var(--app-ink-soft)', fontSize: 12, marginTop: 8 }}>
+        <div style={{ textAlign: 'center', color: 'var(--ink-muted)', fontSize: 12, marginTop: 8 }}>
           {tip}
         </div>
       ) : null}
@@ -71,13 +71,12 @@ export function EmptyState({
         // 空状态是唯一允许居中的场景（研究 brief §K.9）
         textAlign: 'center',
         padding: compact ? '24px 16px' : '48px 24px',
-        color: 'var(--app-ink-soft)',
+        color: 'var(--ink-muted)',
       }}
     >
       {icon ? <div style={{ marginBottom: 10, opacity: 0.9 }}>{icon}</div> : null}
       <div
-        className="serif"
-        style={{ fontSize: 20, lineHeight: 1.4, fontWeight: 600, color: 'var(--app-ink)', marginBottom: 6 }}
+        style={{ fontSize: 20, lineHeight: 1.4, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}
       >
         {title}
       </div>

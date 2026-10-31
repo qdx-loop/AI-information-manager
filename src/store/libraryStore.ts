@@ -5,7 +5,6 @@ import { useAuthStore, registerSessionResetter } from './authStore'
 import { newId } from '@/utils/id'
 import { track } from '@/utils/track'
 import { scheduleAutoSync } from '@/utils/autoSync'
-import { markObStep } from '@/utils/onboarding'
 
 // 统一的写操作收尾：bump 派生数据版本号（首页概览缓存失效键）+ 防抖云同步
 function touchData() {
@@ -213,7 +212,6 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
     await getProvider().createItem(item)
     set({ items: [...get().items, item] })
-    markObStep(acc.id, 'item')
     touchData()
     return item
   },
