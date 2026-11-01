@@ -12,8 +12,8 @@ export function LabelText({ label, required }: { label: string; required?: boole
           style={{
             width: 6,
             height: 6,
-            background: 'var(--lime)',
-            border: '1px solid var(--line)',
+            background: 'var(--accent)',
+            border: '1px solid var(--border-strong)',
             display: 'inline-block',
             flexShrink: 0,
           }}

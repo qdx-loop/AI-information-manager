@@ -56,8 +56,8 @@ export default function EmptyHome() {
         gap: 12,
         padding: '12px 16px',
         marginBottom: 'var(--s5)',
-        borderLeft: '6px solid var(--signal)',
-        background: 'var(--sheet)',
+        borderLeft: '6px solid var(--accent-2)',
+        background: 'var(--surface)',
       }}
     >
       <div style={{ flex: '1 1 auto', minWidth: 0 }}>

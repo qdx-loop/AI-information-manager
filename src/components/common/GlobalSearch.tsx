@@ -303,7 +303,7 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
     >
       <div className="palette">
         <div className="palette-input">
-          <SearchOutlined style={{ color: 'var(--ink-faint)' }} />
+          <SearchOutlined style={{ color: 'var(--text-muted)' }} />
           <Input
             ref={inputRef}
             value={q}

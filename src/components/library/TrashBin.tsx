@@ -82,7 +82,7 @@ export default function TrashBin() {
       title: t('lib.trash.col.library'),
       key: 'lib',
       render: (_, entry) => (
-        <span style={{ fontSize: 'var(--t-xs)', color: 'var(--ink-soft)' }}>
+        <span style={{ fontSize: 'var(--t-xs)', color: 'var(--text-secondary)' }}>
           {entry.kind === 'item' ? entry.libraryName || t('lib.trash.orphanLib') : '—'}
         </span>
       ),
@@ -157,7 +157,7 @@ export default function TrashBin() {
       <div className="page-bar" />
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 'var(--s4)' }}>
-        <InfoCircleOutlined style={{ fontSize: 14, color: 'var(--signal)', flexShrink: 0, marginTop: 3 }} aria-hidden />
+        <InfoCircleOutlined style={{ fontSize: 14, color: 'var(--accent-2)', flexShrink: 0, marginTop: 3 }} aria-hidden />
         <span className="field-hint" style={{ lineHeight: 1.5 }}>
           {t('lib.trash.notice')}
         </span>

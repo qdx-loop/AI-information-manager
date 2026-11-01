@@ -51,7 +51,7 @@ function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
         : tone === 'danger'
           ? 'status-pill is-danger'
           : tone === 'lime'
-            ? 'status-pill is-lime'
+            ? 'status-pill is-accent'
             : 'status-pill is-neutral'
   return <span className={cls}>{children}</span>
 }
@@ -170,7 +170,7 @@ export default function AdminPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--paper)',
+          background: 'var(--bg)',
           padding: 16,
         }}
       >
@@ -187,7 +187,7 @@ export default function AdminPage() {
                 margin: '0 0 16px',
                 fontSize: 'var(--t-xs)',
                 lineHeight: 1.5,
-                color: 'var(--ink-soft)',
+                color: 'var(--text-secondary)',
               }}
             >
               {t('admin.consoleHint')}
@@ -282,7 +282,7 @@ export default function AdminPage() {
       title: t('admin.col.username'),
       dataIndex: 'username',
       key: 'username',
-      render: (v: string) => <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{v}</span>,
+      render: (v: string) => <span style={{ fontWeight: 600, color: 'var(--text)' }}>{v}</span>,
     },
     {
       title: t('admin.col.contact'),
@@ -290,7 +290,7 @@ export default function AdminPage() {
       key: 'contact',
       render: (v: string | null) =>
         v ? (
-          <span style={{ fontSize: 'var(--t-xs)', color: 'var(--ink-soft)' }}>{v}</span>
+          <span style={{ fontSize: 'var(--t-xs)', color: 'var(--text-secondary)' }}>{v}</span>
         ) : (
           <span className="faint">—</span>
         ),
@@ -308,7 +308,7 @@ export default function AdminPage() {
       width: 120,
       render: (v?: number) =>
         v ? (
-          <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--ink-soft)' }}>
+          <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-secondary)' }}>
             {dayjs(v).format('YYYY-MM-DD')}
           </span>
         ) : (
@@ -366,7 +366,7 @@ export default function AdminPage() {
       key: 't',
       width: 140,
       render: (v: number) => (
-        <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--ink-soft)' }}>
+        <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-secondary)' }}>
           {dayjs(v).format('YYYY-MM-DD HH:mm')}
         </span>
       ),
@@ -377,7 +377,7 @@ export default function AdminPage() {
       key: 'a',
       width: 120,
       render: (v: string) => (
-        <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--ink)' }}>
+        <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text)' }}>
           {v}
         </span>
       ),
@@ -388,7 +388,7 @@ export default function AdminPage() {
       dataIndex: 'detail',
       key: 'd',
       render: (v: string) => (
-        <span style={{ fontSize: 'var(--t-xs)', color: 'var(--ink-soft)' }}>{v || '—'}</span>
+        <span style={{ fontSize: 'var(--t-xs)', color: 'var(--text-secondary)' }}>{v || '—'}</span>
       ),
     },
     {
@@ -397,7 +397,7 @@ export default function AdminPage() {
       key: 'ip',
       width: 130,
       render: (v: string) => (
-        <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--ink-faint)' }}>
+        <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-muted)' }}>
           {v}
         </span>
       ),
@@ -425,7 +425,7 @@ export default function AdminPage() {
 
       {/* Bento 三块：lime 主 tile（总数）+ 两块 panel tile */}
       <div className="bento" style={{ marginBottom: 16 }}>
-        <div className="tile tile--lime tile--span-6">
+        <div className="tile tile--accent tile--span-6">
           <div className="tile-head">
             <span className="metric-label">{t('admin.stat.total')}</span>
             <span className="metric-label">
@@ -479,9 +479,9 @@ export default function AdminPage() {
                   height: 'var(--control-h)',
                   padding: '0 14px',
                   marginLeft: i === 0 ? 0 : -2,
-                  border: '2px solid var(--line)',
-                  background: active ? 'var(--lime)' : 'var(--sheet)',
-                  color: active ? 'var(--on-lime)' : 'var(--ink-soft)',
+                  border: '2px solid var(--border-strong)',
+                  background: active ? 'var(--accent)' : 'var(--surface)',
+                  color: active ? 'var(--on-accent)' : 'var(--text-secondary)',
                   fontFamily: 'var(--font-mono)',
                   fontSize: 'var(--t-2xs)',
                   fontWeight: 700,
@@ -552,7 +552,7 @@ export default function AdminPage() {
         <div style={{ marginTop: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'baseline' }}>
           <span className="panel-kicker">{t('admin.events.title')}</span>
           {stats.events7.map((e) => (
-            <span key={e.name} className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--ink-soft)' }}>
+            <span key={e.name} className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-secondary)' }}>
               {e.name} {e.count}
             </span>
           ))}
@@ -565,10 +565,10 @@ export default function AdminPage() {
           lineHeight: 1.6,
           marginTop: 24,
           maxWidth: '62ch',
-          color: 'var(--ink-faint)',
+          color: 'var(--text-muted)',
         }}
       >
-        <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{t('admin.tips.title')}</span>
+        <span style={{ color: 'var(--text)', fontWeight: 600 }}>{t('admin.tips.title')}</span>
         {' · '}
         {t('admin.tips.body')}
       </p>
@@ -610,8 +610,8 @@ export default function AdminPage() {
             </div>
             <div
               style={{
-                background: 'var(--panel)',
-                border: '2px solid var(--line)',
+                background: 'var(--surface-2)',
+                border: '2px solid var(--border-strong)',
                 padding: 12,
                 marginBottom: 12,
               }}
@@ -620,7 +620,7 @@ export default function AdminPage() {
                 {resetDone.username}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="mono" style={{ fontSize: 'var(--t-md)', fontWeight: 700, color: 'var(--ink)' }}>
+                <span className="mono" style={{ fontSize: 'var(--t-md)', fontWeight: 700, color: 'var(--text)' }}>
                   {resetDone.password}
                 </span>
                 <Button
@@ -632,13 +632,13 @@ export default function AdminPage() {
                 </Button>
               </div>
             </div>
-            <p style={{ fontSize: 'var(--t-xs)', margin: 0, lineHeight: 1.5, color: 'var(--ink-faint)' }}>
+            <p style={{ fontSize: 'var(--t-xs)', margin: 0, lineHeight: 1.5, color: 'var(--text-muted)' }}>
               {t('admin.reset.afterHint')}
             </p>
           </>
         ) : (
           <>
-            <p style={{ fontSize: 'var(--t-sm)', marginTop: 0, lineHeight: 1.5, color: 'var(--ink-soft)' }}>
+            <p style={{ fontSize: 'var(--t-sm)', marginTop: 0, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
               {t('admin.reset.body')}
             </p>
             <Input.Password
@@ -647,7 +647,7 @@ export default function AdminPage() {
               onChange={(e) => setNewPassword(e.target.value)}
               maxLength={200}
             />
-            <p style={{ fontSize: 'var(--t-xs)', margin: '8px 0 0', lineHeight: 1.5, color: 'var(--ink-faint)' }}>
+            <p style={{ fontSize: 'var(--t-xs)', margin: '8px 0 0', lineHeight: 1.5, color: 'var(--text-muted)' }}>
               {t('admin.reset.blankHint')}
             </p>
           </>

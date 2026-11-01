@@ -80,7 +80,7 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }} aria-label={tNow('field.stars', { n: String(n) })}>
         {Array.from({ length: 5 }).map((_, i) => (
-          <StarOutlined key={i} style={{ fontSize: 13, color: i < n ? 'var(--ink)' : 'var(--line-soft)' }} />
+          <StarOutlined key={i} style={{ fontSize: 13, color: i < n ? 'var(--text)' : 'var(--border)' }} />
         ))}
       </span>
     )
@@ -115,10 +115,10 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
           }}
           style={{
             wordBreak: 'break-all',
-            color: 'var(--ink)',
+            color: 'var(--text)',
             textDecoration: 'underline',
             textDecorationThickness: 2,
-            textDecorationColor: 'var(--lime)',
+            textDecorationColor: 'var(--accent)',
             textUnderlineOffset: 2,
           }}
         >

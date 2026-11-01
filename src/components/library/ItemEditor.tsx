@@ -236,11 +236,11 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
               gap: 8,
               alignItems: 'flex-start',
               padding: '10px 12px',
-              borderLeft: '6px solid var(--signal)',
-              background: 'var(--sheet)',
+              borderLeft: '6px solid var(--accent-2)',
+              background: 'var(--surface)',
             }}
           >
-            <InfoCircleOutlined style={{ fontSize: 16, color: 'var(--signal)', flexShrink: 0, marginTop: 1 }} aria-hidden />
+            <InfoCircleOutlined style={{ fontSize: 16, color: 'var(--accent-2)', flexShrink: 0, marginTop: 1 }} aria-hidden />
             <span className="field-hint" style={{ lineHeight: 1.5 }}>
               {t(`reminder.unavailable.${notifyState}`)}
             </span>

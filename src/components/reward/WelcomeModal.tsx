@@ -100,10 +100,7 @@ export default function WelcomeModal({ open, accountId, onClose }: WelcomeModalP
       footer={null}
       maskClosable
       keyboard
-      closable={{ closeIcon: <CloseOutlined style={{ color: 'var(--on-ink)' }} />, 'aria-label': copy.closeAria }}
-      styles={{
-        header: styles.modalHeader,
-      }}
+      closable={{ closeIcon: <CloseOutlined />, 'aria-label': copy.closeAria }}
     >
       <p style={styles.body}>{copy.body1}</p>
       <p style={styles.body}>{copy.body2}</p>
@@ -135,24 +132,15 @@ export default function WelcomeModal({ open, accountId, onClose }: WelcomeModalP
 }
 
 const styles = {
-  // 头部 ink 条（v4 §8.9）：mono kicker + lime 方块 + Outfit 800 标题；右侧留出关闭键位置
-  modalHeader: {
-    background: 'var(--ink)',
-    borderBottom: 'var(--bw) solid var(--line)',
-    padding: '14px 56px 14px 20px',
-    margin: 0,
-  },
   head: {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: 'var(--s2)',
   },
   kicker: {
-    // .page-kicker 默认 ink-faint，在 ink 底上要反白
-    color: 'var(--on-ink)',
+    marginBottom: 'var(--s2)',
   },
   kickerSep: {
-    color: 'var(--on-ink)',
     opacity: 0.5,
     margin: '0 2px',
   },
@@ -164,7 +152,7 @@ const styles = {
     fontWeight: 600,
   },
   title: {
-    color: 'var(--on-ink)',
+    color: 'var(--text)',
     letterSpacing: '-0.02em',
     whiteSpace: 'normal' as const,
   },
@@ -172,7 +160,7 @@ const styles = {
     margin: '0 0 var(--s3)',
     fontSize: 'var(--t-base)',
     lineHeight: 1.65,
-    color: 'var(--ink-soft)',
+    color: 'var(--text-secondary)',
   },
   qrRow: {
     display: 'flex',
@@ -190,13 +178,13 @@ const styles = {
     fontSize: 'var(--t-xs)',
     lineHeight: 1.4,
     fontWeight: 600,
-    color: 'var(--ink)',
+    color: 'var(--text)',
   },
   note: {
     marginTop: 'var(--s2)',
     fontSize: 'var(--t-xs)',
     lineHeight: 1.4,
-    color: 'var(--ink-soft)',
+    color: 'var(--text-secondary)',
   },
   startBtn: {
     minWidth: 128,
@@ -206,6 +194,6 @@ const styles = {
     fontSize: 'var(--t-2xs)',
     lineHeight: 1.3,
     letterSpacing: '0.04em',
-    color: 'var(--ink-faint)',
+    color: 'var(--text-muted)',
   },
 } as const

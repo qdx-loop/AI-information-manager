@@ -160,7 +160,7 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
                 display: 'flex',
                 gap: 8,
                 padding: '0 8px 8px',
-                borderBottom: 'var(--bw) solid var(--line)',
+                borderBottom: 'var(--border-width) solid var(--border-strong)',
               }}
             >
               <span style={{ width: 16, flexShrink: 0 }} />
@@ -173,7 +173,7 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
                 <div key={f.id}>
                   {/* 插入线：拖拽时只出现这一条 3px lime 线，不做缩放/阴影 */}
                   {activeId && overId === f.id && activeId !== f.id ? (
-                    <div style={{ height: 3, background: 'var(--lime)', margin: '1px 0' }} />
+                    <div style={{ height: 3, background: 'var(--accent)', margin: '1px 0' }} />
                   ) : null}
                   <FieldRow
                     field={f}
@@ -220,7 +220,7 @@ function FieldRow({
     minHeight: 40,
     padding: '4px 8px',
     background: 'transparent',
-    borderBottom: '1px solid var(--line-soft)',
+    borderBottom: '1px solid var(--border)',
     // 拖起来的那行只降低不透明度，其他视觉一律不变
     opacity: dragging ? 0.5 : 1,
   }
@@ -229,7 +229,7 @@ function FieldRow({
       <span
         {...attributes}
         {...listeners}
-        style={{ cursor: 'grab', color: 'var(--ink-faint)', width: 16, flexShrink: 0, display: 'inline-flex' }}
+        style={{ cursor: 'grab', color: 'var(--text-muted)', width: 16, flexShrink: 0, display: 'inline-flex' }}
       >
         <HolderOutlined />
       </span>

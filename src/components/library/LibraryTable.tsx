@@ -147,8 +147,8 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
           e.stopPropagation()
           onPin(it, !it.pinned)
         }}
-        icon={<StarOutlined style={{ fontSize: 16, color: it.pinned ? 'var(--ink)' : 'var(--ink-faint)' }} />}
-        style={it.pinned ? { background: 'var(--lime)', borderColor: 'var(--line)' } : undefined}
+        icon={<StarOutlined style={{ fontSize: 16, color: it.pinned ? 'var(--text)' : 'var(--text-muted)' }} />}
+        style={it.pinned ? { background: 'var(--accent)', borderColor: 'var(--border-strong)' } : undefined}
       />
     </Tooltip>
   )
@@ -166,7 +166,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
             className="sheet"
             style={{
               padding: 'var(--s4)',
-              borderColor: it.id === focusItemId ? 'var(--ink)' : 'var(--line)',
+              borderColor: it.id === focusItemId ? 'var(--text)' : 'var(--border-strong)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -179,7 +179,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
                   fontWeight: 700,
                   fontSize: 'var(--t-md)',
                   letterSpacing: '-0.01em',
-                  color: 'var(--ink)',
+                  color: 'var(--text)',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -331,7 +331,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
     {
       title: '',
       dataIndex: 'pinned',
-      width: 56,
+      width: 40,
       // 32px 图标按钮用负 margin 压进 40px 行高
       render: (_, record) => (
         <div style={{ display: 'flex', justifyContent: 'center', margin: '-7px 0' }}>{starButton(record)}</div>
@@ -351,11 +351,27 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
           style: {
             ...cellStyle(f),
             ...(i === 0 ? { fontWeight: 700 } : {}),
-            ...(editing ? { boxShadow: 'inset 0 0 0 2px var(--ink)' } : {}),
+            ...(editing ? { boxShadow: 'inset 0 0 0 2px var(--text)' } : {}),
           },
         }
       },
-      width: i === 0 ? 200 : undefined,
+      // 玻璃宽表：按字段类型分配宽度 + tableLayout fixed，避免右列被裁掉
+      width:
+        i === 0
+          ? 150
+          : f.type === 'textarea'
+            ? 120
+            : f.type === 'number'
+              ? 90
+              : f.type === 'date'
+                ? 96
+                : f.type === 'select'
+                  ? 108
+                  : f.type === 'text'
+                    ? f.key === 'phone'
+                      ? 118
+                      : 92
+                    : 100,
       render: (_: unknown, record: Item, rowIndex: number) => {
         const value = record.fields[f.key]
         const isEditing = editCell?.id === record.id && editCell.key === f.key
@@ -422,7 +438,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
     {
       title: '',
       key: 'action',
-      width: 96,
+      width: 72,
       fixed: 'right',
       render: (_, record) => {
         // 末列操作 hover 才出现；键盘聚焦时也要出现，否则 Tab 到按钮却看不见。
@@ -465,6 +481,7 @@ export default function LibraryTable({ fields, items, focusItemId, onEdit, onDel
   return (
     <div ref={tableRef} className="data-table">
       <Table<Item>
+        tableLayout="fixed"
         rowKey="id"
         columns={columns}
         dataSource={items}

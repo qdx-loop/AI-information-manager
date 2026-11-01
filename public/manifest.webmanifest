@@ -4,8 +4,8 @@
   "description": "用说话的方式管理你的数据：建库、录入、查资料、做报表",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ECE9E0",
-  "theme_color": "#141412",
+  "background_color": "#EEF1F8",
+  "theme_color": "#060913",
   "lang": "zh-CN",
   "icons": [
     {

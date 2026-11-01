@@ -50,7 +50,7 @@
 - 可用 `REGISTRATION_OPEN=0` 紧急关闭注册（被灌水时）
 
 ### 🎨 界面体验
-- 「硬边印刷 SIGNAL PRESS」设计系统：骨白纸面 + 纯黑硬边 + 荧光黄绿信号色 + 零圆角 + 硬投影；Outfit + Work Sans + 等宽标签；Bento 栅格（由 ui-ux-pro-max skill 生成）
+- 「流光玻璃 LUMINOUS GLASS」设计系统：极光渐变画布 + 磨砂玻璃面板 + 靛紫渐变 + 柔和光影；Plus Jakarta Sans + Inter + 等宽标签（由 ui-ux-pro-max skill 的 Liquid Glass 方向生成）
 - 深色 / 浅色主题切换（登录页、后台、管理库、移动端全部适配）
 - 响应式布局，适配不同屏幕
 

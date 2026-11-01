@@ -29,7 +29,7 @@ function RouteFallback() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--paper)',
+        background: 'var(--bg)',
       }}
     >
       <span className="mono faint" style={{ fontSize: 11, letterSpacing: '0.08em' }}>

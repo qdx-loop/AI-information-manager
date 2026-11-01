@@ -39,7 +39,7 @@ function StepBar({ current }: { current: 1 | 2 | 3 }) {
         const state = i + 1 < current ? 'done' : i + 1 === current ? 'now' : 'todo'
         return (
           <Fragment key={s.n}>
-            {i > 0 ? <div style={{ flex: '1 1 0%', height: 2, background: 'var(--line)' }} /> : null}
+            {i > 0 ? <div style={{ flex: '1 1 0%', height: 2, background: 'var(--border-strong)' }} /> : null}
             <div
               aria-current={state === 'now' ? 'step' : undefined}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexShrink: 0 }}
@@ -55,9 +55,9 @@ function StepBar({ current }: { current: 1 | 2 | 3 }) {
                   fontSize: 'var(--t-xs)',
                   fontWeight: 700,
                   letterSpacing: '0.04em',
-                  background: state === 'now' ? 'var(--lime)' : state === 'done' ? 'var(--ink)' : 'var(--panel)',
-                  color: state === 'now' ? 'var(--on-lime)' : state === 'done' ? 'var(--on-ink)' : 'var(--ink-soft)',
-                  border: 'var(--bw) solid var(--line)',
+                  background: state === 'now' ? 'var(--accent)' : state === 'done' ? 'var(--text)' : 'var(--surface-2)',
+                  color: state === 'now' ? 'var(--on-accent)' : state === 'done' ? 'var(--on-dark)' : 'var(--text-secondary)',
+                  border: 'var(--border-width) solid var(--border-strong)',
                   boxShadow: state === 'todo' ? 'none' : 'var(--shadow-1)',
                 }}
               >
@@ -65,7 +65,7 @@ function StepBar({ current }: { current: 1 | 2 | 3 }) {
               </span>
               <span
                 className="panel-kicker"
-                style={{ color: state === 'now' ? 'var(--ink)' : 'var(--ink-faint)' }}
+                style={{ color: state === 'now' ? 'var(--text)' : 'var(--text-muted)' }}
               >
                 {s.label}
               </span>
@@ -217,8 +217,8 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
 
   const importable = parsedRows.length > 0
   const monoHead: React.CSSProperties = {
-    background: 'var(--ink)',
-    color: 'var(--on-ink)',
+    background: 'var(--text)',
+    color: 'var(--on-dark)',
     fontFamily: 'var(--font-mono)',
     fontSize: '10px',
     fontWeight: 700,
@@ -271,8 +271,8 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
             }}
             className="panel"
             style={{
-              border: '2px dashed var(--line)',
-              background: dragging ? 'var(--lime-wash)' : 'var(--panel)',
+              border: '2px dashed var(--border-strong)',
+              background: dragging ? 'var(--accent-soft)' : 'var(--surface-2)',
               padding: '44px 20px',
               textAlign: 'center',
               boxShadow: 'none',
@@ -280,7 +280,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
             }}
             onClick={() => fileInputRef.current?.click()}
           >
-            <InboxOutlined style={{ fontSize: 40, color: 'var(--ink-faint)' }} aria-hidden />
+            <InboxOutlined style={{ fontSize: 40, color: 'var(--text-muted)' }} aria-hidden />
             <div className="page-sub" style={{ fontSize: 'var(--t-sm)', margin: '12px 0 16px' }}>
               {t('lib.importExport.dropHint')}
             </div>
@@ -311,7 +311,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
                       gap: 12,
                       minHeight: 40,
                       padding: '6px 12px',
-                      borderBottom: '1px solid var(--line-soft)',
+                      borderBottom: '1px solid var(--border)',
                     }}
                   >
                     <span
@@ -365,11 +365,11 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
                               style={{
                                 padding: '9px 12px',
                                 fontSize: 'var(--t-sm)',
-                                color: 'var(--ink)',
+                                color: 'var(--text)',
                                 textAlign: c.numeric ? 'right' : 'left',
                                 fontFamily: c.numeric ? 'var(--font-mono)' : undefined,
                                 fontVariantNumeric: c.numeric ? 'tabular-nums' : undefined,
-                                borderBottom: '1px solid var(--line-soft)',
+                                borderBottom: '1px solid var(--border)',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',

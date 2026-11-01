@@ -99,7 +99,7 @@ function IndexRow({
         <span className="index-title">{title}</span>
         <span className="index-meta">{meta}</span>
       </span>
-      {right ?? <ArrowRightOutlined style={{ fontSize: 12, color: 'var(--ink-faint)' }} aria-hidden />}
+      {right ?? <ArrowRightOutlined style={{ fontSize: 12, color: 'var(--text-muted)' }} aria-hidden />}
     </div>
   )
 }
@@ -223,7 +223,7 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
           fontWeight: 700,
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
-          color: 'var(--on-ink)',
+          color: 'var(--on-dark)',
           opacity: 0.72,
         }}
       >
@@ -237,7 +237,7 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
           fontWeight: 800,
           letterSpacing: '-0.03em',
           fontVariantNumeric: 'tabular-nums',
-          color: signal ? 'var(--signal)' : 'var(--lime)',
+          color: signal ? 'var(--accent-2)' : 'var(--accent)',
         }}
       >
         {value}
@@ -273,7 +273,7 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
 
       <div className="bento">
         {/* —— 第一行：左 7 lime 大指标 / 右 5 墨黑今日简报 —— */}
-        <div className="tile tile--lime tile--span-7">
+        <div className="tile tile--accent tile--span-7">
           <div className="tile-head">
             <span>DASHBOARD</span>
             <span>RECORDS</span>
@@ -300,7 +300,7 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
           )}
         </div>
 
-        <div className="tile tile--ink tile--span-5">
+        <div className="tile tile--dark tile--span-5">
           <div className="tile-head">
             <span>{t('dash.brief.title')}</span>
             <span>BRIEF</span>
@@ -321,25 +321,25 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
         </div>
 
         {/* —— 第二行：3 个 panel 小指标（各 4 列） —— */}
-        <div className="tile tile--panel tile--span-4">
+        <div className="tile tile--soft tile--span-4">
           <div className="metric">
             <div className="metric-label">{t('dash.stat.week')}</div>
             <div className="metric-value" style={{ fontSize: 'var(--t-3xl)' }}>{loading || error ? '—' : fmt(itemsThisWeek)}</div>
             <div className="metric-note">{t('dash.kpi.delta.avg', { n: perLib })}</div>
           </div>
         </div>
-        <div className="tile tile--panel tile--span-4">
+        <div className="tile tile--soft tile--span-4">
           <div className="metric">
             <div className="metric-label">{t('dash.stat.libs')}</div>
             <div className="metric-value" style={{ fontSize: 'var(--t-3xl)' }}>{loading || error ? '—' : fmt(totalLibs)}</div>
             <div className="metric-note">{t('dash.kpi.delta.subLibs', { n: subLibs })}</div>
           </div>
         </div>
-        <div className="tile tile--panel tile--span-4">
+        <div className="tile tile--soft tile--span-4">
           <div className="metric">
             <div className="metric-label">{t('dash.kpi.todo')}</div>
             <div className="metric-value" style={{ fontSize: 'var(--t-3xl)' }}>{loading || error ? '—' : fmt(alerts.length)}</div>
-            <div className="metric-note" style={{ color: overdueCount > 0 ? 'var(--signal)' : undefined }}>
+            <div className="metric-note" style={{ color: overdueCount > 0 ? 'var(--accent-2)' : undefined }}>
               {t('dash.kpi.delta.overdue', { n: overdueCount })}
             </div>
           </div>
@@ -411,7 +411,7 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
             )}
           </div>
           {/* 右 5 列底部：快捷入口（index-row，编号用线性图标） */}
-          <div className="panel-head" style={{ borderTop: 'var(--bw) solid var(--line)', borderBottom: 0 }}>
+          <div className="panel-head" style={{ borderTop: 'var(--border-width) solid var(--border-strong)', borderBottom: 0 }}>
             <span className="panel-kicker">{t('dash.quick.title')}</span>
           </div>
           <div className="index-list">
@@ -421,7 +421,7 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
                 num={String(i + 1).padStart(2, '0')}
                 title={q.label}
                 meta=""
-                right={<span aria-hidden style={{ display: 'inline-flex', color: 'var(--ink-faint)' }}>{q.icon}</span>}
+                right={<span aria-hidden style={{ display: 'inline-flex', color: 'var(--text-muted)' }}>{q.icon}</span>}
                 onClick={q.onClick}
               />
             ))}

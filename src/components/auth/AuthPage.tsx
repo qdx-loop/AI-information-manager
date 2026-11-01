@@ -23,21 +23,6 @@ import { useTurnstile } from './useTurnstile'
 import { isAndroidApp } from '@/utils/platform'
 import { markWelcomePending } from '@/utils/welcome'
 
-/** ≥961px 才显示海报底部装饰（移动端 CSS 是单列短版） */
-function useMinWidth(min: number): boolean {
-  const [ok, setOk] = useState(() =>
-    typeof window === 'undefined' ? true : window.matchMedia(`(min-width:${min}px)`).matches,
-  )
-  useEffect(() => {
-    const mq = window.matchMedia(`(min-width:${min}px)`)
-    const onChange = () => setOk(mq.matches)
-    onChange()
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [min])
-  return ok
-}
-
 type Mode = 'login' | 'register'
 
 interface RegisterValues {
@@ -59,7 +44,6 @@ export default function AuthPage() {
   const [loginForm] = Form.useForm<{ username: string; password: string }>()
   const [regForm] = Form.useForm<RegisterValues>()
   const t = useI18n()
-  const posterWide = useMinWidth(961)
   const [regOpen, setRegOpen] = useState<boolean | null>(null)
   const inApp = isAndroidApp()
   // 内联错误：错误不只在顶部 toast 一闪而过，表单里留一行
@@ -176,9 +160,9 @@ export default function AuthPage() {
               flex: 1,
               height: 'var(--control-h)',
               marginLeft: i === 0 ? 0 : -2,
-              border: '2px solid var(--line)',
-              background: active ? 'var(--lime)' : 'var(--sheet)',
-              color: active ? 'var(--on-lime)' : 'var(--ink-soft)',
+              border: '2px solid var(--border-strong)',
+              background: active ? 'var(--accent)' : 'var(--surface)',
+              color: active ? 'var(--on-accent)' : 'var(--text-secondary)',
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--t-2xs)',
               fontWeight: 700,
@@ -225,7 +209,7 @@ export default function AuthPage() {
       </Form.Item>
       <Form.Item style={{ marginBottom: 16 }}>
         <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
-          <span style={{ fontSize: 'var(--t-sm)', color: 'var(--ink-soft)' }}>
+          <span style={{ fontSize: 'var(--t-sm)', color: 'var(--text-secondary)' }}>
             {t('auth.remember')}
           </span>
         </Checkbox>
@@ -253,7 +237,7 @@ export default function AuthPage() {
             marginBottom: 16,
             fontSize: 'var(--t-xs)',
             lineHeight: 1.45,
-            color: 'var(--ink)',
+            color: 'var(--text)',
           }}
         >
           <div style={{ fontWeight: 600, marginBottom: 2 }}>{t('auth.reg.closedTitle')}</div>
@@ -333,7 +317,7 @@ export default function AuthPage() {
         <div style={{ marginBottom: 8 }}>
           <div ref={tsHost} />
           {tsStatus === 'loading' && (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--ink-faint)' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)' }}>
               {t('auth.reg.ts.loading')}
             </div>
           )}
@@ -353,7 +337,7 @@ export default function AuthPage() {
             </div>
           )}
           {tsStatus === 'unavailable' && (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               {t('auth.reg.ts.unavailable')}
               <Button
                 type="link"
@@ -390,7 +374,7 @@ export default function AuthPage() {
             marginBottom: 0,
             fontSize: 'var(--t-xs)',
             lineHeight: 1.5,
-            color: 'var(--ink-soft)',
+            color: 'var(--text-secondary)',
           }}
         >
           {t('auth.reg.privacy')}
@@ -441,46 +425,7 @@ export default function AuthPage() {
         </div>
 
         {/* 底部视觉锚点：印刷对位标 + 一块 lime（移动端隐藏） */}
-        {posterWide && (
-          <div
-            aria-hidden
-            style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              gap: 10,
-              marginBottom: 32,
-            }}
-          >
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                style={{
-                  width: 44,
-                  height: 44,
-                  border: '2px solid var(--on-ink)',
-                  background: 'transparent',
-                }}
-              />
-            ))}
-            <span
-              style={{
-                width: 92,
-                height: 44,
-                background: 'var(--lime)',
-                border: '2px solid var(--on-ink)',
-              }}
-            />
-            <span
-              style={{
-                flex: 1,
-                height: 2,
-                background: 'var(--on-ink)',
-                opacity: 0.35,
-                marginBottom: 21,
-              }}
-            />
-          </div>
-        )}
+        
 
         <div className="auth-poster-foot">
           <span>© {new Date().getFullYear()} {t('auth.brand')}</span>

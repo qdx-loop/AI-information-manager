@@ -156,10 +156,10 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
                               setSelectedKey(tpl.key)
                             }
                           }}
-                          style={on ? { background: 'var(--lime-wash)', boxShadow: 'inset 3px 0 0 var(--line)' } : undefined}
+                          style={on ? { background: 'var(--accent-soft)', boxShadow: 'inset 3px 0 0 var(--border-strong)' } : undefined}
                         >
                           <span className="index-num" aria-hidden>
-                            <span style={{ display: 'inline-flex', color: on ? 'var(--ink)' : 'var(--ink-faint)', fontSize: 16 }}>
+                            <span style={{ display: 'inline-flex', color: on ? 'var(--text)' : 'var(--text-muted)', fontSize: 16 }}>
                               {TPL_ICONS[tpl.key] ?? <AppstoreOutlined />}
                             </span>
                           </span>
@@ -188,7 +188,7 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
                   <span className="table-count">{selected.fields.length} {t('tpl.center.fields')}</span>
                 </div>
                 <p className="page-sub" style={{ fontSize: 'var(--t-xs)', margin: '6px 0 16px' }}>{selected.desc}</p>
-                <div style={{ borderTop: 'var(--bw) solid var(--line)' }}>
+                <div style={{ borderTop: 'var(--border-width) solid var(--border-strong)' }}>
                   {selected.fields.map((f, i) => (
                     <div
                       key={f.key}
@@ -199,7 +199,7 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
                         gap: 12,
                         minHeight: 40,
                         padding: '8px 0',
-                        borderBottom: '1px solid var(--line-soft)',
+                        borderBottom: '1px solid var(--border)',
                       }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>

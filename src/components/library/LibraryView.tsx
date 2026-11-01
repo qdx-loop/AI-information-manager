@@ -357,7 +357,7 @@ export default function LibraryView() {
           {fields.length > 0 && (
             <>
               <Input
-                prefix={<SearchOutlined style={{ color: 'var(--ink-faint)' }} />}
+                prefix={<SearchOutlined style={{ color: 'var(--text-muted)' }} />}
                 placeholder={t('lib.searchPlaceholder')}
                 allowClear
                 value={keywordInput}

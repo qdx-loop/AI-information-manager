@@ -36,7 +36,7 @@ export function InlineSkeleton({ rows = 3, tip }: { rows?: number; tip?: ReactNo
     <div style={{ padding: 8 }} aria-busy="true">
       <Skeleton active title={false} paragraph={{ rows }} />
       {tip ? (
-        <div style={{ textAlign: 'center', color: 'var(--ink-soft)', fontSize: 12, marginTop: 8 }}>
+        <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 12, marginTop: 8 }}>
           {tip}
         </div>
       ) : null}

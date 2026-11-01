@@ -85,18 +85,18 @@ function Notice({
   title?: string
   children: React.ReactNode
 }) {
-  const bar = kind === 'warning' ? 'var(--warning)' : kind === 'danger' ? 'var(--danger)' : 'var(--lime)'
+  const bar = kind === 'warning' ? 'var(--warning)' : kind === 'danger' ? 'var(--danger)' : 'var(--accent)'
   return (
     <div
       style={{
-        border: '2px solid var(--line)',
+        border: '2px solid var(--border-strong)',
         borderLeft: `6px solid ${bar}`,
-        background: 'var(--panel)',
+        background: 'var(--surface-2)',
         padding: '10px 12px',
         marginBottom: 20,
         fontSize: 'var(--t-sm)',
         lineHeight: 1.5,
-        color: 'var(--ink-soft)',
+        color: 'var(--text-secondary)',
       }}
     >
       {title && (
@@ -104,7 +104,7 @@ function Notice({
           style={{
             fontFamily: 'var(--font-display)',
             fontWeight: 700,
-            color: 'var(--ink)',
+            color: 'var(--text)',
             marginBottom: 2,
           }}
         >
@@ -133,8 +133,8 @@ function SyncStatusBanner() {
   const when = st.at ? new Date(st.at).toLocaleString() : ''
   if (st.phase === 'off') {
     return (
-      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink-faint)' }}>
-        <span style={{ color: 'var(--ink-soft)' }}>{t('settings.sync.off')}</span>
+      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--text-muted)' }}>
+        <span style={{ color: 'var(--text-secondary)' }}>{t('settings.sync.off')}</span>
         {' · '}
         {t('settings.sync.offDesc')}
       </div>
@@ -148,7 +148,7 @@ function SyncStatusBanner() {
           paddingLeft: 10,
           fontSize: 12.5,
           lineHeight: 1.7,
-          color: 'var(--ink-soft)',
+          color: 'var(--text-secondary)',
         }}
       >
         <span style={{ color: 'var(--danger)', fontWeight: 500 }}>{t('settings.sync.error')}</span>
@@ -160,14 +160,14 @@ function SyncStatusBanner() {
   }
   if (st.phase === 'syncing') {
     return (
-      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
+      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--text-secondary)' }}>
         <SyncOutlined style={{ marginRight: 6, fontSize: 12 }} />
         {t('settings.sync.syncing')} · {t('settings.sync.syncingDesc')}
       </div>
     )
   }
   return (
-    <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink-faint)' }}>
+    <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--text-muted)' }}>
       <CloudOutlined style={{ marginRight: 6, fontSize: 12 }} />
       {t('settings.sync.ok')} · {t('settings.sync.lastOk')}: {when || t('settings.sync.never')}
     </div>
@@ -217,7 +217,7 @@ export default function SettingsPage() {
                 margin: 0,
                 fontSize: 'var(--t-xs)',
                 lineHeight: 1.5,
-                color: 'var(--ink-soft)',
+                color: 'var(--text-secondary)',
                 maxWidth: '62ch',
               }}
             >
@@ -269,21 +269,21 @@ export default function SettingsPage() {
                     className="index-row"
                     onClick={() => select(it.key as TabKey)}
                     style={{
-                      background: active ? 'var(--lime)' : undefined,
-                      color: active ? 'var(--on-lime)' : undefined,
-                      borderLeft: active ? '4px solid var(--ink)' : '4px solid transparent',
+                      background: active ? 'var(--accent)' : undefined,
+                      color: active ? 'var(--on-accent)' : undefined,
+                      borderLeft: active ? '4px solid var(--text)' : '4px solid transparent',
                     }}
                   >
                     <span
                       className="index-num"
-                      style={{ color: active ? 'var(--on-lime)' : undefined }}
+                      style={{ color: active ? 'var(--on-accent)' : undefined }}
                     >
                       {String(i + 1).padStart(2, '0')}
                     </span>
                     <span className="index-main">
                       <span
                         className="index-title"
-                        style={{ color: active ? 'var(--on-lime)' : undefined }}
+                        style={{ color: active ? 'var(--on-accent)' : undefined }}
                       >
                         {it.label}
                       </span>
@@ -362,12 +362,12 @@ function AccountTab() {
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13 }}>
             <span className="faint">{t('settings.account.current')}</span>
-            <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{account.username}</span>
+            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{account.username}</span>
           </div>
           {account.contact && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, marginTop: 4 }}>
               <span className="faint">{t('settings.account.contact')}</span>
-              <span style={{ color: 'var(--ink)' }}>{account.contact}</span>
+              <span style={{ color: 'var(--text)' }}>{account.contact}</span>
             </div>
           )}
         </div>
@@ -380,7 +380,7 @@ function AccountTab() {
       </div>
 
       {pwdOpen && (
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--line-soft)' }}>
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
           <h3 style={{ fontSize: 'var(--t-lg)', fontWeight: 600, margin: '0 0 12px' }}>
             {t('settings.account.pwdCard')}
           </h3>
@@ -422,7 +422,7 @@ function AccountTab() {
         className="muted"
         style={{ fontSize: 13, lineHeight: 1.7, margin: '24px 0 0', maxWidth: 480 }}
       >
-        <span style={{ fontWeight: 600, color: 'var(--ink)' }}>
+        <span style={{ fontWeight: 600, color: 'var(--text)' }}>
           {t('settings.account.pwdInfo.title')}
         </span>
         {' · '}
@@ -604,7 +604,7 @@ function StorageTab() {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <Switch checked={settings.storageMode === 'cloud'} onChange={handleToggle} />
-        <span style={{ fontSize: 13, color: 'var(--ink)' }}>
+        <span style={{ fontSize: 13, color: 'var(--text)' }}>
           {settings.storageMode === 'cloud'
             ? t('settings.storage.mode.cloudOn')
             : t('settings.storage.mode.localOn')}
@@ -638,7 +638,7 @@ function StorageTab() {
       <details style={{ margin: '8px 0 24px' }}>
         <summary
           className="mono"
-          style={{ cursor: 'pointer', fontSize: 12, color: 'var(--ink-soft)', padding: '4px 0' }}
+          style={{ cursor: 'pointer', fontSize: 12, color: 'var(--text-secondary)', padding: '4px 0' }}
         >
           {t('settings.storage.sqlTitle')}
         </summary>
@@ -650,9 +650,9 @@ function StorageTab() {
             overflow: 'auto',
             margin: '8px 0 0',
             padding: 12,
-            background: 'var(--panel)',
+            background: 'var(--surface-2)',
             borderRadius: 2,
-            color: 'var(--ink)',
+            color: 'var(--text)',
           }}
         >
 {`-- 已经建过表的话，在 Supabase SQL Editor 里再跑一次这三句补列
@@ -708,7 +708,7 @@ alter table items disable row level security;`}
       </details>
 
       {settings.cloud.url && settings.cloud.anonKey ? (
-        <div style={{ paddingTop: 16, borderTop: '1px solid var(--line-soft)' }}>
+        <div style={{ paddingTop: 16, borderTop: '1px solid var(--border)' }}>
           <h3 style={{ fontSize: 'var(--t-lg)', fontWeight: 600, margin: '0 0 12px' }}>
             {t('settings.storage.syncTitle')}
           </h3>
@@ -900,14 +900,14 @@ function AITab() {
         </Form>
       )}
 
-      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--line-soft)' }} />
+      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--border)' }} />
 
       <Form layout="vertical">
         <Form.Item
           label={
             <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontWeight: 600 }}>{t('settings.ai.prompt.label')}</span>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--ink-faint)' }}>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 {settings.ai.customPrompt ? t('settings.ai.prompt.custom') : t('settings.ai.prompt.default')}
               </span>
             </span>
@@ -944,7 +944,7 @@ function AITab() {
         </Space>
       </Form>
 
-      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--line-soft)' }} />
+      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--border)' }} />
 
       <Form layout="vertical">
         <Form.Item
@@ -952,7 +952,7 @@ function AITab() {
             <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontWeight: 600 }}>{t('settings.ai.memory.label')}</span>
               {account && listMemory(account.id).length > 0 && (
-                <span className="mono" style={{ fontSize: 11, color: 'var(--ink-faint)' }}>
+                <span className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                   {t('settings.ai.memory.count', { n: listMemory(account.id).length })}
                 </span>
               )}
@@ -1144,7 +1144,7 @@ function BackupTab() {
         </Upload>
       </div>
 
-      <div style={{ margin: '28px 0 16px', borderTop: '1px solid var(--line-soft)' }} />
+      <div style={{ margin: '28px 0 16px', borderTop: '1px solid var(--border)' }} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <h3 style={{ fontSize: 'var(--t-lg)', fontWeight: 600, margin: 0 }}>
@@ -1173,12 +1173,12 @@ function BackupTab() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 0',
-                borderBottom: '1px solid var(--line-soft)',
+                borderBottom: '1px solid var(--border)',
                 gap: 8,
               }}
             >
               <div style={{ minWidth: 0, flex: 1 }}>
-                <span className="mono" style={{ fontSize: 12, color: 'var(--ink)', display: 'block' }}>
+                <span className="mono" style={{ fontSize: 12, color: 'var(--text)', display: 'block' }}>
                   {dayjs(s.createdAt).format('YYYY-MM-DD HH:mm')}
                 </span>
                 <span className="faint" style={{ fontSize: 12 }}>

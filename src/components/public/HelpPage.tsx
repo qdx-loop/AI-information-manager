@@ -21,26 +21,26 @@ import SupportLink from '@/components/reward/SupportLink'
 const CODE: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
   fontSize: 'var(--t-2xs)',
-  background: 'var(--panel)',
-  border: '2px solid var(--line)',
+  background: 'var(--surface-2)',
+  border: '2px solid var(--border-strong)',
   padding: '12px 14px',
   overflowX: 'auto',
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-all',
-  color: 'var(--ink)',
+  color: 'var(--text)',
   lineHeight: 1.6,
   margin: '0 0 18px',
 }
 
 /** 提示块：左 6px 色条 + panel 底 + 2px ink 边（不用柔和阴影/圆角） */
 function Note({ kind, title, text }: { kind: 'tip' | 'warn' | 'info'; title?: string; text: string }) {
-  const bar = kind === 'tip' ? 'var(--lime)' : kind === 'warn' ? 'var(--warning)' : 'var(--ink)'
+  const bar = kind === 'tip' ? 'var(--accent)' : kind === 'warn' ? 'var(--warning)' : 'var(--text)'
   return (
     <div
       style={{
-        border: '2px solid var(--line)',
+        border: '2px solid var(--border-strong)',
         borderLeft: `6px solid ${bar}`,
-        background: 'var(--panel)',
+        background: 'var(--surface-2)',
         padding: '12px 14px',
         margin: '0 0 18px',
       }}
@@ -51,14 +51,14 @@ function Note({ kind, title, text }: { kind: 'tip' | 'warn' | 'info'; title?: st
             fontFamily: 'var(--font-display)',
             fontWeight: 700,
             fontSize: 'var(--t-base)',
-            color: 'var(--ink)',
+            color: 'var(--text)',
             marginBottom: 4,
           }}
         >
           {title}
         </div>
       )}
-      <div style={{ color: 'var(--ink-soft)', fontSize: 'var(--t-base)', lineHeight: 1.7 }}>{text}</div>
+      <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--t-base)', lineHeight: 1.7 }}>{text}</div>
     </div>
   )
 }
@@ -76,7 +76,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                   margin: '0 0 16px',
                   fontSize: 'var(--t-base)',
                   lineHeight: 1.7,
-                  color: 'var(--ink)',
+                  color: 'var(--text)',
                 }}
               >
                 {b.text}
@@ -93,7 +93,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                   paddingLeft: 22,
                   fontSize: 'var(--t-base)',
                   lineHeight: 1.7,
-                  color: 'var(--ink)',
+                  color: 'var(--text)',
                 }}
               >
                 {b.items.map((x, j) => (
@@ -116,7 +116,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                         fontFamily: 'var(--font-mono)',
                         fontSize: 'var(--t-2xs)',
                         fontWeight: 700,
-                        color: 'var(--ink-faint)',
+                        color: 'var(--text-muted)',
                         marginTop: 3,
                       }}
                     >
@@ -127,7 +127,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                         style={{
                           fontFamily: 'var(--font-display)',
                           fontWeight: 700,
-                          color: 'var(--ink)',
+                          color: 'var(--text)',
                           marginBottom: 2,
                           fontSize: 'var(--t-base)',
                         }}
@@ -135,7 +135,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                         {x.title}
                       </div>
                       {x.text && (
-                        <div style={{ color: 'var(--ink-soft)', fontSize: 'var(--t-base)', lineHeight: 1.7 }}>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--t-base)', lineHeight: 1.7 }}>
                           {x.text}
                         </div>
                       )}
@@ -149,7 +149,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
               <div
                 key={i}
                 style={{
-                  border: '2px solid var(--line)',
+                  border: '2px solid var(--border-strong)',
                   overflowX: 'auto',
                   margin: '0 0 18px',
                 }}
@@ -170,8 +170,8 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                           style={{
                             textAlign: 'left',
                             padding: '10px 12px',
-                            background: 'var(--ink)',
-                            color: 'var(--on-ink)',
+                            background: 'var(--text)',
+                            color: 'var(--on-dark)',
                             fontFamily: 'var(--font-mono)',
                             fontWeight: 700,
                             fontSize: 'var(--t-2xs)',
@@ -193,8 +193,8 @@ function Blocks({ blocks }: { blocks: Block[] }) {
                             key={c}
                             style={{
                               padding: '9px 12px',
-                              borderBottom: '1px solid var(--line-soft)',
-                              color: 'var(--ink)',
+                              borderBottom: '1px solid var(--border)',
+                              color: 'var(--text)',
                               lineHeight: 1.6,
                               verticalAlign: 'top',
                               // 60 字符长的接口地址不允许断行会把表撑到横向滚动
@@ -282,14 +282,14 @@ export default function HelpPage() {
               className="index-row"
               onClick={() => jump(c.id)}
               style={{
-                background: isActive ? 'var(--lime)' : undefined,
-                color: isActive ? 'var(--on-lime)' : undefined,
-                borderLeft: isActive ? '4px solid var(--ink)' : '4px solid transparent',
+                background: isActive ? 'var(--accent)' : undefined,
+                color: isActive ? 'var(--on-accent)' : undefined,
+                borderLeft: isActive ? '4px solid var(--text)' : '4px solid transparent',
               }}
             >
               <span
                 className="index-num"
-                style={{ color: isActive ? 'var(--on-lime)' : undefined }}
+                style={{ color: isActive ? 'var(--on-accent)' : undefined }}
               >
                 {String(i + 1).padStart(2, '0')}
               </span>
@@ -298,7 +298,7 @@ export default function HelpPage() {
                   className="index-title"
                   style={{
                     whiteSpace: 'normal',
-                    color: isActive ? 'var(--on-lime)' : undefined,
+                    color: isActive ? 'var(--on-accent)' : undefined,
                   }}
                 >
                   {c.title}
@@ -389,7 +389,7 @@ export default function HelpPage() {
                 fontWeight: 700,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                color: 'var(--ink)',
+                color: 'var(--text)',
               }}
             >
               {t('help.toc')}
@@ -414,7 +414,7 @@ export default function HelpPage() {
                       fontWeight: 700,
                       lineHeight: 1.25,
                       margin: '0 0 14px',
-                      color: 'var(--ink)',
+                      color: 'var(--text)',
                     }}
                   >
                     {c.title}
@@ -427,7 +427,7 @@ export default function HelpPage() {
                           fontSize: 'var(--t-base)',
                           fontWeight: 700,
                           margin: '0 0 10px',
-                          color: 'var(--ink)',
+                          color: 'var(--text)',
                         }}
                       >
                         {s.title}
@@ -445,7 +445,7 @@ export default function HelpPage() {
                   fontSize: 'var(--t-2xs)',
                   lineHeight: 1.6,
                   margin: 0,
-                  color: 'var(--ink-faint)',
+                  color: 'var(--text-muted)',
                 }}
               >
                 {t('help.supportHint')} <SupportLink />

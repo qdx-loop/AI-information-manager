@@ -1,167 +1,158 @@
 ---
 name: 信息管理 · AI 智能信息管理助手
-description: 硬边印刷 SIGNAL PRESS——骨白纸面、纯黑硬边、荧光黄绿信号色、零圆角、硬投影、Outfit + Work Sans、Bento 栅格
+description: 流光玻璃 LUMINOUS GLASS——极光渐变画布、磨砂玻璃层、柔和光影、靛紫渐变品牌、Plus Jakarta Sans + Inter
 colors:
-  paper: "#ECE9E0"
-  sheet: "#FFFEF9"
-  panel: "#F5F2E8"
-  ink: "#141412"
-  ink-soft: "#57544B"
-  ink-faint: "#676358"
-  line: "#141412"
-  line-soft: "#C9C4B5"
-  lime: "#D4FF3F"
-  lime-hover: "#C3EF2B"
-  lime-wash: "#F4FFCE"
-  signal: "#FF5A1F"
-  danger: "#C22A1C"
-  success: "#1B7A43"
-  warning: "#8A5A00"
-  dark-paper: "#101010"
-  dark-sheet: "#181817"
-  dark-ink: "#F5F3E9"
-  dark-lime: "#D4FF3F"
+  bg: "#EEF1F8"
+  surface: "rgba(255,255,255,0.58)"
+  surface-solid: "#FFFFFF"
+  surface-2: "rgba(255,255,255,0.36)"
+  glass-border: "rgba(255,255,255,0.72)"
+  text: "#0B1220"
+  text-secondary: "#475569"
+  text-muted: "#64748B"
+  accent: "#5B5BF7"
+  accent-soft: "rgba(99,102,241,0.12)"
+  accent-2: "#06B6D4"
+  accent-gradient: "linear-gradient(135deg,#6366F1 0%,#8B5CF6 55%,#22D3EE 100%)"
+  danger: "#DC2626"
+  success: "#059669"
+  warning: "#D97706"
+  dark-bg: "#060913"
+  dark-surface: "rgba(255,255,255,0.075)"
+  dark-text: "#F1F5F9"
+  dark-accent: "#818CF8"
 typography:
   display:
-    fontFamily: "Outfit, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif"
+    fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif"
   body:
-    fontFamily: "'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif"
+    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif"
   mono:
     fontFamily: "ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', 'Noto Sans Mono CJK SC', Menlo, Consolas, monospace"
   scale:
-    "2xs": "11 / 1.3 · mono 小标签"
-    xs: "12 / 1.35"
-    sm: "13 / 1.45"
-    base: "15 / 1.6（正文）"
-    md: "17 / 1.6"
-    lg: "20 / 1.3 · 700（区块标题）"
-    xl: "24 / 1.2 · 800（弹窗标题）"
-    "2xl": "32 / 1.15 · 800（页面标题）"
-    "3xl": "40 / 1.05 · 800"
-    "4xl": "56 / 0.98 · 800（大数字）"
-    "5xl": "72 / 0.95 · 800（Landing）"
+    "2xs": "11/1.3 mono 标签"
+    xs: "12/1.4"
+    sm: "13/1.45"
+    base: "14/1.55（UI）"
+    md: "15/1.65（正文/AI）"
+    lg: "16/1.5"
+    xl: "18/1.4"
+    "2xl": "22/1.3 · 700（弹窗/区块标题）"
+    "3xl": "28/1.2 · 700（页面标题）"
+    "4xl": "36/1.12 · 700（大数字/页面主标）"
+    "5xl": "48/1.05 · 700"
+    "6xl": "64/1 · 700（Landing/wordmark）"
 rounded:
-  r-0: "0px（默认，所有卡片/弹窗/按钮）"
-  r-1: "2px（仅输入框/小标签）"
-  pill: "999px（仅头像/状态点，极少用）"
-spacing: "4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64 / 80 / 96"
-borders:
-  structural: "2px solid #141412"
-  rule: "1px solid #C9C4B5"
+  sm: "12px（按钮/输入/小卡）"
+  md: "16px（浮层/次级面板）"
+  lg: "20px（卡片/表格容器）"
+  xl: "28px（外壳 rail/海报/大面板）"
+  pill: "999px（胶囊按钮/标签/底栏）"
 shadows:
-  shadow-1: "2px 2px 0 #141412（卡片/按钮）"
-  shadow-2: "4px 4px 0 #141412（浮层/hover）"
-  shadow-3: "8px 8px 0 #141412（弹窗/截图框）"
-  shadow-press: "1px 1px 0 #141412（按压）"
-components:
-  card: "sheet + 2px ink + 0 圆角 + shadow-1 / hover translate(-2,-2)+shadow-2 / active translate(1,1)+press"
-  button-primary: "lime 底 + ink 字 + 2px ink 边 + shadow-1；hover 位移 / active 压入"
-  button-default: "sheet 底 + 2px ink 边 + shadow-1"
-  table: "表头 ink 底 + on-ink mono 11 + 44 高；行 40；hover lime-wash；选中 lime-wash + 3px ink 左条"
-  rail: "264px ink 底；lime 选中块；mono 分组；底部 AI/用户"
-  topbar: "64px paper 底 + 2px ink 底边；mono 面包屑；方形搜索"
-  modal: "sheet + 2px ink + shadow-3 + 0 圆角；标题 24/800；footer 顶部 2px ink"
-  status-pill: "2px 圆角 + 1.5px ink 边 + 浅 wash + 6px 方块 + mono 10"
+  shadow-1: "0 2px 8px rgba(15,23,42,.06), 0 12px 32px rgba(15,23,42,.08)"
+  shadow-2: "0 8px 24px rgba(15,23,42,.10), 0 24px 64px rgba(15,23,42,.12)"
+  shadow-3: "0 24px 80px rgba(15,23,42,.20)"
+  glow: "0 18px 50px rgba(99,102,241,.28)"
+glass:
+  surface: "rgba(255,255,255,.58) + backdrop-filter blur(28px) saturate(160%)"
+  border: "1px solid rgba(255,255,255,.72) + inset 0 1px 0 rgba(255,255,255,.55)"
+  strong: "blur(40px) + 更高不透明度（弹窗）"
 ---
 
-# Design System: 信息管理（info-manager）· 硬边印刷 SIGNAL PRESS
+# Design System: 信息管理（info-manager）· 流光玻璃 LUMINOUS GLASS
 
 ## Overview
 
-**Creative North Star: 「硬边印刷」SIGNAL PRESS**
+**Creative North Star: 「流光玻璃」**
 
-这是用 **ui-ux-pro-max skill** 全盘重设计的第四版：不再沿用 v1 青瓷、v2 官纸账簿、v3 石墨信号的任何视觉语言。skill 给出的方向是 **Brutalism + Bento Grid + Swiss 栅格**，字体配对 **Outfit + Work Sans**（OFL 自托管）。设计系统落盘在 `design-system/signal-press/MASTER.md`，实现合同在 `redesign-brief/06-v4-signal-press.md`。
+用户最终要求：**商业高级感 + 毛玻璃**。本轮（v5）用 ui-ux-pro-max skill 的 **Liquid Glass / Glassmorphism** 方向重做：页面不是白卡堆在灰底上，而是「一层柔光极光背景 + 多层磨砂玻璃」。光在玻璃后面流动，卡片半透明、有厚度、有内高光；主按钮与品牌字是靛紫渐变并带柔光；标题用 Plus Jakarta Sans，正文用 Inter；动效轻缓。目标气质：Apple visionOS / Stripe / Arc / Raycast 的「贵而克制」。
 
-核心不是「再换一套颜色」，而是换一套**物理语言**：
+与上一轮的关系：信息架构与功能保留（无新手任务、注册后首屏赞赏码），视觉语言彻底替换——删除 0 圆角、2px 黑边、硬投影、荧光黄绿。
 
-1. **纸面**：骨白 `#ECE9E0` 画布 + 纸白 `#FFFEF9` 面板；面板不是「浮起」，而是用 **2px 纯黑硬边 + 硬偏移投影** 明确压在纸面上。
-2. **信号色**：荧光黄绿 `#D4FF3F` 只做底/线/块/选中/主按钮，**永不做小号正文**；橙色 `#FF5A1F` 只做焦点/提醒 ≥14px。全屏 accent 面积 ≤10%。
-3. **字**：Outfit 800 承担标题与大数字（几何、紧凑、有海报感）；Work Sans 承担正文/表单/表格（可读性）；mono 只做 kicker、编号、ID、时间、快捷键。全站 0 衬线。
-4. **版面**：12 列 Swiss 栅格 + Bento 非对称（7/5、4/4/4 等跨列）；所有页面有明确的 kicker → 标题 → 主体层级，没有「裸内容」。
-5. **触感**：hover 抬起 2px、active 压入 1px，阴影随之变大/变小；无模糊、无渐变、无玻璃。
-
-它是一款 Operate 型数据工具：硬边与高对比服务于扫读、录入、确认；海报式标题只出现在页面级（一屏一个），数据区域保持克制。
+设计依据：`design-system/luminous-glass/MASTER.md`（Style = Liquid Glass）；实现合同：`redesign-brief/07-v5-luminous-glass.md`。
 
 ## Colors
 
-### Light（对比度为实测）
-| 角色 | 值 | 用途 | 对比 |
-|---|---|---|---|
-| paper | `#ECE9E0` | 页面画布 | — |
-| sheet | `#FFFEF9` | 面板/表格/弹窗/输入 | — |
-| panel | `#F5F2E8` | 表头/内嵌/次级底 | — |
-| ink | `#141412` | 文字/结构边/墨面 | 15.19:1 on paper |
-| ink-soft | `#57544B` | 次要文字 | 6.23:1 |
-| ink-faint | `#676358` | 注脚/占位（≥12px） | 4.94:1 |
-| line | `#141412` | 2px 结构边 | 15.19:1 |
-| line-soft | `#C9C4B5` | 1px 行线/分隔 | 装饰性 |
-| lime / hover / wash | `#D4FF3F` / `#C3EF2B` / `#F4FFCE` | 主按钮、选中、焦点底 | ink on lime 15.96:1 |
-| signal | `#FF5A1F` | focus ring、提醒数字 | ink on signal 5.91:1 |
-| danger / success / warning | `#C22A1C` / `#1B7A43` / `#8A5A00` | 语义 | white on danger 5.71:1；white on success 5.32:1 |
+### Light
+| 角色 | 值 | 用途 |
+|---|---|---|
+| bg | `#EEF1F8` | 画布（其上叠加极光光球） |
+| surface | `rgba(255,255,255,.58)` | 玻璃面板（blur 28px） |
+| surface-solid | `#FFFFFF` | 需要实底的内容（QR/输入 focus） |
+| surface-2 | `rgba(255,255,255,.36)` | 次级玻璃/输入底 |
+| glass-border | `rgba(255,255,255,.72)` | 玻璃 1px 高光边 |
+| border / border-strong | `rgba(15,23,42,.08)` / `rgba(15,23,42,.14)` | 分隔线 / 控件边 |
+| text / secondary / muted | `#0B1220` / `#475569` / `#64748B` | 15:1 / 7:1 / 4.8:1 |
+| accent | `#5B5BF7` | 主色（选中/链接/焦点） |
+| accent-2 | `#06B6D4` | 青色辅助（深底数字/图表/渐变第二色） |
+| accent-gradient | `#6366F1 → #8B5CF6 → #22D3EE` | 主按钮/品牌/高亮词/渐变边框 |
+| danger / success / warning | `#DC2626` / `#059669` / `#D97706` | 语义（soft 底 10–12%） |
 
 ### Dark
-paper `#101010`、sheet `#181817`、panel `#21211F`、ink `#F5F3E9`、ink-soft `#BDB9AC`、ink-faint `#938F83`、line `#F5F3E9`、line-soft `#3A3A33`、lime `#D4FF3F`（不变）、signal `#FF7A45`、danger `#FF6B5A`、success `#6BD39A`、warning `#F0B429`。暗色硬阴影不可见，结构由 2px 边承担；lime 只做块/边/文字，保持 ≥4.5:1。
+bg `#060913`、surface `rgba(255,255,255,.075)`、surface-2 `rgba(255,255,255,.04)`、glass-border `rgba(255,255,255,.18)`、text `#F1F5F9`、secondary `#CBD5E1`、muted `#94A3B8`、accent `#818CF8`、accent-2 `#22D3EE`、danger `#F87171`、success `#34D399`、warning `#FBBF24`。深底上的数字用 accent-2，正文用 on-dark。
+
+### 极光
+3 层径向光球（靛蓝 46% / 青 34% / 粉 26%，light；dark 降为 40/24/18%）+ 80px 模糊 + 3.5% SVG 噪点 + 28s 缓慢漂移（reduced-motion 停）。所有玻璃面板必须透出极光，禁止纯平色背景。
 
 ### Charts
-Okabe-Ito/Wong 色盲安全 5 色子集（与品牌色解耦）：`#0072B2 #009E73 #D55E00 #CC79A7 #4B4B45`（暗色 `#56A6DC #57C695 #E88552 #DE9ACB #C9C4B5`）。禁止只靠颜色传达状态（状态片必须带文字）。
+Okabe-Ito/Wong 色盲安全 5 色子集：`#4F46E5 #0891B2 #D97706 #DB2777 #334155`（暗色 `#818CF8 #22D3EE #FBBF24 #F472B6 #CBD5E1`）。
 
 ## Typography
 
-- **Outfit**（display，variable 100–900，latin 子集 32KB，OFL，`public/fonts/outfit-var.woff2`）：标题、大数字、按钮、导航、wordmark。
-- **Work Sans**（body，variable 100–900，latin 子集 50KB，OFL，`public/fonts/work-sans-var.woff2`）：正文、表格、表单、AI 输出。
-- **Mono**（系统栈）：kicker、编号、ID、日期、金额、快捷键、小标签。中文永不进等宽。
+- **Plus Jakarta Sans**（display/UI，自托管 variable，OFL，`public/fonts/plus-jakarta-sans-var.woff2`）：标题、大数字、按钮、导航、品牌。
+- **Inter**（body，自托管 variable，OFL，`public/fonts/inter-var.woff2`）：正文、表格、表单、AI 输出。
+- **Mono**（系统栈）：kicker、编号、日期、金额、快捷键；中文不进等宽。
 - 中文回退：PingFang SC → Hiragino Sans GB → Noto Sans CJK SC → Microsoft YaHei。
-- 字阶 11/12/13/15/17/20/24/32/40/56/72；字重 400/500/600/700/800；标题 `letter-spacing: -0.03em`，kicker `+0.09em` 大写。
-- 数字一律 `tabular-nums`；表格数字列右对齐。
+- 字阶 11/12/13/14/15/16/18/22/28/36/48/64；标题 700，UI 500–600，正文 400；标题 `-0.02~-0.045em`；数字 tabular。
 
 ## Layout
 
-- 桌面：264px ink rail + 64px paper topbar + 可滚动画布；页面容器 `.workbench` max 1440 / padding 28–36。
-- Bento：12 列，gap 16；大 tile 7 列 + 侧栏 5 列；指标行 4/4/4；移动端单列/双列。
-- 表格：表头 44、行 40、单元格 9/12；数字右对齐。
-- AI 停靠 400（340–720 可拖）；登录海报 5fr/6fr、表单卡 400；弹窗宽度 440/520/760/840。
-- 手机：无 rail；topbar 64 + 底部 60px ink tab bar + 安全区；表格改横向滚动/卡片。
+- 应用：极光画布 + 悬浮玻璃 rail（264px，14px 外边距，28 圆角）+ 悬浮玻璃 topbar（56px，16 圆角）+ 画布内玻璃面板；AI 打开时右侧悬浮玻璃面板 400px。
+- 页面容器 `.workbench` max 1440、padding 24/32。
+- 卡片 20 圆角；弹窗 28 圆角；按钮/输入 12 圆角。
+- 移动：无 rail；玻璃 topbar + 浮动玻璃胶囊底栏（58px + 安全区）；卡片单列。
+- 表格：玻璃容器，表头半透明高光，行 44，悬停 accent-soft，数字右对齐。
 
 ## Elevation & Depth
 
-只有硬投影，无模糊：
-- `--shadow-1: 2px 2px 0`：卡片、按钮、面板。
-- `--shadow-2: 4px 4px 0`：hover、下拉、浮层、FAB。
-- `--shadow-3: 8px 8px 0`：弹窗、截图框、登录卡。
-- `--shadow-press: 1px 1px 0`：按下/小按钮。
+只有「柔和扩散 + 内高光」，无硬投影：
+- `--shadow-1`：卡片（2 层柔和阴影 + inset 顶部高光）。
+- `--shadow-2`：悬浮/下拉/rail/topbar。
+- `--shadow-3`：弹窗/登录卡。
+- `--shadow-glow`：渐变按钮/品牌/空态图标的靛紫光晕。
 
-hover `translate(-2px,-2px)` + 升一级阴影；active `translate(1px,1px)` + 降为 press；表格行不位移，只换 lime-wash 背景。
+玻璃层级：普通 `.glass`（blur 28）→ 强 `.glass-strong`（blur 40，弹窗/浮层）→ 深玻璃 `.glass-dark`（深色文字反白）。
 
 ## Shapes
 
-默认 **0 圆角**（卡片/按钮/弹窗/输入/标签）。只有输入框与小标签允许 2px；999px 仅头像/状态点。禁止任何 4px 以上圆角。
+12 / 16 / 20 / 28 + 胶囊 999。默认卡片 20、输入/按钮 12、rail/海报/大弹窗 28、标签/状态/底栏胶囊。
 
 ## Components
 
-- **Button**：40 高（sm 32 / lg 48）、2px ink 边、600 字重、shadow-1；primary = lime 底 ink 字；default = sheet；text = ink-soft；danger = danger 底白字；disabled 42% 透明、无位移。
-- **面板/卡片**：sheet + 2px ink + shadow-1；`panel-head` 用 paper 底 + 2px 底边；`tile--lime` / `tile--ink` 反相。
-- **表格**：`.data-table` 容器；表头 ink 底 on-ink mono 11；行 40、hover lime-wash、选中 lime-wash + 3px ink 左条；数字右对齐；短值列给最小宽度、允许横向滚动。
-- **状态**：`.status-pill`（2px 圆角 + 1.5px ink 边 + wash 底 + 6px 方块 + mono 10，必须带文字）。
-- **表单**：输入/选择/日期 40 高、2px ink 边、focus 3px lime ring；标签 mono 11 大写；错误 12 danger 文案；禁用 42% 透明。
-- **弹窗**：0 圆角、2px ink、shadow-3；标题区 paper 底 + 2px 底边 + Outfit 800 24；footer 顶部 2px ink、按钮右对齐。
-- **Rail**：ink 底；lime 选中块；mono 分组；库项 34 高、active 左 3px lime；底部 AI 入口 + 用户 + 退出。
-- **Topbar**：paper 底 + 2px ink 底边；mono 面包屑；方形搜索框；方形图标按钮。
-- **AI**：ink 头 + 3px lime 底边；用户消息 lime-wash 硬边块；AI 输出无底色 15/1.65；输入 40 + lime 发送方块。
-- **Landing**：海报式（`lp-display` 巨型字 + lime `<em>` 高亮 + 硬边截图 + lime marquee + 编号功能行 + 死黑 deep 段 + 巨型 lime wordmark）。
-- **Motion**：80/140/220ms；bento 首现一次性 320–450ms stagger；reduced-motion 全关。
+- **按钮**：主按钮靛紫渐变白字 + 光晕 + 内高光；hover 提亮/上浮 1px，active scale(.985)；次按钮玻璃白 + 高光边；文字按钮 accent；危险红渐变。
+- **卡片/面板**：玻璃（白 58% + blur 28 + 1px 白高光边 + 内高光 + 柔和阴影）；大指标卡用品牌渐变（`.tile--accent`）；深色简报卡 `.tile--dark` 上的数字用 accent-2。
+- **输入**：40 高、12 圆角、玻璃白、focus 白底 + 4px accent-soft 环。
+- **表格**：玻璃容器；表头半透明；行 44；hover/选中 accent-soft；状态 pill 胶囊 soft 底 + 圆点。
+- **弹窗**：blur 40 玻璃强、28 圆角、PJS 700 标题、遮罩模糊。
+- **侧栏**：玻璃 rail；品牌渐变方块；选中项 accent-soft 玻璃 + accent 字；AI 入口 accent-soft。
+- **AI**：悬浮玻璃面板；渐变 AI 徽标；用户消息 accent-soft 玻璃块；AI 输出无底色；输入玻璃胶囊。
+- **Landing**：极光 hero + 玻璃胶囊 nav；标题关键词用渐变文字（background-clip:text），不是色块；玻璃截图卡 + 背后光晕；功能行 hover 玻璃；深色段与页脚是深玻璃大圆角面板；巨大渐变 wordmark。
+- **Landing 固定浅色**：公开页不跟随系统暗色。
+- **Auth**：极光 + 左侧玻璃海报（渐变标题字）+ 右侧玻璃卡；移动端单列。
+- **欢迎页**：玻璃弹窗 24–28 圆角 + 白色 QR 卡 + 渐变按钮；文案/状态机不变。
+- **动效**：hover 180–240ms；弹层 240–320ms；bento 首现 450ms stagger；极光 28s；reduced-motion 全关。
 
 ## Do's and Don'ts
 
 ### Do
-- 先有版面：每页 kicker → 800 标题 → 主体，页面容器 `.workbench`，不要裸内容贴左。
-- 用 2px ink 边 + 硬投影建立结构；用 Bento 跨列建立节奏。
-- lime 只做信号块；数字一律 tabular；短值/金额/电话给最小宽度，宁可横向滚动也不截断。
-- 所有交互有 hover/active/focus 三态；focus ring 用 3px signal。
-- 保持 12 列栅格与 4 的倍数间距。
+- 每页必须有「有表面」的玻璃容器；内容放在 `.workbench` 与卡片中。
+- 背景永远有色彩/光，玻璃后面必须有东西可透；面板不得纯白平底。
+- 一个视口只用一个渐变主 CTA；标题 700，正文 400/500。
+- 所有交互有 hover/active/focus 三态；focus ring 用 4px accent-soft。
+- 数字 tabular、表格数字右对齐；短值列给最小宽度，宁可横滚不截断。
 
 ### Don't
-- 不要渐变、玻璃拟态、柔和阴影、模糊、发光。
-- 不要 >2px 圆角（头像/状态点除外）、不要药丸按钮、不要 1px 灰卡片。
-- 不要衬线、不要 emoji、不要 Filled 图标（统一 Outlined）。
-- 不要把 lime/signal 用作小号正文；不要只靠颜色表达状态。
+- 不要硬边、0 圆角、硬偏移投影、荧光黄绿、纯平灰底。
+- 不要把所有面板做成同一透明度；用 glass / glass-strong / glass-dark 分层。
+- 不要玻璃上放低对比文字（浅色模式白字、暗色模式深字）。
+- 不要衬线、emoji、Filled 图标；不要网络字体 CDN。
 - 不要为了视觉改业务逻辑/字段顺序/快捷键/校验。

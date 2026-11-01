@@ -45,10 +45,10 @@ web
 ## Brand Commitments
 
 - 产品名：「信息管理」（登录页/侧边栏品牌标识）。
-- 设计语言：「硬边印刷 SIGNAL PRESS」——由 ui-ux-pro-max skill 生成：Brutalism + Bento Grid + Swiss 栅格；骨白纸面 + 纯黑硬边 + 荧光黄绿信号色 + 零圆角 + 硬投影 + 物理按压。
-- 颜色：骨白 `#ECE9E0` / 纸白 `#FFFEF9` / 墨 `#141412` / 荧光黄绿 `#D4FF3F`（选中、主按钮、高亮块）/ 信号橙 `#FF5A1F`（焦点、提醒）/ danger `#C22A1C` / success `#1B7A43` / warning `#8A5A00`；全部通过 WCAG AA。
-- 字体：Outfit（display，OFL 自托管）+ Work Sans（body，OFL 自托管）；中文系统黑体；mono 只用于标签/编号/日期/ID；禁止网络字体 CDN。
-- 形状：默认 0 圆角（输入/小标签 2px）；结构边 2px 纯黑；阴影为 2/4/8px 硬偏移（无模糊）；卡片 = 纸白 + 2px 边 + 0 圆角 + 硬投影。
+- 设计语言：「流光玻璃 LUMINOUS GLASS」——由 ui-ux-pro-max skill 的 Liquid Glass 方向落地：极光渐变画布 + 多层磨砂玻璃 + 柔和光影 + 靛紫渐变品牌色 + Plus Jakarta Sans / Inter。
+- 颜色：画布 `#EEF1F8` / 玻璃白 `rgba(255,255,255,.58)` / 主字 `#0B1220` / 品牌靛蓝 `#5B5BF7` / 渐变 `#6366F1→#8B5CF6→#22D3EE`；暗色 `#060913` + `rgba(255,255,255,.075)` 玻璃；全部通过 WCAG AA。
+- 字体：Plus Jakarta Sans（display/UI，OFL 自托管）+ Inter（body，OFL 自托管）；中文系统黑体；mono 只用于标签/编号/日期/ID；禁止网络字体 CDN。
+- 形状：圆角 12/16/20/28 + 胶囊；玻璃 = 半透明白 + 28–40px 背景模糊 + 1px 白色高光边 + 内高光 + 柔和多层阴影；禁止硬边/硬投影。
 
 ## Evidence on Hand
 

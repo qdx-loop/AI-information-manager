@@ -1367,13 +1367,13 @@ export default function AIPanel() {
                 border: 'none',
                 background: 'transparent',
                 padding: 0,
-                color: 'var(--ink)',
+                color: 'var(--text)',
                 fontFamily: 'var(--font-mono)',
                 fontVariantNumeric: 'tabular-nums',
                 fontSize: '0.88em',
                 fontWeight: 600,
                 cursor: 'pointer',
-                boxShadow: 'inset 0 -2px 0 var(--lime)',
+                boxShadow: 'inset 0 -2px 0 var(--accent)',
               }}
             >
               {summary.slice(0, 12) || itemId.slice(0, 6)}
@@ -1434,7 +1434,7 @@ export default function AIPanel() {
             lineHeight: 1.3,
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
-            color: 'var(--ink-soft)',
+            color: 'var(--text-secondary)',
             cursor: 'pointer',
           }}
         >
@@ -1458,14 +1458,14 @@ export default function AIPanel() {
                   padding: '2px 0',
                   fontSize: T.sm,
                   lineHeight: 1.45,
-                  color: 'var(--ink-soft)',
+                  color: 'var(--text-secondary)',
                 }}
               >
                 <span
                   className="mono"
                   style={{
                     minWidth: 20,
-                    color: 'var(--ink-faint)',
+                    color: 'var(--text-muted)',
                     fontSize: T.kicker,
                     fontWeight: 600,
                     fontVariantNumeric: 'tabular-nums',
@@ -1493,7 +1493,7 @@ export default function AIPanel() {
           height: '100%',
           minWidth: 0,
           overflow: 'auto',
-          background: 'var(--sheet)',
+          background: 'var(--surface)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1523,7 +1523,7 @@ export default function AIPanel() {
           flexDirection: 'column',
           height: '100%',
           minWidth: 0,
-          background: 'var(--sheet)',
+          background: 'var(--surface)',
         }}
       >
         {/* 会话条：当前会话名 + 会话切换/清空（头部 56 由 AIDock 渲染） */}
@@ -1535,8 +1535,8 @@ export default function AIPanel() {
             alignItems: 'center',
             gap: 'var(--s2)',
             padding: '0 var(--s2) 0 var(--s3)',
-            borderBottom: '1px solid var(--line-soft)',
-            background: 'var(--sheet)',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--surface)',
           }}
         >
           <span
@@ -1545,7 +1545,7 @@ export default function AIPanel() {
               minWidth: 0,
               fontSize: T.sm,
               fontWeight: 500,
-              color: 'var(--ink)',
+              color: 'var(--text)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -1596,7 +1596,7 @@ export default function AIPanel() {
                           border: 'none',
                           padding: 2,
                           height: 20,
-                          color: 'var(--ink-faint)',
+                          color: 'var(--text-muted)',
                           cursor: 'pointer',
                         }}
                       >
@@ -1668,12 +1668,12 @@ export default function AIPanel() {
               style={{
                 flexShrink: 0,
                 padding: 'var(--s2) var(--s3)',
-                borderBottom: '1px solid var(--line-soft)',
+                borderBottom: '1px solid var(--border)',
                 fontFamily: 'var(--font-mono)',
                 fontSize: T.xs,
                 lineHeight: 1.35,
                 letterSpacing: '0.04em',
-                color: 'var(--ink-soft)',
+                color: 'var(--text-secondary)',
               }}
             >
               <span role="status" aria-atomic="true">
@@ -1715,13 +1715,13 @@ export default function AIPanel() {
                   <div
                     style={{
                       maxWidth: '85%',
-                      background: 'var(--lime-wash)',
-                      border: 'var(--bw) solid var(--line)',
+                      background: 'var(--accent-soft)',
+                      border: 'var(--border-width) solid var(--border-strong)',
                       borderRadius: 0,
                       padding: 'var(--s2) var(--s3)',
                       fontSize: T.base,
                       lineHeight: 1.5,
-                      color: 'var(--ink)',
+                      color: 'var(--text)',
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
                     }}
@@ -1763,7 +1763,7 @@ export default function AIPanel() {
                           whiteSpace: 'nowrap',
                           fontSize: T.sm,
                           fontWeight: 600,
-                          color: 'var(--ink)',
+                          color: 'var(--text)',
                         }}
                       >
                         {m.chart.title}
@@ -1775,13 +1775,13 @@ export default function AIPanel() {
                           fontWeight: 600,
                           letterSpacing: '0.08em',
                           textTransform: 'uppercase',
-                          color: 'var(--ink-faint)',
+                          color: 'var(--text-muted)',
                           whiteSpace: 'nowrap',
                         }}
                       >
                         {t('ai.chart.thumbHint')}
                       </span>
-                      <RightOutlined style={{ fontSize: 11, color: 'var(--ink-faint)' }} />
+                      <RightOutlined style={{ fontSize: 11, color: 'var(--text-muted)' }} />
                     </button>
                   )}
                 </div>
@@ -1794,8 +1794,8 @@ export default function AIPanel() {
         <div
           style={{
             flexShrink: 0,
-            background: 'var(--sheet)',
-            borderTop: 'var(--bw) solid var(--line)',
+            background: 'var(--surface)',
+            borderTop: 'var(--border-width) solid var(--border-strong)',
             padding: 'var(--s3)',
           }}
         >
@@ -1812,7 +1812,7 @@ export default function AIPanel() {
                   fontSize: T.kicker,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  color: 'var(--ink-soft)',
+                  color: 'var(--text-secondary)',
                 }}
               >
                 {t('ai.undo.last')}
@@ -1850,7 +1850,7 @@ export default function AIPanel() {
                       border: 'none',
                       padding: 0,
                       height: 16,
-                      color: 'var(--ink-faint)',
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
                     }}
                   >
@@ -1911,9 +1911,9 @@ export default function AIPanel() {
                 padding: '9px 10px',
                 fontSize: T.base,
                 lineHeight: 1.5,
-                background: 'var(--sheet)',
-                border: 'var(--bw) solid var(--line)',
-                borderRadius: 'var(--r-1)',
+                background: 'var(--surface)',
+                border: 'var(--border-width) solid var(--border-strong)',
+                borderRadius: 'var(--radius-sm)',
                 boxShadow: 'none',
                 resize: 'none',
               }}
@@ -1932,7 +1932,7 @@ export default function AIPanel() {
                 padding: 0,
                 borderRadius: 0,
                 flexShrink: 0,
-                border: 'var(--bw) solid var(--line)',
+                border: 'var(--border-width) solid var(--border-strong)',
               }}
             />
           </div>
@@ -1951,7 +1951,7 @@ export default function AIPanel() {
                 type="text"
                 size="small"
                 onClick={handleStop}
-                style={{ fontSize: T.xs, color: 'var(--ink-soft)' }}
+                style={{ fontSize: T.xs, color: 'var(--text-secondary)' }}
               >
                 {t('ai.stop')}
               </Button>

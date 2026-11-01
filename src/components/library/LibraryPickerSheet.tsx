@@ -138,10 +138,10 @@ export default function LibraryPickerSheet({
                         margin: 0,
                         // v4 索引行：1px line-soft 行线，选中 = lime-wash 底 + 左侧 3px ink 条
                         border: 0,
-                        borderBottom: '1px solid var(--line-soft)',
-                        borderLeft: on ? '3px solid var(--line)' : '3px solid transparent',
+                        borderBottom: '1px solid var(--border)',
+                        borderLeft: on ? '3px solid var(--border-strong)' : '3px solid transparent',
                         borderRadius: 0,
-                        background: on ? 'var(--lime-wash)' : 'transparent',
+                        background: on ? 'var(--accent-soft)' : 'transparent',
                         font: 'inherit',
                         textAlign: 'left',
                         cursor: 'pointer',

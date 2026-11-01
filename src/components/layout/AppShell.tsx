@@ -202,7 +202,7 @@ export default function AppShell() {
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           width={288}
-          styles={{ body: { padding: 0, background: 'var(--ink)' } }}
+          styles={{ body: { padding: 0, background: 'var(--text)' } }}
         >
           <SidebarContent
             onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }}
@@ -301,7 +301,7 @@ export default function AppShell() {
                 }}
               >
                 <button type="button" className="topbar-icon" aria-label={t('app.signOut')}>
-                  <Avatar size={26} style={{ background: 'var(--lime)', color: 'var(--ink)', border: '1.5px solid var(--line)' }}>
+                  <Avatar size={26} style={{ background: 'var(--accent)', color: 'var(--text)', border: '1.5px solid var(--border-strong)' }}>
                     {(account?.username ?? '?').slice(0, 1).toUpperCase()}
                   </Avatar>
                 </button>

@@ -237,7 +237,7 @@ export default function ChartModal({
               fontWeight: 700,
               lineHeight: 1.2,
               letterSpacing: '-0.025em',
-              color: 'var(--ink)',
+              color: 'var(--text)',
             }}
           >
             {payload?.title ?? ''}
@@ -250,7 +250,7 @@ export default function ChartModal({
               fontWeight: 600,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
-              color: 'var(--ink-faint)',
+              color: 'var(--text-muted)',
             }}
           >
             {t('ai.chart.defaultName')}
@@ -282,7 +282,7 @@ export default function ChartModal({
         {/* 图表区：白底、无边框；网格线/文字色在 paperOption 里强制成 v3 token */}
         <div
           ref={chartDivRef}
-          style={{ width: '100%', height: 460, background: 'var(--sheet)' }}
+          style={{ width: '100%', height: 460, background: 'var(--surface)' }}
         />
         {loading && (
           <div
@@ -293,7 +293,7 @@ export default function ChartModal({
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: T.xs,
-              color: 'var(--ink-soft)',
+              color: 'var(--text-secondary)',
             }}
           >
             {t('ai.chart.loading')}
@@ -305,10 +305,10 @@ export default function ChartModal({
         style={{
           marginTop: 'var(--s2)',
           paddingTop: 'var(--s2)',
-          borderTop: '1px solid var(--line-soft)',
+          borderTop: '1px solid var(--border)',
           fontSize: T.mono,
           letterSpacing: '0.02em',
-          color: 'var(--ink-faint)',
+          color: 'var(--text-muted)',
         }}
       >
         {t('ai.chart.foot', { time: openedAt })}

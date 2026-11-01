@@ -82,7 +82,7 @@ export default function ConfirmActionModal({
 
   const visibleFields = fields.filter((f) => f.visible)
   const actionLabel = t('ai.action.' + action.action)
-  const labelStyle = { minWidth: 76, flexShrink: 0, color: 'var(--ink-soft)' }
+  const labelStyle = { minWidth: 76, flexShrink: 0, color: 'var(--text-secondary)' }
 
   return (
     <Modal
@@ -94,7 +94,7 @@ export default function ConfirmActionModal({
             fontWeight: 700,
             lineHeight: 1.3,
             letterSpacing: '-0.02em',
-            color: 'var(--ink)',
+            color: 'var(--text)',
           }}
         >
           {t('ai.confirm.itemTitle')}
@@ -121,7 +121,7 @@ export default function ConfirmActionModal({
         </div>
       }
     >
-      <div style={{ fontSize: T.body, lineHeight: 1.6, color: 'var(--ink)' }}>
+      <div style={{ fontSize: T.body, lineHeight: 1.6, color: 'var(--text)' }}>
         {/* 头部一行：动作 + 目标库名 */}
         <div
           style={{
@@ -131,10 +131,10 @@ export default function ConfirmActionModal({
             marginBottom: 'var(--s3)',
           }}
         >
-          <span style={{ color: isDelete ? 'var(--danger)' : 'var(--signal)', fontWeight: 500 }}>
+          <span style={{ color: isDelete ? 'var(--danger)' : 'var(--accent-2)', fontWeight: 500 }}>
             {actionLabel}
           </span>
-          <span style={{ color: 'var(--ink-soft)', fontSize: T.sm }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: T.sm }}>
             {library?.name ?? action.libraryId}
           </span>
         </div>
@@ -144,24 +144,24 @@ export default function ConfirmActionModal({
             style={{
               margin: '0 0 var(--s4)',
               paddingTop: 'var(--s2)',
-              borderTop: '1px solid var(--line-soft)',
-              color: 'var(--ink-soft)',
+              borderTop: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
             }}
           >
-            <span style={{ color: 'var(--ink-faint)' }}>{t('ai.confirm.reason')}</span>
+            <span style={{ color: 'var(--text-muted)' }}>{t('ai.confirm.reason')}</span>
             {action.reason}
           </p>
         )}
 
         {/* 删除：渲染被删条目的只读快照（用户必须能核对删的是什么） */}
         {isDelete ? (
-          <div style={{ borderTop: '1px solid var(--line-soft)', paddingTop: 'var(--s3)' }}>
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--s3)' }}>
             <div
               className="eyebrow"
               style={{
                 fontSize: T.mono,
                 letterSpacing: '0.04em',
-                color: 'var(--ink-faint)',
+                color: 'var(--text-muted)',
                 marginBottom: 'var(--s2)',
               }}
             >
@@ -172,20 +172,20 @@ export default function ConfirmActionModal({
                 {(visibleFields.length > 0 ? visibleFields : fields).map((f) => (
                   <div key={f.key} style={{ display: 'flex', gap: 'var(--s2)', lineHeight: 1.6 }}>
                     <span style={labelStyle}>{f.label}</span>
-                    <span style={{ minWidth: 0, wordBreak: 'break-word', color: 'var(--ink)' }}>
+                    <span style={{ minWidth: 0, wordBreak: 'break-word', color: 'var(--text)' }}>
                       {String(existingItem.fields[f.key] ?? '—')}
                     </span>
                   </div>
                 ))}
                 <div
                   className="mono"
-                  style={{ marginTop: 'var(--s1)', fontSize: T.mono, color: 'var(--ink-faint)' }}
+                  style={{ marginTop: 'var(--s1)', fontSize: T.mono, color: 'var(--text-muted)' }}
                 >
                   {existingItem.id}
                 </div>
               </div>
             ) : (
-              <div style={{ color: 'var(--ink-soft)' }}>
+              <div style={{ color: 'var(--text-secondary)' }}>
                 {t('ai.confirm.snapshotMissing')}
                 <span className="mono" style={{ marginLeft: 6 }}>
                   {action.itemId ?? '—'}
@@ -194,14 +194,14 @@ export default function ConfirmActionModal({
             )}
           </div>
         ) : (
-          <div style={{ borderTop: '1px solid var(--line-soft)', paddingTop: 'var(--s3)' }}>
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--s3)' }}>
             {action.action !== 'create' && (
               <div
                 className="mono"
-                style={{ fontSize: T.mono, color: 'var(--ink-faint)', marginBottom: 'var(--s2)' }}
+                style={{ fontSize: T.mono, color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}
               >
                 {t('ai.confirm.targetItem')}
-                <span style={{ marginLeft: 6, color: 'var(--ink-soft)' }}>{action.itemId}</span>
+                <span style={{ marginLeft: 6, color: 'var(--text-secondary)' }}>{action.itemId}</span>
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
@@ -215,14 +215,14 @@ export default function ConfirmActionModal({
                     <span style={{ minWidth: 0, wordBreak: 'break-word' }}>
                       {action.action === 'update' && changed ? (
                         <>
-                          <span style={{ textDecorationLine: 'line-through', color: 'var(--ink-faint)' }}>
+                          <span style={{ textDecorationLine: 'line-through', color: 'var(--text-muted)' }}>
                             {String(oldVal ?? '-')}
                           </span>
-                          <span style={{ margin: '0 4px', color: 'var(--ink-faint)' }}>→</span>
-                          <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{String(newVal ?? '-')}</span>
+                          <span style={{ margin: '0 4px', color: 'var(--text-muted)' }}>→</span>
+                          <span style={{ color: 'var(--text)', fontWeight: 500 }}>{String(newVal ?? '-')}</span>
                         </>
                       ) : (
-                        <span style={{ color: 'var(--ink)' }}>{String(newVal ?? '-')}</span>
+                        <span style={{ color: 'var(--text)' }}>{String(newVal ?? '-')}</span>
                       )}
                     </span>
                   </div>
@@ -237,7 +237,7 @@ export default function ConfirmActionModal({
             checked={always}
             disabled={alreadyRemembered}
             onChange={(e) => setAlways(e.target.checked)}
-            style={{ marginTop: 'var(--s3)', fontSize: T.sm, color: 'var(--ink-soft)' }}
+            style={{ marginTop: 'var(--s3)', fontSize: T.sm, color: 'var(--text-secondary)' }}
           >
             {t('ai.confirm.always', { action: actionLabel })}
           </Checkbox>
@@ -249,7 +249,7 @@ export default function ConfirmActionModal({
             marginBottom: 0,
             fontSize: T.sm,
             lineHeight: 1.6,
-            color: isDelete ? 'var(--danger)' : 'var(--ink-soft)',
+            color: isDelete ? 'var(--danger)' : 'var(--text-secondary)',
           }}
         >
           {t('ai.confirm.note')}
