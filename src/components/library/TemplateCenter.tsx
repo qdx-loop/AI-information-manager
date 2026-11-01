@@ -21,7 +21,7 @@ import { useI18n } from '@/i18n'
 
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
 
-/** 模板图标：每个模板一个线性图标（只用 Outlined），比在卡片里放缩略图更克制 */
+/** 模板图标：每个模板一个线性图标（只用 Outlined），与左侧索引行同一视觉重量 */
 const TPL_ICONS: Record<string, ReactNode> = {
   customer: <TeamOutlined />,
   inventory: <InboxOutlined />,
@@ -36,11 +36,11 @@ const TPL_ICONS: Record<string, ReactNode> = {
 }
 
 /**
- * 模板中心：按行业分组展示所有模板，一键建库并套用字段结构（可选附带示例数据）。
+ * 模板中心（v4 SIGNAL PRESS）。
  *
- * v3：左侧是一列白卡（图标 + 名称 + 字段数），右侧是白纸预览（细线表格 + 字段类型），
- * 选中靠 accent 边框 + wash 底表达。业务逻辑（建库 → 套字段 → 可选示例数据 → 跳转）
- * 与原来完全一致。
+ * 结构：左侧 = 硬边 panel + `.index-row` 模板索引（编号 01..、名称、字段数），
+ * 选中行 lime-wash + 3px ink 左条；右侧 = `.sheet` 纸面预览（细线字段表 + 主按钮）。
+ * 业务逻辑（建库 → 套字段 → 可选示例数据 → 跳转）与原来完全一致。
  */
 export default function TemplateCenter({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { message, modal } = App.useApp()
@@ -116,90 +116,80 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
       open={open}
       onCancel={onClose}
       footer={null}
-      width={880}
-      style={{ maxWidth: 'calc(100vw - 32px)' }}
+      width={920}
+      style={{ maxWidth: 'calc(100vw - 24px)' }}
     >
-      <p className="page-lede" style={{ margin: '0 0 12px' }}>{t('tpl.center.subtitle')}</p>
+      <div className="page-kicker" style={{ marginBottom: 8 }}>{t('tpl.center.kicker')}</div>
+      <p className="page-sub" style={{ marginBottom: 12 }}>{t('tpl.center.subtitle')}</p>
       <Checkbox checked={withSample} onChange={(e) => setWithSample(e.target.checked)} style={{ marginBottom: 16 }}>
         {t('tpl.center.sample')}
       </Checkbox>
 
       {grouped.length === 0 ? (
-        <p className="faint" style={{ fontSize: 'var(--text-sm)' }}>{t('lib.tpl.empty')}</p>
+        <p className="field-hint">{t('lib.tpl.empty')}</p>
       ) : (
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          {/* 左：模板卡（白卡 + 图标 + 名称 + 字段数），选中 = accent 边框 + wash 底 */}
-          <div style={{ width: 300, flexShrink: 0, maxHeight: 440, overflowY: 'auto', paddingRight: 4 }}>
-            {grouped.map(([cat, tpls]) => (
-              <div key={cat} style={{ marginBottom: 12 }}>
-                <div className="eyebrow" style={{ padding: '6px 4px' }}>{cat}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {tpls.map((tpl) => {
-                    const on = tpl.key === selectedKey
-                    return (
-                      <button
-                        key={tpl.key}
-                        type="button"
-                        onClick={() => setSelectedKey(tpl.key)}
-                        aria-current={on ? 'true' : undefined}
-                        className="surface-card"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          width: '100%',
-                          padding: '10px 12px',
-                          borderColor: on ? 'var(--accent)' : 'var(--border)',
-                          background: on ? 'var(--accent-wash)' : 'var(--bg-surface)',
-                          boxShadow: on ? '0 0 0 3px var(--accent-ring)' : undefined,
-                          font: 'inherit',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          color: 'inherit',
-                        }}
-                      >
-                        <span
-                          aria-hidden
-                          style={{
-                            fontSize: 18,
-                            display: 'inline-flex',
-                            color: on ? 'var(--accent)' : 'var(--ink-faint)',
-                            flexShrink: 0,
+        <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', flexWrap: 'wrap' }}>
+          {/* 左：模板索引（panel + index-row；选中 lime-wash + 3px ink 左条） */}
+          <div className="panel" style={{ width: 320, flexShrink: 0, maxHeight: 460, overflowY: 'auto' }}>
+            <div className="panel-head">
+              <span className="panel-kicker">TEMPLATES / INDEX</span>
+              <span className="table-count">{grouped.reduce((n, [, list]) => n + list.length, 0)}</span>
+            </div>
+            <div className="panel-body" style={{ padding: 0 }}>
+              {grouped.map(([cat, tpls]) => (
+                <div key={cat}>
+                  <div className="panel-kicker" style={{ padding: '10px 16px 4px' }}>{cat}</div>
+                  <div className="index-list">
+                    {tpls.map((tpl, i) => {
+                      const on = tpl.key === selectedKey
+                      return (
+                        <div
+                          key={tpl.key}
+                          role="button"
+                          tabIndex={0}
+                          className="index-row"
+                          aria-current={on ? 'true' : undefined}
+                          onClick={() => setSelectedKey(tpl.key)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setSelectedKey(tpl.key)
+                            }
                           }}
+                          style={on ? { background: 'var(--lime-wash)', boxShadow: 'inset 3px 0 0 var(--line)' } : undefined}
                         >
-                          {TPL_ICONS[tpl.key] ?? <AppstoreOutlined />}
-                        </span>
-                        <span style={{ flex: '1 1 auto', minWidth: 0 }}>
-                          <span style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {tpl.name}
+                          <span className="index-num" aria-hidden>
+                            <span style={{ display: 'inline-flex', color: on ? 'var(--ink)' : 'var(--ink-faint)', fontSize: 16 }}>
+                              {TPL_ICONS[tpl.key] ?? <AppstoreOutlined />}
+                            </span>
                           </span>
-                          <span className="faint" style={{ display: 'block', fontSize: 'var(--text-2xs)', marginTop: 2 }}>
-                            {tpl.fields.length} {t('tpl.center.fields')}
+                          <span className="index-main">
+                            <span className="index-title" style={{ fontWeight: on ? 700 : 600 }}>{tpl.name}</span>
+                            <span className="index-meta">{String(i + 1).padStart(2, '0')} · {tpl.fields.length} {t('tpl.center.fields')}</span>
                           </span>
-                        </span>
-                      </button>
-                    )
-                  })}
+                          <span className="tag-mono">{tpl.fields.length}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* 右：白纸预览——细线表格，字段名左、类型右 */}
-          <div className="surface-card" style={{ flex: '1 1 360px', minWidth: 0, padding: 20 }}>
+          {/* 右：纸面预览（sheet + 细线字段表 + 主按钮） */}
+          <div className="sheet" style={{ flex: '1 1 420px', minWidth: 0, padding: 'var(--s5)' }}>
             {selected ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                  <span className="page-title-sm">{selected.name}</span>
-                  <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>
-                    {selected.fields.length} {t('tpl.center.fields')}
-                  </span>
+                  <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--t-lg)', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>
+                    {selected.name}
+                  </h3>
+                  <span className="table-count">{selected.fields.length} {t('tpl.center.fields')}</span>
                 </div>
-                <p className="muted" style={{ margin: '4px 0 16px', fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
-                  {selected.desc}
-                </p>
-                <div style={{ borderTop: '1px solid var(--border)' }}>
-                  {selected.fields.map((f) => (
+                <p className="page-sub" style={{ fontSize: 'var(--t-xs)', margin: '6px 0 16px' }}>{selected.desc}</p>
+                <div style={{ borderTop: 'var(--bw) solid var(--line)' }}>
+                  {selected.fields.map((f, i) => (
                     <div
                       key={f.key}
                       style={{
@@ -207,27 +197,29 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
                         alignItems: 'baseline',
                         justifyContent: 'space-between',
                         gap: 12,
-                        height: 36,
-                        borderBottom: '1px solid var(--border-rule)',
+                        minHeight: 40,
+                        padding: '8px 0',
+                        borderBottom: '1px solid var(--line-soft)',
                       }}
                     >
-                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {f.label}
+                      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
+                        <span className="index-num">{String(i + 1).padStart(2, '0')}</span>
+                        <span style={{ fontSize: 'var(--t-sm)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {f.label}
+                        </span>
                       </span>
-                      <span className="faint" style={{ fontSize: 'var(--text-2xs)', flexShrink: 0 }}>
-                        {t(`lib.tpl.type.${f.type}`)}
-                      </span>
+                      <span className="tag-mono">{t(`lib.tpl.type.${f.type}`)}</span>
                     </div>
                   ))}
                 </div>
-                <div style={{ marginTop: 20 }}>
+                <div style={{ marginTop: 'var(--s5)' }}>
                   <Button type="primary" onClick={() => applyLibTemplate(selected)}>
                     {t('tpl.center.use')}
                   </Button>
                 </div>
               </>
             ) : (
-              <p className="faint" style={{ fontSize: 'var(--text-sm)' }}>{t('lib.tpl.empty')}</p>
+              <p className="field-hint">{t('lib.tpl.empty')}</p>
             )}
           </div>
         </div>

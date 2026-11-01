@@ -2,13 +2,13 @@
 // 不合格……返回 null，由调用方告知 AI 重试（形成自我纠错闭环）。
 
 // 图表画在 canvas 上，CSS 变量不会被解析，必须给具体色值。
-// 色值取自设计系统语义层的分类色（--app-series-*），跟着亮/暗主题切换；
+// 色值取自设计系统语义层的分类色（--chart-*），跟着亮/暗主题切换；
 // 首位是品牌釉色，保证图表和界面是同一套视觉。
 function seriesColors(): string[] {
   try {
     const cs = getComputedStyle(document.documentElement)
     return Array.from({ length: 5 }, (_, i) =>
-      (cs.getPropertyValue(`--app-series-${i}`) || '').trim(),
+      (cs.getPropertyValue(`--chart-${i}`) || '').trim(),
     ).filter(Boolean)
   } catch {
     return ['#009E73', '#0072B2', '#D55E00', '#CC79A7', '#1A1A1A']

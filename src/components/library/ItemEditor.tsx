@@ -20,6 +20,14 @@ interface Props {
   onDelete?: (item: Item) => void
 }
 
+/**
+ * 条目编辑器（v4 SIGNAL PRESS）：Modal 760 / 0 圆角 / 2px ink / 硬投影；
+ * 标题区手动（mono kicker + Outfit 800 24 标题）；字段两列 `.form-grid`；
+ * 底部 sticky 操作条：左「删除」danger text，右「取消」ghost +「保存」lime primary。
+ *
+ * 业务逻辑与之前完全一致：并发冲突检测（updatedAt 快照 + 数据库复查）、
+ * 提醒日历日字符串、Notification 不可用提示。
+ */
 export default function ItemEditor({ open, fields, item, onCancel, onSave, onDelete }: Props) {
   const { message, modal } = App.useApp()
   const [form] = Form.useForm()
@@ -130,16 +138,14 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
 
   const visibleFields = fields.filter((f) => f.visible)
 
-
   return (
     <Modal
-      title={item ? t('lib.editor.editTitle') : t('lib.editor.newTitle')}
+      // 标题区手动渲染（kicker + Outfit 800），因此不传 title
+      title={null}
       open={open}
       onCancel={handleCancel}
-      // 底部操作条：左「删除」danger 文字 / 右「取消」+「保存」墨黑主按钮。
-      // body 内部滚动 + 固定 footer = sticky 操作条，长表单时按钮不会滚出屏幕。
       footer={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
           {item && onDelete ? (
             <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(item)}>
               {t('common.delete')}
@@ -153,37 +159,67 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
           </div>
         </div>
       }
-      width={720}
+      width={760}
       centered
-      style={{ maxWidth: 'calc(100vw - 32px)', top: 0 }}
-      styles={{ body: { maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' } }}
+      style={{ maxWidth: 'calc(100vw - 24px)', top: 0 }}
+      styles={{ body: { maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' } }}
       destroyOnHidden
     >
-      {/* 单列表单，阅读宽度 720；控件 36/8 由 theme 统一 */}
-      <Form form={form} layout="vertical" requiredMark={false} style={{ maxWidth: 720 }}>
-        {visibleFields.map((f, i) => (
-          <Form.Item
-            key={f.key}
-            name={f.key}
-            label={<LabelText label={f.label} required={f.required} />}
-            rules={f.required ? [{ required: true, message: t('common.requiredField', { name: f.label }) }] : []}
-            style={{ marginBottom: 16 }}
-          >
-            <FieldRenderer field={f} value={null} onChange={() => {}} autoFocus={i === 0} />
-          </Form.Item>
-        ))}
+      {/* 标题区：mono kicker + Outfit 800 24 标题 */}
+      <div style={{ marginBottom: 'var(--s5)' }}>
+        <div className="page-kicker">{t('lib.editor.kicker')}</div>
+        <h2 className="page-title-sm" style={{ marginTop: 8 }}>
+          {item ? t('lib.editor.editTitle') : t('lib.editor.newTitle')}
+        </h2>
+      </div>
+
+      <Form form={form} layout="vertical" requiredMark={false}>
+        <div className="form-grid">
+          {visibleFields.map((f, i) => (
+            <Form.Item
+              key={f.key}
+              name={f.key}
+              label={<LabelText label={f.label} required={f.required} />}
+              rules={f.required ? [{ required: true, message: t('common.requiredField', { name: f.label }) }] : []}
+              style={{ marginBottom: 16 }}
+              className={f.type === 'textarea' ? 'form-grid-full' : undefined}
+            >
+              <FieldRenderer field={f} value={null} onChange={() => {}} autoFocus={i === 0} />
+            </Form.Item>
+          ))}
+        </div>
         {visibleFields.length === 0 && (
-          <p className="muted" style={{ textAlign: 'left', fontSize: 'var(--text-sm)' }}>{t('lib.editor.noFields')}</p>
+          <p className="page-sub">{t('lib.editor.noFields')}</p>
         )}
 
-        <div className="divider" style={{ margin: '20px 0 16px' }} />
-        <Form.Item
-          name={REMINDER_FIELD_KEY}
-          label={<LabelText label={t('reminder.label')} />}
-          style={{ marginBottom: 16 }}
-        >
-          <DatePicker style={{ width: '100%' }} placeholder={t('reminder.placeholder')} allowClear />
-        </Form.Item>
+        <div className="divider" />
+        <div className="form-grid">
+          <Form.Item
+            name={REMINDER_FIELD_KEY}
+            label={<LabelText label={t('reminder.label')} />}
+            style={{ marginBottom: 16 }}
+          >
+            <DatePicker style={{ width: '100%' }} placeholder={t('reminder.placeholder')} allowClear />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(a, b) => a[REMINDER_FIELD_KEY] !== b[REMINDER_FIELD_KEY]}>
+            {() => {
+              const picked = form.getFieldValue(REMINDER_FIELD_KEY)
+              if (!picked) return null
+              return (
+                <Form.Item name={REMINDER_REPEAT_KEY} label={<LabelText label={t('reminder.repeat')} />} style={{ marginBottom: 16 }}>
+                  <Select
+                    options={[
+                      { value: 'none', label: t('reminder.repeat.none') },
+                      { value: 'daily', label: t('reminder.repeat.daily') },
+                      { value: 'weekly', label: t('reminder.repeat.weekly') },
+                      { value: 'monthly', label: t('reminder.repeat.monthly') },
+                    ]}
+                  />
+                </Form.Item>
+              )
+            }}
+          </Form.Item>
+        </div>
         {/*
           提醒依赖浏览器 Notification API。在安卓 App 壳（WebView）里
           window.Notification 根本不存在，notificationSupported() 恒为 false，
@@ -194,33 +230,22 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
         */}
         {notifyState !== 'ok' && (
           <div
-            className="surface-sunken"
-            style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', marginBottom: 16 }}
+            className="panel"
+            style={{
+              display: 'flex',
+              gap: 8,
+              alignItems: 'flex-start',
+              padding: '10px 12px',
+              borderLeft: '6px solid var(--signal)',
+              background: 'var(--sheet)',
+            }}
           >
-            <InfoCircleOutlined style={{ fontSize: 16, color: 'var(--warning)', flexShrink: 0, marginTop: 1 }} aria-hidden />
-            <span className="muted" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
+            <InfoCircleOutlined style={{ fontSize: 16, color: 'var(--signal)', flexShrink: 0, marginTop: 1 }} aria-hidden />
+            <span className="field-hint" style={{ lineHeight: 1.5 }}>
               {t(`reminder.unavailable.${notifyState}`)}
             </span>
           </div>
         )}
-        <Form.Item noStyle shouldUpdate={(a, b) => a[REMINDER_FIELD_KEY] !== b[REMINDER_FIELD_KEY]}>
-          {() => {
-            const picked = form.getFieldValue(REMINDER_FIELD_KEY)
-            if (!picked) return null
-            return (
-              <Form.Item name={REMINDER_REPEAT_KEY} label={<LabelText label={t('reminder.repeat')} />} style={{ marginBottom: 0 }}>
-                <Select
-                  options={[
-                    { value: 'none', label: t('reminder.repeat.none') },
-                    { value: 'daily', label: t('reminder.repeat.daily') },
-                    { value: 'weekly', label: t('reminder.repeat.weekly') },
-                    { value: 'monthly', label: t('reminder.repeat.monthly') },
-                  ]}
-                />
-              </Form.Item>
-            )
-          }}
-        </Form.Item>
       </Form>
     </Modal>
   )

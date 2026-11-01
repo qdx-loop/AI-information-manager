@@ -24,8 +24,8 @@ import { LabelText } from './labels'
  * 现在两边都渲染这一个受控 <Modal>：字段标签齐全、模板可选、
  * 空名/失败时用一个不 settle 的 Promise 把弹窗撑住不关。
  *
- * 视觉（v3）：字段标签 13/500 muted + 必填 accent 圆点，表单宽度 480，
- * 控件 36px / 8px 圆角、弹窗 12px 圆角由 theme + 全局 CSS 统一。
+ * 视觉（v4 SIGNAL PRESS）：弹窗 520 / 0 圆角 / 2px ink 边 + 硬投影；
+ * 字段标签 mono 大写（`.field-label`）+ lime 必填方块；输入 40 由 theme 统一。
  */
 export default function CreateLibraryDialog({
   open,
@@ -141,11 +141,12 @@ export default function CreateLibraryDialog({
       confirmLoading={creating}
       destroyOnHidden
       maskClosable={!creating}
-      width={480}
+      width={520}
       centered
-      style={{ maxWidth: 'calc(100vw - 32px)', top: 0 }}
+      style={{ maxWidth: 'calc(100vw - 24px)', top: 0 }}
     >
-      <Form layout="vertical" style={{ marginTop: 8 }} requiredMark={false}>
+      <div className="page-kicker" style={{ marginBottom: 16 }}>{t('lib.create.kicker')}</div>
+      <Form layout="vertical" requiredMark={false}>
         <Form.Item
           label={<LabelText label={t('home.create.nameLabel')} required />}
           required
@@ -185,7 +186,7 @@ export default function CreateLibraryDialog({
           />
         </Form.Item>
       </Form>
-      <div className="faint" style={{ fontSize: 'var(--text-xs)', marginTop: 8 }}>{t('home.create.tplHint')}</div>
+      <div className="field-hint" style={{ marginTop: 8 }}>{t('home.create.tplHint')}</div>
     </Modal>
   )
 }

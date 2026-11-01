@@ -14,7 +14,7 @@ interface Props {
 }
 
 // 字段输入渲染器：按 type 渲染对应输入控件
-// v3：控件高度 36 / 圆角 8 / sunken 底 + border-strong 边由 theme + 全局 antd 收编统一，
+// v4：控件 40 / 2px ink 边 / 0 圆角由 theme + 全局 antd 收编统一，
 // 这里只管语义（类型 → 控件）；compact 用于表格内联编辑（32px）。
 export default function FieldRenderer({ field, value, onChange, autoFocus, compact }: Props) {
   const sz = compact ? ('small' as const) : ('middle' as const)
@@ -31,8 +31,8 @@ export default function FieldRenderer({ field, value, onChange, autoFocus, compa
           rows={compact ? 2 : 3}
           onChange={(e) => onChange(e.target.value)}
           placeholder={t('field.inputPlaceholder', { name: field.label })}
-          // 长文本是「阅读区」：16/1.7（v3 正文行高），不是 14/1.5
-          style={compact ? undefined : { fontSize: 'var(--text-base)', lineHeight: 1.7 }}
+          // 长文本是「阅读区」：15/1.6（v4 正文基准），不是 13/1.45
+          style={compact ? undefined : { fontSize: 'var(--t-base)', lineHeight: 1.6 }}
         />
       )
     case 'number':
@@ -41,7 +41,7 @@ export default function FieldRenderer({ field, value, onChange, autoFocus, compa
     case 'date':
       return (
         <DatePicker
-          className="mono"
+          className="mono tabular"
           value={value ? dayjs(value as string) : null}
           onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : null)}
           style={{ width: '100%' }}

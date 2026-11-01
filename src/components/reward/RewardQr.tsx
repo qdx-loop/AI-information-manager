@@ -1,25 +1,23 @@
-// 二维码白卡（WelcomeModal 与 RewardCard 共用）。
+// 二维码卡面（纯白，v4 SIGNAL PRESS）——WelcomeModal 与 RewardCard 共用。
 //
-// 依据：`redesign-brief/05-first-run-support.md` §C.1 / §E、TOKENS-v3 §6。
+// 依据：`redesign-brief/06-v4-signal-press.md` §8.9 + §5（`.reward-qr-card` 由 Lead 在全局 CSS 实现）。
 // 硬约束（两处都不能破）：
-// - 卡面**固定纯白**：暗色下若用 var(--bg-surface) 会变深，浅色模块跟着变深后扫不出来。
-//   这是本项目里唯一允许写死颜色的地方。
-// - 图片不反色、不加滤镜、不加 mix-blend-mode；不放大失真（源图 640×640，显示 240–248px）。
-// - 二维码外围保留纯白 quiet zone（源图自带），因此卡面 padding 必须大于 0。
+// - 卡面**固定纯白**：暗色下也不反色，浅色模块变深后扫不出来（全项目唯一允许写死的颜色）。
+// - 图片不反色、不加滤镜、不加 mix-blend-mode；不放大失真（源图 640×640，显示 240–248）。
+// - 卡面保留内 padding 作 quiet zone（源图自带白边 + 卡内 12px）。
+// 视觉：白色卡面 + 2px ink 硬边 + 硬投影（`.reward-qr-card`），零圆角。
 import type { CSSProperties } from 'react'
 import { useI18n } from '@/i18n'
 
 /** 二维码资产（`public/support-qr.png`，码本体约占画面 78%，四周纯白） */
 const DEFAULT_QR_SRC = '/support-qr.png'
-/** 卡面固定白：唯一允许写死的颜色 */
-const QR_CARD_BG = '#FFFFFF'
-/** 默认码区尺寸：research 建议 240–248（低于 240 手机微信难扫） */
+/** 默认码区尺寸：240–248（低于 240 手机微信难扫） */
 const DEFAULT_QR_SIZE = 248
 
 export interface RewardQrProps {
   /** 可覆盖二维码地址（默认 /support-qr.png） */
   src?: string
-  /** 码区显示尺寸（px），默认 248；窄屏可传 240 */
+  /** 码区显示尺寸（px），默认 248 */
   size?: number
   className?: string
   style?: CSSProperties
@@ -40,7 +38,7 @@ export default function RewardQr({
 
   return (
     <div
-      className={className}
+      className={['reward-qr-card', className].filter(Boolean).join(' ')}
       role="group"
       aria-label={groupLabel}
       style={{ ...styles.card, ...style }}
@@ -51,15 +49,9 @@ export default function RewardQr({
 }
 
 const styles = {
-  // 固定白卡面 + 1px 边：暗色下形成「白纸浮在深色底上」的对比，码永远深码浅底
   card: {
-    background: QR_CARD_BG,
-    padding: 12,
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-3)',
-    lineHeight: 0,
-    width: 'fit-content',
-    maxWidth: '100%',
+    // 白底 / 2px ink 边 / 硬投影由 `.reward-qr-card` 提供，这里只保证不被父级 flex 拉伸
+    flexShrink: 0,
   },
   img: {
     display: 'block',

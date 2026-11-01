@@ -7,12 +7,12 @@ import { autoConfirmKey, isDestructiveAction, useAutoConfirm } from '@/ai/autoCo
 
 import { useBackButtonLayer } from '@/utils/backButton'
 
-// TOKENS-v3 §2.4：弹窗正文 14/1.6，注脚 13，mono 图注 12
+// v4 §2：弹窗正文 15/1.6，注脚 13，mono 小标签 11，标题 20
 const T = {
-  body: 'var(--text-sm)',
-  sm: 'var(--text-xs)',
-  mono: 'var(--text-2xs)',
-  title: 'var(--text-lg)',
+  body: 'var(--t-base)',
+  sm: 'var(--t-sm)',
+  mono: 'var(--t-2xs)',
+  title: 'var(--t-lg)',
 }
 
 interface Props {
@@ -150,12 +150,21 @@ export default function ConfirmLibActionModal({
     }
   }
 
-  const labelStyle = { minWidth: 76, flexShrink: 0, color: 'var(--ink-muted)' }
+  const labelStyle = { minWidth: 76, flexShrink: 0, color: 'var(--ink-soft)' }
 
   return (
     <Modal
       title={
-        <span style={{ fontSize: T.title, fontWeight: 600, lineHeight: 1.35, color: 'var(--ink)' }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: T.title,
+            fontWeight: 700,
+            lineHeight: 1.3,
+            letterSpacing: '-0.02em',
+            color: 'var(--ink)',
+          }}
+        >
           {t('ai.confirm.libTitle')}
         </span>
       }
@@ -167,8 +176,8 @@ export default function ConfirmLibActionModal({
           style={{
             display: 'flex',
             justifyContent: 'flex-end',
-            gap: 'var(--space-2)',
-            marginTop: 'var(--space-1)',
+            gap: 'var(--s2)',
+            marginTop: 'var(--s1)',
           }}
         >
           <Button type="text" onClick={onCancel}>
@@ -185,14 +194,14 @@ export default function ConfirmLibActionModal({
           style={{
             display: 'flex',
             alignItems: 'baseline',
-            gap: 'var(--space-2)',
-            marginBottom: 'var(--space-3)',
+            gap: 'var(--s2)',
+            marginBottom: 'var(--s3)',
           }}
         >
-          <span style={{ color: isDelete ? 'var(--danger)' : 'var(--accent)', fontWeight: 500 }}>
+          <span style={{ color: isDelete ? 'var(--danger)' : 'var(--signal)', fontWeight: 500 }}>
             {actionLabel}
           </span>
-          <span style={{ color: 'var(--ink-muted)', fontSize: T.sm }}>
+          <span style={{ color: 'var(--ink-soft)', fontSize: T.sm }}>
             {library?.name ?? libAction?.libraryId ?? tplAction?.libraryId ?? ''}
           </span>
         </div>
@@ -200,10 +209,10 @@ export default function ConfirmLibActionModal({
         {(libAction || tplAction)!.reason && (
           <p
             style={{
-              margin: '0 0 var(--space-4)',
-              paddingTop: 'var(--space-2)',
-              borderTop: '1px solid var(--border-rule)',
-              color: 'var(--ink-muted)',
+              margin: '0 0 var(--s4)',
+              paddingTop: 'var(--s2)',
+              borderTop: '1px solid var(--line-soft)',
+              color: 'var(--ink-soft)',
             }}
           >
             <span style={{ color: 'var(--ink-faint)' }}>{t('ai.confirm.reason')}</span>
@@ -213,15 +222,15 @@ export default function ConfirmLibActionModal({
 
         <div
           style={{
-            borderTop: '1px solid var(--border-rule)',
-            paddingTop: 'var(--space-3)',
+            borderTop: '1px solid var(--line-soft)',
+            paddingTop: 'var(--s3)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 'var(--space-1)',
+            gap: 'var(--s1)',
           }}
         >
           {rows.map((r) => (
-            <div key={r.label} style={{ display: 'flex', gap: 'var(--space-2)', lineHeight: 1.6 }}>
+            <div key={r.label} style={{ display: 'flex', gap: 'var(--s2)', lineHeight: 1.6 }}>
               <span style={labelStyle}>{r.label}</span>
               <span style={{ minWidth: 0, wordBreak: 'break-word', color: 'var(--ink)' }}>{r.value}</span>
             </div>
@@ -233,7 +242,7 @@ export default function ConfirmLibActionModal({
             checked={always}
             disabled={alreadyRemembered}
             onChange={(e) => setAlways(e.target.checked)}
-            style={{ marginTop: 'var(--space-3)', fontSize: T.sm, color: 'var(--ink-muted)' }}
+            style={{ marginTop: 'var(--s3)', fontSize: T.sm, color: 'var(--ink-soft)' }}
           >
             {t('ai.confirm.always', { action: actionLabel })}
           </Checkbox>
@@ -241,11 +250,11 @@ export default function ConfirmLibActionModal({
 
         <p
           style={{
-            marginTop: 'var(--space-3)',
+            marginTop: 'var(--s3)',
             marginBottom: 0,
             fontSize: T.sm,
             lineHeight: 1.6,
-            color: isDelete ? 'var(--danger)' : 'var(--ink-muted)',
+            color: isDelete ? 'var(--danger)' : 'var(--ink-soft)',
           }}
         >
           {t('ai.confirm.lib.note')}

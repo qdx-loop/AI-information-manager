@@ -38,11 +38,11 @@ export default class ErrorBoundary extends Component<Props, State> {
       // reset 只清状态，同一子树会再崩一次；reload 才是真正能恢复的那条。
       return (
         <div style={{ maxWidth: 560, margin: '0 auto', padding: '64px 24px' }}>
-          <div className="eyebrow">ERROR</div>
+          <div className="page-kicker">ERROR</div>
           <h1 className="page-title" style={{ marginTop: 8 }}>
             {tNow('errorBoundary.title')}
           </h1>
-          <p className="page-lede" style={{ marginTop: 8 }}>
+          <p className="page-sub" style={{ marginTop: 8 }}>
             {this.state.error?.message}
           </p>
           <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>

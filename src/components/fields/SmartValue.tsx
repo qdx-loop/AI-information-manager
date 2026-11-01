@@ -31,7 +31,7 @@ export function detectSmartLink(value: string): SmartLink | null {
   return null
 }
 
-// 只保留线性（Outlined）图标：Filled/TwoTone 是「AI 味」的第二来源（01-ui-research §H）
+// 只保留线性（Outlined）图标：实心/双色图标是「AI 味」的第二来源
 const ICONS = { phone: <PhoneOutlined />, mail: <MailOutlined />, link: <LinkOutlined /> }
 
 const DASH = <span className="faint">—</span>
@@ -49,9 +49,9 @@ function isEmpty(v: FieldValue): boolean {
  * 现在先按字段类型渲染（复选→是/否、评分→星级、日期→格式化），
  * 文本类再走链接识别，桌面表格 / 移动卡片 / 条目标题三处口径统一。
  *
- * v3 语言：数字/日期/ID 走 `.mono num`（等宽 + tabular-nums），纵向扫读不跳；
- * 布尔值用线性图标 + 文字（成功/中性色），评分用 StarOutlined（禁止 Filled 图标），
- * 链接继承 accent 色。所有颜色/字号来自 token，不写死。
+ * v4 语言：数字/日期/ID 走 `.mono tabular`（等宽 + tabular-nums），纵向扫读不跳；
+ * 布尔值用线性图标 + 文字（成功/次要色），评分用 5 个 StarOutlined（Outlined only，
+ * 不用实心星字符），链接是 ink 字 + 2px lime 下划线。颜色/字号全部走 token。
  */
 export default function SmartValue({ field, value }: { field: FieldDef; value: FieldValue }) {
   if (field.type === 'checkbox') {
@@ -76,11 +76,11 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
     if (isEmpty(value)) return DASH
     const n = Math.max(0, Math.min(5, Number(value) || 0))
     if (n === 0) return <span className="faint">{tNow('field.no')}</span>
-    // 只允许 Outlined 图标：用 5 个 StarOutlined 表示评分，填满的走 accent，空星走 faint
+    // 只允许 Outlined 图标：5 个 StarOutlined，实心感由 ink 色表达，空星走 line-soft
     return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: 'var(--accent)' }} aria-label={tNow('field.stars', { n: String(n) })}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }} aria-label={tNow('field.stars', { n: String(n) })}>
         {Array.from({ length: 5 }).map((_, i) => (
-          <StarOutlined key={i} style={{ fontSize: 13, color: i < n ? 'var(--accent)' : 'var(--border-strong)' }} />
+          <StarOutlined key={i} style={{ fontSize: 13, color: i < n ? 'var(--ink)' : 'var(--line-soft)' }} />
         ))}
       </span>
     )
@@ -88,7 +88,7 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
 
   if (field.type === 'date') {
     if (isEmpty(value)) return DASH
-    return <span className="mono num">{String(value)}</span>
+    return <span className="mono tabular">{String(value)}</span>
   }
 
   if (isEmpty(value)) return DASH
@@ -113,7 +113,14 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
               window.open(link.href, '_self')
             }
           }}
-          style={{ wordBreak: 'break-all', color: 'var(--accent)' }}
+          style={{
+            wordBreak: 'break-all',
+            color: 'var(--ink)',
+            textDecoration: 'underline',
+            textDecorationThickness: 2,
+            textDecorationColor: 'var(--lime)',
+            textUnderlineOffset: 2,
+          }}
         >
           {ICONS[link.icon]} {str}
         </a>
@@ -123,7 +130,7 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
 
   const num = field.type === 'number'
   return (
-    <span className={num ? 'mono num' : undefined} style={{ wordBreak: 'break-all' }}>
+    <span className={num ? 'mono tabular' : undefined} style={{ wordBreak: 'break-all' }}>
       {str}
     </span>
   )

@@ -10,7 +10,7 @@ function useDebounced<T>(value: T, delay = 250): T {
   return debounced
 }
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Input, Select, App, Modal, Dropdown, Grid } from 'antd'
+import { Button, Input, Select, App, Modal, Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
 import {
   SearchOutlined,
@@ -20,7 +20,6 @@ import {
   CopyOutlined,
   MoreOutlined,
   PlusOutlined,
-  DownOutlined,
 } from '@ant-design/icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import LibraryTable from './LibraryTable'
@@ -35,13 +34,10 @@ import { useBackButtonLayer } from '@/utils/backButton'
 import { isBlankFieldValue } from '@/utils/fieldValue'
 import PageSkeleton from '@/components/common/PageSkeleton'
 import EmptyPanel from './EmptyPanel'
-import { usePagePadding } from './pageFrame'
 
 export default function LibraryView() {
   const { id } = useParams()
   const { message, modal } = App.useApp()
-  const pad = usePagePadding()
-  const narrow = !Grid.useBreakpoint().md
   const ioRef = useRef<ImportExportHandle>(null)
   const {
     libraries,
@@ -268,7 +264,19 @@ export default function LibraryView() {
     message.success(t('lib.clone.done', { n: cloneTargets.length }))
   }
 
-  // 导出菜单：文字项，无图标（工具栏图标只做辅助，文字优先）
+  // 更多菜单：窄屏与桌面都可用（桌面工具栏也有对应按钮，二者共用 ioRef）
+  const moreMenu: MenuProps = {
+    items: [
+      { key: 'tpl', icon: <SettingOutlined />, label: t('lib.menu.template'), onClick: () => setTemplateOpen(true) },
+      { key: 'clone', icon: <CopyOutlined />, label: t('lib.menu.clone'), disabled: fields.length === 0, onClick: handleClone },
+      { type: 'divider' },
+      { key: 'imp', icon: <ImportOutlined />, label: t('lib.menu.import'), onClick: () => ioRef.current?.openImport() },
+      { key: 'csv', label: t('lib.menu.exportCsv'), onClick: () => ioRef.current?.exportAs('csv') },
+      { key: 'xls', label: t('lib.menu.exportExcel'), onClick: () => ioRef.current?.exportAs('excel') },
+    ],
+  }
+
+  // 导出菜单：文字项，与「导入」并列在数据组
   const exportMenu: MenuProps = {
     items: [
       { key: 'csv', label: t('lib.importExport.exportCsv') },
@@ -284,9 +292,9 @@ export default function LibraryView() {
   // 加载中：骨架屏而不是一行字 —— 骨架贴近最终布局，加载完成时不会位移。
   if (loading) {
     return (
-      <div style={{ ...pad, height: '100%' }}>
-        <div className="surface-card" style={{ padding: 20 }}>
-          <PageSkeleton rows={8} />
+      <div className="workbench">
+        <div className="panel">
+          <div className="panel-body"><PageSkeleton rows={8} /></div>
         </div>
       </div>
     )
@@ -296,7 +304,7 @@ export default function LibraryView() {
   // 库不存在/已删除：只给「回到首页 / 去回收站」两个出口，不提供任何写入口
   if (libMissing) {
     return (
-      <div style={{ ...pad }}>
+      <div className="workbench">
         <EmptyPanel
           title={t('lib.missing.title')}
           body={t('lib.missing.body')}
@@ -314,26 +322,37 @@ export default function LibraryView() {
   }
 
   return (
-    <div style={{ ...pad, height: '100%' }}>
-      {/* 页头：24px 标题 + 计数；右上是页面级动作之外的次要信息 */}
+    <div className="workbench">
+      {/* 页头：kicker LIBRARY / 库 + 库名 40/800 + count-chip + 更多 */}
       <div className="page-head">
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, minWidth: 0, flexWrap: 'wrap' }}>
-          <h1
-            className="page-title"
-            title={lib?.name ?? t('lib.untitled')}
-            style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-          >
-            {lib?.name ?? t('lib.untitled')}
-          </h1>
-          {lib?.category && <span className="eyebrow">{lib.category}</span>}
-          <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-            <span className="tabular">{items.length}</span> {t('lib.count.unit')}
-          </span>
+        <div className="page-head-main">
+          <div className="page-kicker">{t('lib.kicker')}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', minWidth: 0 }}>
+            <h1
+              className="page-title"
+              title={lib?.name ?? t('lib.untitled')}
+              style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
+              {lib?.name ?? t('lib.untitled')}
+            </h1>
+            <span className="count-chip">
+              {items.length} {t('lib.count.unit')}
+            </span>
+            {lib?.category && <span className="tag-mono">{lib.category}</span>}
+          </div>
+        </div>
+        <div className="page-head-actions">
+          <Dropdown menu={moreMenu} trigger={['click']}>
+            <Button icon={<MoreOutlined />} aria-label={t('lib.menu.more')}>
+              {t('common.more')}
+            </Button>
+          </Dropdown>
         </div>
       </div>
+      <div className="page-bar" />
 
-      {/* 工具栏：一行 36，分三组（视图 / 数据 / 动作），组间 16、组内 8 */}
-      <div className="toolbar" style={{ gap: 16, marginBottom: 16 }}>
+      {/* 工具条：一行 40，三组（视图 / 数据 / 动作） */}
+      <div className="toolbar">
         <div className="toolbar-group">
           {fields.length > 0 && (
             <>
@@ -343,14 +362,14 @@ export default function LibraryView() {
                 allowClear
                 value={keywordInput}
                 onChange={(e) => setKeywordInput(e.target.value)}
-                style={{ width: 220 }}
+                style={{ width: 240 }}
               />
               <Select
                 placeholder={t('lib.filterField')}
                 value={filterField || undefined}
                 onChange={(v) => setFilterField(v ?? '')}
                 allowClear
-                style={{ width: 136 }}
+                style={{ width: 148 }}
                 options={visibleFields.map((f) => ({ label: f.label, value: f.key }))}
               />
               {filterField && (
@@ -359,7 +378,7 @@ export default function LibraryView() {
                   allowClear
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
-                  style={{ width: 136 }}
+                  style={{ width: 148 }}
                 />
               )}
               <Select
@@ -367,11 +386,10 @@ export default function LibraryView() {
                 value={sortField || undefined}
                 onChange={(v) => setSortField(v ?? '')}
                 allowClear
-                style={{ width: 136 }}
+                style={{ width: 148 }}
                 options={visibleFields.map((f) => ({ label: f.label, value: f.key }))}
               />
               {sortField && (
-                // 方向用文字按钮而不是 Switch：一行工具栏里统一是 32/36 高控件
                 <Button type="text" onClick={() => setSortDesc((v) => !v)}>
                   {sortDesc ? t('lib.desc') : t('lib.asc')}
                 </Button>
@@ -383,54 +401,24 @@ export default function LibraryView() {
           )}
         </div>
 
+        <span className="toolbar-spacer" />
+
         <div className="toolbar-group">
-          {/* 数据组：模板 / 复用 / 导入 / 导出。文字优先，图标只做辅助。 */}
-          {narrow ? (
-            <Dropdown
-              trigger={['click']}
-              menu={{
-                items: [
-                  { key: 'tpl', icon: <SettingOutlined />, label: t('lib.menu.template'), onClick: () => setTemplateOpen(true) },
-                  { key: 'clone', icon: <CopyOutlined />, label: t('lib.menu.clone'), disabled: fields.length === 0, onClick: handleClone },
-                  { type: 'divider' },
-                  { key: 'imp', icon: <ImportOutlined />, label: t('lib.menu.import'), onClick: () => ioRef.current?.openImport() },
-                  { key: 'csv', label: t('lib.menu.exportCsv'), onClick: () => ioRef.current?.exportAs('csv') },
-                  { key: 'xls', label: t('lib.menu.exportExcel'), onClick: () => ioRef.current?.exportAs('excel') },
-                ],
-              }}
-            >
-              <Button icon={<MoreOutlined />} aria-label={t('lib.menu.more')} className="tap">
-                {t('lib.menu.more')}
-              </Button>
-            </Dropdown>
-          ) : (
-            <>
-              <Button icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>
-                {t('lib.template')}
-              </Button>
-              <Button icon={<CopyOutlined />} onClick={handleClone} disabled={fields.length === 0}>
-                {t('lib.clone')}
-              </Button>
-              <Button icon={<ImportOutlined />} onClick={() => ioRef.current?.openImport()}>
-                {t('lib.importExport.import')}
-              </Button>
-              <Dropdown menu={exportMenu}>
-                <Button icon={<ExportOutlined />}>
-                  {t('lib.importExport.export')} <DownOutlined style={{ fontSize: 10 }} />
-                </Button>
-              </Dropdown>
-            </>
-          )}
+          {/* 数据组：模板 / 复用 / 导入 / 导出；文字优先，图标辅助 */}
+          <Button icon={<SettingOutlined />} onClick={() => setTemplateOpen(true)}>{t('lib.template')}</Button>
+          <Button icon={<CopyOutlined />} onClick={handleClone} disabled={fields.length === 0}>{t('lib.clone')}</Button>
+          <Button icon={<ImportOutlined />} onClick={() => ioRef.current?.openImport()}>{t('lib.importExport.import')}</Button>
+          <Dropdown menu={exportMenu}>
+            <Button icon={<ExportOutlined />}>{t('lib.importExport.export')}</Button>
+          </Dropdown>
         </div>
 
-        <div className="toolbar-group" style={{ marginLeft: 'auto' }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
-            {t('lib.new')}
-          </Button>
+        <div className="toolbar-group">
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>{t('lib.new')}</Button>
         </div>
       </div>
 
-      {/* ImportExport 必须始终挂载：桌面按钮与窄屏「⋯」菜单都通过 ioRef
+      {/* ImportExport 必须始终挂载：桌面按钮与「更多」菜单都通过 ioRef
           命令式触发该实例的上传框 / Blob 下载；卸载后 ref 为 null，入口会静默失效。 */}
       <div hidden>
         <ImportExport ref={ioRef} fields={fields} items={items} onImport={handleImport} />
@@ -450,21 +438,22 @@ export default function LibraryView() {
               }
             />
           ) : items.length === 0 ? (
-            // 首次使用：空状态是这里最好的新手引导位，要说清「这里将来会放什么」
+            // 首次使用：空状态说清「这里将来会放什么」，并给新建 + 导入两个出口
             <EmptyPanel
               title={t('lib.empty.none.title')}
               body={
                 <>
                   {t('lib.empty.none.body', { name: lib?.name ?? t('lib.untitled') })}
-                  <div className="faint" style={{ fontSize: 'var(--text-xs)', marginTop: 6 }}>
+                  <span className="field-hint" style={{ display: 'block', marginTop: 6 }}>
                     {t('lib.empty.none.hint')}
-                  </div>
+                  </span>
                 </>
               }
               action={
-                <Button type="primary" onClick={handleNew}>
-                  {t('lib.empty.cta')}
-                </Button>
+                <>
+                  <Button type="primary" onClick={handleNew}>{t('lib.empty.cta')}</Button>
+                  <Button onClick={() => ioRef.current?.openImport()}>{t('lib.importExport.import')}</Button>
+                </>
               }
             />
           ) : (
@@ -475,9 +464,7 @@ export default function LibraryView() {
               action={
                 <>
                   <Button onClick={clearFilters}>{t('lib.clear')}</Button>
-                  <span className="faint" style={{ fontSize: 'var(--text-sm)' }}>
-                    {t('lib.total', { n: items.length })}
-                  </span>
+                  <span className="table-count">{t('lib.total', { n: items.length })}</span>
                 </>
               }
             />
@@ -531,7 +518,7 @@ export default function LibraryView() {
         onOk={confirmClone}
         okText={t('common.confirm')}
       >
-        <p className="muted" style={{ marginBottom: 12, fontSize: 'var(--text-sm)' }}>{t('lib.clone.pick')}</p>
+        <p className="page-sub" style={{ marginBottom: 12 }}>{t('lib.clone.pick')}</p>
         <Select
           mode="multiple"
           placeholder={t('lib.clone.placeholder')}

@@ -1,4 +1,4 @@
-import { Layout, Drawer, Tooltip, Dropdown, Avatar, App as AntApp } from 'antd'
+import { Drawer, Tooltip, Dropdown, Avatar, App as AntApp } from 'antd'
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { MoonOutlined, SunOutlined, MenuOutlined, SearchOutlined, LogoutOutlined, WifiOutlined } from '@ant-design/icons'
@@ -21,7 +21,6 @@ import { startReminderWatcher } from '@/utils/reminderNotify'
 
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
 
-const { Content, Header } = Layout
 
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -196,14 +195,14 @@ export default function AppShell() {
   useBackButtonLayer(sidebarOpen, () => setSidebarOpen(false))
 
   return (
-    <Layout className="app-shell">
+    <div className="app-shell">
       {isMobile ? (
         <Drawer
           placement="left"
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          width={260}
-          styles={{ body: { padding: 0 } }}
+          width={288}
+          styles={{ body: { padding: 0, background: 'var(--ink)' } }}
         >
           <SidebarContent
             onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }}
@@ -220,76 +219,52 @@ export default function AppShell() {
             <span>{t('app.offline')}</span>
           </div>
         )}
-          <Header
-            className="app-header"
-            style={{
-              // 52px 现代产品头部；安全区单独叠加，刘海机型不遮挡
-              height: 'calc(52px + env(safe-area-inset-top, 0px))',
-              paddingTop: 'env(safe-area-inset-top, 0px)',
-            }}
-          >
-            <div className="app-header-left">
+          <header className="app-topbar">
+            <div className="topbar-left">
               {isMobile && (
                 <button
                   type="button"
-                  className="icon-btn"
+                  className="topbar-icon"
                   aria-label={t('nav.menu')}
                   onClick={() => setSidebarOpen(true)}
                 >
                   <MenuOutlined />
                 </button>
               )}
-              {isMobile && <span className="app-brand-dot" aria-hidden />}
-              <div className="app-breadcrumb">
-                {isMobile ? (
-                  <span className="app-breadcrumb-current">{t('app.brand')}</span>
-                ) : (
-                  <>
-                    <span className="faint">{t('app.home')}</span>
-                    {currentLib && (
-                      <>
-                        <span className="faint" aria-hidden>
-                          /
-                        </span>
-                        <span className="app-breadcrumb-current">{currentLib.name}</span>
-                      </>
-                    )}
-                    {currentLib?.category && (
-                      <span className="faint" style={{ fontSize: 12 }}>
-                        {currentLib.category}
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
+              {isMobile ? (
+                <div className="topbar-breadcrumb">
+                  <span className="rail-mark" aria-hidden style={{ width: 18, height: 18 }} />
+                  <span className="is-current">{t('app.brand')}</span>
+                </div>
+              ) : (
+                <div className="topbar-breadcrumb">
+                  <span>{t('app.home')}</span>
+                  {currentLib && (
+                    <>
+                      <span aria-hidden>/</span>
+                      <span className="is-current">{currentLib.name}</span>
+                    </>
+                  )}
+                  {currentLib?.category && <span>{currentLib.category}</span>}
+                </div>
+              )}
             </div>
 
-            <div className="app-header-actions">
-              {!isMobile ? (
-                <button
-                  type="button"
-                  className="app-header-search"
-                  onClick={() => setSearchOpen(true)}
-                  aria-label={t('app.search')}
-                >
-                  <SearchOutlined />
-                  <span>{t('app.search')}</span>
-                  <kbd className="kbd">⌘K</kbd>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label={t('app.search')}
-                  onClick={() => setSearchOpen(true)}
-                >
-                  <SearchOutlined />
-                </button>
-              )}
+            <div className="topbar-actions">
+              <button
+                type="button"
+                className="topbar-search"
+                onClick={() => setSearchOpen(true)}
+                aria-label={t('app.search')}
+              >
+                <SearchOutlined />
+                <span>{t('app.search')}</span>
+                <kbd>⌘K</kbd>
+              </button>
               <Tooltip title={isDark ? t('app.theme.light') : t('app.theme.dark')}>
                 <button
                   type="button"
-                  className="icon-btn"
+                  className="topbar-icon"
                   aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
                   onClick={() => setTheme(isDark ? 'light' : 'dark')}
                 >
@@ -299,15 +274,14 @@ export default function AppShell() {
               <Tooltip title={settings.language === 'zh' ? 'English' : '中文'}>
                 <button
                   type="button"
-                  className="icon-btn"
-                  style={{ width: 'auto', padding: '0 8px', fontSize: 12, fontWeight: 500 }}
+                  className="topbar-icon"
+                  style={{ width: 'auto', padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700 }}
                   aria-label={t('app.language')}
                   onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}
                 >
                   {settings.language === 'zh' ? 'EN' : '中'}
                 </button>
               </Tooltip>
-              {/* 用户菜单：手机上侧边栏收在抽屉里，退出登录/账号信息必须在头部可达 */}
               <Dropdown
                 trigger={['click']}
                 menu={{
@@ -326,27 +300,17 @@ export default function AppShell() {
                   ],
                 }}
               >
-                <button type="button" className="icon-btn" style={{ width: 'auto', padding: 0 }} aria-label={t('app.signOut')}>
-                  <Avatar size={26} style={{ background: 'var(--accent)', color: '#fff', fontSize: 12 }}>
+                <button type="button" className="topbar-icon" aria-label={t('app.signOut')}>
+                  <Avatar size={26} style={{ background: 'var(--lime)', color: 'var(--ink)', border: '1.5px solid var(--line)' }}>
                     {(account?.username ?? '?').slice(0, 1).toUpperCase()}
                   </Avatar>
                 </button>
               </Dropdown>
             </div>
-          </Header>
-          <Content
-            ref={contentRef}
-            className="app-content"
-            style={{
-              flex: 1,
-              overflow: 'auto',
-              background: 'var(--bg-canvas)',
-              // 手机上给底部标签栏让位
-              paddingBottom: isMobile ? 'calc(56px + env(safe-area-inset-bottom, 0px))' : 0,
-            }}
-          >
+          </header>
+          <div ref={contentRef} className="app-content">
             <Outlet />
-          </Content>
+          </div>
       </div>
       {/* AI 助手：桌面停靠在右侧、把内容推开；手机是底部抽屉。两者都不带遮罩 */}
       <AIDock variant={isMobile ? 'sheet' : 'dock'} />
@@ -369,6 +333,6 @@ export default function AppShell() {
       )}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       {account && <WelcomeModal open={welcomeOpen} accountId={account.id} onClose={closeWelcome} />}
-    </Layout>
+    </div>
   )
 }

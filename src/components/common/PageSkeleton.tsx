@@ -36,7 +36,7 @@ export function InlineSkeleton({ rows = 3, tip }: { rows?: number; tip?: ReactNo
     <div style={{ padding: 8 }} aria-busy="true">
       <Skeleton active title={false} paragraph={{ rows }} />
       {tip ? (
-        <div style={{ textAlign: 'center', color: 'var(--ink-muted)', fontSize: 12, marginTop: 8 }}>
+        <div style={{ textAlign: 'center', color: 'var(--ink-soft)', fontSize: 12, marginTop: 8 }}>
           {tip}
         </div>
       ) : null}
@@ -66,24 +66,11 @@ export function EmptyState({
   compact?: boolean
 }) {
   return (
-    <div
-      style={{
-        // 空状态是唯一允许居中的场景（研究 brief §K.9）
-        textAlign: 'center',
-        padding: compact ? '24px 16px' : '48px 24px',
-        color: 'var(--ink-muted)',
-      }}
-    >
-      {icon ? <div style={{ marginBottom: 10, opacity: 0.9 }}>{icon}</div> : null}
-      <div
-        style={{ fontSize: 20, lineHeight: 1.4, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}
-      >
-        {title}
-      </div>
-      {body ? (
-        <div style={{ maxWidth: 440, margin: '0 auto', lineHeight: 1.75, fontSize: 13 }}>{body}</div>
-      ) : null}
-      {action ? <div style={{ marginTop: 18 }}>{action}</div> : null}
+    <div className="empty-state" style={compact ? { padding: '24px 16px' } : undefined}>
+      <div className="empty-mark" aria-hidden>{icon ?? '◇'}</div>
+      <h3 className="empty-title">{title}</h3>
+      {body ? <p className="empty-body">{body}</p> : null}
+      {action ? <div className="empty-actions">{action}</div> : null}
     </div>
   )
 }

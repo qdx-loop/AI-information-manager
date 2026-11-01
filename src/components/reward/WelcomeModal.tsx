@@ -1,18 +1,17 @@
 // 首次注册「关于作者 + 赞赏码」欢迎卡（每账号只弹一次）。
 //
-// 依据：`redesign-brief/05-first-run-support.md` §C（结构与逐字文案）、§D.4（形态）、
-//       TOKENS-v3 §6（本轮新增）、§7（禁止项）。
+// 依据：`redesign-brief/05-first-run-support.md` §C（结构与逐字文案）、§D.4（形态，文案/状态机一字不改）、
+//       `redesign-brief/06-v4-signal-press.md` §8.9（v4 视觉：头部 ink 条 + Outfit 800 标题 + Work Sans 15 正文
+//       + QR 白色卡面 2px ink 边 + lime 唯一 CTA + mono 页脚）。
 // 契约（Lead 定稿）：**受控组件**，`{ open, accountId, onClose }`；
 //   挂载/卸载与「该不该显示」全由宿主（AppShell）决定，本组件不消费 pending、不判断 seen；
 //   关闭时先 `markWelcomeSeen(accountId)` 再 `onClose()`，四种关闭方式（× / Esc / 点遮罩 /「开始使用」）
-//   全部走同一条 close 路径。android 返回键**不在本组件注册**：按 backButton.ts 的契约，
-//   受控弹层的返回键由持有 open 的父级（AppShell）调 useBackButtonLayer 注册，本组件自注册会多压一条历史条目。
-// 三条不可退让的底线（§0）：
+//   全部走同一条 close 路径。android 返回键由持有 open 的父级（AppShell）注册，本组件不重复注册。
+// 三条不可退让的底线（05 §0）：
 //   1) 不阻塞：任何一条关闭路径都能立刻进入应用；
 //   2) 首屏正文必须可见「不扫，功能和体验完全一样」；
 //   3) 主按钮是「开始使用」，二维码只是卡片里的次要内容（不做最大视觉、不在按钮上）。
-// 视觉：antd Modal 的白面/12 圆角/shadow-3/遮罩/标题 20/600 已由 Lead 的全局 CSS 统一收编
-//      （`src/styles/index.css` 的 `.ant-modal*` 段），本组件不再写卡面样式。
+// 视觉：弹窗外壳（sheet 面 / 2px ink / 0 圆角 / shadow-3 / 遮罩 / 关闭键）由 Lead 的全局 CSS 统一收编。
 import { Modal, Button } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 import { useI18n, type TFunc } from '@/i18n'
@@ -20,17 +19,17 @@ import { markWelcomeSeen } from '@/utils/welcome'
 import RewardQr from './RewardQr'
 
 /**
- * 一行回退开关（§A.5）：供宿主引用——置 false 即整体降级为「设置页常驻，首进不弹」。
+ * 一行回退开关（05 §A.5）：供宿主引用——置 false 即整体降级为「设置页常驻，首进不弹」。
  * 组件本身不做判断（受控契约），因此这个常量只表达「产品级开关」，由 AppShell 决定是否渲染。
  */
 export const FIRST_RUN_SUPPORT_ENABLED = true
 
-/** 码区尺寸：240–248（§C.1 / §D.6，低于 240 手机微信难扫） */
+/** 码区尺寸：240–248（05 §C.1 / §D.6，低于 240 手机微信难扫） */
 const QR_SIZE = 248
 
 /**
  * i18n key 与中文兜底（frontend-analyst 会补 welcome.*；缺 key 时 t() 会原样返回 key，
- * 这里检测到这种情况就用 §C.4 的逐字兜底，保证 key 落地前不露 key、不空白）。
+ * 这里检测到这种情况就用 05 §C.4 的逐字兜底，保证 key 落地前不露 key、不空白）。
  */
 const FALLBACK = {
   eyebrow: '关于作者',
@@ -84,11 +83,14 @@ export default function WelcomeModal({ open, accountId, onClose }: WelcomeModalP
       open={open}
       onCancel={close}
       centered
-      width="min(420px, calc(100vw - 32px))"
+      width="min(440px, calc(100vw - 32px))"
       title={
-        <div>
-          <div className="eyebrow" style={styles.eyebrow}>
-            {copy.eyebrow}
+        <div style={styles.head}>
+          <div className="page-kicker" style={styles.kicker}>
+            {/* 「ABOUT / 关于作者」：拉丁 kicker + 中文说明；两段分开放，读屏与测试都能单独命中 */}
+            <span>ABOUT</span>
+            <span style={styles.kickerSep}>/</span>
+            <span style={styles.kickerZh}>{copy.eyebrow}</span>
           </div>
           <div className="page-title-sm" style={styles.title}>
             {copy.title}
@@ -98,7 +100,10 @@ export default function WelcomeModal({ open, accountId, onClose }: WelcomeModalP
       footer={null}
       maskClosable
       keyboard
-      closable={{ closeIcon: <CloseOutlined />, 'aria-label': copy.closeAria }}
+      closable={{ closeIcon: <CloseOutlined style={{ color: 'var(--on-ink)' }} />, 'aria-label': copy.closeAria }}
+      styles={{
+        header: styles.modalHeader,
+      }}
     >
       <p style={styles.body}>{copy.body1}</p>
       <p style={styles.body}>{copy.body2}</p>
@@ -106,72 +111,101 @@ export default function WelcomeModal({ open, accountId, onClose }: WelcomeModalP
       <div style={styles.qrRow}>
         <RewardQr size={QR_SIZE} />
         <div style={styles.notes}>
-          <div style={styles.scan}>{copy.scan}</div>
-          <div style={styles.note}>{copy.privacy}</div>
+          <div className="mono" style={styles.scan}>
+            {copy.scan}
+          </div>
+          <div className="mono" style={styles.note}>
+            {copy.privacy}
+          </div>
         </div>
       </div>
 
-      <div className="welcome-actions" style={styles.actions}>
-        {/* 初始焦点放主按钮，不放码上（§D.6） */}
+      <div className="welcome-actions">
+        {/* 初始焦点放主按钮，不放码上（05 §D.6） */}
         <Button type="primary" size="large" autoFocus onClick={close} style={styles.startBtn}>
           {copy.start}
         </Button>
       </div>
 
-      <div style={styles.once}>{copy.once}</div>
+      <div className="mono" style={styles.once}>
+        {copy.once}
+      </div>
     </Modal>
   )
 }
 
 const styles = {
-  eyebrow: {
-    marginBottom: 'var(--space-1)',
+  // 头部 ink 条（v4 §8.9）：mono kicker + lime 方块 + Outfit 800 标题；右侧留出关闭键位置
+  modalHeader: {
+    background: 'var(--ink)',
+    borderBottom: 'var(--bw) solid var(--line)',
+    padding: '14px 56px 14px 20px',
+    margin: 0,
+  },
+  head: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 'var(--s2)',
+  },
+  kicker: {
+    // .page-kicker 默认 ink-faint，在 ink 底上要反白
+    color: 'var(--on-ink)',
+  },
+  kickerSep: {
+    color: 'var(--on-ink)',
+    opacity: 0.5,
+    margin: '0 2px',
+  },
+  kickerZh: {
+    // 中文不进等宽：正文族 + 正常字距
+    fontFamily: 'var(--font-body)',
+    letterSpacing: 0,
+    textTransform: 'none' as const,
+    fontWeight: 600,
   },
   title: {
+    color: 'var(--on-ink)',
+    letterSpacing: '-0.02em',
     whiteSpace: 'normal' as const,
   },
   body: {
-    margin: '0 0 var(--space-3)',
-    fontSize: 'var(--text-sm)',
+    margin: '0 0 var(--s3)',
+    fontSize: 'var(--t-base)',
     lineHeight: 1.65,
-    color: 'var(--ink-muted)',
+    color: 'var(--ink-soft)',
   },
   qrRow: {
     display: 'flex',
     flexWrap: 'wrap' as const,
     alignItems: 'flex-start',
-    gap: 'var(--space-4)',
-    margin: 'var(--space-4) 0 var(--space-5)',
+    gap: 'var(--s4)',
+    margin: 'var(--s4) 0 var(--s5)',
   },
   notes: {
     flex: '1 1 120px',
     minWidth: 120,
-    paddingTop: 4,
+    paddingTop: 'var(--s1)',
   },
   scan: {
-    fontSize: 'var(--text-2xs)',
-    lineHeight: 1.5,
-    fontWeight: 500,
+    fontSize: 'var(--t-xs)',
+    lineHeight: 1.4,
+    fontWeight: 600,
     color: 'var(--ink)',
   },
   note: {
-    marginTop: 'var(--space-1)',
-    fontSize: 'var(--text-2xs)',
-    lineHeight: 1.5,
-    color: 'var(--ink-faint)',
-  },
-  actions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
+    marginTop: 'var(--s2)',
+    fontSize: 'var(--t-xs)',
+    lineHeight: 1.4,
+    color: 'var(--ink-soft)',
   },
   startBtn: {
     minWidth: 128,
-    fontWeight: 500,
   },
   once: {
-    marginTop: 'var(--space-3)',
-    fontSize: 'var(--text-2xs)',
-    lineHeight: 1.5,
-    color: 'var(--ink-muted)',
+    marginTop: 'var(--s4)',
+    fontSize: 'var(--t-2xs)',
+    lineHeight: 1.3,
+    letterSpacing: '0.04em',
+    color: 'var(--ink-faint)',
   },
 } as const

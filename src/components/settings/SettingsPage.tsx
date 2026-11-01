@@ -42,9 +42,9 @@ import { useI18n } from '@/i18n'
 import { downloadBlob } from '@/utils/csv'
 
 /**
- * 设置页 ·『石墨信号』（v3 现代产品感）
+ * 设置页 · v4「硬边印刷 SIGNAL PRESS」
  *
- * 桌面：左侧 200px 白卡目录（选中 = 3px accent 左线 + accent-wash），右侧白卡内容 max-width 720，
+ * 桌面：左侧 220px 编号索引 panel（选中整行 lime + 左侧 4px ink），右侧内容 panel max-width 720，
  *        组间 32px + 1px 账线。移动端回退为 Tabs（保留，因为窄屏目录会占掉半屏）。
  * 第 6 项「关于与支持」支持 `?tab=support` 直达（帮助页/落地页的文末链接指向这里）。
  *
@@ -65,7 +65,17 @@ const TAB_LABEL: Record<TabKey, string> = {
 
 const TAB_ORDER: TabKey[] = ['account', 'ai', 'backup', 'configsync', 'storage', 'support']
 
-/** 说明块：2px 左线 + 一行文字，替代彩色 Alert 色块（不只靠颜色，也不加盒子阴影） */
+/** 左索引与右面板的编号/眉题（拉丁大写，中文标题走 i18n） */
+const TAB_META: Record<TabKey, { kicker: string; subKey?: string }> = {
+  account: { kicker: '01 / ACCOUNT', subKey: 'settings.account.freeForeverHint' },
+  ai: { kicker: '02 / AI', subKey: 'settings.ai.info.title' },
+  backup: { kicker: '03 / BACKUP', subKey: 'settings.backup.info.body' },
+  configsync: { kicker: '04 / SYNC', subKey: 'settings.f2f.card.body' },
+  storage: { kicker: '05 / CLOUD', subKey: 'settings.storage.info.body' },
+  support: { kicker: '06 / SUPPORT' },
+}
+
+/** 说明条：2px ink 边 + 左 6px 色条 + panel 底（硬边，无圆角/无柔和阴影） */
 function Notice({
   kind = 'info',
   title,
@@ -75,43 +85,33 @@ function Notice({
   title?: string
   children: React.ReactNode
 }) {
-  const color =
-    kind === 'warning'
-      ? 'var(--warning)'
-      : kind === 'danger'
-        ? 'var(--danger)'
-        : 'var(--border-strong)'
+  const bar = kind === 'warning' ? 'var(--warning)' : kind === 'danger' ? 'var(--danger)' : 'var(--lime)'
   return (
     <div
       style={{
-        borderLeft: `2px solid ${color}`,
-        paddingLeft: 12,
+        border: '2px solid var(--line)',
+        borderLeft: `6px solid ${bar}`,
+        background: 'var(--panel)',
+        padding: '10px 12px',
         marginBottom: 20,
-        fontSize: 13,
-        lineHeight: 1.7,
-        color: 'var(--ink-muted)',
+        fontSize: 'var(--t-sm)',
+        lineHeight: 1.5,
+        color: 'var(--ink-soft)',
       }}
     >
       {title && (
-        <div style={{ fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>{title}</div>
+        <div
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontWeight: 700,
+            color: 'var(--ink)',
+            marginBottom: 2,
+          }}
+        >
+          {title}
+        </div>
       )}
       {children}
-    </div>
-  )
-}
-
-/** 组标题：20/600 无衬线 + 一行说明 */
-function GroupTitle({ title, desc }: { title: string; desc?: string }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 0, color: 'var(--ink)' }}>
-        {title}
-      </h2>
-      {desc && (
-        <p className="muted" style={{ fontSize: 'var(--text-xs)', margin: '4px 0 0', lineHeight: 1.5 }}>
-          {desc}
-        </p>
-      )}
     </div>
   )
 }
@@ -134,7 +134,7 @@ function SyncStatusBanner() {
   if (st.phase === 'off') {
     return (
       <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink-faint)' }}>
-        <span style={{ color: 'var(--ink-muted)' }}>{t('settings.sync.off')}</span>
+        <span style={{ color: 'var(--ink-soft)' }}>{t('settings.sync.off')}</span>
         {' · '}
         {t('settings.sync.offDesc')}
       </div>
@@ -148,7 +148,7 @@ function SyncStatusBanner() {
           paddingLeft: 10,
           fontSize: 12.5,
           lineHeight: 1.7,
-          color: 'var(--ink-muted)',
+          color: 'var(--ink-soft)',
         }}
       >
         <span style={{ color: 'var(--danger)', fontWeight: 500 }}>{t('settings.sync.error')}</span>
@@ -160,7 +160,7 @@ function SyncStatusBanner() {
   }
   if (st.phase === 'syncing') {
     return (
-      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink-muted)' }}>
+      <div style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
         <SyncOutlined style={{ marginRight: 6, fontSize: 12 }} />
         {t('settings.sync.syncing')} · {t('settings.sync.syncingDesc')}
       </div>
@@ -204,63 +204,99 @@ export default function SettingsPage() {
     support: <RewardCard />,
   }
 
+  const meta = TAB_META[tab]
+  const panelNode = (
+    <div className="panel">
+      <div className="panel-head">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span className="panel-kicker">{meta.kicker}</span>
+          <h2 className="panel-title">{t(TAB_LABEL[tab])}</h2>
+          {meta.subKey && (
+            <p
+              style={{
+                margin: 0,
+                fontSize: 'var(--t-xs)',
+                lineHeight: 1.5,
+                color: 'var(--ink-soft)',
+                maxWidth: '62ch',
+              }}
+            >
+              {t(meta.subKey)}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="panel-body">
+        <div style={{ maxWidth: 720 }}>{panels[tab]}</div>
+      </div>
+    </div>
+  )
+
   return (
-    <div style={{ padding: wide ? '24px 32px 48px' : 16, height: '100%', overflow: 'auto' }}>
+    <div className="workbench">
       <header className="page-head">
         <div className="page-head-main">
+          <div className="page-kicker">{t('settings.kicker')}</div>
           <h1 className="page-title">{t('settings.pageTitle')}</h1>
-          <p className="page-lede">{t('settings.pageLede')}</p>
+          <p className="page-sub">{t('settings.pageLede')}</p>
         </div>
       </header>
+      <div className="page-bar" />
 
+      <div style={{ maxWidth: 1180, margin: '0 auto' }}>
       {wide ? (
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '200px minmax(0, 1fr)',
-            gap: 24,
+            gridTemplateColumns: '220px minmax(0, 1fr)',
+            gap: 16,
             alignItems: 'start',
           }}
         >
-          <nav aria-label={t('settings.pageTitle')} className="surface-card" style={{ padding: 8 }}>
-            {items.map((it) => {
-              const active = it.key === tab
-              return (
-                <button
-                  key={it.key}
-                  type="button"
-                  onClick={() => select(it.key as TabKey)}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'left',
-                    background: active ? 'var(--accent-wash)' : 'none',
-                    border: 'none',
-                    borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
-                    borderRadius: 'var(--r-1)',
-                    padding: '9px 10px',
-                    marginBottom: 2,
-                    cursor: 'pointer',
-                    font: 'inherit',
-                    fontSize: 'var(--text-sm)',
-                    color: active ? 'var(--ink)' : 'var(--ink-muted)',
-                    fontWeight: active ? 600 : 400,
-                  }}
-                >
-                  {it.label}
-                </button>
-              )
-            })}
+          {/* 左：编号索引 panel（选中整行 lime + 左侧 4px ink） */}
+          <nav aria-label={t('settings.pageTitle')} className="panel">
+            <div className="panel-head">
+              <span className="panel-kicker">INDEX</span>
+              <span className="count-chip">{items.length}</span>
+            </div>
+            <div className="index-list">
+              {items.map((it, i) => {
+                const active = it.key === tab
+                return (
+                  <button
+                    key={it.key}
+                    type="button"
+                    className="index-row"
+                    onClick={() => select(it.key as TabKey)}
+                    style={{
+                      background: active ? 'var(--lime)' : undefined,
+                      color: active ? 'var(--on-lime)' : undefined,
+                      borderLeft: active ? '4px solid var(--ink)' : '4px solid transparent',
+                    }}
+                  >
+                    <span
+                      className="index-num"
+                      style={{ color: active ? 'var(--on-lime)' : undefined }}
+                    >
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span className="index-main">
+                      <span
+                        className="index-title"
+                        style={{ color: active ? 'var(--on-lime)' : undefined }}
+                      >
+                        {it.label}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </nav>
-          <div style={{ maxWidth: 720 }}>
-            {/* 「关于与支持」的 RewardCard 自身就是白卡，外包一层会变成双卡 */}
-            {tab === 'support' ? (
-              <RewardCard />
-            ) : (
-              <div className="surface-card" style={{ padding: wide ? 24 : 16 }}>
-                {panels[tab]}
-              </div>
-            )}
+
+          <div style={{ minWidth: 0 }}>
+            {/* 「关于与支持」的 RewardCard 自身就是 panel，外包一层会变双卡 */}
+            {tab === 'support' ? <RewardCard /> : panelNode}
           </div>
         </div>
       ) : (
@@ -271,20 +307,12 @@ export default function SettingsPage() {
             items={items.map((it) => ({
               key: it.key,
               label: it.label,
-              children:
-                it.key === tab ? (
-                  it.key === 'support' ? (
-                    <RewardCard />
-                  ) : (
-                    <div className="surface-card" style={{ padding: 16 }}>
-                      {panels[tab]}
-                    </div>
-                  )
-                ) : null,
+              children: it.key === tab ? (it.key === 'support' ? <RewardCard /> : panelNode) : null,
             }))}
           />
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -329,7 +357,6 @@ function AccountTab() {
 
   return (
     <div>
-      <GroupTitle title={t('settings.tab.account')} desc={t('settings.account.freeForeverHint')} />
 
       {account && (
         <div style={{ marginBottom: 20 }}>
@@ -353,8 +380,8 @@ function AccountTab() {
       </div>
 
       {pwdOpen && (
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border-rule)' }}>
-          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 12px' }}>
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--line-soft)' }}>
+          <h3 style={{ fontSize: 'var(--t-lg)', fontWeight: 600, margin: '0 0 12px' }}>
             {t('settings.account.pwdCard')}
           </h3>
           <Input.Password
@@ -402,20 +429,19 @@ function AccountTab() {
         {t('settings.account.pwdInfo.body')}
       </p>
 
-      {/* 危险区：独立 danger 卡（v3 契约） */}
+      {/* 危险区：独立 panel + danger-wash 底 + 2px danger 边 */}
       <div
+        className="panel"
         style={{
-          marginTop: 32,
+          marginTop: 24,
           background: 'var(--danger-wash)',
-          border: '1px solid var(--danger)',
-          borderRadius: 'var(--r-3)',
-          padding: 16,
+          border: '2px solid var(--danger)',
         }}
       >
-        <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 6px' }}>
+        <h3 style={{ fontSize: 'var(--t-lg)', fontWeight: 600, margin: '0 0 6px' }}>
           {t('app.signOut')}
         </h3>
-        <p className="muted" style={{ fontSize: 'var(--text-xs)', margin: '0 0 12px', lineHeight: 1.5 }}>
+        <p className="muted" style={{ fontSize: 'var(--t-xs)', margin: '0 0 12px', lineHeight: 1.5 }}>
           {t('settings.account.logoutHint')}
         </p>
         <Button
@@ -575,7 +601,6 @@ function StorageTab() {
 
   return (
     <div>
-      <GroupTitle title={t('settings.tab.storage')} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <Switch checked={settings.storageMode === 'cloud'} onChange={handleToggle} />
@@ -613,7 +638,7 @@ function StorageTab() {
       <details style={{ margin: '8px 0 24px' }}>
         <summary
           className="mono"
-          style={{ cursor: 'pointer', fontSize: 12, color: 'var(--ink-muted)', padding: '4px 0' }}
+          style={{ cursor: 'pointer', fontSize: 12, color: 'var(--ink-soft)', padding: '4px 0' }}
         >
           {t('settings.storage.sqlTitle')}
         </summary>
@@ -625,7 +650,7 @@ function StorageTab() {
             overflow: 'auto',
             margin: '8px 0 0',
             padding: 12,
-            background: 'var(--bg-sunken)',
+            background: 'var(--panel)',
             borderRadius: 2,
             color: 'var(--ink)',
           }}
@@ -683,8 +708,8 @@ alter table items disable row level security;`}
       </details>
 
       {settings.cloud.url && settings.cloud.anonKey ? (
-        <div style={{ paddingTop: 16, borderTop: '1px solid var(--border-rule)' }}>
-          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 12px' }}>
+        <div style={{ paddingTop: 16, borderTop: '1px solid var(--line-soft)' }}>
+          <h3 style={{ fontSize: 'var(--t-lg)', fontWeight: 600, margin: '0 0 12px' }}>
             {t('settings.storage.syncTitle')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -733,7 +758,6 @@ function ConfigSyncTab() {
 
   return (
     <div>
-      <GroupTitle title={t('settings.tab.configsync')} desc={t('settings.f2f.card.body')} />
       <Button type="primary" icon={<SwapOutlined />} onClick={() => setF2fOpen(true)}>
         {t('settings.f2f.card.btn')}
       </Button>
@@ -811,7 +835,6 @@ function AITab() {
 
   return (
     <div>
-      <GroupTitle title={t('settings.tab.ai')} />
       <Notice kind="info" title={t('settings.ai.info.title')}>
         {usingPlatform ? t('settings.ai.info.platform') : t('settings.ai.info.custom')}
       </Notice>
@@ -877,7 +900,7 @@ function AITab() {
         </Form>
       )}
 
-      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--border-rule)' }} />
+      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--line-soft)' }} />
 
       <Form layout="vertical">
         <Form.Item
@@ -921,7 +944,7 @@ function AITab() {
         </Space>
       </Form>
 
-      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--border-rule)' }} />
+      <div style={{ margin: '24px 0 16px', borderTop: '1px solid var(--line-soft)' }} />
 
       <Form layout="vertical">
         <Form.Item
@@ -1108,7 +1131,6 @@ function BackupTab() {
       <div style={{ marginBottom: 16 }}>
         <SyncStatusBanner />
       </div>
-      <GroupTitle title={t('settings.tab.backup')} desc={t('settings.backup.info.body')} />
       <Notice kind="info" title={t('settings.backup.info.title')}>
         {t('settings.backup.cloudNote')}
       </Notice>
@@ -1122,10 +1144,10 @@ function BackupTab() {
         </Upload>
       </div>
 
-      <div style={{ margin: '28px 0 16px', borderTop: '1px solid var(--border-rule)' }} />
+      <div style={{ margin: '28px 0 16px', borderTop: '1px solid var(--line-soft)' }} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 0 }}>
+        <h3 style={{ fontSize: 'var(--t-lg)', fontWeight: 600, margin: 0 }}>
           <HistoryOutlined style={{ fontSize: 15, marginRight: 6 }} />
           {t('settings.snap.title')}
         </h3>
@@ -1151,7 +1173,7 @@ function BackupTab() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 0',
-                borderBottom: '1px solid var(--border-rule)',
+                borderBottom: '1px solid var(--line-soft)',
                 gap: 8,
               }}
             >

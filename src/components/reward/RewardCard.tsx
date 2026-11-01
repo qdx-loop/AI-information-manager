@@ -1,10 +1,10 @@
 // 设置页「关于与支持」内容（常驻，全站唯一长期展示二维码的地方）。
 //
-// 依据：`redesign-brief/02-donation-research.md` §F.4（逐字文案）、§G.5–G.7（码的可扫性/无障碍）、
-//       TOKENS-v3 §6（本轮欢迎卡与本卡共用 RewardQr）。
-// - 二维码白卡抽到 `RewardQr`（卡面固定白、不反色），本组件只负责排版与文案。
+// 依据：`redesign-brief/02-donation-research.md` §F.4（逐字文案）、§G.5–G.7（可扫性/无障碍）、
+//       `redesign-brief/06-v4-signal-press.md` §8.9（v4 视觉：sheet 面 + 2px ink + 硬边 + lime 按钮）。
+// - 二维码卡面抽到 `RewardQr`（卡面固定白、不反色），本组件只负责排版与文案。
 // - 已支持（终态）只显示致谢，不再显示码与「我已经支持过了」。
-// - 视觉走 v3：白卡（.surface-card 由 Lead 提供）+ 20/600 标题（.page-title-sm）+ 14 正文。
+// - 设置页 support tab 直接渲染本组件（父级不再外包卡片），因此这里提供唯一的 `.sheet` 面。
 import { useEffect, useState } from 'react'
 import { Button } from 'antd'
 import { useAuthStore } from '@/store/authStore'
@@ -62,7 +62,7 @@ export default function RewardCard({ qrSrc = DEFAULT_QR_SRC }: RewardCardProps) 
   }
 
   return (
-    <section className="surface-card" style={styles.card}>
+    <section className="sheet" style={styles.card}>
       <h2 className="page-title-sm" style={styles.title}>
         {copy.title}
       </h2>
@@ -70,14 +70,22 @@ export default function RewardCard({ qrSrc = DEFAULT_QR_SRC }: RewardCardProps) 
       <p style={styles.body}>{copy.privacy}</p>
 
       {supported ? (
-        <div style={styles.thanks}>{copy.supportedThanks}</div>
+        <div className="muted-block" style={styles.thanks}>
+          {copy.supportedThanks}
+        </div>
       ) : (
         <div style={styles.qrRow}>
           <RewardQr src={qrSrc} />
           <div style={styles.notes}>
-            <div style={styles.scan}>{copy.scan}</div>
-            <div style={styles.note}>{copy.payBy}</div>
-            <div style={styles.note}>{copy.privacyShort}</div>
+            <div className="mono" style={styles.scan}>
+              {copy.scan}
+            </div>
+            <div className="mono" style={styles.note}>
+              {copy.payBy}
+            </div>
+            <div className="mono" style={styles.note}>
+              {copy.privacyShort}
+            </div>
             <div style={styles.save}>{copy.save}</div>
           </div>
         </div>
@@ -86,83 +94,74 @@ export default function RewardCard({ qrSrc = DEFAULT_QR_SRC }: RewardCardProps) 
       <div style={styles.free}>{copy.free}</div>
 
       {!supported && (
-        <Button type="text" size="small" onClick={handleSupported} style={styles.supportedBtn}>
-          {copy.supportedBtn}
-        </Button>
+        <div className="welcome-actions" style={styles.actions}>
+          <Button type="primary" size="small" onClick={handleSupported}>
+            {copy.supportedBtn}
+          </Button>
+        </div>
       )}
     </section>
   )
 }
 
 const styles = {
-  // .surface-card 提供白面/边/圆角/阴影；这里写 token 兜底值，避免 v3 CSS 落地前裸内容区
   card: {
-    maxWidth: 560,
-    padding: 24,
-    background: 'var(--bg-surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-3)',
-    boxShadow: 'var(--shadow-1)',
+    maxWidth: 620,
+    padding: 'var(--s6)',
   },
   title: {
-    marginBottom: 12,
+    // Outfit 700 24（.page-title-sm 给 800，这里按 brief §8.9 压到 700）
+    fontWeight: 700,
+    marginBottom: 'var(--s3)',
   },
   body: {
-    margin: '0 0 12px',
-    fontSize: 'var(--text-sm, 14px)',
+    margin: '0 0 var(--s3)',
+    fontSize: 'var(--t-base)',
     lineHeight: 1.65,
-    color: 'var(--ink-muted)',
+    color: 'var(--ink-soft)',
   },
   qrRow: {
     display: 'flex',
     flexWrap: 'wrap' as const,
     alignItems: 'flex-start',
-    gap: 24,
-    margin: '20px 0 16px',
+    gap: 'var(--s6)',
+    margin: 'var(--s5) 0 var(--s4)',
   },
   notes: {
     flex: '1 1 200px',
     minWidth: 200,
-    paddingTop: 2,
+    paddingTop: 'var(--s1)',
   },
   scan: {
-    fontSize: 'var(--text-xs, 13px)',
-    lineHeight: 1.5,
-    fontWeight: 500,
+    fontSize: 'var(--t-xs)',
+    lineHeight: 1.4,
+    fontWeight: 600,
     color: 'var(--ink)',
   },
   note: {
-    marginTop: 6,
-    fontSize: 'var(--text-2xs, 12px)',
-    lineHeight: 1.5,
-    color: 'var(--ink-muted)',
+    marginTop: 'var(--s2)',
+    fontSize: 'var(--t-xs)',
+    lineHeight: 1.4,
+    color: 'var(--ink-soft)',
   },
   save: {
-    marginTop: 12,
-    fontSize: 'var(--text-2xs, 12px)',
+    marginTop: 'var(--s4)',
+    fontSize: 'var(--t-xs)',
     lineHeight: 1.5,
     color: 'var(--ink-faint)',
   },
   free: {
-    marginTop: 16,
-    paddingTop: 12,
-    borderTop: '1px solid var(--border-rule)',
-    fontSize: 'var(--text-2xs, 12px)',
-    lineHeight: 1.6,
+    marginTop: 'var(--s4)',
+    paddingTop: 'var(--s3)',
+    borderTop: '1px solid var(--line-soft)',
+    fontSize: 'var(--t-xs)',
+    lineHeight: 1.5,
     color: 'var(--ink-faint)',
   },
-  supportedBtn: {
-    marginTop: 8,
-    paddingInline: 0,
+  actions: {
+    marginTop: 'var(--s4)',
   },
   thanks: {
-    margin: '20px 0 16px',
-    padding: '12px 16px',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-2)',
-    background: 'var(--bg-sunken)',
-    fontSize: 'var(--text-sm, 14px)',
-    lineHeight: 1.6,
-    color: 'var(--ink-muted)',
+    margin: 'var(--s5) 0 var(--s4)',
   },
 } as const

@@ -1,4 +1,4 @@
-import { Layout, Menu, Button, Input, App, Dropdown } from 'antd'
+import { Button, Input, App, Dropdown } from 'antd'
 import {
   DeleteOutlined,
   SettingOutlined,
@@ -10,12 +10,13 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   QuestionCircleOutlined,
+  LogoutOutlined,
+  RobotOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useLibraryStore } from '@/store/libraryStore'
-import { useAppStore } from '@/store/appStore'
 import { useMemo, useState } from 'react'
 import type { Library } from '@/types'
 import { syncNow } from '@/utils/autoSync'
@@ -23,10 +24,12 @@ import { resetSession } from '@/store/session'
 import { useI18n } from '@/i18n'
 import CreateLibraryDialog from '@/components/library/CreateLibraryDialog'
 
-const { Sider } = Layout
-
-// 共享的侧边栏逻辑：库列表、菜单项、点击/重命名/删除/退出等操作
-// 桌面端 Sidebar（Sider，可折叠）和移动端 SidebarContent（Drawer 内 div）共用此 hook
+/**
+ * v4 左侧「墨黑索引栏」。
+ * 结构：品牌 → 工作区 → 管理库（按分类/父子层级）→ 工具 → 用户。
+ * 视觉：264px 墨黑 rail、lime 选中块、2px 硬边、0 圆角；手机端收进 Drawer。
+ * 逻辑（建库/改名/分类/排序/删除/退出/切库）与 v3 完全一致，只换外壳。
+ */
 function useSidebarState(onNavigate?: () => void) {
   const { message, modal } = App.useApp()
   const navigate = useNavigate()
@@ -41,15 +44,10 @@ function useSidebarState(onNavigate?: () => void) {
     setLibraryCategory,
     reorderLibraries,
   } = useLibraryStore()
-  const isDark = useAppStore((s) => s.settings.theme === 'dark')
   const [loggingOut, setLoggingOut] = useState(false)
   const t = useI18n()
 
-  // 注意：库列表的加载已移到 AppShell（两种布局下都常驻）。
-  // 放在这里的话，手机上 Sidebar 只存在于未打开的 Drawer 里，
-  // 首次打开前不挂载 → 加载永远不会执行 → 库列表空、标题显示「未命名管理库」。
-
-  // 按分类分组
+  // 按分类分组（仅顶级库；子库通过 parentId 递归展示）
   const grouped = useMemo(() => {
     const map = new Map<string, Library[]>()
     libraries.forEach((l) => {
@@ -60,23 +58,26 @@ function useSidebarState(onNavigate?: () => void) {
     return Array.from(map.entries())
   }, [libraries])
 
-  // 建库统一走 CreateLibraryDialog。之前这里是 modal.confirm：只有名称框、
-  // 没有父级 / 行业模板 / 字段标签，还带 antd 默认的 exclamation-circle
-  // （把正常的新建画成警告），而且 onOk 同步 return 会让空名提交直接关掉弹窗。
-  // 可移动端唯一的建库路径恰好就是这里，所以老用户拿到的全是这个残废版本。
-  const [creatingLib, setCreatingLib] = useState(false)
+  const childrenOf = useMemo(() => {
+    const map = new Map<string, Library[]>()
+    libraries.forEach((l) => {
+      if (!l.parentId) return
+      const arr = map.get(l.parentId) ?? []
+      arr.push(l)
+      map.set(l.parentId, arr)
+    })
+    for (const arr of map.values()) arr.sort((a, b) => a.sortOrder - b.sortOrder)
+    return map
+  }, [libraries])
 
+  const [creatingLib, setCreatingLib] = useState(false)
   const handleNewLibrary = () => {
     setCreatingLib(true)
     onNavigate?.()
   }
 
-  // 在指定库下新建子库（同一个弹窗，预置父库）
   const [creatingChildOf, setCreatingChildOf] = useState<Library | null>(null)
-
-  const handleNewChild = (parent: Library) => {
-    setCreatingChildOf(parent)
-  }
+  const handleNewChild = (parent: Library) => setCreatingChildOf(parent)
 
   const handleRename = (lib: Library) => {
     let name = lib.name
@@ -109,8 +110,6 @@ function useSidebarState(onNavigate?: () => void) {
     })
   }
 
-  // 改分类：setLibraryCategory 早就存在，但只有 AI 能调，
-  // 导致用户建的库一律落进「默认」分组，侧边栏永远只有一组。
   const handleCategory = (lib: Library) => {
     let value = lib.category ?? ''
     const existing = Array.from(new Set(libraries.map((l) => l.category).filter(Boolean)))
@@ -148,13 +147,11 @@ function useSidebarState(onNavigate?: () => void) {
     })
   }
 
-  // 手动排序：reorderLibraries 同样是死代码，补上「上移/下移」即可，
-  // 比拖拽更可靠（侧边栏是 antd Menu，拖拽排序要另外接 dnd 上下文）
   const move = async (lib: Library, dir: -1 | 1) => {
     const ids = libraries.map((l) => l.id)
     const i = ids.indexOf(lib.id)
     const j = i + dir
-    if (i < 0 || j < 0 || j >= ids.length) return
+    if (i < 0 || j < 0 || j >= libraries.length) return
     ;[ids[i], ids[j]] = [ids[j], ids[i]]
     try {
       await reorderLibraries(ids)
@@ -163,114 +160,35 @@ function useSidebarState(onNavigate?: () => void) {
     }
   }
 
-  // 单个库的「⋯」下拉菜单
   const libActions = (lib: Library): MenuProps => {
     const idx = libraries.findIndex((l) => l.id === lib.id)
     return {
-    items: [
-      { key: 'child', label: t('app.newChild'), icon: <PlusOutlined /> },
-      { key: 'rename', label: t('common.rename'), icon: <EditOutlined /> },
-      { key: 'category', label: t('app.lib.category'), icon: <TagsOutlined /> },
-      { type: 'divider' },
-      {
-        key: 'up',
-        label: t('app.lib.moveUp'),
-        icon: <ArrowUpOutlined />,
-        disabled: idx <= 0,
+      items: [
+        { key: 'child', label: t('app.newChild'), icon: <PlusOutlined /> },
+        { key: 'rename', label: t('common.rename'), icon: <EditOutlined /> },
+        { key: 'category', label: t('app.lib.category'), icon: <TagsOutlined /> },
+        { type: 'divider' },
+        { key: 'up', label: t('app.lib.moveUp'), icon: <ArrowUpOutlined />, disabled: idx <= 0 },
+        {
+          key: 'down',
+          label: t('app.lib.moveDown'),
+          icon: <ArrowDownOutlined />,
+          disabled: idx < 0 || idx >= libraries.length - 1,
+        },
+        { type: 'divider' },
+        { key: 'delete', label: t('common.delete'), icon: <DeleteOutlined />, danger: true },
+      ],
+      onClick: ({ key, domEvent }) => {
+        domEvent.stopPropagation()
+        if (key === 'child') handleNewChild(lib)
+        else if (key === 'rename') handleRename(lib)
+        else if (key === 'category') handleCategory(lib)
+        else if (key === 'up') void move(lib, -1)
+        else if (key === 'down') void move(lib, 1)
+        else if (key === 'delete') handleDelete(lib)
       },
-      {
-        key: 'down',
-        label: t('app.lib.moveDown'),
-        icon: <ArrowDownOutlined />,
-        disabled: idx < 0 || idx >= libraries.length - 1,
-      },
-      { type: 'divider' },
-      { key: 'delete', label: t('common.delete'), icon: <DeleteOutlined />, danger: true },
-    ],
-    onClick: ({ key, domEvent }) => {
-      domEvent.stopPropagation()
-      if (key === 'child') handleNewChild(lib)
-      else if (key === 'rename') handleRename(lib)
-      else if (key === 'category') handleCategory(lib)
-      else if (key === 'up') void move(lib, -1)
-      else if (key === 'down') void move(lib, 1)
-      else if (key === 'delete') handleDelete(lib)
-    },
-  }
-  }
-
-  // 单个库的菜单项（含子库递归）
-  const buildLibItems = (libs: Library[]) => {
-    type MenuItem = NonNullable<MenuProps['items']>[number]
-    const byParent = new Map<string | null, Library[]>()
-    for (const l of libs) byParent.set(l.parentId ?? null, [...(byParent.get(l.parentId ?? null) ?? []), l])
-    const makeItem = (l: Library): MenuItem => {
-      const children: MenuItem[] = (byParent.get(l.id) ?? [])
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map(makeItem)
-      return {
-        key: `/library/${l.id}`,
-        // 不给每个库都挂同一个 Appstore 图标——同一图标重复 N 次只剩噪声，
-        // 库名本身就是最好的标识（去 AI 味规则：重复图标=删）
-        label: (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              // 有子库时右侧预留展开箭头的位置，避免「⋯ 更多」按钮与箭头重叠
-              paddingRight: children.length ? 16 : 0,
-            }}
-          >
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-              {l.name}
-            </span>
-            <Dropdown menu={libActions(l)} trigger={['click']}>
-              <Button
-                type="text"
-                size="small"
-                icon={<MoreOutlined />}
-                onClick={(e) => e.stopPropagation()}
-                style={{ flexShrink: 0 }}
-              />
-            </Dropdown>
-          </div>
-        ),
-        ...(children.length ? { children } : {}),
-      }
     }
-    return (byParent.get(null) ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map(makeItem)
   }
-
-  const menuItems = [
-    { key: '/', label: t('app.home'), icon: <HomeOutlined /> },
-    {
-      key: 'group-libraries',
-      label: t('app.group.libraries'),
-      type: 'group' as const,
-      children: [
-        ...grouped.map(([cat, libs]) => ({
-          key: `cat-${cat}`,
-          label: cat,
-          type: 'group' as const,
-          children: buildLibItems(libs),
-        })),
-        { key: 'new-library', label: t('app.newLibrary'), icon: <PlusOutlined /> },
-      ],
-    },
-    {
-      key: 'group-tools',
-      label: t('app.group.tools'),
-      type: 'group' as const,
-      children: [
-        { key: '/trash', label: t('app.trash'), icon: <DeleteOutlined /> },
-        { key: '/settings', label: t('app.settings'), icon: <SettingOutlined /> },
-        // /help 之前在应用内完全进不去（唯一入口是落地页导航），
-        // 新手遇到问题只能出去找官网
-        { key: '/help', label: t('app.help'), icon: <QuestionCircleOutlined /> },
-      ],
-    },
-  ]
 
   const selectedKey =
     location.pathname === '/' || location.pathname === '/trash' || location.pathname === '/settings'
@@ -286,8 +204,6 @@ function useSidebarState(onNavigate?: () => void) {
       return
     }
     navigate(key)
-    // 移动端侧边栏是全屏抽屉：点了库必须自动收起，否则导航已经发生、
-    // 抽屉却还盖在全屏上，用户会以为应用卡住了（曾是很高频的抱怨）
     onNavigate?.()
     if (key.startsWith('/library/')) {
       const id = key.replace('/library/', '')
@@ -300,104 +216,169 @@ function useSidebarState(onNavigate?: () => void) {
   const handleLogout = async () => {
     setLoggingOut(true)
     try {
-      // 退出前强制同步云端（不等3分钟防抖）
       await syncNow()
     } catch (e) {
       console.error('[logout] 退出前同步失败:', e)
     } finally {
       setLoggingOut(false)
     }
-    // 统一收口：同步 + 清库数据 + 清 token（authStore.logout 内部会触发 libraryStore 清理）
     await resetSession({ syncFirst: false })
     navigate('/login')
   }
 
   return {
-    account, isDark, menuItems, selectedKey, handleClick, handleLogout, loggingOut,
+    account, selectedKey, handleClick, handleLogout, loggingOut,
     creatingLib, setCreatingLib, creatingChildOf, setCreatingChildOf,
+    grouped, childrenOf, libActions,
   }
 }
 
-// 共享的侧边栏内容渲染：header + menu + footer(AI/退出按钮)
-// collapsed 仅桌面端 Sider 传入，移动端始终为 false
 function SidebarBody({
   state,
-  collapsed,
   onOpenPanel,
   aiRef,
 }: {
   state: ReturnType<typeof useSidebarState>
-  collapsed: boolean
   onOpenPanel: () => void
   aiRef?: React.Ref<HTMLButtonElement>
 }) {
   const t = useI18n()
   const {
-    account, menuItems, selectedKey, handleClick, handleLogout, loggingOut,
-    creatingLib, setCreatingLib, creatingChildOf, setCreatingChildOf,
+    account, selectedKey, handleClick, handleLogout, loggingOut,
+    grouped, childrenOf, libActions,
   } = state
+
+  const renderLib = (lib: Library, depth: number): React.ReactNode => {
+    const children = childrenOf.get(lib.id) ?? []
+    const active = selectedKey === `/library/${lib.id}`
+    return (
+      <div key={lib.id}>
+        <div className="rail-lib-row">
+          <button
+            type="button"
+            className={`rail-lib${active ? ' is-active' : ''}`}
+            style={{ paddingLeft: 14 + depth * 12 }}
+            title={lib.name}
+            onClick={() => handleClick(`/library/${lib.id}`)}
+          >
+            <span className="rail-lib-name">{lib.name}</span>
+          </button>
+          <Dropdown menu={libActions(lib)} trigger={['click']}>
+            <button
+              type="button"
+              className="rail-lib-more"
+              aria-label={t('common.more')}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreOutlined />
+            </button>
+          </Dropdown>
+        </div>
+        {children.map((c) => renderLib(c, depth + 1))}
+      </div>
+    )
+  }
+
   return (
     <>
-      <div
-        onClick={() => handleClick('/')}
-        style={{
-          padding: '16px 16px 6px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          fontWeight: 600,
-          color: 'var(--ink)',
-          cursor: 'pointer',
-          fontSize: 14.5,
-        }}
-      >
-        <span className="app-brand-dot" />
-        {!collapsed && <span>{t('app.brand')}</span>}
-      </div>
+      <button type="button" className="rail-brand" onClick={() => handleClick('/')}>
+        <span className="rail-mark" aria-hidden />
+        <span style={{ minWidth: 0, textAlign: 'left' }}>
+          <span className="rail-brand-name">{t('app.brand')}</span>
+          <span className="rail-brand-sub">SIGNAL PRESS · LOCAL</span>
+        </span>
+      </button>
 
-      <Menu
-        className="app-menu"
-        mode="inline"
-        selectedKeys={[selectedKey]}
-        items={menuItems}
-        onClick={({ key }) => handleClick(key)}
-        style={{ borderInlineEnd: 'none' }}
-      />
+      <div className="rail-body">
+        <button
+          type="button"
+          className={`rail-item${selectedKey === '/' ? ' is-active' : ''}`}
+          onClick={() => handleClick('/')}
+        >
+          <HomeOutlined />
+          <span className="rail-text">{t('app.home')}</span>
+        </button>
 
-      {/* 页脚不再用大块按钮：两行文字项 + kbd 提示，编辑部式收尾 */}
-      <div
-        className="app-side-foot"
-        style={{
-          position: 'sticky',
-          bottom: 0,
-          width: '100%',
-        }}
-      >
-        <button ref={aiRef} type="button" className="app-foot-item" onClick={onOpenPanel}>
-          <span>{collapsed ? '' : t('app.aiAssistant')}</span>
-          {!collapsed && (
-            // ⌘ 只在苹果平台存在；Win/Linux 上写 Ctrl，避免假快捷键说明
-            <span className="app-foot-kbd">
-              {/Mac|iP(hone|ad)/.test(navigator.platform) ? '⌘J' : 'Ctrl·J'}
-            </span>
-          )}
+        <div className="rail-group">{t('app.group.libraries')}</div>
+        {grouped.map(([cat, libs]) => {
+          const roots = libs.filter((l) => !l.parentId)
+          if (roots.length === 0) return null
+          return (
+            <div key={cat}>
+              {cat && <div className="rail-group rail-group--cat">{cat}</div>}
+              {roots.sort((a, b) => a.sortOrder - b.sortOrder).map((lib) => renderLib(lib, 0))}
+            </div>
+          )
+        })}
+        <button type="button" className="rail-new" onClick={() => handleClick('new-library')}>
+          <PlusOutlined />
+          <span>{t('app.newLibrary')}</span>
+        </button>
+
+        <div className="rail-group">{t('app.group.tools')}</div>
+        <button
+          type="button"
+          className={`rail-item${selectedKey === '/trash' ? ' is-active' : ''}`}
+          onClick={() => handleClick('/trash')}
+        >
+          <DeleteOutlined />
+          <span className="rail-text">{t('app.trash')}</span>
         </button>
         <button
           type="button"
-          className="app-foot-item"
-          onClick={handleLogout}
-          disabled={loggingOut}
+          className={`rail-item${selectedKey === '/settings' ? ' is-active' : ''}`}
+          onClick={() => handleClick('/settings')}
         >
-          <span>{collapsed ? '' : t('app.logout', { name: account?.username ?? '' })}</span>
+          <SettingOutlined />
+          <span className="rail-text">{t('app.settings')}</span>
+        </button>
+        <button
+          type="button"
+          className={`rail-item${selectedKey === '/help' ? ' is-active' : ''}`}
+          onClick={() => handleClick('/help')}
+        >
+          <QuestionCircleOutlined />
+          <span className="rail-text">{t('app.help')}</span>
         </button>
       </div>
 
-      {/* 建库只有一个实现：桌面侧边栏和移动端抽屉共用 */}
-      <CreateLibraryDialog open={creatingLib} onClose={() => setCreatingLib(false)} />
+      <div className="rail-foot">
+        <button
+          ref={aiRef}
+          type="button"
+          className="rail-ai"
+          onClick={onOpenPanel}
+          title={t('app.aiAssistant')}
+        >
+          <RobotOutlined />
+          <span className="rail-ai-text">{t('app.aiAssistant')}</span>
+          <kbd className="rail-ai-kbd">
+            {/Mac|iP(hone|ad)/.test(navigator.platform) ? '⌘J' : 'Ctrl·J'}
+          </kbd>
+        </button>
+        <div className="rail-user">
+          <span className="rail-avatar" aria-hidden>
+            {(account?.username ?? '?').slice(0, 1).toUpperCase()}
+          </span>
+          <span className="rail-username">{account?.username ?? ''}</span>
+          <button
+            type="button"
+            className="rail-logout"
+            aria-label={t('app.signOut')}
+            title={t('app.signOut')}
+            disabled={loggingOut}
+            onClick={handleLogout}
+          >
+            <LogoutOutlined />
+          </button>
+        </div>
+      </div>
+
+      <CreateLibraryDialog open={state.creatingLib} onClose={() => state.setCreatingLib(false)} />
       <CreateLibraryDialog
-        open={creatingChildOf !== null}
-        defaultParentId={creatingChildOf?.id ?? null}
-        onClose={() => setCreatingChildOf(null)}
+        open={state.creatingChildOf !== null}
+        defaultParentId={state.creatingChildOf?.id ?? null}
+        onClose={() => state.setCreatingChildOf(null)}
       />
     </>
   )
@@ -409,29 +390,18 @@ export default function Sidebar({
   aiRef,
 }: {
   onOpenPanel: () => void
-  siderRef?: React.Ref<HTMLDivElement>
+  siderRef?: React.Ref<HTMLElement>
   aiRef?: React.Ref<HTMLButtonElement>
 }) {
   const state = useSidebarState()
-  const { isDark } = state
-  const [collapsed, setCollapsed] = useState(false)
-
   return (
-    <Sider
-      ref={siderRef}
-      collapsible
-      collapsed={collapsed}
-      onCollapse={setCollapsed}
-      width={240}
-      style={{ height: '100dvh', overflow: 'auto' }}
-      theme={isDark ? 'dark' : 'light'}
-    >
-      <SidebarBody state={state} collapsed={collapsed} onOpenPanel={onOpenPanel} aiRef={aiRef} />
-    </Sider>
+    <aside ref={siderRef as React.RefObject<HTMLElement>} className="app-rail">
+      <SidebarBody state={state} onOpenPanel={onOpenPanel} aiRef={aiRef} />
+    </aside>
   )
 }
 
-// 移动端侧边栏内容（用于 Drawer 内）
+// 移动端侧边栏内容（Drawer 内）：复用同一套导航与逻辑
 export function SidebarContent({
   onOpenPanel,
   onNavigate,
@@ -440,10 +410,9 @@ export function SidebarContent({
   onNavigate?: () => void
 }) {
   const state = useSidebarState(onNavigate)
-
   return (
-    <div style={{ height: '100dvh', overflow: 'auto', background: 'var(--bg-surface)' }}>
-      <SidebarBody state={state} collapsed={false} onOpenPanel={onOpenPanel} />
-    </div>
+    <aside className="app-rail" style={{ width: '100%', height: '100dvh' }}>
+      <SidebarBody state={state} onOpenPanel={onOpenPanel} />
+    </aside>
   )
 }

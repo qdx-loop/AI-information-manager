@@ -31,7 +31,7 @@ export default function AIFab({ compact }: { compact?: boolean }) {
       aria-label={t('ai.open')}
       title={running ? t('ai.runningInBackground') : t('ai.open')}
     >
-      {running ? <span className="ai-pulse" /> : <span className="ai-mono-mark">记</span>}
+      {running ? <span className="ai-pulse" /> : <span>AI</span>}
       {!compact && <span className="ai-fab-text">{t('app.aiAssistant')}</span>}
       {unseen && !running && <span className="ai-fab-dot" aria-hidden />}
     </button>

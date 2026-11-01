@@ -20,8 +20,8 @@ import CreateLibraryDialog from './CreateLibraryDialog'
  * 现在点开是这个底部抽屉：完整库树 + 当前库高亮 + 就地新建。
  * 「主目的地一个都不许藏」是当初引入底栏的理由，切库就不该再藏回抽屉里。
  *
- * 视觉（v3）：一行一个库（44px、白卡列表行），当前库 = 3px accent 左条 + accent-wash 底；
- * 不做药丸、不放图标（库列表不需要图标）。
+ * 视觉（v4）：一行一个库（44px 索引行），当前库 = lime-wash 底 + 3px ink 左条；
+ * 分组用 mono kicker，不放图标（库列表不需要图标）。
  */
 export default function LibraryPickerSheet({
   open,
@@ -89,10 +89,9 @@ export default function LibraryPickerSheet({
           让底栏（880）始终可点。 */}
       {open && (
         <div
-          className="libpicker-catcher"
           onClick={onClose}
           aria-hidden
-          style={{ position: 'fixed', inset: 0, zIndex: 869, background: 'var(--bg-overlay)' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 869, background: 'var(--overlay)' }}
         />
       )}
       <Drawer
@@ -106,9 +105,10 @@ export default function LibraryPickerSheet({
         styles={{ body: { padding: 12 }, wrapper: { zIndex: 870 } }}
       >
         {libraries.length === 0 ? (
-          <div className="empty-state" style={{ padding: '40px 12px', textAlign: 'center' }}>
-            <div className="empty-state-title">{t('home.empty')}</div>
-            <div className="empty-state-actions" style={{ justifyContent: 'center' }}>
+          <div className="empty-state" style={{ padding: '40px 12px' }}>
+            <div className="empty-mark" aria-hidden>+</div>
+            <h3 className="empty-title">{t('home.empty')}</h3>
+            <div className="empty-actions">
               <Button type="primary" onClick={() => setCreating(true)}>
                 {t('home.createFirst')}
               </Button>
@@ -118,8 +118,8 @@ export default function LibraryPickerSheet({
           <>
             {groups.map(([cat, rows]) => (
               <div key={cat} style={{ marginBottom: 12 }}>
-                <div className="eyebrow" style={{ padding: '4px 4px 8px' }}>{cat}</div>
-                <div className="surface-card" style={{ overflow: 'hidden' }}>
+                <div className="panel-kicker" style={{ padding: '4px 4px 8px' }}>{cat}</div>
+                <div className="panel" style={{ overflow: 'hidden' }}>
                 {rows.map(({ lib, depth }) => {
                   const on = currentLibraryId === lib.id || location.pathname === `/library/${lib.id}`
                   return (
@@ -136,12 +136,12 @@ export default function LibraryPickerSheet({
                         minHeight: 44,
                         padding: `8px 12px 8px ${12 + depth * 16}px`,
                         margin: 0,
-                        // v3 列表行：白卡内 1px 行线，选中 = accent-wash 底 + 左侧 3px accent 条
+                        // v4 索引行：1px line-soft 行线，选中 = lime-wash 底 + 左侧 3px ink 条
                         border: 0,
-                        borderBottom: '1px solid var(--border-rule)',
-                        borderLeft: on ? '3px solid var(--accent)' : '3px solid transparent',
+                        borderBottom: '1px solid var(--line-soft)',
+                        borderLeft: on ? '3px solid var(--line)' : '3px solid transparent',
                         borderRadius: 0,
-                        background: on ? 'var(--accent-wash)' : 'transparent',
+                        background: on ? 'var(--lime-wash)' : 'transparent',
                         font: 'inherit',
                         textAlign: 'left',
                         cursor: 'pointer',
@@ -151,8 +151,8 @@ export default function LibraryPickerSheet({
                       <span
                         style={{
                           flex: 1,
-                          fontSize: 'var(--text-base)',
-                          fontWeight: on ? 600 : 400,
+                          fontSize: 'var(--t-sm)',
+                          fontWeight: on ? 700 : 500,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',

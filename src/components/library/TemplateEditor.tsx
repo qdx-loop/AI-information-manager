@@ -34,10 +34,10 @@ interface Props {
 }
 
 /**
- * 字段模板编辑器。
+ * 字段模板编辑器（v4 SIGNAL PRESS）。
  *
- * v3：一行一个字段（行高 36、只有底边 1px 行线），拖拽只给两种反馈——
- * 行位移 + 1px accent 插入线，不做缩放/阴影/背景高亮。
+ * 一行一个字段（行高 40、底边 1px line-soft），拖拽只给两种反馈——
+ * 行位移 + 3px lime 插入线，不做缩放/阴影/背景高亮。
  * 逻辑（校验 label/key 唯一、sortOrder 重排、保存）与原来完全一致。
  */
 export default function TemplateEditor({ open, libraryId, fields, onCancel, onSave }: Props) {
@@ -128,13 +128,14 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
       okText={t('common.save')}
       cancelText={t('common.cancel')}
       width="90%"
-      style={{ maxWidth: 760 }}
+      style={{ maxWidth: 780 }}
       afterOpenChange={(o) => o && handleOpen()}
       styles={{ body: { maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' } }}
     >
+      <div className="page-kicker" style={{ marginBottom: 8 }}>{t('lib.tpl.kicker')}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <Button icon={<PlusOutlined />} onClick={addField}>{t('lib.tpl.addField')}</Button>
-        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>{t('lib.tpl.dragHint')}</span>
+        <span className="field-hint">{t('lib.tpl.dragHint')}</span>
       </div>
 
       {list.length === 0 ? (
@@ -152,10 +153,15 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
           onDragEnd={onDragEnd}
         >
           <SortableContext items={list.map((f) => f.id)} strategy={verticalListSortingStrategy}>
-            {/* 表头：一行 12 mono 眉题，与真实表格的栏名同一口径 */}
+            {/* 表头：mono 大写小标签，与数据表表头同一口径 */}
             <div
-              className="eyebrow"
-              style={{ display: 'flex', gap: 8, padding: '0 8px 8px', borderBottom: '1px solid var(--border)' }}
+              className="panel-kicker"
+              style={{
+                display: 'flex',
+                gap: 8,
+                padding: '0 8px 8px',
+                borderBottom: 'var(--bw) solid var(--line)',
+              }}
             >
               <span style={{ width: 16, flexShrink: 0 }} />
               <span style={{ flex: 1 }}>{t('lib.tpl.fieldName')}</span>
@@ -165,9 +171,9 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
             <div>
               {list.map((f) => (
                 <div key={f.id}>
-                  {/* 插入线：拖拽时只出现这一条 1px accent 线，不做缩放/阴影 */}
+                  {/* 插入线：拖拽时只出现这一条 3px lime 线，不做缩放/阴影 */}
                   {activeId && overId === f.id && activeId !== f.id ? (
-                    <div style={{ height: 1, background: 'var(--accent)', margin: '1px 0' }} />
+                    <div style={{ height: 3, background: 'var(--lime)', margin: '1px 0' }} />
                   ) : null}
                   <FieldRow
                     field={f}
@@ -205,16 +211,16 @@ function FieldRow({
   })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    // 拖拽只跟手，不给回弹动画（v3：只动颜色/边框/透明度/位移，200ms 内）
+    // 拖拽只跟手，不给回弹动画（v4：数据行禁用 overshoot）
     transition: undefined,
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
-    minHeight: 36,
-    padding: '2px 8px',
+    minHeight: 40,
+    padding: '4px 8px',
     background: 'transparent',
-    borderBottom: '1px solid var(--border-rule)',
+    borderBottom: '1px solid var(--line-soft)',
     // 拖起来的那行只降低不透明度，其他视觉一律不变
     opacity: dragging ? 0.5 : 1,
   }
@@ -254,14 +260,13 @@ function FieldRow({
         />
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>{t('common.required')}</span>
+        <span className="field-hint">{t('common.required')}</span>
         <Switch size="small" checked={field.required} onChange={(v) => onChange({ required: v })} />
-        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>{t('common.visible')}</span>
+        <span className="field-hint">{t('common.visible')}</span>
         <Switch size="small" checked={field.visible} onChange={(v) => onChange({ visible: v })} />
         <Button
           type="text"
-          danger
-          size="small"
+          className="icon-btn is-sm is-danger"
           aria-label={t('tpl.field.remove')}
           title={t('tpl.field.remove')}
           icon={<DeleteOutlined />}

@@ -1,29 +1,19 @@
 /**
- * 表单字段标签：13px/500 muted，必填用 4px accent 圆点标记。
+ * 表单字段标签（v4）：mono 11 大写小标签（`.field-label`），必填用 6px lime 方块。
  *
- * v3 是现代产品感：标签是「说明文字」而不是标题，所以 500 字重、muted 色；
- * 必填标记不是红色星号（后台表单的旧符号），而是一枚 accent 小圆点。
+ * 不使用红色星号：结构信息由 ink 边 + lime 方块承担（SIGNAL PRESS 语言）。
  */
 export function LabelText({ label, required }: { label: string; required?: boolean }) {
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: 'var(--text-xs)',
-        fontWeight: 500,
-        color: 'var(--ink-muted)',
-      }}
-    >
+    <span className="field-label">
       {required ? (
         <span
           aria-hidden
           style={{
-            width: 4,
-            height: 4,
-            borderRadius: 999,
-            background: 'var(--accent)',
+            width: 6,
+            height: 6,
+            background: 'var(--lime)',
+            border: '1px solid var(--line)',
             display: 'inline-block',
             flexShrink: 0,
           }}

@@ -1,15 +1,16 @@
 /**
- * 登录 / 注册 · v3『石墨信号』
+ * 登录 / 注册 · v4「硬边印刷 SIGNAL PRESS」
  *
- * 两栏：左 45% `--bg-sunken` 品牌区（标 + 32/600 标题 + 3 条 13 说明）＋右 55% 画布上的白卡表单。
- * 表单卡 .login-card（380 / 白面 + 1px + shadow-2 + 12 圆角 + 32 内边距）；输入 40、主按钮墨黑 40 全宽。
+ * 结构：`.auth-page`（5fr / 6fr）
+ *   左 `.auth-poster` = 墨黑海报：lime 几何标 + mono kicker `SIGNAL PRESS` + Outfit 800
+ *     标题（关键词用 `<em>` lime 底块）+ 3 条 mono 说明 + 底部 mono 版权。
+ *   右 `.auth-form-side` = 骨白画布上 400px `.auth-card`（2px ink 边 + shadow-3 + 0 圆角）。
  *
- * 三个刻意决定：
- * 1) 品牌只出现一次（左栏），右栏不再重复 logo/名字 —— v2 一屏出现两遍。
- * 2) Turnstile 未就绪时**不再预留 65px 空洞**：按钮保持可点，点击时才提示「校验还没完成」，
- *    这样脚本被墙/加载失败时表单仍是完整的（行为仍由服务端兜底，见 useTurnstile）。
- * 3) 注册成功：写一次性 welcome pending → navigate('/')，**不弹「注册成功」toast**，
- *    否则欢迎卡 0.5s 内会再「欢迎」一次（05-first-run-support §D.3）。
+ * 三条不可退让的行为约束（与视觉无关，契约 §8.6）：
+ * 1) 品牌只出现一次（海报即品牌），表单卡里不再重复 logo/名字；
+ * 2) Turnstile 未就绪时不预留空洞，按钮可点、点击时才提示（回车提交同样拦截）；
+ * 3) 注册成功先 `markWelcomePending()` 再 navigate，**不弹注册成功 toast**
+ *    （否则欢迎卡 0.5s 内会再「欢迎」一次）。
  */
 import { useState, useEffect, useCallback } from 'react'
 import { Form, Input, Button, Checkbox, App } from 'antd'
@@ -22,6 +23,21 @@ import { useTurnstile } from './useTurnstile'
 import { isAndroidApp } from '@/utils/platform'
 import { markWelcomePending } from '@/utils/welcome'
 
+/** ≥961px 才显示海报底部装饰（移动端 CSS 是单列短版） */
+function useMinWidth(min: number): boolean {
+  const [ok, setOk] = useState(() =>
+    typeof window === 'undefined' ? true : window.matchMedia(`(min-width:${min}px)`).matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width:${min}px)`)
+    const onChange = () => setOk(mq.matches)
+    onChange()
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [min])
+  return ok
+}
+
 type Mode = 'login' | 'register'
 
 interface RegisterValues {
@@ -30,8 +46,6 @@ interface RegisterValues {
   confirm: string
   contact?: string
 }
-
-const FIELD_STYLE: React.CSSProperties = { height: 40, borderRadius: 'var(--r-2)' }
 
 export default function AuthPage() {
   const { message } = App.useApp()
@@ -45,6 +59,7 @@ export default function AuthPage() {
   const [loginForm] = Form.useForm<{ username: string; password: string }>()
   const [regForm] = Form.useForm<RegisterValues>()
   const t = useI18n()
+  const posterWide = useMinWidth(961)
   const [regOpen, setRegOpen] = useState<boolean | null>(null)
   const inApp = isAndroidApp()
   // 内联错误：错误不只在顶部 toast 一闪而过，表单里留一行
@@ -57,7 +72,7 @@ export default function AuthPage() {
     mode === 'register',
   )
 
-  // 人机验证没过 / 加载失败都由按钮点击时拦截（不再用禁用态 + 空洞占位）
+  // 人机验证没过 / 加载失败都由提交时拦截（不占位、不禁用整张表单）
   const tsBlocking = tsStatus !== 'passed'
 
   // 如果 init() 在跳转到 /login 后才完成恢复，自动跳回主页
@@ -118,7 +133,7 @@ export default function AuthPage() {
         },
         remember,
       )
-      // 一次性 pending → AppShell 消费并弹欢迎卡；不打 toast（避免欢迎卡前又「欢迎」一次）
+      // 一次性 pending → AppShell 消费并弹欢迎卡；不打 toast
       markWelcomePending()
       navigate('/')
     } catch (e) {
@@ -130,19 +145,16 @@ export default function AuthPage() {
     }
   }
 
-  const features = [t('auth.f1'), t('auth.f2'), t('auth.f3')]
-
   const errorLine = errorText ? (
     <div
       role="alert"
       style={{
         background: 'var(--danger-wash)',
-        border: '1px solid var(--danger)',
-        borderRadius: 'var(--r-2)',
+        border: '2px solid var(--danger)',
         padding: '8px 12px',
         marginBottom: 16,
-        fontSize: 'var(--text-xs)',
-        lineHeight: 1.5,
+        fontSize: 'var(--t-xs)',
+        lineHeight: 1.45,
         color: 'var(--danger)',
       }}
     >
@@ -150,29 +162,35 @@ export default function AuthPage() {
     </div>
   ) : null
 
+  // 方块 Tabs：两格等宽、2px ink 边、选中 lime 底
   const tabs = (
-    <div style={{ display: 'flex', gap: 20, borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
-      {(['login', 'register'] as const).map((k) => (
-        <button
-          key={k}
-          type="button"
-          onClick={() => switchMode(k)}
-          style={{
-            background: 'none',
-            border: 'none',
-            font: 'inherit',
-            padding: '0 0 8px',
-            marginBottom: -1,
-            cursor: 'pointer',
-            fontSize: 'var(--text-sm)',
-            fontWeight: mode === k ? 600 : 400,
-            color: mode === k ? 'var(--ink)' : 'var(--ink-muted)',
-            borderBottom: mode === k ? '2px solid var(--accent)' : '2px solid transparent',
-          }}
-        >
-          {t(k === 'login' ? 'auth.tab.login' : 'auth.tab.register')}
-        </button>
-      ))}
+    <div style={{ display: 'flex', marginBottom: 20 }}>
+      {(['login', 'register'] as const).map((k, i) => {
+        const active = mode === k
+        return (
+          <button
+            key={k}
+            type="button"
+            onClick={() => switchMode(k)}
+            style={{
+              flex: 1,
+              height: 'var(--control-h)',
+              marginLeft: i === 0 ? 0 : -2,
+              border: '2px solid var(--line)',
+              background: active ? 'var(--lime)' : 'var(--sheet)',
+              color: active ? 'var(--on-lime)' : 'var(--ink-soft)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--t-2xs)',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+            }}
+          >
+            {t(k === 'login' ? 'auth.tab.login' : 'auth.tab.register')}
+          </button>
+        )
+      })}
     </div>
   )
 
@@ -184,16 +202,16 @@ export default function AuthPage() {
       validateTrigger={['onSubmit', 'onChange']}
       requiredMark={false}
     >
-      <Form.Item name="username" rules={[{ required: true, message: t('auth.err.username') }]}>
+      <Form.Item name="username" label={t('auth.username')} rules={[{ required: true, message: t('auth.err.username') }]}>
         <Input
           placeholder={t('auth.username')}
           autoComplete="username"
           aria-label={t('auth.username')}
-          style={FIELD_STYLE}
         />
       </Form.Item>
       <Form.Item
         name="password"
+        label={t('auth.password')}
         rules={[
           { required: true, message: t('auth.err.password') },
           { min: 6, message: t('auth.err.passwordMin') },
@@ -203,17 +221,22 @@ export default function AuthPage() {
           placeholder={t('auth.password')}
           autoComplete="current-password"
           aria-label={t('auth.password')}
-          style={FIELD_STYLE}
         />
       </Form.Item>
       <Form.Item style={{ marginBottom: 16 }}>
         <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>
+          <span style={{ fontSize: 'var(--t-sm)', color: 'var(--ink-soft)' }}>
             {t('auth.remember')}
           </span>
         </Checkbox>
       </Form.Item>
-      <Button type="primary" htmlType="submit" block loading={loading} style={{ height: 40 }}>
+      <Button
+        type="primary"
+        htmlType="submit"
+        block
+        loading={loading}
+        style={{ height: 'var(--control-h-lg)' }}
+      >
         {t('auth.login')}
       </Button>
     </Form>
@@ -225,12 +248,11 @@ export default function AuthPage() {
         <div
           style={{
             background: 'var(--warning-wash)',
-            border: '1px solid var(--warning)',
-            borderRadius: 'var(--r-2)',
+            border: '2px solid var(--warning)',
             padding: '8px 12px',
             marginBottom: 16,
-            fontSize: 'var(--text-xs)',
-            lineHeight: 1.5,
+            fontSize: 'var(--t-xs)',
+            lineHeight: 1.45,
             color: 'var(--ink)',
           }}
         >
@@ -248,6 +270,7 @@ export default function AuthPage() {
       >
         <Form.Item
           name="username"
+          label={t('auth.reg.usernameLabel')}
           rules={[
             { required: true, message: t('auth.err.username') },
             { pattern: /^[A-Za-z0-9_]{3,20}$/, message: t('auth.err.usernamePattern') },
@@ -257,11 +280,11 @@ export default function AuthPage() {
             placeholder={t('auth.reg.username')}
             autoComplete="username"
             aria-label={t('auth.reg.username')}
-            style={FIELD_STYLE}
           />
         </Form.Item>
         <Form.Item
           name="password"
+          label={t('auth.reg.passwordLabel')}
           rules={[
             { required: true, message: t('auth.err.password') },
             { min: 8, message: t('auth.err.passwordMin8') },
@@ -271,11 +294,11 @@ export default function AuthPage() {
             placeholder={t('auth.reg.password')}
             autoComplete="new-password"
             aria-label={t('auth.reg.password')}
-            style={FIELD_STYLE}
           />
         </Form.Item>
         <Form.Item
           name="confirm"
+          label={t('auth.reg.confirmLabel')}
           dependencies={['password']}
           rules={[
             { required: true, message: t('auth.err.confirm') },
@@ -291,11 +314,11 @@ export default function AuthPage() {
             placeholder={t('auth.reg.confirm')}
             autoComplete="new-password"
             aria-label={t('auth.reg.confirm')}
-            style={FIELD_STYLE}
           />
         </Form.Item>
         <Form.Item
           name="contact"
+          label={t('auth.reg.contactLabel')}
           rules={[{ max: 120, message: t('auth.err.contactMax') }]}
           style={{ marginBottom: 12 }}
         >
@@ -303,15 +326,14 @@ export default function AuthPage() {
             placeholder={t('auth.reg.contact')}
             autoComplete="email"
             aria-label={t('auth.reg.contact')}
-            style={FIELD_STYLE}
           />
         </Form.Item>
 
-        {/* 人机验证：Turnstile 显式渲染的宿主；脚本没就绪时不占位（v2 这里留了 65px 空洞） */}
+        {/* Turnstile 宿主：脚本未就绪时只有一行状态，不占固定高度 */}
         <div style={{ marginBottom: 8 }}>
           <div ref={tsHost} />
           {tsStatus === 'loading' && (
-            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-faint)', lineHeight: 1.5 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--ink-faint)' }}>
               {t('auth.reg.ts.loading')}
             </div>
           )}
@@ -321,7 +343,8 @@ export default function AuthPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                fontSize: 'var(--text-2xs)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '10px',
                 color: 'var(--danger)',
               }}
             >
@@ -330,12 +353,12 @@ export default function AuthPage() {
             </div>
           )}
           {tsStatus === 'unavailable' && (
-            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-muted)', lineHeight: 1.5 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--ink-soft)', lineHeight: 1.5 }}>
               {t('auth.reg.ts.unavailable')}
               <Button
                 type="link"
                 size="small"
-                style={{ padding: '0 0 0 4px', fontSize: 'var(--text-2xs)' }}
+                style={{ padding: '0 0 0 4px', fontSize: 'var(--t-2xs)' }}
                 onClick={() => {
                   // 当前 URL 可能是 /login（没有 mode 参数），直接 reload 会再次
                   // 停在登录页签、再次失败。先把 mode=register 补进地址栏。
@@ -357,13 +380,18 @@ export default function AuthPage() {
           block
           loading={loading}
           disabled={regOpen === false}
-          style={{ height: 40 }}
+          style={{ height: 'var(--control-h-lg)' }}
         >
           {t('auth.reg.submit')}
         </Button>
         <p
-          className="faint"
-          style={{ marginTop: 12, marginBottom: 0, fontSize: 'var(--text-2xs)', lineHeight: 1.6 }}
+          style={{
+            marginTop: 12,
+            marginBottom: 0,
+            fontSize: 'var(--t-xs)',
+            lineHeight: 1.5,
+            color: 'var(--ink-soft)',
+          }}
         >
           {t('auth.reg.privacy')}
         </p>
@@ -371,103 +399,122 @@ export default function AuthPage() {
     </>
   )
 
+  const features = [t('auth.f1'), t('auth.f2'), t('auth.f3')]
+
   return (
-    <div className="login-page">
-      {/* 左栏（≥960px 显示）：品牌只在这里出现一次 */}
-      <div className="login-brand">
-        <div style={{ maxWidth: 380 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
-            <span className="app-brand-dot" aria-hidden />
-            <span style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--ink)' }}>
-              {t('auth.brand')}
-            </span>
-          </div>
+    <div className="auth-page">
+      {/* 左：墨黑海报（品牌只在这里出现） */}
+      <aside className="auth-poster" style={{ justifyContent: 'flex-start' }}>
+        <div className="auth-brand">
+          <span className="rail-mark" aria-hidden />
+          {t('auth.brand')}
+        </div>
+
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            minHeight: 0,
+          }}
+        >
+          <div className="auth-poster-kicker">{t('auth.poster.kicker')}</div>
+          {/* 固定两层：第一行普通色，第二行整块 lime —— 高亮短语绝不跨行断成单字 */}
           <h1
-            style={{
-              fontSize: 'var(--text-2xl)',
-              lineHeight: 1.2,
-              fontWeight: 600,
-              letterSpacing: '-0.02em',
-              margin: '0 0 12px',
-              color: 'var(--ink)',
-            }}
+            className="auth-poster-title"
+            style={{ fontSize: 'clamp(36px, 4vw, 56px)', maxWidth: '100%' }}
           >
-            {t('auth.hero.title')}
+            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{t('auth.poster.pre')}</span>
+            <span style={{ display: 'block' }}>
+              <em style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>{t('auth.poster.mark')}</em>
+              <span>{t('auth.poster.post')}</span>
+            </span>
           </h1>
-          <p
-            style={{
-              fontSize: 'var(--text-sm)',
-              lineHeight: 1.7,
-              color: 'var(--ink-muted)',
-              margin: '0 0 28px',
-            }}
-          >
-            {t('auth.hero.subtitle')}
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="auth-poster-list">
             {features.map((text, i) => (
-              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-                <span
-                  aria-hidden
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: 'var(--accent)',
-                    flexShrink: 0,
-                  }}
-                />
-                <span style={{ fontSize: 'var(--text-xs)', lineHeight: 1.6, color: 'var(--ink-muted)' }}>
-                  {text}
-                </span>
+              <div key={i} className="auth-poster-item">
+                {text}
               </div>
             ))}
           </div>
-          <div className="faint" style={{ marginTop: 40, fontSize: 'var(--text-2xs)', lineHeight: 1.6 }}>
-            {t('auth.footerNote')}
-          </div>
         </div>
-      </div>
 
-      {/* 右栏：画布 + 白卡表单 */}
-      <div className="login-form-side">
-        <div className="login-card">
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 6px', color: 'var(--ink)' }}>
-            {t('auth.welcome')}
-          </h2>
-          <p className="muted" style={{ fontSize: 'var(--text-xs)', margin: '0 0 20px', lineHeight: 1.6 }}>
-            {t('auth.hint')}
-          </p>
+        {/* 底部视觉锚点：印刷对位标 + 一块 lime（移动端隐藏） */}
+        {posterWide && (
+          <div
+            aria-hidden
+            style={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              gap: 10,
+              marginBottom: 32,
+            }}
+          >
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                style={{
+                  width: 44,
+                  height: 44,
+                  border: '2px solid var(--on-ink)',
+                  background: 'transparent',
+                }}
+              />
+            ))}
+            <span
+              style={{
+                width: 92,
+                height: 44,
+                background: 'var(--lime)',
+                border: '2px solid var(--on-ink)',
+              }}
+            />
+            <span
+              style={{
+                flex: 1,
+                height: 2,
+                background: 'var(--on-ink)',
+                opacity: 0.35,
+                marginBottom: 21,
+              }}
+            />
+          </div>
+        )}
+
+        <div className="auth-poster-foot">
+          <span>© {new Date().getFullYear()} {t('auth.brand')}</span>
+          <span>aiim.de5.net</span>
+        </div>
+      </aside>
+
+      {/* 右：骨白画布 + 表单卡 */}
+      <main className="auth-form-side">
+        <div className="auth-card">
+          <div className="auth-card-head">
+            <h2 className="auth-card-title">{t('auth.welcome')}</h2>
+            <p className="auth-card-sub">{t('auth.hint')}</p>
+          </div>
 
           {tabs}
           {errorLine}
           {mode === 'login' ? loginPane : registerPane}
 
-          <p
-            className="faint"
-            style={{ marginTop: 20, marginBottom: 0, fontSize: 'var(--text-2xs)', lineHeight: 1.7 }}
-          >
+          <div className="auth-foot">
             {!inApp && (
-              <>
-                <a
-                  href="/"
-                  className="link-quiet"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    navigate('/')
-                  }}
-                >
-                  {t('auth.backHome')}
-                </a>
-                <br />
-              </>
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+              >
+                {t('auth.backHome')}
+              </button>
             )}
-            {t('auth.cloudHint')}
-          </p>
+            <span>{t('auth.cloudHint')}</span>
+          </div>
           {/* 刻意不放「管理员入口」：/admin 由运营方单独告知地址，
               出现在用户界面会让普通用户误点后看到「无权访问」。 */}
         </div>
-      </div>
+      </main>
     </div>
   )
 }

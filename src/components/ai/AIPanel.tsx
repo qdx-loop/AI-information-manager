@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Input, Button, App, Upload, Dropdown } from 'antd'
-import { SendOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, PlusOutlined, DeleteOutlined, MessageOutlined, DownOutlined, UndoOutlined } from '@ant-design/icons'
+import { SendOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, PlusOutlined, DeleteOutlined, MessageOutlined, DownOutlined, UndoOutlined, RightOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
@@ -55,15 +55,17 @@ import ConfirmActionModal from './ConfirmActionModal'
 import ConfirmLibActionModal from './ConfirmLibActionModal'
 
 /**
- * 字阶只引用 TOKENS-v3 §2.4 的档位（12/13/14/16/20），全部走 CSS 变量；
- * 行高按契约写死比例（1.4/1.45/1.5/1.7/1.35），避免继承到外部 line-height。
+ * 字阶只引用 v4 §2 的 8 档（11/12/13/15/17/20/24/32），全部走 CSS 变量；
+ * 行高由 `.ai-md` / class 决定，这里只在需要压缩的地方显式写比例。
  */
 const T = {
-  base: 'var(--text-base)',
-  sm: 'var(--text-sm)',
-  xs: 'var(--text-xs)',
-  xxs: 'var(--text-2xs)',
-  lg: 'var(--text-lg)',
+  kicker: 'var(--t-2xs)',
+  xs: 'var(--t-xs)',
+  sm: 'var(--t-sm)',
+  base: 'var(--t-base)',
+  md: 'var(--t-md)',
+  lg: 'var(--t-lg)',
+  xl: 'var(--t-xl)',
 }
 
 interface UndoInfo {
@@ -1339,7 +1341,7 @@ export default function AIPanel() {
   }, [undoStack, undoBusy, message])
 
   // 渲染消息内容：把 (id=xxx) 转成可点击的行内条目引用；assistant 消息按 markdown 渲染。
-  // 条目引用用 accent 色 + 等宽字，替代 v2 的彩色 Tag（v3 只允许一个强调色）。
+  // 条目引用用 mono + 2px lime 下划线（v4 只用 lime 做信号，不用彩色文字）。
   const renderContent = (text: string, contexts: LibraryContext[] | null, isAssistant = false) => {
     if (!text) return null
     const parts = text.split(/(\(id=[^)]+\))/g)
@@ -1365,11 +1367,13 @@ export default function AIPanel() {
                 border: 'none',
                 background: 'transparent',
                 padding: 0,
-                color: 'var(--accent)',
+                color: 'var(--ink)',
                 fontFamily: 'var(--font-mono)',
                 fontVariantNumeric: 'tabular-nums',
                 fontSize: '0.88em',
+                fontWeight: 600,
                 cursor: 'pointer',
+                boxShadow: 'inset 0 -2px 0 var(--lime)',
               }}
             >
               {summary.slice(0, 12) || itemId.slice(0, 6)}
@@ -1379,8 +1383,9 @@ export default function AIPanel() {
       }
       if (!part) return null
       if (isAssistant) {
+        // 外层容器已带 `.ai-md`（Work Sans 15/1.6 + 段距 10），这里不再重复包裹
         return (
-          <div key={i} className="ai-md">
+          <div key={i}>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{part}</ReactMarkdown>
           </div>
         )
@@ -1392,7 +1397,7 @@ export default function AIPanel() {
   // 缓存最近一次上下文供 renderContent 用（在 handleSend 中更新）
   const lastContextsRef = useRef<LibraryContext[] | null>(null)
 
-  // 执行步骤：一行 13 muted 折叠行（chevron），展开为 12 mono 编号列表。
+  // 执行步骤：mono 11 折叠行（chevron），展开为 01/02/03 编号列表。
   const toggleSteps = (idx: number) => {
     setOpenedSteps((prev) => {
       const next = new Set(prev)
@@ -1408,17 +1413,11 @@ export default function AIPanel() {
     void handleSend()
   }
 
-  // 运行中文案：新 i18n key 尚未落库时先用约定文案兜底，key 上线后自动切走。
-  // （key 已报给 Lead，由 frontend-analyst 落 src/i18n/index.ts）
-  const runningKey = 'ai.runningChecking'
-  const runningText = t(runningKey)
-  const runningLabel = runningText === runningKey ? '正在核对…' : runningText
-
   const renderSteps = (m: UIMessage, idx: number) => {
     if (!m.steps || m.steps.length === 0) return null
     const open = openedSteps.has(idx)
     return (
-      <div style={{ marginBottom: 'var(--space-3)' }}>
+      <div style={{ marginBottom: 'var(--s3)' }}>
         <button
           type="button"
           aria-expanded={open}
@@ -1429,10 +1428,13 @@ export default function AIPanel() {
             padding: 0,
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            fontSize: T.xs,
-            lineHeight: 1.45,
-            color: 'var(--ink-muted)',
+            gap: 'var(--s2)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: T.kicker,
+            lineHeight: 1.3,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--ink-soft)',
             cursor: 'pointer',
           }}
         >
@@ -1441,27 +1443,33 @@ export default function AIPanel() {
             style={{
               fontSize: 10,
               transform: open ? 'rotate(180deg)' : 'none',
-              transition: 'transform 160ms var(--ease-std, ease)',
+              transition: 'transform 140ms ease-out',
             }}
           />
         </button>
         {open && (
-          <ol style={{ margin: 'var(--space-2) 0 0', padding: 0, listStyle: 'none' }}>
+          <ol style={{ margin: 'var(--s2) 0 0', padding: 0, listStyle: 'none' }}>
             {m.steps.map((s, si) => (
               <li
                 key={si}
                 style={{
                   display: 'flex',
-                  gap: 'var(--space-2)',
+                  gap: 'var(--s2)',
                   padding: '2px 0',
-                  fontSize: T.xxs,
-                  lineHeight: 1.4,
-                  color: 'var(--ink-muted)',
+                  fontSize: T.sm,
+                  lineHeight: 1.45,
+                  color: 'var(--ink-soft)',
                 }}
               >
                 <span
                   className="mono"
-                  style={{ minWidth: 18, color: 'var(--ink-faint)', fontVariantNumeric: 'tabular-nums' }}
+                  style={{
+                    minWidth: 20,
+                    color: 'var(--ink-faint)',
+                    fontSize: T.kicker,
+                    fontWeight: 600,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
                 >
                   {String(si + 1).padStart(2, '0')}
                 </span>
@@ -1474,22 +1482,33 @@ export default function AIPanel() {
     )
   }
 
+  // 「去配置」跳转到设置页的 AI 分区（?tab=ai 由 SettingsPage 读取）
+  const goConfigure = () => navigate('/settings?tab=ai')
+
+  // 未配置态：.empty-state + lime 方块 + 主按钮「去配置」
   if (!aiConfigured) {
     return (
-      // 未配置态：面板内白卡 + 空状态版式（v3 禁止无表面的裸内容区）
       <div
         style={{
           height: '100%',
           minWidth: 0,
           overflow: 'auto',
-          background: 'var(--bg-surface)',
-          padding: 'var(--space-4)',
+          background: 'var(--sheet)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        <div className="surface-card empty-state" style={{ padding: 'var(--space-6)' }}>
-          <div className="empty-state-title">{t('ai.notConfigured')}</div>
-          <div className="empty-state-body" style={{ marginTop: 'var(--space-2)', lineHeight: 1.6 }}>
-            {t('ai.notConfiguredHint')}
+        <div className="empty-state" style={{ maxWidth: 360 }}>
+          <span className="empty-mark" aria-hidden>
+            AI
+          </span>
+          <h2 className="empty-title">{t('ai.notConfigured')}</h2>
+          <p className="empty-body">{t('ai.notConfiguredHint')}</p>
+          <div className="empty-actions">
+            <Button type="primary" onClick={goConfigure}>
+              {t('ai.goConfigure')}
+            </Button>
           </div>
         </div>
       </div>
@@ -1504,46 +1523,37 @@ export default function AIPanel() {
           flexDirection: 'column',
           height: '100%',
           minWidth: 0,
-          background: 'var(--bg-surface)',
+          background: 'var(--sheet)',
         }}
       >
-        {/* 头部 52px：白底 + 底边线；标题 14/600 + 状态点；右侧图标按钮（会话/清空） */}
+        {/* 会话条：当前会话名 + 会话切换/清空（头部 56 由 AIDock 渲染） */}
         <div
           style={{
-            height: 52,
+            height: 40,
             flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
-            gap: 'var(--space-2)',
-            padding: '0 var(--space-3) 0 var(--space-4)',
-            borderBottom: '1px solid var(--border)',
-            background: 'var(--bg-surface)',
+            gap: 'var(--s2)',
+            padding: '0 var(--s2) 0 var(--s3)',
+            borderBottom: '1px solid var(--line-soft)',
+            background: 'var(--sheet)',
           }}
         >
           <span
             style={{
+              flex: 1,
+              minWidth: 0,
               fontSize: T.sm,
-              fontWeight: 600,
-              lineHeight: 1.5,
+              fontWeight: 500,
               color: 'var(--ink)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
             }}
+            title={sessions.find((s) => s.id === sessionId)?.title || t('ai.session.untitled')}
           >
-            {t('app.aiAssistant')}
+            {sessions.find((s) => s.id === sessionId)?.title || t('ai.session.untitled')}
           </span>
-          {/* 状态点：运行中 accent，空闲用弱边框色（不闪烁、不呼吸） */}
-          <span
-            aria-hidden
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 999,
-              flexShrink: 0,
-              background: loading ? 'var(--accent)' : 'var(--border-strong)',
-              transition: 'background 80ms linear',
-            }}
-          />
-          <span style={{ flex: 1, minWidth: 0 }} />
           <Dropdown
             open={sessionSwitcherOpen}
             onOpenChange={setSessionSwitcherOpen}
@@ -1558,7 +1568,7 @@ export default function AIPanel() {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: 'var(--space-2)',
+                        gap: 'var(--s2)',
                         minWidth: 180,
                       }}
                     >
@@ -1568,7 +1578,7 @@ export default function AIPanel() {
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
-                          fontSize: T.xs,
+                          fontSize: T.sm,
                           fontWeight: s.id === sessionId ? 600 : 400,
                         }}
                       >
@@ -1599,7 +1609,14 @@ export default function AIPanel() {
                 {
                   key: '__new__',
                   label: (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: T.xs }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 'var(--s2)',
+                        fontSize: T.sm,
+                      }}
+                    >
                       <PlusOutlined style={{ fontSize: 14 }} />
                       {t('ai.session.new')}
                     </span>
@@ -1612,20 +1629,22 @@ export default function AIPanel() {
               },
             }}
           >
-            <Button
-              type="text"
+            <button
+              type="button"
+              className="icon-btn"
               aria-label={t('ai.session.switch')}
               title={t('ai.session.switch')}
-              icon={<MessageOutlined />}
-              style={{ width: 32, height: 32, color: 'var(--ink-muted)' }}
-            />
+              style={{ width: 32, height: 32 }}
+            >
+              <MessageOutlined />
+            </button>
           </Dropdown>
-          <Button
-            type="text"
+          <button
+            type="button"
+            className="icon-btn"
             aria-label={t('ai.session.clear')}
             title={t('ai.session.clear')}
-            icon={<DeleteOutlined />}
-            style={{ width: 32, height: 32, color: 'var(--ink-muted)' }}
+            style={{ width: 32, height: 32 }}
             onClick={() =>
               modal.confirm({
                 title: t('ai.session.clearTitle'),
@@ -1636,54 +1655,71 @@ export default function AIPanel() {
                 onOk: handleClear,
               })
             }
-          />
+          >
+            <DeleteOutlined />
+          </button>
         </div>
 
-        {/* 运行中：顶部 2px accent 静态条（非无限动画）+ 13px「正在核对…」 */}
-        <div
-          aria-hidden={!loading}
-          style={{
-            height: 2,
-            flexShrink: 0,
-            background: loading ? 'var(--accent)' : 'transparent',
-            transition: 'background 140ms var(--ease-std, ease)',
-          }}
-        />
+        {/* 运行中：3px lime 静态条 + mono 12「正在核对…」（不闪不呼吸） */}
         {loading && (
-          <div
-            aria-live="polite"
-            style={{
-              flexShrink: 0,
-              padding: 'var(--space-2) var(--space-4) 0',
-              fontSize: T.xs,
-              lineHeight: 1.45,
-              color: 'var(--ink-muted)',
-            }}
-          >
-            {runningLabel}
-          </div>
+          <>
+            <div className="clerk-run" role="progressbar" aria-label={t('ai.runningChecking')} />
+            <div
+              style={{
+                flexShrink: 0,
+                padding: 'var(--s2) var(--s3)',
+                borderBottom: '1px solid var(--line-soft)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: T.xs,
+                lineHeight: 1.35,
+                letterSpacing: '0.04em',
+                color: 'var(--ink-soft)',
+              }}
+            >
+              <span role="status" aria-atomic="true">
+                {t('ai.runningChecking')}
+              </span>
+            </div>
+          </>
         )}
 
-        {/* 主体：白面消息流。用户消息右对齐浅灰圆角块，AI 输出无底色正文。 */}
-        <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', padding: 'var(--space-4)', minWidth: 0 }}>
+        {/* 主体：sheet 面消息流。用户消息 = lime-wash 硬边块右对齐，AI 输出无底色。 */}
+        <div
+          ref={scrollRef}
+          style={{ flex: 1, overflow: 'auto', padding: 'var(--s4)', minWidth: 0 }}
+        >
           {messages.length === 0 ? (
-            <div className="surface-card empty-state" style={{ padding: 'var(--space-6)' }}>
-              <div className="empty-state-title">{t('app.aiAssistant')}</div>
-              <div className="empty-state-body" style={{ marginTop: 'var(--space-2)', lineHeight: 1.6 }}>
-                {t('ai.emptyHint')}
+            <div
+              style={{
+                minHeight: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <div className="empty-state">
+                <span className="empty-mark" aria-hidden>
+                  AI
+                </span>
+                <h2 className="empty-title">{t('app.aiAssistant')}</h2>
+                <p className="empty-body">{t('ai.emptyHint')}</p>
               </div>
             </div>
           ) : (
             messages.map((m, i) =>
               m.role === 'user' ? (
-                <div key={i} style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-4)' }}>
+                <div
+                  key={i}
+                  style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--s4)' }}
+                >
                   <div
                     style={{
                       maxWidth: '85%',
-                      background: 'var(--bg-sunken)',
-                      borderRadius: 'var(--r-2)',
-                      padding: 'var(--space-2) var(--space-3)',
-                      fontSize: T.sm,
+                      background: 'var(--lime-wash)',
+                      border: 'var(--bw) solid var(--line)',
+                      borderRadius: 0,
+                      padding: 'var(--s2) var(--s3)',
+                      fontSize: T.base,
                       lineHeight: 1.5,
                       color: 'var(--ink)',
                       whiteSpace: 'pre-wrap',
@@ -1694,45 +1730,58 @@ export default function AIPanel() {
                   </div>
                 </div>
               ) : (
-                <div key={i} style={{ marginBottom: 'var(--space-5)', minWidth: 0 }}>
+                <div key={i} style={{ marginBottom: 'var(--s5)', minWidth: 0 }}>
                   {renderSteps(m, i)}
                   {m.content ? (
-                    <div
-                      className="ai-md"
-                      style={{
-                        fontSize: T.base,
-                        lineHeight: 1.7,
-                        color: 'var(--ink)',
-                        wordBreak: 'break-word',
-                      }}
-                    >
+                    <div className="ai-md" style={{ fontSize: T.base, lineHeight: 1.65 }}>
                       {renderContent(m.content, lastContextsRef.current, true)}
                     </div>
                   ) : null}
-                  {/* 图表缩略：一行标题 + mono 图注，点击进弹窗 */}
+                  {/* 图表缩略：panel 硬边卡一行 + mono 11 图注，点击进弹窗 */}
                   {m.chart && (
                     <button
                       type="button"
+                      className="panel"
                       onClick={() => setChartPayload(m.chart as ChartPayload)}
                       style={{
-                        marginTop: 'var(--space-3)',
+                        marginTop: 'var(--s3)',
                         display: 'flex',
-                        alignItems: 'baseline',
-                        gap: 'var(--space-2)',
-                        flexWrap: 'wrap',
-                        background: 'transparent',
-                        border: 'none',
-                        padding: 0,
+                        alignItems: 'center',
+                        gap: 'var(--s2)',
+                        width: '100%',
+                        padding: 'var(--s2) var(--s3)',
                         cursor: 'pointer',
                         textAlign: 'left',
                       }}
                     >
-                      <span style={{ fontSize: T.sm, lineHeight: 1.5, color: 'var(--accent)' }}>
+                      <span
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontSize: T.sm,
+                          fontWeight: 600,
+                          color: 'var(--ink)',
+                        }}
+                      >
                         {m.chart.title}
                       </span>
-                      <span className="mono" style={{ fontSize: T.xxs, color: 'var(--ink-faint)' }}>
+                      <span
+                        className="mono"
+                        style={{
+                          fontSize: T.kicker,
+                          fontWeight: 600,
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          color: 'var(--ink-faint)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
                         {t('ai.chart.thumbHint')}
                       </span>
+                      <RightOutlined style={{ fontSize: 11, color: 'var(--ink-faint)' }} />
                     </button>
                   )}
                 </div>
@@ -1741,54 +1790,54 @@ export default function AIPanel() {
           )}
         </div>
 
-        {/* 输入区：白底 + 顶线；输入 36、发送 32×32 墨黑、附件图标 */}
+        {/* 输入区：顶边 2px ink；输入 40（2px ink 边）；发送 40×40 lime 方块；附件 40 方形 */}
         <div
           style={{
             flexShrink: 0,
-            borderTop: '1px solid var(--border)',
-            background: 'var(--bg-surface)',
-            padding: 'var(--space-3) var(--space-3) var(--space-3) var(--space-4)',
+            background: 'var(--sheet)',
+            borderTop: 'var(--bw) solid var(--line)',
+            padding: 'var(--s3)',
           }}
         >
           {undoStack.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--s2)' }}>
               <Button
                 type="text"
                 size="small"
                 disabled={undoBusy}
                 onClick={() => void handleUndoLast()}
                 icon={<UndoOutlined />}
-                style={{ fontSize: T.xs, color: 'var(--ink-muted)', paddingInline: 6 }}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: T.kicker,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--ink-soft)',
+                }}
               >
                 {t('ai.undo.last')}
               </Button>
             </div>
           )}
           {attachments.length > 0 && (
-            <div style={{ marginBottom: 'var(--space-2)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+            <div
+              style={{
+                marginBottom: 'var(--s2)',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 'var(--s2)',
+              }}
+            >
               {attachments.map((a) => (
-                <span
-                  key={a.id}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: T.xs,
-                    lineHeight: 1.45,
-                    color: 'var(--ink-muted)',
-                    background: 'var(--bg-sunken)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--r-1)',
-                    padding: '2px 6px',
-                  }}
-                >
-                  {a.kind === 'image' ? (
-                    <PictureOutlined style={{ fontSize: 14 }} />
-                  ) : (
-                    <FileTextOutlined style={{ fontSize: 14 }} />
-                  )}
+                <span key={a.id} className="tag-mono">
+                  {a.kind === 'image' ? <PictureOutlined /> : <FileTextOutlined />}
                   <span
-                    style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    style={{
+                      maxWidth: 140,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
                   >
                     {a.name}
                   </span>
@@ -1805,13 +1854,13 @@ export default function AIPanel() {
                       cursor: 'pointer',
                     }}
                   >
-                    <CloseOutlined style={{ fontSize: 12 }} />
+                    <CloseOutlined style={{ fontSize: 11 }} />
                   </button>
                 </span>
               ))}
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
             <Upload
               accept="*/*"
               showUploadList={false}
@@ -1831,16 +1880,24 @@ export default function AIPanel() {
                 return false
               }}
             >
-              <Button
-                type="text"
-                icon={<PaperClipOutlined />}
+              <button
+                type="button"
+                className="icon-btn"
                 aria-label={t('ai.upload.tooltip')}
                 title={t('ai.upload.tooltip')}
-                loading={parsingFile}
-                style={{ width: 32, height: 32, color: 'var(--ink-muted)' }}
-              />
+                aria-busy={parsingFile || undefined}
+                style={{
+                  width: 40,
+                  height: 40,
+                  flexShrink: 0,
+                  opacity: parsingFile ? 0.5 : 1,
+                  cursor: parsingFile ? 'progress' : 'pointer',
+                }}
+              >
+                <PaperClipOutlined />
+              </button>
             </Upload>
-            {/* 保留多行：占位符宣传「粘贴 Excel 交给 AI 录入」，视觉上仍是 36px 输入条 */}
+            {/* 保留多行：占位符宣传「粘贴 Excel 交给 AI 录入」，视觉上仍是 40px 输入条 */}
             <Input.TextArea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -1850,13 +1907,13 @@ export default function AIPanel() {
               autoSize={{ minRows: 1, maxRows: 5 }}
               style={{
                 flex: 1,
-                minHeight: 36,
-                padding: '7px 10px',
-                fontSize: T.sm,
+                minHeight: 40,
+                padding: '9px 10px',
+                fontSize: T.base,
                 lineHeight: 1.5,
-                background: 'var(--bg-sunken)',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 'var(--r-2)',
+                background: 'var(--sheet)',
+                border: 'var(--bw) solid var(--line)',
+                borderRadius: 'var(--r-1)',
                 boxShadow: 'none',
                 resize: 'none',
               }}
@@ -1869,13 +1926,20 @@ export default function AIPanel() {
               disabled={!input.trim() || loading}
               aria-label={t('ai.send')}
               title={t('ai.send')}
-              style={{ width: 32, height: 32, padding: 0, borderRadius: 'var(--r-2)' }}
+              style={{
+                width: 40,
+                height: 40,
+                padding: 0,
+                borderRadius: 0,
+                flexShrink: 0,
+                border: 'var(--bw) solid var(--line)',
+              }}
             />
           </div>
-          {/* 运行状态只出现在头部下方（2px accent 条 + 13px 文案），这里只放「停止」 */}
+          {/* 运行状态只在顶部条出现，这里只保留「停止」 */}
           <div
             style={{
-              marginTop: 'var(--space-1)',
+              marginTop: 'var(--s1)',
               minHeight: 18,
               display: 'flex',
               justifyContent: 'flex-end',
@@ -1887,7 +1951,7 @@ export default function AIPanel() {
                 type="text"
                 size="small"
                 onClick={handleStop}
-                style={{ fontSize: T.xs, color: 'var(--ink-muted)' }}
+                style={{ fontSize: T.xs, color: 'var(--ink-soft)' }}
               >
                 {t('ai.stop')}
               </Button>

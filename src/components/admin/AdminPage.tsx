@@ -1,9 +1,12 @@
 /**
- * 管理后台 · v3『石墨信号』（内部工具，密度优先）
+ * 管理后台 · v4「硬边印刷 SIGNAL PRESS」
  *
- * 版式：页头 + 3 张统计白卡（24/600 tabular）+ 顶部筛选条（36 高）+ 紧凑表格（行 32，白卡容器）
- * + `.status-pill` 状态片 + 危险操作红色。所有颜色走 v3 token，暗色自动反相。
- * 功能与 v2 完全一致：账户/审计双视图、筛选、搜索、CSV、刷新、重置密码（生成/复制）、
+ * `.workbench--wide` + 页头（mono kicker `ADMIN / 运营` + Outfit 800 标题）
+ * + Bento 三块：总数（lime 主 tile，`metric-value` 56）+ 今日注册 / 7 天活跃（panel tile）
+ * + 40 高筛选条（方块 Tabs + Segmented + 搜索 + 计数）
+ * + `.data-table` 紧凑表（表头墨黑、行 32–36、`.status-pill` 状态、操作列不换行 280）。
+ *
+ * 功能与旧版完全一致：账户/审计双视图、筛选、搜索、CSV、刷新、重置密码（生成/复制）、
  * 停用/恢复/删除、近 7 天行为、说明——一个都没删。
  */
 import { useEffect, useState, useCallback } from 'react'
@@ -36,9 +39,9 @@ import {
 import { useBackButtonLayer } from '@/utils/backButton'
 import { downloadBlob } from '@/utils/csv'
 
-type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'accent'
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'lime'
 
-/** 状态片：6px 圆点 + 12/500 文字（.status-pill 变体） */
+/** 状态片：6px 方块 dot + mono 11 大写（.status-pill 变体） */
 function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
   const cls =
     tone === 'success'
@@ -47,9 +50,9 @@ function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
         ? 'status-pill is-warning'
         : tone === 'danger'
           ? 'status-pill is-danger'
-          : tone === 'accent'
-            ? 'status-pill is-accent'
-            : 'status-pill'
+          : tone === 'lime'
+            ? 'status-pill is-lime'
+            : 'status-pill is-neutral'
   return <span className={cls}>{children}</span>
 }
 
@@ -167,38 +170,47 @@ export default function AdminPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--bg-canvas)',
+          background: 'var(--paper)',
           padding: 16,
         }}
       >
-        <div className="surface-card" style={{ width: '100%', maxWidth: 380, padding: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-            <span className="app-brand-dot" aria-hidden />
-            <span style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--ink)' }}>
-              {t('admin.title')}
-            </span>
+        <div className="panel" style={{ width: '100%', maxWidth: 400 }}>
+          <div className="panel-head">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="lp-brand-mark" aria-hidden />
+              <h1 className="panel-title">{t('admin.title')}</h1>
+            </div>
           </div>
-          <p className="muted" style={{ fontSize: 'var(--text-xs)', margin: '0 0 16px', lineHeight: 1.5 }}>
-            {t('admin.consoleHint')}
-          </p>
-          <Input.Password
-            placeholder={t('auth.password')}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onPressEnter={handleLogin}
-            autoFocus
-            style={{ height: 40, borderRadius: 'var(--r-2)', marginBottom: 12 }}
-          />
-          <Button
-            type="primary"
-            block
-            loading={loginLoading}
-            onClick={handleLogin}
-            icon={<KeyOutlined />}
-            style={{ height: 40 }}
-          >
-            {t('admin.loginBtn')}
-          </Button>
+          <div className="panel-body">
+            <p
+              style={{
+                margin: '0 0 16px',
+                fontSize: 'var(--t-xs)',
+                lineHeight: 1.5,
+                color: 'var(--ink-soft)',
+              }}
+            >
+              {t('admin.consoleHint')}
+            </p>
+            <Input.Password
+              placeholder={t('auth.password')}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onPressEnter={handleLogin}
+              autoFocus
+              style={{ marginBottom: 12 }}
+            />
+            <Button
+              type="primary"
+              block
+              loading={loginLoading}
+              onClick={handleLogin}
+              icon={<KeyOutlined />}
+              style={{ height: 'var(--control-h-lg)' }}
+            >
+              {t('admin.loginBtn')}
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -208,6 +220,9 @@ export default function AdminPage() {
   const now = Date.now()
   const activeCount = accounts.filter((a) => !a.disabled).length
   const registeredToday = accounts.filter((a) => now - (a.createdAt ?? 0) < DAY).length
+  const inactiveCount = accounts.filter(
+    (a) => !a.disabled && now - (a.lastLogin ?? a.createdAt ?? 0) > 30 * DAY,
+  ).length
 
   const filtered = accounts.filter((a) => {
     if (filterKey === 'disabled' && !a.disabled) return false
@@ -267,9 +282,7 @@ export default function AdminPage() {
       title: t('admin.col.username'),
       dataIndex: 'username',
       key: 'username',
-      render: (v: string) => (
-        <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{v}</span>
-      ),
+      render: (v: string) => <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{v}</span>,
     },
     {
       title: t('admin.col.contact'),
@@ -277,7 +290,7 @@ export default function AdminPage() {
       key: 'contact',
       render: (v: string | null) =>
         v ? (
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>{v}</span>
+          <span style={{ fontSize: 'var(--t-xs)', color: 'var(--ink-soft)' }}>{v}</span>
         ) : (
           <span className="faint">—</span>
         ),
@@ -295,7 +308,7 @@ export default function AdminPage() {
       width: 120,
       render: (v?: number) =>
         v ? (
-          <span className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-muted)' }}>
+          <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--ink-soft)' }}>
             {dayjs(v).format('YYYY-MM-DD')}
           </span>
         ) : (
@@ -307,7 +320,7 @@ export default function AdminPage() {
       key: 'ops',
       width: 280,
       render: (_, r) => (
-        <div style={{ display: 'flex', gap: 2, flexWrap: 'nowrap' }} title={t('admin.col.actions')}>
+        <div style={{ display: 'flex', gap: 2, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
           <Button type="link" size="small" icon={<SafetyCertificateOutlined />} onClick={() => openReset(r)}>
             {t('admin.op.resetPwd')}
           </Button>
@@ -353,7 +366,7 @@ export default function AdminPage() {
       key: 't',
       width: 140,
       render: (v: number) => (
-        <span className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-muted)' }}>
+        <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--ink-soft)' }}>
           {dayjs(v).format('YYYY-MM-DD HH:mm')}
         </span>
       ),
@@ -364,7 +377,7 @@ export default function AdminPage() {
       key: 'a',
       width: 120,
       render: (v: string) => (
-        <span className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink)' }}>
+        <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--ink)' }}>
           {v}
         </span>
       ),
@@ -375,7 +388,7 @@ export default function AdminPage() {
       dataIndex: 'detail',
       key: 'd',
       render: (v: string) => (
-        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-muted)' }}>{v || '—'}</span>
+        <span style={{ fontSize: 'var(--t-xs)', color: 'var(--ink-soft)' }}>{v || '—'}</span>
       ),
     },
     {
@@ -384,7 +397,7 @@ export default function AdminPage() {
       key: 'ip',
       width: 130,
       render: (v: string) => (
-        <span className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-faint)' }}>
+        <span className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--ink-faint)' }}>
           {v}
         </span>
       ),
@@ -392,158 +405,173 @@ export default function AdminPage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-canvas)', padding: '24px 32px 48px' }}>
-      <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-        {/* 页头 */}
-        <header className="page-head">
-          <div className="page-head-main">
-            <h1 className="page-title">{t('admin.title')}</h1>
-            <p className="page-lede">{t('admin.consoleHint')}</p>
-          </div>
-          <div className="page-head-actions">
-            <Button icon={<DownloadOutlined />} onClick={exportCsv}>
-              {t('admin.export')}
-            </Button>
-            <Button icon={<ReloadOutlined />} onClick={load} loading={loadingList}>
-              {t('admin.refresh')}
-            </Button>
-          </div>
-        </header>
+    <div className="workbench workbench--wide">
+      <header className="page-head">
+        <div className="page-head-main">
+          <div className="page-kicker">{t('admin.kicker')}</div>
+          <h1 className="page-title">{t('admin.title')}</h1>
+          <p className="page-sub">{t('admin.consoleHint')}</p>
+        </div>
+        <div className="page-head-actions">
+          <Button icon={<DownloadOutlined />} onClick={exportCsv}>
+            {t('admin.export')}
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={load} loading={loadingList}>
+            {t('admin.refresh')}
+          </Button>
+        </div>
+      </header>
+      <div className="page-bar" />
 
-        {/* 3 张统计白卡：主数字 + 12px 标签 + 次要行 */}
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 20 }}>
-          <div className="kpi-card">
-            <div className="kpi-label">{t('admin.stat.total')}</div>
-            <div className="kpi-value">{stats?.totalAccounts ?? accounts.length}</div>
-            <div className="kpi-delta">
+      {/* Bento 三块：lime 主 tile（总数）+ 两块 panel tile */}
+      <div className="bento" style={{ marginBottom: 16 }}>
+        <div className="tile tile--lime tile--span-6">
+          <div className="tile-head">
+            <span className="metric-label">{t('admin.stat.total')}</span>
+            <span className="metric-label">
               {t('admin.stat.active')} {activeCount}
-            </div>
+            </span>
           </div>
-          <div className="kpi-card">
-            <div className="kpi-label">{t('admin.stat.today')}</div>
-            <div className="kpi-value">{registeredToday}</div>
-            <div className="kpi-delta">
-              {t('admin.stat.signups7')} {stats?.signups7 ?? 0}
-            </div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-label">{t('admin.stat.active7')}</div>
-            <div className="kpi-value">{stats?.activeUsers7 ?? 0}</div>
-            <div className="kpi-delta">
+          <div className="metric">
+            <div className="metric-value">{stats?.totalAccounts ?? accounts.length}</div>
+            <div className="metric-note">
               {t('admin.stat.disabled')} {stats?.disabledAccounts ?? 0}
             </div>
           </div>
         </div>
-
-        {/* 筛选条（36 高）：视图切换 + 筛选 + 搜索 */}
-        <div
-          className="toolbar"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            flexWrap: 'wrap',
-            minHeight: 36,
-            marginBottom: 12,
-          }}
-        >
-          <div style={{ display: 'flex', gap: 16 }}>
-            {(['accounts', 'audit'] as const).map((k) => {
-              const active = tab === k
-              const label = k === 'accounts' ? t('admin.tab.accounts') : t('admin.tab.audit')
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setTab(k)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    font: 'inherit',
-                    padding: '0 0 6px',
-                    marginBottom: -1,
-                    cursor: 'pointer',
-                    fontSize: 'var(--text-sm)',
-                    fontWeight: active ? 600 : 400,
-                    color: active ? 'var(--ink)' : 'var(--ink-muted)',
-                    borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-                  }}
-                >
-                  {label}
-                </button>
-              )
-            })}
+        <div className="tile tile--span-3">
+          <div className="tile-head">
+            <span className="metric-label">{t('admin.stat.today')}</span>
           </div>
+          <div className="metric">
+            <div className="metric-value">{registeredToday}</div>
+            <div className="metric-note">
+              {t('admin.stat.signups7')} {stats?.signups7 ?? 0}
+            </div>
+          </div>
+        </div>
+        <div className="tile tile--span-3">
+          <div className="tile-head">
+            <span className="metric-label">{t('admin.stat.active7')}</span>
+          </div>
+          <div className="metric">
+            <div className="metric-value">{stats?.activeUsers7 ?? 0}</div>
+            <div className="metric-note">{t('admin.events.title')}</div>
+          </div>
+        </div>
+      </div>
 
-          {tab === 'accounts' && (
-            <>
-              <Segmented
-                size="small"
-                value={filterKey}
-                onChange={(v) => setFilterKey(v as typeof filterKey)}
-                options={[
-                  { label: t('admin.filter.all'), value: 'all' },
-                  { label: t('admin.filter.active'), value: 'active' },
-                  { label: t('admin.filter.inactive'), value: 'inactive' },
-                  { label: t('admin.filter.disabled'), value: 'disabled' },
-                ]}
-              />
-              <Input.Search
-                allowClear
-                placeholder={t('admin.searchPlaceholder')}
-                style={{ width: 220 }}
-                onChange={(e) => setKeyword(e.target.value)}
-              />
-              <span className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-faint)' }}>
-                {t('admin.count', { n: shown.length })}
-              </span>
-            </>
-          )}
+      {/* 筛选条：方块 Tabs + Segmented + 搜索 + 计数 */}
+      <div
+        className="toolbar"
+        style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
+      >
+        <div style={{ display: 'flex' }}>
+          {(['accounts', 'audit'] as const).map((k, i) => {
+            const active = tab === k
+            const label = k === 'accounts' ? t('admin.tab.accounts') : t('admin.tab.audit')
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setTab(k)}
+                style={{
+                  height: 'var(--control-h)',
+                  padding: '0 14px',
+                  marginLeft: i === 0 ? 0 : -2,
+                  border: '2px solid var(--line)',
+                  background: active ? 'var(--lime)' : 'var(--sheet)',
+                  color: active ? 'var(--on-lime)' : 'var(--ink-soft)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--t-2xs)',
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
         </div>
 
-        {tab === 'accounts' ? (
-          <div className="data-table">
-            <Table
-              rowKey="id"
+        {tab === 'accounts' && (
+          <>
+            <Segmented
               size="small"
-              columns={accountColumns}
-              dataSource={shown}
-              loading={loadingList}
-              pagination={{ pageSize: 20, showSizeChanger: false }}
-              scroll={{ x: 'max-content' }}
+              value={filterKey}
+              onChange={(v) => setFilterKey(v as typeof filterKey)}
+              options={[
+                { label: t('admin.filter.all'), value: 'all' },
+                { label: t('admin.filter.active'), value: 'active' },
+                { label: t('admin.filter.inactive', { n: inactiveCount }), value: 'inactive' },
+                { label: t('admin.filter.disabled'), value: 'disabled' },
+              ]}
             />
-          </div>
-        ) : (
-          <div className="data-table">
-            <Table
-              rowKey={(r) => `${r.created_at}-${r.action}-${r.target}`}
-              size="small"
-              columns={auditColumns}
-              dataSource={logs}
-              pagination={{ pageSize: 20, showSizeChanger: false }}
-              scroll={{ x: 'max-content' }}
+            <Input.Search
+              allowClear
+              placeholder={t('admin.searchPlaceholder')}
+              style={{ width: 220 }}
+              onChange={(e) => setKeyword(e.target.value)}
             />
-          </div>
+            <span className="table-count">
+              {t('admin.count', { n: shown.length })}
+            </span>
+          </>
         )}
-
-        {/* 近 7 天行为 + 说明：一行文字，不做卡片 */}
-        {stats && stats.events7.length > 0 && (
-          <div style={{ marginTop: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'baseline' }}>
-            <span className="eyebrow">{t('admin.events.title')}</span>
-            {stats.events7.map((e) => (
-              <span key={e.name} className="mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-muted)' }}>
-                {e.name} {e.count}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <p className="faint" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.7, marginTop: 24, maxWidth: 720 }}>
-          <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{t('admin.tips.title')}</span>
-          {' · '}
-          {t('admin.tips.body')}
-        </p>
       </div>
+
+      {tab === 'accounts' ? (
+        <div className="data-table">
+          <Table
+            rowKey="id"
+            size="small"
+            columns={accountColumns}
+            dataSource={shown}
+            loading={loadingList}
+            pagination={{ pageSize: 20, showSizeChanger: false }}
+            scroll={{ x: 'max-content' }}
+          />
+        </div>
+      ) : (
+        <div className="data-table">
+          <Table
+            rowKey={(r) => `${r.created_at}-${r.action}-${r.target}`}
+            size="small"
+            columns={auditColumns}
+            dataSource={logs}
+            pagination={{ pageSize: 20, showSizeChanger: false }}
+            scroll={{ x: 'max-content' }}
+          />
+        </div>
+      )}
+
+      {/* 近 7 天行为 + 说明：一行文字，不做卡片 */}
+      {stats && stats.events7.length > 0 && (
+        <div style={{ marginTop: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          <span className="panel-kicker">{t('admin.events.title')}</span>
+          {stats.events7.map((e) => (
+            <span key={e.name} className="mono" style={{ fontSize: 'var(--t-2xs)', color: 'var(--ink-soft)' }}>
+              {e.name} {e.count}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <p
+        style={{
+          fontSize: 'var(--t-xs)',
+          lineHeight: 1.6,
+          marginTop: 24,
+          maxWidth: '62ch',
+          color: 'var(--ink-faint)',
+        }}
+      >
+        <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{t('admin.tips.title')}</span>
+        {' · '}
+        {t('admin.tips.body')}
+      </p>
 
       {/* 重置密码 */}
       <Modal
@@ -570,23 +598,29 @@ export default function AdminPage() {
             <div
               style={{
                 background: 'var(--warning-wash)',
-                border: '1px solid var(--warning)',
-                borderRadius: 'var(--r-2)',
+                border: '2px solid var(--warning)',
                 padding: '8px 12px',
                 marginBottom: 16,
-                fontSize: 'var(--text-xs)',
-                lineHeight: 1.5,
+                fontSize: 'var(--t-xs)',
+                lineHeight: 1.45,
                 color: 'var(--warning)',
               }}
             >
               {t('admin.reset.onceWarn')}
             </div>
-            <div className="surface-sunken" style={{ padding: 12, marginBottom: 12 }}>
-              <div className="faint" style={{ fontSize: 'var(--text-2xs)', marginBottom: 4 }}>
+            <div
+              style={{
+                background: 'var(--panel)',
+                border: '2px solid var(--line)',
+                padding: 12,
+                marginBottom: 12,
+              }}
+            >
+              <div className="panel-kicker" style={{ marginBottom: 6 }}>
                 {resetDone.username}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="mono" style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--ink)' }}>
+                <span className="mono" style={{ fontSize: 'var(--t-md)', fontWeight: 700, color: 'var(--ink)' }}>
                   {resetDone.password}
                 </span>
                 <Button
@@ -598,13 +632,13 @@ export default function AdminPage() {
                 </Button>
               </div>
             </div>
-            <p className="faint" style={{ fontSize: 'var(--text-xs)', margin: 0, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 'var(--t-xs)', margin: 0, lineHeight: 1.5, color: 'var(--ink-faint)' }}>
               {t('admin.reset.afterHint')}
             </p>
           </>
         ) : (
           <>
-            <p className="muted" style={{ fontSize: 'var(--text-sm)', marginTop: 0, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 'var(--t-sm)', marginTop: 0, lineHeight: 1.5, color: 'var(--ink-soft)' }}>
               {t('admin.reset.body')}
             </p>
             <Input.Password
@@ -612,9 +646,8 @@ export default function AdminPage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               maxLength={200}
-              style={{ height: 40, borderRadius: 'var(--r-2)' }}
             />
-            <p className="faint" style={{ fontSize: 'var(--text-xs)', margin: '8px 0 0', lineHeight: 1.6 }}>
+            <p style={{ fontSize: 'var(--t-xs)', margin: '8px 0 0', lineHeight: 1.5, color: 'var(--ink-faint)' }}>
               {t('admin.reset.blankHint')}
             </p>
           </>

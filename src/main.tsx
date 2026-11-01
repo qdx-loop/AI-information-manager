@@ -10,82 +10,80 @@ import App from './App'
 import { initFromSettings } from '@/db/providerFactory'
 import { useAppStore } from '@/store/appStore'
 import { autoSyncManager } from '@/utils/autoSync'
-import { buildTheme, semanticOf, FONT_STACK, MONO_STACK } from '@/theme'
+import { buildTheme, semanticOf, DISPLAY_STACK, BODY_STACK, MONO_STACK } from '@/theme'
 import './styles/index.css'
 
 /**
- * 与主题无关的静态 token（字体/字阶/间距/圆角/尺寸/阴影）。
- * 只注入一次：不随亮暗变化，放主题 effect 里会做无谓重排。
+ * 静态 token（字体/字阶/间距/圆角/尺寸），与亮暗无关，只注入一次。
  *
- * v3『石墨信号』：现代产品感（Linear/Notion/Figma 一类）。
- * 字体：Inter 自托管 latin 子集 + 系统中文链（禁止网络字体）。
+ * v4『硬边印刷 SIGNAL PRESS』：
+ *   Display = Outfit（自托管 latin 子集），Body = Work Sans（自托管 latin 子集），
+ *   Mono = 系统等宽（标签/编号/ID/时间）；中文回退系统黑体。
+ *   零圆角、2px 硬边、硬投影、12 列栅格。
  */
 function injectStaticTokens() {
   const el = document.documentElement
   const vars: Record<string, string> = {
-    '--font-sans': FONT_STACK,
+    '--font-display': DISPLAY_STACK,
+    '--font-body': BODY_STACK,
     '--font-mono': MONO_STACK,
-    // v3 全站去衬线；保留变量名只为旧代码不报错，值等同无衬线
-    '--font-serif': FONT_STACK,
 
-    // 字阶（只允许这 8 档）
-    '--text-2xs': '12px',
-    '--text-xs': '13px',
-    '--text-sm': '14px',
-    '--text-base': '16px',
-    '--text-lg': '20px',
-    '--text-xl': '24px',
-    '--text-2xl': '32px',
-    '--text-3xl': '44px',
-    '--leading-2xs': '1.4',
-    '--leading-xs': '1.45',
-    '--leading-sm': '1.5',
-    '--leading-base': '1.7',
-    '--leading-lg': '1.35',
-    '--leading-xl': '1.3',
-    '--leading-2xl': '1.2',
-    '--leading-3xl': '1.1',
+    // 字阶：8 档 + 3 档展示用（Display 只给标题/大数字）
+    '--t-2xs': '11px',
+    '--t-xs': '12px',
+    '--t-sm': '13px',
+    '--t-base': '15px',
+    '--t-md': '17px',
+    '--t-lg': '20px',
+    '--t-xl': '24px',
+    '--t-2xl': '32px',
+    '--t-3xl': '40px',
+    '--t-4xl': '56px',
+    '--t-5xl': '72px',
+    '--lh-2xs': '1.3',
+    '--lh-xs': '1.35',
+    '--lh-sm': '1.45',
+    '--lh-base': '1.6',
+    '--lh-md': '1.6',
+    '--lh-lg': '1.3',
+    '--lh-xl': '1.2',
+    '--lh-2xl': '1.15',
+    '--lh-3xl': '1.05',
+    '--lh-4xl': '0.98',
+    '--lh-5xl': '0.95',
 
-    // 间距：4 的倍数，页面上只用 4/8/12/16/20/24/32/40/48/64
-    '--space-1': '4px',
-    '--space-2': '8px',
-    '--space-3': '12px',
-    '--space-4': '16px',
-    '--space-5': '20px',
-    '--space-6': '24px',
-    '--space-7': '32px',
-    '--space-8': '40px',
-    '--space-9': '48px',
-    '--space-10': '64px',
+    // 间距：4 的倍数
+    '--s1': '4px',
+    '--s2': '8px',
+    '--s3': '12px',
+    '--s4': '16px',
+    '--s5': '20px',
+    '--s6': '24px',
+    '--s7': '32px',
+    '--s8': '40px',
+    '--s9': '48px',
+    '--s10': '64px',
+    '--s11': '80px',
+    '--s12': '96px',
 
-    // 圆角：4 / 8 / 10 / 12（上限 12；999 仅头像与状态点）
-    '--r-1': '4px',
-    '--r-2': '8px',
-    '--r-3': '10px',
-    '--r-4': '12px',
+    // 圆角：硬边语言，只允许 0/2 与状态点
+    '--r-0': '0px',
+    '--r-1': '2px',
     '--r-pill': '999px',
+    '--bw': '2px',
 
     // 尺寸
-    '--control-h': '36px',
+    '--topbar-h': '64px',
+    '--rail-w': '264px',
+    '--control-h': '40px',
     '--control-h-sm': '32px',
-    '--control-h-lg': '40px',
-    '--row-h': '38px',
+    '--control-h-lg': '48px',
+    '--row-h': '40px',
     '--row-h-sm': '32px',
-    '--row-h-lg': '44px',
-    '--table-head-h': '40px',
-    '--header-h': '52px',
-    '--sider-w': '240px',
-    '--ai-w': '360px',
-    '--content-max': '1120px',
-
-    // 阴影：三级（卡片 / 浮层 / 弹窗）；其余一律无阴影
-    '--shadow-1': '0 1px 2px rgba(16, 24, 40, 0.05)',
-    '--shadow-2': '0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.08)',
-    '--shadow-3': '0 12px 32px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.06)',
-    // 旧名兼容
-    '--shadow-pop': 'var(--shadow-2)',
-    '--shadow-sheet': '0 -1px 0 var(--border), 0 -8px 24px rgba(16, 24, 40, 0.08)',
-    '--app-mono': MONO_STACK,
+    '--row-h-lg': '48px',
+    '--table-head-h': '44px',
+    '--content-max': '1440px',
+    '--ai-w': '400px',
   }
   for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v)
 }
@@ -96,12 +94,11 @@ dayjs.locale(useAppStore.getState().settings.language === 'en' ? 'en' : 'zh-cn')
 initFromSettings(useAppStore.getState().settings)
 
 // —— 白屏保险丝：任何未捕获的启动错误都渲染成可见提示，而不是一片空白 ——
-// 手机端（尤其 iOS Safari/老安卓 WebView）出问题时用户只看到白屏，无法上报原因。
 function renderBootError(err: unknown) {
   const msg = err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err)
   const el = document.getElementById('root')
-  if (!el || el.childElementCount > 0) return // React 已挂载成功则不打扰
-  el.innerHTML = `<div style="font-family:system-ui;padding:32px 20px;color:#b42318;background:#fafafa;min-height:100vh;word-break:break-all">
+  if (!el || el.childElementCount > 0) return
+  el.innerHTML = `<div style="font-family:system-ui;padding:32px 20px;color:#C22A1C;background:#ECE9E0;min-height:100vh;word-break:break-all">
     <h2 style="margin:0 0 12px">页面加载出错</h2>
     <p style="margin:0 0 12px">请截图反馈给管理员。常见解决方式：更新浏览器 / 清除该网站数据后重试。</p>
     <pre style="white-space:pre-wrap;font-size:12px;line-height:1.6">${msg.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string))}</pre>
@@ -119,14 +116,12 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   const lang = useAppStore((s) => s.settings.language ?? 'zh')
   useEffect(() => {
     dayjs.locale(lang === 'en' ? 'en' : 'zh-cn')
-    // 无障碍/读屏/翻译软件按 <html lang> 判断语言。
     document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN'
   }, [lang])
-  // 静态 token 只注入一次
   useEffect(() => {
     injectStaticTokens()
   }, [])
-  // 主题色变量注入 <html>：CSS 只消费变量，不重复写死色值
+  // 主题变量注入 <html>：CSS 只消费变量
   useEffect(() => {
     const mode = themeMode === 'dark' ? 'dark' : 'light'
     const el = document.documentElement
@@ -134,64 +129,78 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     el.style.colorScheme = mode
     const c = semanticOf(mode)
     const vars: Record<string, string> = {
-      // —— v3 新命名 ——
-      '--bg-canvas': c.canvas,
-      '--bg-surface': c.surface,
-      '--bg-sunken': c.sunken,
-      '--bg-raised': c.raised,
-      '--bg-overlay': c.overlay,
+      '--paper': c.paper,
+      '--sheet': c.sheet,
+      '--panel': c.panel,
       '--ink': c.ink,
-      '--ink-muted': c.inkMuted,
+      '--ink-soft': c.inkSoft,
       '--ink-faint': c.inkFaint,
-      '--border': c.border,
-      '--border-strong': c.borderStrong,
-      '--border-rule': c.borderRule,
-      '--accent': c.accent,
-      '--accent-hover': c.accentHover,
-      '--accent-wash': c.accentWash,
-      '--accent-ring': c.accentRing,
-      '--action': c.action,
-      '--action-hover': c.actionHover,
-      '--focus': c.focus,
+      '--line': c.line,
+      '--line-soft': c.lineSoft,
+      '--lime': c.lime,
+      '--lime-hover': c.limeHover,
+      '--lime-wash': c.limeWash,
+      '--signal': c.signal,
       '--danger': c.danger,
       '--danger-wash': c.dangerWash,
       '--success': c.success,
       '--success-wash': c.successWash,
       '--warning': c.warning,
       '--warning-wash': c.warningWash,
+      '--on-lime': c.onLime,
+      '--on-ink': c.onInk,
+      '--overlay': c.overlay,
+      '--shadow-ink': c.shadowInk,
+      '--focus': c.focus,
+      '--shadow-1': `2px 2px 0 ${c.shadowInk}`,
+      '--shadow-2': `4px 4px 0 ${c.shadowInk}`,
+      '--shadow-3': `8px 8px 0 ${c.shadowInk}`,
+      '--shadow-press': `1px 1px 0 ${c.shadowInk}`,
 
-      // —— 旧变量名兼容映射（旧页面/第三方片段仍可能引用） ——
-      '--app-surface': c.surface,
-      '--app-surface-sunken': c.sunken,
-      '--app-surface-raised': c.raised,
-      '--app-canvas': c.canvas,
+      // —— 过渡期兼容：旧页面在重排完成前仍会引用 v2/v3 变量，全部映射到 v4 ——
+      '--app-surface': c.sheet,
+      '--app-surface-sunken': c.panel,
+      '--app-surface-raised': c.sheet,
+      '--app-canvas': c.paper,
       '--app-overlay': c.overlay,
       '--app-ink': c.ink,
-      '--app-ink-soft': c.inkMuted,
+      '--app-ink-soft': c.inkSoft,
       '--app-ink-faint': c.inkFaint,
-      '--app-border': c.border,
-      '--app-border-strong': c.borderStrong,
-      '--app-border-soft': c.borderRule,
-      '--app-rule': c.borderRule,
-      '--app-accent': c.accent,
-      '--app-accent-text': c.accent,
-      '--app-accent-wash': c.accentWash,
-      '--app-action': c.action,
-      '--app-action-hover': c.actionHover,
+      '--app-border': c.line,
+      '--app-border-strong': c.line,
+      '--app-border-soft': c.lineSoft,
+      '--app-rule': c.lineSoft,
+      '--app-accent': c.lime,
+      '--app-accent-text': c.ink,
+      '--app-accent-wash': c.limeWash,
+      '--app-action': c.ink,
+      '--app-action-hover': c.signal,
+      '--app-focus': c.focus,
+      '--app-danger': c.danger,
+      '--app-danger-wash': c.dangerWash,
       '--app-success': c.success,
       '--app-warning': c.warning,
       '--app-warning-wash': c.warningWash,
-      '--app-danger': c.danger,
-      '--app-danger-wash': c.dangerWash,
-      '--app-focus': c.focus,
-      '--app-glaze': c.accent,
-      '--app-glaze-text': c.accent,
-      '--app-glaze-soft': c.accentWash,
-      '--app-glaze-soft-strong': c.sunken,
-      '--app-kiln': c.warning,
-      '--app-kiln-text': c.warning,
+      '--app-glaze': c.lime,
+      '--app-glaze-text': c.ink,
+      '--app-glaze-soft': c.limeWash,
+      '--app-glaze-soft-strong': c.panel,
+      '--app-kiln': c.signal,
+      '--app-kiln-text': c.signal,
       '--app-kiln-wash': c.warningWash,
-      '--app-pinned-wash': c.accentWash,
+      '--app-pinned-wash': c.limeWash,
+      '--bg-canvas': c.paper,
+      '--bg-surface': c.sheet,
+      '--bg-sunken': c.panel,
+      '--bg-raised': c.sheet,
+      '--border': c.line,
+      '--border-strong': c.line,
+      '--border-rule': c.lineSoft,
+      '--accent': c.lime,
+      '--accent-hover': c.limeHover,
+      '--accent-wash': c.limeWash,
+      '--action': c.ink,
+      '--action-hover': c.signal,
     }
     for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v)
     c.series.forEach((col, i) => {

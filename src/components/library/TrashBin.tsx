@@ -1,24 +1,22 @@
 import { useEffect } from 'react'
 import { Table, Button, Popconfirm, App } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { InfoCircleOutlined, DeleteOutlined, UndoOutlined } from '@ant-design/icons'
+import { InfoCircleOutlined, UndoOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useLibraryStore } from '@/store/libraryStore'
 import type { TrashEntry } from '@/types'
 import { useI18n, tNow } from '@/i18n'
 import { TRASH_RETENTION_DAYS } from '@/utils/retentionDays'
 import EmptyPanel from './EmptyPanel'
-import { usePagePadding } from './pageFrame'
 
 /**
- * 回收站：白卡表格（类型 / 名称 / 所属库 / 删除时间 / 剩余天数 / 操作）。
+ * 回收站（v4 SIGNAL PRESS）：page-head + `.data-table` 硬边表格（行 40）。
  *
- * v3：页面标题 24 + 计数，说明是一行 13 muted（不是 Alert 色块），
- * 「剩余天数」用 .status-pill（≤3 天是 warning 变体），类型退成一列淡文字。
+ * 剩余天数用 `.status-pill`（≤3 天 warning / 其他 neutral）；类型用 mono 小标签；
+ * 说明是一行 13 文字 + signal 色 dot，不是柔和 Alert。恢复/永久删除逻辑不变。
  */
 export default function TrashBin() {
   const { message } = App.useApp()
-  const pad = usePagePadding()
   const { trash, loadTrash, restoreLibrary, purgeLibrary, restoreItem, purgeItem } =
     useLibraryStore()
   const t = useI18n()
@@ -51,19 +49,13 @@ export default function TrashBin() {
   const remainingDays = (deletedAt: number): number =>
     Math.max(0, TRASH_RETENTION_DAYS - dayjs().startOf('day').diff(dayjs(deletedAt).startOf('day'), 'day'))
 
-  /** 单元格统一 20px 行盒：14px 文字 + 上下 padding 8 + 1px 行线 = 37，行高钉在 38 */
-  const CELL_LINE_HEIGHT = '20px'
-
   const columns: ColumnsType<TrashEntry> = [
     {
       title: t('lib.trash.col.type'),
       dataIndex: 'kind',
-      width: 100,
-      onHeaderCell: () => ({ style: { height: 40 } }),
-      onCell: () => ({ style: { lineHeight: CELL_LINE_HEIGHT } }),
-      // 类型用文字不用药丸 Tag：两种颜色在这里只是装饰
+      width: 112,
       render: (k: string) => (
-        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>
+        <span className="tag-mono">
           {k === 'library' ? t('lib.trash.kind.library') : t('lib.trash.kind.item')}
         </span>
       ),
@@ -71,8 +63,6 @@ export default function TrashBin() {
     {
       title: t('lib.trash.col.name'),
       key: 'name',
-      onHeaderCell: () => ({ style: { height: 40 } }),
-      onCell: () => ({ style: { lineHeight: CELL_LINE_HEIGHT } }),
       render: (_, entry) => {
         const text =
           entry.kind === 'library'
@@ -82,9 +72,7 @@ export default function TrashBin() {
                 return vals.length ? vals.join(' / ') : t('lib.trash.emptyItem')
               })()
         return (
-          <span
-            style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}
-          >
+          <span style={{ display: 'block', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {text}
           </span>
         )
@@ -93,10 +81,8 @@ export default function TrashBin() {
     {
       title: t('lib.trash.col.library'),
       key: 'lib',
-      onHeaderCell: () => ({ style: { height: 40 } }),
-      onCell: () => ({ style: { lineHeight: CELL_LINE_HEIGHT } }),
       render: (_, entry) => (
-        <span className="faint" style={{ fontSize: 'var(--text-xs)' }}>
+        <span style={{ fontSize: 'var(--t-xs)', color: 'var(--ink-soft)' }}>
           {entry.kind === 'item' ? entry.libraryName || t('lib.trash.orphanLib') : '—'}
         </span>
       ),
@@ -104,27 +90,27 @@ export default function TrashBin() {
     {
       title: t('lib.trash.col.time'),
       dataIndex: 'deletedAt',
-      width: 168,
-      onHeaderCell: () => ({ style: { height: 40, textAlign: 'right' } }),
-      onCell: () => ({ style: { textAlign: 'right', lineHeight: CELL_LINE_HEIGHT } }),
+      width: 180,
+      onHeaderCell: () => ({ style: { textAlign: 'right' } }),
+      onCell: () => ({ style: { textAlign: 'right' } }),
       render: (v: number) => (
-        <span className="mono tabular" style={{ fontSize: 'var(--text-xs)' }}>{dayjs(v).format('YYYY-MM-DD HH:mm')}</span>
+        <span className="mono tabular" style={{ fontSize: 'var(--t-xs)' }}>{dayjs(v).format('YYYY-MM-DD HH:mm')}</span>
       ),
     },
     {
       title: t('lib.trash.col.remaining'),
       key: 'remaining',
-      width: 120,
-      onHeaderCell: () => ({ style: { height: 40, textAlign: 'right' } }),
-      onCell: () => ({ style: { textAlign: 'right', lineHeight: CELL_LINE_HEIGHT } }),
+      width: 128,
+      onHeaderCell: () => ({ style: { textAlign: 'right' } }),
+      onCell: () => ({ style: { textAlign: 'right' } }),
       render: (_, entry) => {
         const days = remainingDays(entry.deletedAt)
-        // 剩 3 天内是「临期」：warning 色片；其余中性色片
+        // 剩 3 天内是「临期」：warning 色片；其余 neutral
         return (
           <span
-            className={`status-pill ${days <= 3 ? 'is-warning' : ''}`}
-            // pill 默认 22px 高会把 38px 行撑到 39：压到 20px 行盒
-            style={{ lineHeight: '20px', padding: '0 8px' }}
+            className={`status-pill ${days <= 3 ? 'is-warning' : 'is-neutral'}`}
+            // 22px pill 用 -1px 负 margin 压进 40px 行高
+            style={{ margin: '-1px 0' }}
           >
             {days} {t('lib.trash.days')}
           </span>
@@ -132,14 +118,13 @@ export default function TrashBin() {
       },
     },
     {
-      title: t('lib.trash.col.actions'),
+      title: '',
       key: 'action',
-      width: 172,
-      onHeaderCell: () => ({ style: { height: 40, textAlign: 'right' } }),
-      onCell: () => ({ style: { textAlign: 'right', lineHeight: CELL_LINE_HEIGHT } }),
+      width: 188,
+      fixed: 'right',
       render: (_, entry) => (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, margin: '-6px 0' }}>
-          <Button size="small" type="default" icon={<UndoOutlined />} onClick={() => handleRestore(entry)}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '-6px 0' }}>
+          <Button size="small" icon={<UndoOutlined />} onClick={() => handleRestore(entry)}>
             {t('lib.trash.restore')}
           </Button>
           <Popconfirm
@@ -148,7 +133,7 @@ export default function TrashBin() {
             okButtonProps={{ danger: true }}
             onConfirm={() => handlePurge(entry)}
           >
-            <Button size="small" type="text" danger icon={<DeleteOutlined />}>
+            <Button size="small" type="text" danger>
               {t('lib.trash.purgeOk')}
             </Button>
           </Popconfirm>
@@ -158,19 +143,22 @@ export default function TrashBin() {
   ]
 
   return (
-    <div style={{ ...pad, height: '100%' }}>
-      {/* 页面头：24 标题 + 计数；说明是一行 13px muted 文字，不是 Alert 色块 */}
+    <div className="workbench">
+      {/* 页头：kicker + Outfit 800 标题 + count-chip */}
       <div className="page-head">
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-          <h1 className="page-title">{t('lib.trash.title')}</h1>
-          <span className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-            <span className="tabular">{trash.length}</span> {t('lib.count.unit')}
-          </span>
+        <div className="page-head-main">
+          <div className="page-kicker">{t('lib.trash.kicker')}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <h1 className="page-title">{t('lib.trash.title')}</h1>
+            <span className="count-chip">{trash.length} {t('lib.count.unit')}</span>
+          </div>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, margin: '0 0 16px' }}>
-        <InfoCircleOutlined style={{ fontSize: 14, color: 'var(--ink-faint)', flexShrink: 0, marginTop: 3 }} aria-hidden />
-        <span className="muted" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
+      <div className="page-bar" />
+
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 'var(--s4)' }}>
+        <InfoCircleOutlined style={{ fontSize: 14, color: 'var(--signal)', flexShrink: 0, marginTop: 3 }} aria-hidden />
+        <span className="field-hint" style={{ lineHeight: 1.5 }}>
           {t('lib.trash.notice')}
         </span>
       </div>
@@ -183,9 +171,12 @@ export default function TrashBin() {
             rowKey={(r) => `${r.kind}-${r.record.id}`}
             columns={columns}
             dataSource={trash}
-            onHeaderRow={() => ({ style: { height: 40 } })}
-            onRow={() => ({ style: { height: 38, fontSize: 'var(--text-sm)' } })}
-            pagination={{ pageSize: 20, showTotal: (n) => t('lib.total', { n }) }}
+            scroll={{ x: 'max-content' }}
+            onRow={() => ({ style: { height: 40 } })}
+            pagination={{
+              pageSize: 20,
+              showTotal: (n) => <span className="table-count">{t('lib.total', { n })}</span>,
+            }}
           />
         </div>
       )}

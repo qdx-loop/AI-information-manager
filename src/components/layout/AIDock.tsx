@@ -205,14 +205,9 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           </div>
         )}
         <header className="ai-dock-head">
+          <span className="ai-mono-mark">AI</span>
           <span className="ai-dock-title">{t('app.aiAssistant')}</span>
-          {/^Mac|iP(hone|ad)/.test(navigator.platform) ? <span className="app-foot-kbd">⌘J</span> : null}
-          {running && (
-            <span className="ai-dock-running" title={t('ai.runningInBackground')}>
-              <span className="ai-pulse" />
-              <span className="ai-dock-running-text">{t('ai.running')}</span>
-            </span>
-          )}
+          <span className={`ai-dock-status${running ? '' : ' is-idle'}`} aria-hidden />
           <span style={{ flex: 1 }} />
           <Tooltip title={t('ai.collapse')}>
             <Button

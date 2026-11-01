@@ -37,11 +37,11 @@ export interface ChartPayload {
   option: Record<string, unknown>
 }
 
-// TOKENS-v3 §2.4：弹窗标题 20/600、副标 12 muted、页脚 mono 12
+// v4 §2：弹窗标题 24/700（Outfit）、mono kicker 11、页脚 mono 11
 const T = {
-  title: 'var(--text-lg)',
-  xs: 'var(--text-xs)',
-  mono: 'var(--text-2xs)',
+  title: 'var(--t-xl)',
+  xs: 'var(--t-xs)',
+  mono: 'var(--t-2xs)',
 }
 
 /** canvas 不解析 CSS 变量，画之前把 v3 token 读成具体值 */
@@ -49,13 +49,13 @@ function readTokens() {
   const cs = typeof document !== 'undefined' ? getComputedStyle(document.documentElement) : null
   const v = (name: string) => (cs?.getPropertyValue(name) ?? '').trim()
   return {
-    fontSans: v('--font-sans'),
+    fontSans: v('--font-body'),
     ink: v('--ink'),
-    inkMuted: v('--ink-muted'),
-    borderRule: v('--border-rule'),
-    border: v('--border'),
-    surface: v('--bg-surface'),
-    raised: v('--bg-raised'),
+    inkSoft: v('--ink-soft'),
+    lineSoft: v('--line-soft'),
+    line: v('--line'),
+    surface: v('--sheet'),
+    raised: v('--sheet'),
   }
 }
 
@@ -72,17 +72,17 @@ function paintAxis(axis: unknown, tk: ReturnType<typeof readTokens>): unknown {
   const a = axis as AxisLike
   return {
     ...a,
-    axisLine: { ...(a.axisLine ?? {}), lineStyle: { ...((a.axisLine?.lineStyle as object) ?? {}), color: tk.borderRule } },
-    axisLabel: { ...(a.axisLabel ?? {}), color: tk.inkMuted, fontFamily: tk.fontSans },
-    splitLine: { ...(a.splitLine ?? {}), lineStyle: { ...((a.splitLine?.lineStyle as object) ?? {}), color: tk.borderRule } },
-    nameTextStyle: { ...(a.nameTextStyle ?? {}), color: tk.inkMuted, fontFamily: tk.fontSans },
+    axisLine: { ...(a.axisLine ?? {}), lineStyle: { ...((a.axisLine?.lineStyle as object) ?? {}), color: tk.lineSoft } },
+    axisLabel: { ...(a.axisLabel ?? {}), color: tk.inkSoft, fontFamily: tk.fontSans },
+    splitLine: { ...(a.splitLine ?? {}), lineStyle: { ...((a.splitLine?.lineStyle as object) ?? {}), color: tk.lineSoft } },
+    nameTextStyle: { ...(a.nameTextStyle ?? {}), color: tk.inkSoft, fontFamily: tk.fontSans },
   }
 }
 
 /**
  * house style + v3 视觉约束：
- * - 关闭入场动画（TOKENS-v3 §4 动效：只允许交互过渡）
- * - 网格线 `--border-rule`、坐标/图例文字 `--ink-muted`、图例无底色
+ * - 关闭入场动画（v4 §9 动效：只允许交互过渡）
+ * - 网格线 `--line-soft`、坐标/图例文字 `--ink-soft`、图例无底色
  * - 字体换 v3 系统字链（chartStyle 内部写死了旧字链，这里统一覆盖）
  */
 function paperOption(option: Record<string, unknown>, dark: boolean): Record<string, unknown> {
@@ -92,7 +92,7 @@ function paperOption(option: Record<string, unknown>, dark: boolean): Record<str
   return {
     ...styled,
     animation: false,
-    textStyle: { ...(styled.textStyle as object), fontFamily: tk.fontSans, color: tk.inkMuted },
+    textStyle: { ...(styled.textStyle as object), fontFamily: tk.fontSans, color: tk.inkSoft },
     xAxis: paintAxis(styled.xAxis, tk),
     yAxis: paintAxis(styled.yAxis, tk),
     ...(legend
@@ -103,7 +103,7 @@ function paperOption(option: Record<string, unknown>, dark: boolean): Record<str
             borderWidth: 0,
             textStyle: {
               ...((legend.textStyle as object) ?? {}),
-              color: tk.inkMuted,
+              color: tk.inkSoft,
               fontFamily: tk.fontSans,
             },
           },
@@ -112,15 +112,16 @@ function paperOption(option: Record<string, unknown>, dark: boolean): Record<str
     tooltip: {
       ...((styled.tooltip as object) ?? {}),
       backgroundColor: tk.raised || tk.surface,
-      borderColor: tk.border,
+      borderColor: tk.line,
       textStyle: { ...(((styled.tooltip as { textStyle?: object })?.textStyle) ?? {}), color: tk.ink },
     },
   }
 }
 
 /**
- * 图表弹窗（v3：白卡、标题 20/600 + 12 muted 副标、图表区白底、
- * 网格线 `--border-rule`、无入场动画、底部 mono 12「数据来源 · 生成时间」）。
+ * 图表弹窗（v4：840 sheet + 2px ink + shadow-3、标题 Outfit 700 24 + mono kicker、
+ * 图表区纸面白底、网格线 `--line-soft`、轴文字 `--ink-soft`、无入场动画、
+ * 底部 mono 11「数据来源 · 生成时间」）。
  */
 export default function ChartModal({
   payload,
@@ -229,15 +230,34 @@ export default function ChartModal({
       // 标题在弹窗头部，ECharts 里不再重复画一遍
       title={
         <div>
-          <div style={{ fontSize: T.title, fontWeight: 600, lineHeight: 1.35, color: 'var(--ink)' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: T.title,
+              fontWeight: 700,
+              lineHeight: 1.2,
+              letterSpacing: '-0.025em',
+              color: 'var(--ink)',
+            }}
+          >
             {payload?.title ?? ''}
           </div>
-          <div style={{ fontSize: T.mono, lineHeight: 1.4, color: 'var(--ink-muted)', marginTop: 2 }}>
+          <div
+            style={{
+              marginTop: 'var(--s1)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: T.mono,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--ink-faint)',
+            }}
+          >
             {t('ai.chart.defaultName')}
           </div>
         </div>
       }
-      width="min(880px, 92vw)"
+      width={840}
       onCancel={onClose}
       afterOpenChange={(open) => open && setReady(true)}
       footer={
@@ -245,8 +265,8 @@ export default function ChartModal({
           style={{
             display: 'flex',
             justifyContent: 'flex-end',
-            gap: 'var(--space-2)',
-            marginTop: 'var(--space-1)',
+            gap: 'var(--s2)',
+            marginTop: 'var(--s1)',
           }}
         >
           <Button type="text" onClick={onClose}>
@@ -262,7 +282,7 @@ export default function ChartModal({
         {/* 图表区：白底、无边框；网格线/文字色在 paperOption 里强制成 v3 token */}
         <div
           ref={chartDivRef}
-          style={{ width: '100%', height: 460, background: 'var(--bg-surface)' }}
+          style={{ width: '100%', height: 460, background: 'var(--sheet)' }}
         />
         {loading && (
           <div
@@ -273,7 +293,7 @@ export default function ChartModal({
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: T.xs,
-              color: 'var(--ink-muted)',
+              color: 'var(--ink-soft)',
             }}
           >
             {t('ai.chart.loading')}
@@ -283,9 +303,9 @@ export default function ChartModal({
       <div
         className="mono"
         style={{
-          marginTop: 'var(--space-2)',
-          paddingTop: 'var(--space-2)',
-          borderTop: '1px solid var(--border-rule)',
+          marginTop: 'var(--s2)',
+          paddingTop: 'var(--s2)',
+          borderTop: '1px solid var(--line-soft)',
           fontSize: T.mono,
           letterSpacing: '0.02em',
           color: 'var(--ink-faint)',

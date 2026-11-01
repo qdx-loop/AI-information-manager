@@ -65,21 +65,21 @@ export function readChartTokens(dark: boolean): ChartTokens {
   const cs = getComputedStyle(document.documentElement)
   const v = (n: string, fb: string) => (cs.getPropertyValue(n) || '').trim() || fb
   const series: string[] = []
-  for (let i = 0; i < 5; i++) series.push(v(`--app-series-${i}`, '#009E73'))
+  for (let i = 0; i < 5; i++) series.push(v(`--chart-${i + 1}`, '#009E73'))
   return {
-    ink: v('--app-ink', '#1F2328'),
-    inkSoft: v('--app-ink-soft', '#4E5866'),
-    inkFaint: v('--app-ink-faint', dark ? '#727C87' : '#66717E'),
-    border: v('--app-border', dark ? '#2B3137' : '#D3D9DE'),
-    borderSoft: v('--app-border-soft', dark ? '#23282D' : '#E3E8EC'),
-    surface: v('--app-surface', '#FFFFFF'),
-    canvas: v('--app-canvas', '#F5F7F8'),
-    danger: v('--app-danger', dark ? '#F4785F' : '#C5351F'),
+    ink: v('--ink', '#141412'),
+    inkSoft: v('--ink-soft', '#57544B'),
+    inkFaint: v('--ink-faint', dark ? '#938F83' : '#676358'),
+    border: v('--line-soft', dark ? '#3A3A33' : '#C9C4B5'),
+    borderSoft: v('--line-soft', dark ? '#3A3A33' : '#C9C4B5'),
+    surface: v('--sheet', '#FFFEF9'),
+    canvas: v('--paper', '#ECE9E0'),
+    danger: v('--danger', dark ? '#FF6B5A' : '#C22A1C'),
     series,
     // 图表文字跟随应用的系统字链（不再引用 Plus Jakarta Sans：它既未随包分发，
     // 也不在用户的系统字体里，写了等于静默回退）。中文由系统黑体渲染，数字用 tabular。
     font:
-      "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
+      "Outfit, 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
   }
 }
 

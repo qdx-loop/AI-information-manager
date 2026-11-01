@@ -202,7 +202,9 @@ export interface AdminAccountRow extends ServerAccount {
 }
 
 export async function adminListAccounts(): Promise<AdminAccountRow[]> {
-  return (await adminRequest<{ accounts: AdminAccountRow[] }>('/api/admin/accounts')).accounts
+  const data = await adminRequest<{ accounts?: AdminAccountRow[] }>('/api/admin/accounts')
+  // API 异常/被 SPA fallback 劫持时也要返回数组，避免管理页在 .filter 上崩溃
+  return Array.isArray(data.accounts) ? data.accounts : []
 }
 
 export type AdminOp =
