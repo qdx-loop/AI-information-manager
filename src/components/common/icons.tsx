@@ -1,22 +1,26 @@
 /**
- * Lucide 图标适配层（Nova Editorial）
+ * Fluent System Icons 适配层（Windows 11 / Fluent UI React v9）
  *
- * 图标规范：全站统一 Lucide（1.8px 线宽，16/18/20 尺寸）。
- * 历史代码里图标以 Ant Design 命名引用；这里提供同名轻量包装，
- * 避免逐文件重写 JSX、同时保证线宽与视觉一致——不改变任何交互。
+ * 规范：官方 `@fluentui/react-icons`（Segoe Fluent Icons 语义、Regular 线型）。
+ * 历史代码以 Ant Design 命名引用图标；这里做同名映射，保证 18 个业务文件
+ * 无需重写 JSX 就能统一到 Fluent 图标，同时保留 size/spin/rotate/onClick 语义。
  */
 import type { CSSProperties, MouseEventHandler } from 'react'
-import type { LucideIcon } from 'lucide-react'
 import {
-  BookOpen, LayoutGrid, ArrowLeft, ArrowRight, Car, CircleCheck, Check,
-  SquareCheck, X, Cloud, CloudCog, Copy, Database, Trash2, ChevronDown,
-  Download, Pencil, FileUp, FileDown, FileText, Globe, Heart, History,
-  GripVertical, Home, IdCard, Inbox, Info, KeyRound, Link, Mail, Pill,
-  MessageSquare, Moon, MoreHorizontal, Paperclip, Phone, Image, Plus,
-  CircleHelp, RefreshCw, ChevronRight, Bot, Undo2, BadgeCheck, ShieldCheck,
-  Save, Search, Send, Settings, Star, Ban, Sun, ArrowLeftRight, Users,
-  Upload, TriangleAlert,
-} from 'lucide-react'
+  BookRegular, GridRegular, ArrowLeftRegular, ArrowRightRegular, VehicleCarRegular,
+  CheckmarkCircleRegular, CheckmarkRegular, CheckboxCheckedRegular, CheckmarkSquareRegular,
+  DismissRegular, CloudRegular, CloudSyncRegular, CopyRegular, DatabaseRegular,
+  DeleteRegular, ChevronDownRegular, ArrowDownloadRegular, EditRegular, ArrowExportUpRegular,
+  DocumentRegular, GlobeRegular, HeartRegular, HistoryRegular, ReOrderDotsVerticalRegular,
+  HomeRegular, ContactCardRegular, ArrowImportRegular, MailInboxRegular, InfoRegular,
+  KeyRegular, LinkRegular, MailRegular, PillRegular, ChatRegular, WeatherMoonRegular,
+  MoreHorizontalRegular, AttachRegular, PhoneRegular, ImageRegular, AddRegular,
+  QuestionCircleRegular, ArrowClockwiseRegular, ChevronRightRegular, BotRegular,
+  ArrowUndoRegular, ShieldCheckmarkRegular, ShieldRegular, SaveRegular, SearchRegular,
+  SendRegular, SettingsRegular, StarRegular, ProhibitedRegular, WeatherSunnyRegular,
+  ArrowSwapRegular, ArrowSyncRegular, PeopleRegular, ArrowUploadRegular, WarningRegular,
+} from '@fluentui/react-icons'
+import type { FluentIcon } from '@fluentui/react-icons'
 
 export interface AntIconProps {
   size?: number
@@ -31,8 +35,8 @@ export interface AntIconProps {
   'aria-hidden'?: boolean
 }
 
-function make(Icon: LucideIcon, defaultSize = 16) {
-  return function NovaIcon({
+function make(Icon: FluentIcon, defaultSize = 16) {
+  return function FluentIcon({
     size = defaultSize,
     spin,
     rotate,
@@ -46,11 +50,9 @@ function make(Icon: LucideIcon, defaultSize = 16) {
   }: AntIconProps) {
     return (
       <Icon
-        size={size}
-        strokeWidth={1.8}
-        color={color}
+        fontSize={size}
         className={[className, spin ? 'icon-spin' : ''].filter(Boolean).join(' ') || undefined}
-        style={{ ...style, ...(rotate ? { transform: `rotate(${rotate}deg)` } : {}) }}
+        style={{ ...style, ...(color ? { color } : {}), ...(rotate ? { transform: `rotate(${rotate}deg)` } : {}) }}
         onClick={onClick}
         aria-label={title ?? ariaLabel}
         aria-hidden={ariaHidden}
@@ -59,62 +61,63 @@ function make(Icon: LucideIcon, defaultSize = 16) {
   }
 }
 
-export const AccountBookOutlined = make(BookOpen)
-export const AppstoreOutlined = make(LayoutGrid)
-export const ArrowLeftOutlined = make(ArrowLeft)
-export const ArrowRightOutlined = make(ArrowRight)
-export const CarOutlined = make(Car)
-export const CheckCircleOutlined = make(CircleCheck)
-export const CheckOutlined = make(Check)
-export const CheckSquareOutlined = make(SquareCheck)
-export const CloseOutlined = make(X)
-export const CloudOutlined = make(Cloud)
-export const CloudSyncOutlined = make(CloudCog)
-export const CopyOutlined = make(Copy)
-export const DatabaseOutlined = make(Database)
-export const DeleteOutlined = make(Trash2)
-export const DownOutlined = make(ChevronDown)
-export const DownloadOutlined = make(Download)
-export const EditOutlined = make(Pencil)
-export const ExportOutlined = make(FileUp)
-export const FileTextOutlined = make(FileText)
-export const GlobalOutlined = make(Globe)
-export const HeartOutlined = make(Heart)
-export const HistoryOutlined = make(History)
-export const HolderOutlined = make(GripVertical)
-export const HomeOutlined = make(Home)
-export const IdcardOutlined = make(IdCard)
-export const ImportOutlined = make(FileDown)
-export const InboxOutlined = make(Inbox)
-export const InfoCircleOutlined = make(Info)
-export const KeyOutlined = make(KeyRound)
-export const LinkOutlined = make(Link)
-export const MailOutlined = make(Mail)
-export const MedicineBoxOutlined = make(Pill)
-export const MessageOutlined = make(MessageSquare)
-export const MoonOutlined = make(Moon)
-export const MoreOutlined = make(MoreHorizontal)
-export const PaperClipOutlined = make(Paperclip)
-export const PhoneOutlined = make(Phone)
-export const PictureOutlined = make(Image)
-export const PlusOutlined = make(Plus)
-export const QuestionCircleOutlined = make(CircleHelp)
-export const ReloadOutlined = make(RefreshCw)
-export const RightOutlined = make(ChevronRight)
-export const RobotOutlined = make(Bot)
-export const RollbackOutlined = make(Undo2)
-export const SafetyCertificateOutlined = make(BadgeCheck)
-export const SafetyOutlined = make(ShieldCheck)
-export const SaveOutlined = make(Save)
-export const SearchOutlined = make(Search)
-export const SendOutlined = make(Send)
-export const SettingOutlined = make(Settings)
-export const StarOutlined = make(Star)
-export const StopOutlined = make(Ban)
-export const SunOutlined = make(Sun)
-export const SwapOutlined = make(ArrowLeftRight)
-export const SyncOutlined = make(RefreshCw)
-export const TeamOutlined = make(Users)
-export const UndoOutlined = make(Undo2)
-export const UploadOutlined = make(Upload)
-export const WarningOutlined = make(TriangleAlert)
+export const AccountBookOutlined = make(BookRegular)
+export const AppstoreOutlined = make(GridRegular)
+export const ArrowLeftOutlined = make(ArrowLeftRegular)
+export const ArrowRightOutlined = make(ArrowRightRegular)
+export const CarOutlined = make(VehicleCarRegular)
+export const CheckCircleOutlined = make(CheckmarkCircleRegular)
+export const CheckOutlined = make(CheckmarkRegular)
+export const CheckSquareOutlined = make(CheckboxCheckedRegular)
+export const CloseOutlined = make(DismissRegular)
+export const CloudOutlined = make(CloudRegular)
+export const CloudSyncOutlined = make(CloudSyncRegular)
+export const CopyOutlined = make(CopyRegular)
+export const DatabaseOutlined = make(DatabaseRegular)
+export const DeleteOutlined = make(DeleteRegular)
+export const DownOutlined = make(ChevronDownRegular)
+export const DownloadOutlined = make(ArrowDownloadRegular)
+export const EditOutlined = make(EditRegular)
+export const ExportOutlined = make(ArrowExportUpRegular)
+export const FileTextOutlined = make(DocumentRegular)
+export const GlobalOutlined = make(GlobeRegular)
+export const HeartOutlined = make(HeartRegular)
+export const HistoryOutlined = make(HistoryRegular)
+export const HolderOutlined = make(ReOrderDotsVerticalRegular)
+export const HomeOutlined = make(HomeRegular)
+export const IdcardOutlined = make(ContactCardRegular)
+export const ImportOutlined = make(ArrowImportRegular)
+export const InboxOutlined = make(MailInboxRegular)
+export const InfoCircleOutlined = make(InfoRegular)
+export const KeyOutlined = make(KeyRegular)
+export const LinkOutlined = make(LinkRegular)
+export const MailOutlined = make(MailRegular)
+export const MedicineBoxOutlined = make(PillRegular)
+export const MessageOutlined = make(ChatRegular)
+export const MoonOutlined = make(WeatherMoonRegular)
+export const MoreOutlined = make(MoreHorizontalRegular)
+export const PaperClipOutlined = make(AttachRegular)
+export const PhoneOutlined = make(PhoneRegular)
+export const PictureOutlined = make(ImageRegular)
+export const PlusOutlined = make(AddRegular)
+export const QuestionCircleOutlined = make(QuestionCircleRegular)
+export const ReloadOutlined = make(ArrowClockwiseRegular)
+export const RightOutlined = make(ChevronRightRegular)
+export const RobotOutlined = make(BotRegular)
+export const RollbackOutlined = make(ArrowUndoRegular)
+export const SafetyCertificateOutlined = make(ShieldCheckmarkRegular)
+export const SafetyOutlined = make(ShieldRegular)
+export const SaveOutlined = make(SaveRegular)
+export const SearchOutlined = make(SearchRegular)
+export const SendOutlined = make(SendRegular)
+export const SettingOutlined = make(SettingsRegular)
+export const StarOutlined = make(StarRegular)
+export const StopOutlined = make(ProhibitedRegular)
+export const SunOutlined = make(WeatherSunnyRegular)
+export const SwapOutlined = make(ArrowSwapRegular)
+export const SyncOutlined = make(ArrowSyncRegular)
+export const TeamOutlined = make(PeopleRegular)
+export const UndoOutlined = make(ArrowUndoRegular)
+export const UploadOutlined = make(ArrowUploadRegular)
+export const WarningOutlined = make(WarningRegular)
+export { CheckmarkSquareRegular }

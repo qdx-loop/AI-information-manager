@@ -430,6 +430,10 @@ export default function AuthPage() {
 
       {/* 右：骨白画布 + 表单卡 */}
       <main className="auth-form-side">
+        <div className="auth-signin-brand">
+          <span className="rail-mark" aria-hidden />
+          <span>{t('auth.brand')}</span>
+        </div>
         <div className="auth-card">
           <div className="auth-card-head">
             <h2 className="auth-card-title">{t('auth.welcome')}</h2>
@@ -453,6 +457,9 @@ export default function AuthPage() {
           </div>
           {/* 刻意不放「管理员入口」：/admin 由运营方单独告知地址，
               出现在用户界面会让普通用户误点后看到「无权访问」。 */}
+        </div>
+        <div className="auth-signin-foot">
+          <span>LOCAL-FIRST</span><span aria-hidden>·</span><span>WINDOWS 11 MICA</span><span aria-hidden>·</span><span>aiim.de5.net</span>
         </div>
       </main>
     </div>

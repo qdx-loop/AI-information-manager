@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Spin, Tooltip } from 'antd'
-import { X, PanelRightClose, ChevronDown } from 'lucide-react'
+import { DismissRegular, PanelRightContractRegular, ChevronDownRegular } from '@fluentui/react-icons'
 import { useAiUiStore, AI_DOCK_MIN, AI_DOCK_MAX } from '@/store/aiUiStore'
 import { useI18n } from '@/i18n'
 import { useBackButtonLayer } from '@/utils/backButton'
@@ -140,7 +140,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           aria-label={t('common.close')}
           title={t('common.close')}
         >
-          <X size={17} strokeWidth={1.8} />
+          <DismissRegular fontSize={17} />
         </Button>
       </aside>
     )
@@ -212,7 +212,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
               onClick={() => setCollapsed(true)}
               aria-label={t('ai.collapse')}
             >
-              {isSheet ? <ChevronDown size={17} strokeWidth={1.8} /> : <PanelRightClose size={17} strokeWidth={1.8} />}
+              {isSheet ? <ChevronDownRegular fontSize={17} /> : <PanelRightContractRegular fontSize={17} />}
             </Button>
           </Tooltip>
           <Tooltip title={t('common.close')}>
@@ -222,7 +222,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
               onClick={() => setOpen(false)}
               aria-label={t('common.close')}
             >
-              <X size={17} strokeWidth={1.8} />
+              <DismissRegular fontSize={17} />
             </Button>
           </Tooltip>
         </header>

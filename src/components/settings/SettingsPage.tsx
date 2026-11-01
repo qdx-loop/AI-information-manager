@@ -269,21 +269,21 @@ export default function SettingsPage() {
                     className="index-row"
                     onClick={() => select(it.key as TabKey)}
                     style={{
-                      background: active ? 'var(--text)' : undefined,
-                      color: active ? 'var(--bg)' : undefined,
+                      background: active ? 'var(--surface-2)' : undefined,
+                      color: active ? 'var(--text)' : undefined,
                       borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
                     }}
                   >
                     <span
                       className="index-num"
-                      style={{ color: active ? 'var(--bg)' : undefined, opacity: active ? 0.7 : 1 }}
+                      style={{ color: active ? 'var(--text)' : undefined, opacity: active ? 0.7 : 1 }}
                     >
                       {String(i + 1).padStart(2, '0')}
                     </span>
                     <span className="index-main">
                       <span
                         className="index-title"
-                        style={{ color: active ? 'var(--bg)' : undefined }}
+                        style={{ color: active ? 'var(--text)' : undefined, fontWeight: active ? 600 : 500 }}
                       >
                         {it.label}
                       </span>

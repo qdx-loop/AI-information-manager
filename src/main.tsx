@@ -11,6 +11,8 @@ import { initFromSettings } from '@/db/providerFactory'
 import { useAppStore } from '@/store/appStore'
 import { autoSyncManager } from '@/utils/autoSync'
 import { buildTheme, semanticOf, DISPLAY_STACK, BODY_STACK, MONO_STACK } from '@/theme'
+import { FluentProvider } from '@fluentui/react-components'
+import { fluentWindowsLight, fluentWindowsDark } from '@/theme/fluent'
 import './styles/index.css'
 
 /**
@@ -69,27 +71,36 @@ function injectStaticTokens() {
     '--s12': '96px',
 
     // 圆角：玻璃语言（12/16/20/28 + 胶囊）
-    '--radius-sm': '6px',
+    // Windows 11 / Fluent：控件 4、次级 8、卡片与窗口 12
+    '--radius-sm': '4px',
     '--radius-md': '8px',
-    '--radius-lg': '10px',
+    '--radius-lg': '12px',
     '--radius-xl': '12px',
     '--radius-pill': '999px',
     '--border-width': '1px',
-    '--glass-blur': '0px',
-    '--glass-blur-strong': '0px',
+    '--glass-blur': '40px',
+    '--glass-blur-strong': '60px',
 
     // 尺寸
-    '--topbar-h': '56px',
-    '--rail-w': '264px',
-    '--control-h': '40px',
-    '--control-h-sm': '32px',
-    '--control-h-lg': '48px',
-    '--row-h': '44px',
-    '--row-h-sm': '36px',
-    '--row-h-lg': '52px',
-    '--table-head-h': '44px',
+    '--topbar-h': '52px',
+    '--rail-w': '260px',
+    '--caption-h': '40px',
+    '--control-h': '36px',
+    '--control-h-sm': '28px',
+    '--control-h-lg': '44px',
+    '--row-h': '40px',
+    '--row-h-sm': '32px',
+    '--row-h-lg': '48px',
+    '--table-head-h': '40px',
     '--content-max': '1440px',
     '--ai-w': '400px',
+
+    // Windows 11 Mica / 层与壁纸
+    '--wallpaper': 'url(/win11-bloom-light.jpg)',
+    '--layer-fill': 'rgba(255, 255, 255, 0.50)',
+    '--card-fill': 'rgba(255, 255, 255, 0.70)',
+    '--card-stroke': 'rgba(0, 0, 0, 0.08)',
+    '--mica-blur': '60px',
   }
   for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v)
 }
@@ -104,7 +115,7 @@ function renderBootError(err: unknown) {
   const msg = err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err)
   const el = document.getElementById('root')
   if (!el || el.childElementCount > 0) return
-  el.innerHTML = `<div style="font-family:system-ui;padding:32px 20px;color:#DC2626;background:#EEF1F8;min-height:100vh;word-break:break-all">
+  el.innerHTML = `<div style="font-family:system-ui;padding:32px 20px;color:#DC2626;background:#F3F3F3;min-height:100vh;word-break:break-all">
     <h2 style="margin:0 0 12px">页面加载出错</h2>
     <p style="margin:0 0 12px">请截图反馈给管理员。常见解决方式：更新浏览器 / 清除该网站数据后重试。</p>
     <pre style="white-space:pre-wrap;font-size:12px;line-height:1.6">${msg.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string))}</pre>
@@ -167,11 +178,18 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
       '--shadow-color': c.shadowColor,
       '--focus': c.focus,
       // —— 柔和阴影（无硬投影） ——
-      '--shadow-1': '0 1px 2px rgba(9,9,11,0.04)',
-      '--shadow-2': '0 1px 3px rgba(9,9,11,0.06), 0 8px 24px rgba(9,9,11,0.08)',
-      '--shadow-3': '0 24px 64px rgba(9,9,11,0.16)',
-      '--shadow-glow': '0 0 0 3px rgba(37,99,235,0.14)',
-      '--shadow-inset': 'none',
+      // Fluent 2 官方 elevation：shadow2/4/8/16/28/64
+      '--shadow-1': '0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14)',
+      '--shadow-2': '0 0 2px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.14)',
+      '--shadow-3': '0 0 8px rgba(0,0,0,0.12), 0 14px 28px rgba(0,0,0,0.14)',
+      '--shadow-4': '0 0 8px rgba(0,0,0,0.12), 0 32px 64px rgba(0,0,0,0.14)',
+      '--shadow-glow': '0 0 0 3px rgba(0,103,192,0.30)',
+      '--shadow-inset': 'inset 0 1px 0 rgba(255,255,255,0.35)',
+      '--wallpaper': 'url(/win11-bloom-dark.jpg)',
+      '--layer-fill': mode === 'dark' ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.40)',
+      '--card-fill': mode === 'dark' ? 'rgba(43,43,43,0.78)' : 'rgba(255,255,255,0.66)',
+      '--card-stroke': mode === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)',
+      '--mica-wash': mode === 'dark' ? 'rgba(32,32,32,0.72)' : 'rgba(243,243,243,0.62)',
       // —— 极光光球（画布背景由 CSS 组合） ——
       '--aurora-1': mode === 'dark' ? 'rgba(99,102,241,0.40)' : 'rgba(99,102,241,0.46)',
       '--aurora-2': mode === 'dark' ? 'rgba(34,211,238,0.24)' : 'rgba(34,211,238,0.34)',
@@ -190,7 +208,12 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
       locale={lang === 'en' ? enUS : zhCN}
       theme={buildTheme(themeMode === 'dark' ? 'dark' : 'light')}
     >
-      <AntdApp>{children}</AntdApp>
+      <FluentProvider
+        theme={themeMode === 'dark' ? fluentWindowsDark : fluentWindowsLight}
+        style={{ height: '100%', background: 'transparent' }}
+      >
+        <AntdApp>{children}</AntdApp>
+      </FluentProvider>
     </ConfigProvider>
   )
 }

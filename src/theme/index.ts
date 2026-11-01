@@ -21,68 +21,68 @@ export type ThemeMode = 'light' | 'dark'
 // ══════════════════════════════════════════════════════════════
 
 const LIGHT = {
-  bg: '#FAFAFA',
-  surface: '#FFFFFF',
-  surfaceSolid: '#FFFFFF',
-  surface2: '#F4F4F5',
-  glassBorder: '#E4E4E7',
-  border: '#E4E4E7',
-  borderStrong: '#D4D4D8',
-  text: '#09090B',
-  textSecondary: '#52525B',
-  textMuted: '#71717A',
-  accent: '#2563EB',
-  accentHover: '#1D4ED8',
-  accentSoft: '#EFF6FF',
-  accent2: '#0891B2',
-  accentGradient: 'linear-gradient(135deg, #2563EB 0%, #2563EB 100%)',
-  danger: '#DC2626',
-  dangerSoft: '#FEF2F2',
-  success: '#16A34A',
-  successSoft: '#F0FDF4',
-  warning: '#D97706',
-  warningSoft: '#FFFBEB',
+  bg: '#F3F3F3',
+  surface: 'rgba(255, 255, 255, 0.70)',
+  surfaceSolid: '#FBFBFB',
+  surface2: 'rgba(255, 255, 255, 0.50)',
+  glassBorder: 'rgba(255, 255, 255, 0.65)',
+  border: 'rgba(0, 0, 0, 0.08)',
+  borderStrong: 'rgba(0, 0, 0, 0.16)',
+  text: '#1A1A1A',
+  textSecondary: '#5C5C5C',
+  textMuted: '#767676',
+  accent: '#0067C0',
+  accentHover: '#005A9E',
+  accentSoft: 'rgba(0, 103, 192, 0.10)',
+  accent2: '#00B7C3',
+  accentGradient: 'linear-gradient(135deg, #0078D4 0%, #0067C0 55%, #005A9E 100%)',
+  danger: '#C42B1C',
+  dangerSoft: '#FDE7E9',
+  success: '#0F7B0F',
+  successSoft: '#DFF6DD',
+  warning: '#9D5D00',
+  warningSoft: '#FFF4CE',
   onAccent: '#FFFFFF',
-  onDark: '#FAFAFA',
-  darkPanel: '#18181B',
-  overlay: 'rgba(0, 0, 0, 0.40)',
+  onDark: '#F3F3F3',
+  darkPanel: '#202020',
+  overlay: 'rgba(0, 0, 0, 0.35)',
   shadow: 'rgba(15, 23, 42, 1)',
-  focus: 'rgba(37, 99, 235, 0.35)',
+  focus: 'rgba(0, 103, 192, 0.40)',
 } as const
 
 const DARK = {
-  bg: '#09090B',
-  surface: '#111113',
-  surfaceSolid: '#111113',
-  surface2: '#18181B',
-  glassBorder: '#27272A',
-  border: '#27272A',
-  borderStrong: '#3F3F46',
-  text: '#FAFAFA',
-  textSecondary: '#A1A1AA',
-  textMuted: '#71717A',
-  accent: '#60A5FA',
-  accentHover: '#93C5FD',
-  accentSoft: 'rgba(96, 165, 250, 0.14)',
-  accent2: '#22D3EE',
-  accentGradient: 'linear-gradient(135deg, #2563EB 0%, #2563EB 100%)',
-  danger: '#F87171',
+  bg: '#202020',
+  surface: 'rgba(43, 43, 43, 0.80)',
+  surfaceSolid: '#2B2B2B',
+  surface2: 'rgba(255, 255, 255, 0.05)',
+  glassBorder: 'rgba(255, 255, 255, 0.10)',
+  border: 'rgba(255, 255, 255, 0.09)',
+  borderStrong: 'rgba(255, 255, 255, 0.16)',
+  text: '#FFFFFF',
+  textSecondary: '#C8C8C8',
+  textMuted: '#767676',
+  accent: '#60CDFF',
+  accentHover: '#9BDBFF',
+  accentSoft: 'rgba(96, 205, 255, 0.14)',
+  accent2: '#4CC2FF',
+  accentGradient: 'linear-gradient(135deg, #0078D4 0%, #0067C0 55%, #005A9E 100%)',
+  danger: '#FF99A4',
   dangerSoft: 'rgba(248, 113, 113, 0.12)',
   success: '#34D399',
   successSoft: 'rgba(52, 211, 153, 0.12)',
-  warning: '#FBBF24',
+  warning: '#FCE100',
   warningSoft: 'rgba(251, 191, 36, 0.14)',
   onAccent: '#FFFFFF',
-  onDark: '#FAFAFA',
-  darkPanel: '#18181B',
-  overlay: 'rgba(0, 0, 0, 0.60)',
+  onDark: '#F3F3F3',
+  darkPanel: '#202020',
+  overlay: 'rgba(0, 0, 0, 0.50)',
   shadow: 'rgba(0, 0, 0, 1)',
-  focus: 'rgba(96, 165, 250, 0.4)',
+  focus: 'rgba(96, 205, 255, 0.4)',
 } as const
 
 /** 图表分类色：保持 Okabe-Ito/Wong 色盲安全，不随玻璃视觉改。 */
-const SERIES_L = ['#2563EB', '#0891B2', '#D97706', '#DB2777', '#3F3F46'] as const
-const SERIES_D = ['#60A5FA', '#22D3EE', '#FBBF24', '#F472B6', '#D4D4D8'] as const
+const SERIES_L = ['#0067C0', '#00B7C3', '#9D5D00', '#C42B1C', '#5C5C5C'] as const
+const SERIES_D = ['#60CDFF', '#4CC2FF', '#FCE100', '#FF99A4', '#C8C8C8'] as const
 
 // ══════════════════════════════════════════════════════════════
 // 第 2 层 · Semantic
@@ -156,18 +156,14 @@ export type Semantic = typeof SEMANTIC_L
 // 第 3 层 · 字体与 antd token
 // ══════════════════════════════════════════════════════════════
 
-const CJK =
-  "'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif"
-
 /** Display / UI：Plus Jakarta Sans（自托管 variable，latin 子集 ~27KB，OFL） */
-export const DISPLAY_STACK = `'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', ${CJK}`
+export const DISPLAY_STACK = "'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', Selawik, -apple-system, BlinkMacSystemFont, 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif"
 /** Body：Inter（自托管 variable，latin 子集 ~48KB，OFL） */
-export const BODY_STACK = `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', ${CJK}`
+export const BODY_STACK = "'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', Selawik, -apple-system, BlinkMacSystemFont, 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif"
 /** 兼容旧导出名：v5 不授权任何衬线。 */
 export const FONT_STACK = BODY_STACK
 export const SERIF_STACK = BODY_STACK
-export const MONO_STACK =
-  "ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', 'Noto Sans Mono CJK SC', Menlo, Consolas, monospace"
+export const MONO_STACK = "'Cascadia Mono', 'Cascadia Code', Consolas, 'Courier New', monospace"
 
 const BASE = {
   borderRadius: 8,

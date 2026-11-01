@@ -1,19 +1,19 @@
 import { Button, Input, App, Dropdown } from 'antd'
 import {
-  Trash2,
-  Settings,
-  Plus,
-  MoreHorizontal,
-  Pencil,
-  Home,
-  Tag,
-  ArrowUp,
-  ArrowDown,
-  CircleHelp,
-  LogOut,
-  Bot,
-  GripVertical,
-} from 'lucide-react'
+  DeleteRegular,
+  SettingsRegular,
+  AddRegular,
+  MoreHorizontalRegular,
+  EditRegular,
+  HomeRegular,
+  TagRegular,
+  ArrowUpRegular,
+  ArrowDownRegular,
+  QuestionCircleRegular,
+  SignOutRegular,
+  BotRegular,
+  ReOrderDotsVerticalRegular,
+} from '@fluentui/react-icons'
 import {
   DndContext,
   closestCenter,
@@ -180,19 +180,19 @@ function useSidebarState(onNavigate?: () => void) {
     const idx = libraries.findIndex((l) => l.id === lib.id)
     return {
       items: [
-        { key: 'child', label: t('app.newChild'), icon: <Plus size={16} strokeWidth={1.8} /> },
-        { key: 'rename', label: t('common.rename'), icon: <Pencil size={15} strokeWidth={1.8} /> },
-        { key: 'category', label: t('app.lib.category'), icon: <Tag size={15} strokeWidth={1.8} /> },
+        { key: 'child', label: t('app.newChild'), icon: <AddRegular fontSize={16} /> },
+        { key: 'rename', label: t('common.rename'), icon: <EditRegular fontSize={15} /> },
+        { key: 'category', label: t('app.lib.category'), icon: <TagRegular fontSize={15} /> },
         { type: 'divider' },
-        { key: 'up', label: t('app.lib.moveUp'), icon: <ArrowUp size={15} strokeWidth={1.8} />, disabled: idx <= 0 },
+        { key: 'up', label: t('app.lib.moveUp'), icon: <ArrowUpRegular fontSize={15} />, disabled: idx <= 0 },
         {
           key: 'down',
           label: t('app.lib.moveDown'),
-          icon: <ArrowDown size={15} strokeWidth={1.8} />,
+          icon: <ArrowDownRegular fontSize={15} />,
           disabled: idx < 0 || idx >= libraries.length - 1,
         },
         { type: 'divider' },
-        { key: 'delete', label: t('common.delete'), icon: <Trash2 size={16} strokeWidth={1.8} />, danger: true },
+        { key: 'delete', label: t('common.delete'), icon: <DeleteRegular fontSize={16} />, danger: true },
       ],
       onClick: ({ key, domEvent }) => {
         domEvent.stopPropagation()
@@ -284,7 +284,7 @@ function SortableLibRow({
         {...attributes}
         {...listeners}
       >
-        <GripVertical size={13} strokeWidth={1.8} />
+        <ReOrderDotsVerticalRegular fontSize={13} />
       </button>
       <button
         type="button"
@@ -302,7 +302,7 @@ function SortableLibRow({
           aria-label={moreLabel}
           onClick={(e) => e.stopPropagation()}
         >
-          <MoreHorizontal size={15} strokeWidth={1.8} />
+          <MoreHorizontalRegular fontSize={15} />
         </button>
       </Dropdown>
     </div>
@@ -370,7 +370,7 @@ function SidebarBody({
           className={`rail-item${selectedKey === '/' ? ' is-active' : ''}`}
           onClick={() => handleClick('/')}
         >
-          <Home size={16} strokeWidth={1.8} />
+          <HomeRegular fontSize={16} />
           <span className="rail-text">{t('app.home')}</span>
         </button>
 
@@ -390,7 +390,7 @@ function SidebarBody({
           </SortableContext>
         </DndContext>
         <button type="button" className="rail-new" onClick={() => handleClick('new-library')}>
-          <Plus size={16} strokeWidth={1.8} />
+          <AddRegular fontSize={16} />
           <span>{t('app.newLibrary')}</span>
         </button>
 
@@ -400,7 +400,7 @@ function SidebarBody({
           className={`rail-item${selectedKey === '/trash' ? ' is-active' : ''}`}
           onClick={() => handleClick('/trash')}
         >
-          <Trash2 size={16} strokeWidth={1.8} />
+          <DeleteRegular fontSize={16} />
           <span className="rail-text">{t('app.trash')}</span>
         </button>
         <button
@@ -408,7 +408,7 @@ function SidebarBody({
           className={`rail-item${selectedKey === '/settings' ? ' is-active' : ''}`}
           onClick={() => handleClick('/settings')}
         >
-          <Settings size={16} strokeWidth={1.8} />
+          <SettingsRegular fontSize={16} />
           <span className="rail-text">{t('app.settings')}</span>
         </button>
         <button
@@ -416,7 +416,7 @@ function SidebarBody({
           className={`rail-item${selectedKey === '/help' ? ' is-active' : ''}`}
           onClick={() => handleClick('/help')}
         >
-          <CircleHelp size={16} strokeWidth={1.8} />
+          <QuestionCircleRegular fontSize={16} />
           <span className="rail-text">{t('app.help')}</span>
         </button>
       </div>
@@ -429,7 +429,7 @@ function SidebarBody({
           onClick={onOpenPanel}
           title={t('app.aiAssistant')}
         >
-          <Bot size={16} strokeWidth={1.8} />
+          <BotRegular fontSize={16} />
           <span className="rail-ai-text">{t('app.aiAssistant')}</span>
           <kbd className="rail-ai-kbd">
             {/Mac|iP(hone|ad)/.test(navigator.platform) ? '⌘J' : 'Ctrl·J'}
@@ -448,7 +448,7 @@ function SidebarBody({
             disabled={loggingOut}
             onClick={handleLogout}
           >
-            <LogOut size={15} strokeWidth={1.8} />
+            <SignOutRegular fontSize={15} />
           </button>
         </div>
       </div>

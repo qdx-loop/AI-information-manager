@@ -1,7 +1,14 @@
 import { Drawer, Tooltip, Dropdown, Avatar, App as AntApp } from 'antd'
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
-import { Moon, Sun, Menu, Search, LogOut, Wifi } from 'lucide-react'
+import {
+  WeatherMoonRegular,
+  WeatherSunnyRegular,
+  NavigationRegular,
+  SearchRegular,
+  SignOutRegular,
+  Wifi1Regular,
+} from '@fluentui/react-icons'
 import Sidebar, { SidebarContent } from './Sidebar'
 import AIDock from './AIDock'
 import AIFab from './AIFab'
@@ -202,6 +209,23 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
+      {!isMobile && (
+        <header className="app-captionbar">
+          <button type="button" className="caption-brand" onClick={() => navigate('/')} aria-label={t('app.home')}>
+            <span className="rail-mark caption-mark" aria-hidden />
+            <span className="caption-title">{t('app.brand')}</span>
+            <span className="caption-sub">AI INFORMATION MANAGER</span>
+          </button>
+          <div className="caption-spacer" />
+          <span className={`caption-status${online ? '' : ' is-offline'}`}>
+            <span className="caption-dot" aria-hidden />
+            {online ? t('landing.marquee.local') : t('app.offline')}
+          </span>
+          <span className="caption-sep" aria-hidden />
+          <span className="caption-mica">MICA</span>
+        </header>
+      )}
+      <div className="app-window-body">
       {isMobile ? (
         <Drawer
           placement="left"
@@ -223,7 +247,7 @@ export default function AppShell() {
       <div className="app-main">
         {!online && (
           <div className="offline-bar" role="status">
-            <Wifi size={15} strokeWidth={1.8} />
+            <Wifi1Regular fontSize={15} />
             <span>{t('app.offline')}</span>
           </div>
         )}
@@ -236,7 +260,7 @@ export default function AppShell() {
                   aria-label={t('nav.menu')}
                   onClick={() => setSidebarOpen(true)}
                 >
-                  <Menu size={18} strokeWidth={1.8} />
+                  <NavigationRegular fontSize={18} />
                 </button>
               )}
               {isMobile ? (
@@ -265,7 +289,7 @@ export default function AppShell() {
                 onClick={() => setSearchOpen(true)}
                 aria-label={t('app.search')}
               >
-                <Search size={16} strokeWidth={1.8} />
+                <SearchRegular fontSize={16} />
                 <span>{t('app.search')}</span>
                 <kbd>⌘K</kbd>
               </button>
@@ -276,7 +300,7 @@ export default function AppShell() {
                   aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
                   onClick={() => setTheme(isDark ? 'light' : 'dark')}
                 >
-                  {isDark ? <Sun size={17} strokeWidth={1.8} /> : <Moon size={17} strokeWidth={1.8} />}
+                  {isDark ? <WeatherSunnyRegular fontSize={17} /> : <WeatherMoonRegular fontSize={17} />}
                 </button>
               </Tooltip>
               <Tooltip title={settings.language === 'zh' ? 'English' : '中文'}>
@@ -298,7 +322,7 @@ export default function AppShell() {
                     { type: 'divider' },
                     {
                       key: 'logout',
-                      icon: <LogOut size={16} strokeWidth={1.8} />,
+                      icon: <SignOutRegular fontSize={16} />,
                       label: t('app.signOut'),
                       onClick: async () => {
                         await resetSession()
@@ -353,6 +377,7 @@ export default function AppShell() {
       )}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       {account && <WelcomeModal open={welcomeOpen} accountId={account.id} onClose={closeWelcome} />}
+      </div>
     </div>
   )
 }

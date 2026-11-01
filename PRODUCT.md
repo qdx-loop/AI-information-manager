@@ -45,10 +45,10 @@ web
 ## Brand Commitments
 
 - 产品名：「信息管理」（登录页/侧边栏品牌标识）。
-- 设计语言：「新星编务 NOVA EDITORIAL」——shadcn/ui Nova 式现代商业编辑风：近白画布 + 纯白卡 + 1px 发丝边 + 单一钴蓝强调 + 编辑式排版；antd 组件 + Lucide 图标 + Motion 转场 + react-resizable-panels + @dnd-kit。
-- 颜色：画布 `#FAFAFA` / 白卡 `#FFFFFF` / 主字 `#09090B` / 钴蓝强调 `#2563EB` / 主按钮 ink；暗色 `#09090B` + `#111113`；全部通过 WCAG AA。
+- 设计语言：「Windows 11 / Fluent 2」——Mica 云母窗口 + Bloom 壁纸 + Mica Alt/Layer/Card 分层 + Segoe UI Variable + Fluent 分层阴影 + 官方 Fluent System Icons；FluentProvider + antd tokens + Motion + react-resizable-panels + @dnd-kit。
+- 颜色：Mica `#F3F3F3` / 白卡 / 主字 `#242424` / Windows 强调蓝 `#0067C0`；暗色 `#202020` / `#2B2B2B` / `#60CDFF`；全部通过 WCAG AA。
 - 字体：Plus Jakarta Sans（display/UI，OFL 自托管）+ Inter（body，OFL 自托管）；中文系统黑体；mono 只用于标签/编号/日期/ID；禁止网络字体 CDN。
-- 形状：圆角 6/8/10/12 + 胶囊；内容卡白底 1px 边 + 1px 阴影；仅浮层用轻玻璃；禁止极光/渐变/硬投影。
+- 形状：12px 卡片/窗口/弹窗圆角（Fluent borderRadius2XLarge）+ 4/8px 控件；1px 轮廓 + Fluent shadow2/4/8/16/28/64；禁止极光/霓虹/硬投影。
 
 ## Evidence on Hand
 
