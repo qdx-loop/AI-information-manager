@@ -35,6 +35,7 @@ import {
   type AuditEntry,
   type OpsStats,
 } from '@/lib/serverApi'
+import { Caption1 } from '@fluentui/react-components'
 
 import { useBackButtonLayer } from '@/utils/backButton'
 import { downloadBlob } from '@/utils/csv'
@@ -405,7 +406,7 @@ export default function AdminPage() {
   ]
 
   return (
-    <div className="workbench workbench--wide">
+    <div className="workbench workbench--wide admin-window">
       <header className="page-head">
         <div className="page-head-main">
           <div className="page-kicker">{t('admin.kicker')}</div>
@@ -423,41 +424,24 @@ export default function AdminPage() {
       </header>
       <div className="page-bar" />
 
-      {/* Bento 三块：lime 主 tile（总数）+ 两块 panel tile */}
-      <div className="bento" style={{ marginBottom: 16 }}>
-        <div className="tile tile--accent tile--span-6">
-          <div className="tile-head">
-            <span className="metric-label">{t('admin.stat.total')}</span>
-            <span className="metric-label">
-              {t('admin.stat.active')} {activeCount}
-            </span>
-          </div>
-          <div className="metric">
-            <div className="metric-value">{stats?.totalAccounts ?? accounts.length}</div>
-            <div className="metric-note">
-              {t('admin.stat.disabled')} {stats?.disabledAccounts ?? 0}
-            </div>
-          </div>
+      {/* 原生统计条：一个 Acrylic 表面，而不是三张网页 KPI 卡 */}
+      <div className="admin-facts">
+        <div>
+          <Caption1 className="admin-facts-label">{t('admin.stat.total')}</Caption1>
+          <strong>{stats?.totalAccounts ?? accounts.length}</strong>
+          <Caption1 className="admin-facts-note">
+            {t('admin.stat.active')} {activeCount} · {t('admin.stat.disabled')} {stats?.disabledAccounts ?? 0}
+          </Caption1>
         </div>
-        <div className="tile tile--span-3">
-          <div className="tile-head">
-            <span className="metric-label">{t('admin.stat.today')}</span>
-          </div>
-          <div className="metric">
-            <div className="metric-value">{registeredToday}</div>
-            <div className="metric-note">
-              {t('admin.stat.signups7')} {stats?.signups7 ?? 0}
-            </div>
-          </div>
+        <div>
+          <Caption1 className="admin-facts-label">{t('admin.stat.today')}</Caption1>
+          <strong>{registeredToday}</strong>
+          <Caption1 className="admin-facts-note">{t('admin.stat.signups7')} {stats?.signups7 ?? 0}</Caption1>
         </div>
-        <div className="tile tile--span-3">
-          <div className="tile-head">
-            <span className="metric-label">{t('admin.stat.active7')}</span>
-          </div>
-          <div className="metric">
-            <div className="metric-value">{stats?.activeUsers7 ?? 0}</div>
-            <div className="metric-note">{t('admin.events.title')}</div>
-          </div>
+        <div>
+          <Caption1 className="admin-facts-label">{t('admin.stat.active7')}</Caption1>
+          <strong>{stats?.activeUsers7 ?? 0}</strong>
+          <Caption1 className="admin-facts-note">{t('admin.events.title')}</Caption1>
         </div>
       </div>
 

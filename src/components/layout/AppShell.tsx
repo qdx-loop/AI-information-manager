@@ -210,19 +210,63 @@ export default function AppShell() {
   return (
     <div className="app-shell">
       {!isMobile && (
-        <header className="app-captionbar">
-          <button type="button" className="caption-brand" onClick={() => navigate('/')} aria-label={t('app.home')}>
+        <header className="app-captionbar" data-tauri-drag-region>
+          <button type="button" className="caption-brand" data-tauri-drag-region onClick={() => navigate('/')} aria-label={t('app.home')}>
             <span className="rail-mark caption-mark" aria-hidden />
             <span className="caption-title">{t('app.brand')}</span>
-            <span className="caption-sub">AI INFORMATION MANAGER</span>
           </button>
-          <div className="caption-spacer" />
-          <span className={`caption-status${online ? '' : ' is-offline'}`}>
-            <span className="caption-dot" aria-hidden />
-            {online ? t('landing.marquee.local') : t('app.offline')}
-          </span>
-          <span className="caption-sep" aria-hidden />
-          <span className="caption-mica">MICA</span>
+          <div className="caption-drag" data-tauri-drag-region />
+          <button
+            type="button"
+            className="caption-search"
+            onClick={() => setSearchOpen(true)}
+            aria-label={t('app.search')}
+          >
+            <SearchRegular fontSize={16} />
+            <span>{t('app.search')}</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+          <div className="caption-tools">
+            <Tooltip title={isDark ? t('app.theme.light') : t('app.theme.dark')}>
+              <button
+                type="button"
+                className="caption-tool"
+                aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
+                onClick={() => setTheme(isDark ? 'light' : 'dark')}
+              >
+                {isDark ? <WeatherSunnyRegular fontSize={16} /> : <WeatherMoonRegular fontSize={16} />}
+              </button>
+            </Tooltip>
+            <button
+              type="button"
+              className="caption-tool"
+              aria-label={t('app.language')}
+              onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}
+            >
+              {settings.language === 'zh' ? 'EN' : '中'}
+            </button>
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: [
+                  { key: 'who', label: account?.username ?? '', disabled: true },
+                  { type: 'divider' },
+                  {
+                    key: 'logout',
+                    icon: <SignOutRegular fontSize={16} />,
+                    label: t('app.signOut'),
+                    onClick: async () => { await resetSession(); navigate('/login') },
+                  },
+                ],
+              }}
+            >
+              <button type="button" className="caption-tool caption-account" aria-label={t('app.signOut')}>
+                <Avatar size={24} style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 0, fontWeight: 600 }}>
+                  {(account?.username ?? '?').slice(0, 1).toUpperCase()}
+                </Avatar>
+              </button>
+            </Dropdown>
+          </div>
         </header>
       )}
       <div className="app-window-body">

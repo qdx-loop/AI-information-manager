@@ -1,15 +1,54 @@
-import { useEffect, useState } from 'react'
-import { Button } from 'antd'
-import { InlineSkeleton } from '@/components/common/PageSkeleton'
+/**
+ * 首页 · Windows 11 原生（Fluent 2 / Win11 Start + Settings 混合）
+ *
+ * 用户要求：首页与任何旧版本「一丝一毫关系都没有」，完全按 microsoft/fluentui
+ * React v9 与 Windows 11 原生应用规范重做：
+ *   - 无网页 Dashboard 卡片/KPI 大色块/渐变；
+ *   - 原生页头 + 「已固定」大图标磁贴 + 「推荐 / 今天」列表 + 设置式快速行；
+ *   - Mica 内容 + Acrylic 面板 + Fluent 低饱和组件。
+ * 数据读取与行为（打开库/条目、AI、模板、设置）保持不变。
+ */
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
-  AppstoreOutlined,
-  ArrowRightOutlined,
-  DeleteOutlined,
-  QuestionCircleOutlined,
-  RobotOutlined,
-} from '@/components/common/icons'
+  Avatar,
+  Badge,
+  Body1,
+  Body1Strong,
+  Button,
+  Caption1,
+  MessageBar,
+  MessageBarBody,
+  Skeleton,
+  SkeletonItem,
+  Subtitle1,
+  Title1,
+  Title2,
+  Tooltip,
+} from '@fluentui/react-components'
+import {
+  AddRegular,
+  ArrowClockwiseRegular,
+  BoxRegular,
+  CheckmarkCircleRegular,
+  ChevronRightRegular,
+  ClipboardTaskRegular,
+  DatabaseRegular,
+  DeleteRegular,
+  DocumentRegular,
+  FolderRegular,
+  HistoryRegular,
+  HomeRegular,
+  LibraryRegular,
+  MoneyRegular,
+  PeopleRegular,
+  QuestionCircleRegular,
+  SettingsRegular,
+  ShieldCheckmarkRegular,
+  SparkleRegular,
+  type FluentIcon,
+} from '@fluentui/react-icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAuthStore } from '@/store/authStore'
 import { gatherInsights, itemDisplayName, type InsightData } from '@/utils/insights'
@@ -17,9 +56,7 @@ import { getProvider } from '@/db/providerFactory'
 import type { Library } from '@/types'
 import { useI18n } from '@/i18n'
 import TemplateCenter from './TemplateCenter'
-import EmptyPanel from './EmptyPanel'
 
-/** 首页「最近动态」的一行：只保留渲染需要的字段，避免把整份 Item 拖进 state */
 interface RecentEntry {
   key: string
   itemId: string
@@ -29,79 +66,65 @@ interface RecentEntry {
   updatedAt: number
 }
 
-/**
- * 最近修改的 6 条。
- *
- * 首页要回答「最近动了什么」，而 `gatherInsights` 的返回（统计 + 提醒）里
- * 没有这一项，utils 层不在本任务的写入范围内，所以在组件侧单独读一次。
- * 单个库读取失败时跳过该库而不是让整块失败：概览的其它部分仍然有用，
- * 这与 gatherInsights 内部「逐库 try/catch 后继续」的口径一致。
- */
-async function loadRecentItems(libraries: Library[]): Promise<RecentEntry[]> {
+interface HomeExtras {
+  recent: RecentEntry[]
+  counts: Record<string, number>
+}
+
+async function loadHomeExtras(libraries: Library[]): Promise<HomeExtras> {
   const provider = getProvider()
-  const perLib = await Promise.all(
+  const rows = await Promise.all(
     libraries.map(async (lib) => {
       try {
-        const items = await provider.listItems(lib.id)
-        return items.map((it) => ({
-          key: `${lib.id}:${it.id}`,
-          itemId: it.id,
-          libId: lib.id,
-          libName: lib.name,
-          title: itemDisplayName(it),
-          updatedAt: it.updatedAt,
-        }))
+        return { lib, items: await provider.listItems(lib.id) }
       } catch {
-        return [] as RecentEntry[]
+        return { lib, items: [] as Awaited<ReturnType<typeof provider.listItems>> }
       }
     }),
   )
-  return perLib
-    .flat()
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, 6)
+  const counts: Record<string, number> = {}
+  const recent: RecentEntry[] = []
+  for (const { lib, items } of rows) {
+    counts[lib.id] = items.length
+    for (const it of items) {
+      recent.push({
+        key: `${lib.id}:${it.id}`,
+        itemId: it.id,
+        libId: lib.id,
+        libName: lib.name,
+        title: itemDisplayName(it),
+        updatedAt: it.updatedAt,
+      })
+    }
+  }
+  recent.sort((a, b) => b.updatedAt - a.updatedAt)
+  return { recent: recent.slice(0, 6), counts }
 }
 
-/** 千分位：指标数字要能一眼读出量级 */
-function fmt(n: number): string {
-  return n.toLocaleString('en-US')
+const fmt = (n: number) => n.toLocaleString('en-US')
+
+function iconForLibrary(lib: Library): FluentIcon {
+  const text = `${lib.category ?? ''} ${lib.name}`.toLowerCase()
+  if (/客户|联系|people|customer|contact/.test(text)) return PeopleRegular
+  if (/财务|账本|收支|钱|money|finance|expense/.test(text)) return MoneyRegular
+  if (/房产|房源|房|home|property|house/.test(text)) return HomeRegular
+  if (/库存|商品|货|stock|inventory|product/.test(text)) return BoxRegular
+  if (/项目|任务|project|task/.test(text)) return ClipboardTaskRegular
+  if (/文档|笔记|doc|note/.test(text)) return DocumentRegular
+  if (/文件|folder/.test(text)) return FolderRegular
+  if (/数据|database/.test(text)) return DatabaseRegular
+  return LibraryRegular
 }
 
-/** 可点击的行：mono 编号 + 主副文 + 右侧动作 */
-function IndexRow({
-  num,
-  title,
-  meta,
-  right,
-  onClick,
-}: {
-  num: string
-  title: string
-  meta: string
-  right?: React.ReactNode
-  onClick: () => void
-}) {
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="index-row"
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick()
-        }
-      }}
-    >
-      <span className="index-num">{num}</span>
-      <span className="index-main">
-        <span className="index-title">{title}</span>
-        <span className="index-meta">{meta}</span>
-      </span>
-      {right ?? <ArrowRightOutlined style={{ fontSize: 12, color: 'var(--text-muted)' }} aria-hidden />}
-    </div>
-  )
+function greetingKey(hour: number) {
+  if (hour < 12) return 'home.start.greeting.morning' as const
+  if (hour < 18) return 'home.start.greeting.afternoon' as const
+  return 'home.start.greeting.evening' as const
+}
+
+function dateLabel(): string {
+  const lang = (typeof document !== 'undefined' ? document.documentElement.lang : 'zh-CN') || 'zh-CN'
+  return dayjs().format(lang.startsWith('en') ? 'dddd, MMM D' : 'M月D日 dddd')
 }
 
 export default function HomeDashboard({ onCreate, notice }: { onCreate: () => void; notice?: React.ReactNode }) {
@@ -113,7 +136,7 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
   const account = useAuthStore((s) => s.account)
   const accountId = account?.id ?? ''
   const [data, setData] = useState<InsightData | null>(null)
-  const [recent, setRecent] = useState<RecentEntry[]>([])
+  const [extras, setExtras] = useState<HomeExtras>({ recent: [], counts: {} })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
@@ -123,14 +146,12 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
     let alive = true
     setLoading(true)
     setError(null)
-    Promise.all([gatherInsights(libraries, { accountId, dataVersion }), loadRecentItems(libraries)])
-      .then(([d, r]) => {
+    Promise.all([gatherInsights(libraries, { accountId, dataVersion }), loadHomeExtras(libraries)])
+      .then(([insight, home]) => {
         if (!alive) return
-        setData(d)
-        setRecent(r)
+        setData(insight)
+        setExtras(home)
       })
-      // 失败必须说出来，并且能重试：之前 `.catch(() => {})` 会让首页显示「0 条数据」，
-      // 用户以为数据丢了 —— 而数据其实好好地在本机。
       .catch((e: unknown) => {
         if (!alive) return
         setError(e instanceof Error ? e.message : String(e))
@@ -143,307 +164,239 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
     }
   }, [libraries, accountId, dataVersion, retryKey])
 
-  const alerts = [
-    ...(data?.reminders ?? []).map((r) => ({
-      key: `r-${r.item.id}`,
-      libId: r.libraryId,
-      libName: r.libraryName,
-      itemId: r.item.id,
-      title: itemDisplayName(r.item),
-      sub: t('dash.reminder'),
-      at: r.at,
-    })),
-    ...(data?.dateAlerts ?? []).map((d) => ({
-      key: `d-${d.item.id}-${d.fieldLabel}`,
-      libId: d.libraryId,
-      libName: d.libraryName,
-      itemId: d.item.id,
-      title: itemDisplayName(d.item),
-      sub: d.fieldLabel,
-      at: d.at,
-    })),
-  ]
-    .sort((a, b) => a.at - b.at)
-    .slice(0, 12)
+  const alerts = useMemo(
+    () =>
+      [
+        ...(data?.reminders ?? []).map((r) => ({
+          key: `r-${r.item.id}`,
+          libId: r.libraryId,
+          libName: r.libraryName,
+          itemId: r.item.id,
+          title: itemDisplayName(r.item),
+          sub: t('dash.reminder'),
+          at: r.at,
+        })),
+        ...(data?.dateAlerts ?? []).map((d) => ({
+          key: `d-${d.item.id}-${d.fieldLabel}`,
+          libId: d.libraryId,
+          libName: d.libraryName,
+          itemId: d.item.id,
+          title: itemDisplayName(d.item),
+          sub: d.fieldLabel,
+          at: d.at,
+        })),
+      ]
+        .sort((a, b) => a.at - b.at)
+        .slice(0, 8),
+    [data, t],
+  )
 
   const today = dayjs().startOf('day')
-  /** 距今天数：负数 = 已逾期 */
-  const daysLeft = (at: number): number => dayjs(at).startOf('day').diff(today, 'day')
+  const daysLeft = (at: number) => dayjs(at).startOf('day').diff(today, 'day')
   const overdueCount = alerts.filter((a) => daysLeft(a.at) < 0).length
-
   const totalItems = data?.totalItems ?? 0
   const totalLibs = data?.totalLibs ?? libraries.length
   const itemsThisWeek = data?.itemsThisWeek ?? 0
-  const subLibs = libraries.filter((l) => l.parentId).length
-  const perLib = totalLibs > 0 ? Math.round(totalItems / totalLibs) : 0
   const noLib = !loading && !error && libraries.length === 0
-
-  /** 待办行：mono 日期 + 标题/来源 + 右侧状态 pill；行高 44 */
-  const todoRow = (a: (typeof alerts)[number]) => {
-    const diff = daysLeft(a.at)
-    const pillCls = diff < 0 ? 'status-pill is-danger' : diff <= 3 ? 'status-pill is-warning' : 'status-pill is-neutral'
-    const pillText =
-      diff < 0 ? t('dash.overdue', { n: -diff }) : diff === 0 ? t('dash.today') : t('dash.inDays', { n: diff })
-    return (
-      <div
-        key={a.key}
-        role="button"
-        tabIndex={0}
-        className="dash-row"
-        style={{ cursor: 'pointer' }}
-        onClick={() => {
-          focusItem(a.itemId)
-          navigate(`/library/${a.libId}`)
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            focusItem(a.itemId)
-            navigate(`/library/${a.libId}`)
-          }
-        }}
-      >
-        <span className="dash-date">{dayjs(a.at).format('YYYY-MM-DD')}</span>
-        <span className="dash-main">
-          <span className="dash-title">{a.title}</span>
-          <span className="dash-meta">{a.libName} · {a.sub}</span>
-        </span>
-        <span className={pillCls}>{pillText}</span>
-      </div>
-    )
-  }
-
-  /** 墨黑简报 tile 的一行：on-ink 标签 + lime 数字 */
-  const briefRow = (label: string, value: string, signal = false) => (
-    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-      <span
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 'var(--t-2xs)',
-          fontWeight: 700,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'var(--on-dark)',
-          opacity: 0.72,
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: 'var(--t-2xl)',
-          lineHeight: 1,
-          fontWeight: 800,
-          letterSpacing: '-0.03em',
-          fontVariantNumeric: 'tabular-nums',
-          color: signal ? 'var(--accent-2)' : 'var(--accent)',
-        }}
-      >
-        {value}
-      </span>
-    </div>
+  const pinned = useMemo(
+    () => libraries.filter((l) => !l.parentId).slice().sort((a, b) => a.sortOrder - b.sortOrder).slice(0, 8),
+    [libraries],
   )
+  const tasksPreview = alerts.slice(0, 3)
+  const recent = extras.recent
 
-  const quickActions = [
-    { key: 'tpl', icon: <AppstoreOutlined style={{ fontSize: 16 }} />, label: t('tpl.center.entry'), onClick: () => setTplOpen(true) },
-    { key: 'trash', icon: <DeleteOutlined style={{ fontSize: 16 }} />, label: t('lib.trash.title'), onClick: () => navigate('/trash') },
-    { key: 'help', icon: <QuestionCircleOutlined style={{ fontSize: 16 }} />, label: t('app.help'), onClick: () => navigate('/help') },
-  ]
+  const openAI = () => window.dispatchEvent(new Event('open-ai-panel'))
+  const openLibrary = (lib?: Library) => { if (lib) navigate(`/library/${lib.id}`) }
+  const openAlert = (a: (typeof alerts)[number]) => {
+    focusItem(a.itemId)
+    navigate(`/library/${a.libId}`)
+  }
+  const greeting = t(greetingKey(dayjs().hour()), { name: account?.username ?? '' }).trim()
 
   return (
-    <div className="workbench">
+    <div className="n-home">
       {notice}
-      {/* 页头：kicker + Outfit 800 标题 + 说明 + lime 主按钮 */}
-      <div className="page-head">
-        <div className="page-head-main">
-          <div className="page-kicker">{t('dash.kicker')}</div>
-          <h1 className="page-title">
-            {account?.username ? t('home.greeting', { name: account.username }) : t('dash.titleFallback')}
-          </h1>
-          <p className="page-sub">
-            {dayjs().format('YYYY-MM-DD')} · {libraries.length > 0 ? t('home.pick') : t('home.empty')}
-          </p>
-        </div>
-        <div className="page-head-actions">
-          <Button type="primary" onClick={onCreate}>{t('app.newLibrary')}</Button>
-        </div>
-      </div>
-      <div className="page-bar" />
 
-      <div className="bento">
-        {/* —— 第一行：左 7 lime 大指标 / 右 5 墨黑今日简报 —— */}
-        <div className="tile tile--accent tile--span-7">
-          <div className="tile-head">
-            <span>DASHBOARD</span>
-            <span>RECORDS</span>
+      <header className="n-head">
+        <div className="n-identity">
+          <Avatar name={account?.username ?? '?'} size={48} color="colorful" />
+          <div className="n-greeting">
+            <Caption1 className="n-muted">{dateLabel()} · {t('landing.marquee.local')}</Caption1>
+            <Title1 className="n-title">{greeting || t('dash.titleFallback')}</Title1>
+            <Body1 className="n-muted">
+              {t('home.start.summary', { libs: fmt(totalLibs), items: fmt(totalItems) })}
+            </Body1>
           </div>
-          {noLib ? (
-            // 无库：主 tile 用空态（lime 方块 + 标题 + 主按钮），绝不出新手清单
-            <div className="empty-state" style={{ padding: '16px 0 8px' }}>
-              <div className="empty-mark" aria-hidden>+</div>
-              <h3 className="empty-title">{t('dash.startFirst')}</h3>
-              <p className="empty-body">{t('dash.alerts.emptyNoLib')}</p>
-              <div className="empty-actions">
-                <Button type="primary" onClick={onCreate}>{t('app.newLibrary')}</Button>
-                <Button onClick={() => setTplOpen(true)}>{t('tpl.center.entry')}</Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="metric" style={{ flex: '1 1 auto', justifyContent: 'center' }}>
-                <div className="metric-label">{t('dash.stat.items')}</div>
-                <div className="metric-value metric-value--lg">{loading || error ? '—' : fmt(totalItems)}</div>
-                <div className="metric-note">
-                  {loading || error ? ' ' : t('dash.kpi.delta.week', { n: itemsThisWeek })}
-                </div>
-              </div>
-              <div className="tile-accent-meta">
-                <div>
-                  <span>{t('dash.stat.libs')}</span>
-                  <b>{loading || error ? '—' : fmt(totalLibs)}</b>
-                </div>
-                <div>
-                  <span>{t('dash.kpi.todo')}</span>
-                  <b>{loading || error ? '—' : fmt(alerts.length)}</b>
-                </div>
-                <div>
-                  <span>{t('dash.brief.sync')}</span>
-                  <b>{t('dash.brief.local')}</b>
-                </div>
-              </div>
-            </>
-          )}
         </div>
-
-        <div className="tile tile--dark tile--span-5">
-          <div className="tile-head">
-            <span>{t('dash.brief.title')}</span>
-            <span>BRIEF</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: '1 1 auto', justifyContent: 'center' }}>
-            {briefRow(t('dash.brief.todo', { n: '' }).trim(), loading || error ? '—' : fmt(alerts.length))}
-            {briefRow(t('dash.brief.overdue', { n: '' }).trim(), loading || error ? '—' : fmt(overdueCount), overdueCount > 0)}
-            {briefRow(t('dash.brief.sync'), t('dash.brief.local'))}
-          </div>
-          <Button
-            type="primary"
-            icon={<RobotOutlined />}
-            onClick={() => window.dispatchEvent(new Event('open-ai-panel'))}
-            style={{ alignSelf: 'flex-start', marginTop: 4 }}
-          >
-            {t('ob.act.ai')}
+        <div className="n-tools">
+          <Tooltip content={t('home.start.aiTitle')} relationship="label">
+            <Button appearance="subtle" icon={<SparkleRegular />} onClick={openAI} aria-label={t('home.start.aiTitle')} />
+          </Tooltip>
+          <Button appearance="primary" icon={<AddRegular />} onClick={onCreate}>
+            {t('app.newLibrary')}
           </Button>
         </div>
+      </header>
 
-        {/* —— 第二行：3 个 panel 小指标（各 4 列） —— */}
-        <div className="tile tile--soft tile--span-4">
-          <div className="metric">
-            <div className="metric-label">{t('dash.stat.week')}</div>
-            <div className="metric-value" style={{ fontSize: 'var(--t-3xl)' }}>{loading || error ? '—' : fmt(itemsThisWeek)}</div>
-            <div className="metric-note">{t('dash.kpi.delta.avg', { n: perLib })}</div>
-          </div>
-        </div>
-        <div className="tile tile--soft tile--span-4">
-          <div className="metric">
-            <div className="metric-label">{t('dash.stat.libs')}</div>
-            <div className="metric-value" style={{ fontSize: 'var(--t-3xl)' }}>{loading || error ? '—' : fmt(totalLibs)}</div>
-            <div className="metric-note">{t('dash.kpi.delta.subLibs', { n: subLibs })}</div>
-          </div>
-        </div>
-        <div className="tile tile--soft tile--span-4">
-          <div className="metric">
-            <div className="metric-label">{t('dash.kpi.todo')}</div>
-            <div className="metric-value" style={{ fontSize: 'var(--t-3xl)' }}>{loading || error ? '—' : fmt(alerts.length)}</div>
-            <div className="metric-note" style={{ color: overdueCount > 0 ? 'var(--accent-2)' : undefined }}>
-              {t('dash.kpi.delta.overdue', { n: overdueCount })}
+      {error ? (
+        <MessageBar intent="error">
+          <MessageBarBody>
+            <Body1Strong>{t('dash.loadFailed')}</Body1Strong>
+            <Caption1>{error}</Caption1>
+          </MessageBarBody>
+          <Button appearance="secondary" icon={<ArrowClockwiseRegular />} onClick={() => setRetryKey((n) => n + 1)}>
+            {t('dash.retry')}
+          </Button>
+        </MessageBar>
+      ) : null}
+
+      <section className="n-section" aria-labelledby="n-pinned">
+        <header className="n-section-head">
+          <Subtitle1 id="n-pinned">{t('home.start.pinned')}</Subtitle1>
+          <Caption1 className="n-muted">{fmt(pinned.length)}</Caption1>
+        </header>
+        {noLib ? (
+          <div className="n-surface n-empty">
+            <span className="n-empty-icon" aria-hidden><AddRegular fontSize={26} /></span>
+            <div className="n-empty-copy">
+              <Title2>{t('home.start.emptyTitle')}</Title2>
+              <Body1 className="n-muted">{t('home.start.emptyBody')}</Body1>
+            </div>
+            <div className="n-empty-actions">
+              <Button appearance="primary" onClick={onCreate}>{t('home.createFirst')}</Button>
+              <Button appearance="secondary" onClick={() => setTplOpen(true)}>{t('tpl.center.entry')}</Button>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="n-pinned">
+            {pinned.map((lib, i) => {
+              const Icon = iconForLibrary(lib)
+              return (
+                <button key={lib.id} type="button" className="n-pin" onClick={() => openLibrary(lib)} title={lib.name}>
+                  <span className={`n-pin-icon n-tone-${i % 6}`} aria-hidden><Icon fontSize={24} /></span>
+                  <span className="n-pin-name">{lib.name}</span>
+                  <Caption1 className="n-muted n-pin-meta">
+                    {loading ? '—' : `${fmt(extras.counts[lib.id] ?? 0)} · ${lib.category || t('app.group.libraries')}`}
+                  </Caption1>
+                </button>
+              )
+            })}
+            <button type="button" className="n-pin n-pin--add" onClick={onCreate}>
+              <span className="n-pin-icon n-pin-add" aria-hidden><AddRegular fontSize={22} /></span>
+              <span className="n-pin-name">{t('home.start.pinAdd')}</span>
+              <Caption1 className="n-muted n-pin-meta">{t('tpl.center.entry')}</Caption1>
+            </button>
+          </div>
+        )}
+      </section>
 
-        {/* —— 第三行：左 7 待办 / 右 5 最近动态 + 快捷入口 —— */}
-        <div className="panel tile--span-7">
-          <div className="panel-head">
-            <div>
-              <div className="panel-kicker">TASKS / 7D</div>
-              <h2 className="panel-title">{t('dash.todo.title')}</h2>
-            </div>
-            <span className="tag-mono">{t('dash.alerts.hint')}</span>
-          </div>
-          <div className="panel-body" style={{ padding: 0 }}>
-            {error ? (
-              <EmptyPanel
-                surface={false}
-                title={t('dash.loadFailed')}
-                body={error}
-                action={<Button type="primary" onClick={() => setRetryKey((n) => n + 1)}>{t('dash.retry')}</Button>}
-              />
-            ) : loading ? (
-              <div style={{ padding: 12 }}><InlineSkeleton rows={5} /></div>
-            ) : alerts.length === 0 ? (
-              <EmptyPanel
-                surface={false}
-                title={t('dash.alerts.empty')}
-                body={libraries.length === 0 ? t('dash.alerts.emptyNoLib') : t('dash.alerts.emptyHint')}
-                action={
-                  libraries.length === 0
-                    ? <Button type="primary" onClick={onCreate}>{t('app.newLibrary')}</Button>
-                    : <Button onClick={() => setTplOpen(true)}>{t('tpl.center.entry')}</Button>
-                }
-              />
-            ) : (
-              alerts.map(todoRow)
-            )}
-          </div>
-        </div>
-
-        <div className="panel tile--span-5">
-          <div className="panel-head">
-            <div>
-              <div className="panel-kicker">LOG / RECENT</div>
-              <h2 className="panel-title">{t('dash.recent.title')}</h2>
-            </div>
-          </div>
-          <div className="panel-body" style={{ padding: 0 }}>
+      <div className="n-grid">
+        <section className="n-section" aria-labelledby="n-recent">
+          <header className="n-section-head">
+            <Subtitle1 id="n-recent">{t('home.start.recommended')}</Subtitle1>
+            {recent.length > 0 ? (
+              <Button appearance="subtle" size="small" onClick={() => openLibrary(libraries[0])}>{t('home.start.viewAll')}</Button>
+            ) : null}
+          </header>
+          <div className="n-surface">
             {loading ? (
-              <div style={{ padding: 12 }}><InlineSkeleton rows={3} /></div>
+              <div className="n-skeleton">{[0, 1, 2].map((n) => <Skeleton key={n}><SkeletonItem size={36} /></Skeleton>)}</div>
             ) : recent.length === 0 ? (
-              <div className="empty-body" style={{ padding: '16px' }}>{t('dash.recent.empty')}</div>
+              <div className="n-row n-row--empty"><HistoryRegular fontSize={18} aria-hidden /><Caption1 className="n-muted">{t('home.start.noRecent')}</Caption1></div>
             ) : (
-              <div className="index-list">
-                {recent.map((r, i) => (
-                  <IndexRow
-                    key={r.key}
-                    num={String(i + 1).padStart(2, '0')}
-                    title={r.title}
-                    meta={`${r.libName} · ${dayjs(r.updatedAt).format('MM-DD HH:mm')}`}
-                    onClick={() => {
-                      focusItem(r.itemId)
-                      navigate(`/library/${r.libId}`)
-                    }}
-                  />
-                ))}
-              </div>
+              recent.map((r) => {
+                const lib = libraries.find((l) => l.id === r.libId)
+                const Icon = lib ? iconForLibrary(lib) : DocumentRegular
+                return (
+                  <button key={r.key} type="button" className="n-row" onClick={() => { focusItem(r.itemId); navigate(`/library/${r.libId}`) }}>
+                    <span className="n-row-icon" aria-hidden><Icon fontSize={18} /></span>
+                    <span className="n-row-copy">
+                      <Body1Strong className="n-row-title">{r.title}</Body1Strong>
+                      <Caption1 className="n-muted">{r.libName} · {dayjs(r.updatedAt).format('MM-DD HH:mm')}</Caption1>
+                    </span>
+                    <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
+                  </button>
+                )
+              })
             )}
           </div>
-          {/* 右 5 列底部：快捷入口（index-row，编号用线性图标） */}
-          <div className="panel-head" style={{ borderTop: 'var(--border-width) solid var(--border-strong)', borderBottom: 0 }}>
-            <span className="panel-kicker">{t('dash.quick.title')}</span>
+        </section>
+
+        <section className="n-section" aria-labelledby="n-today">
+          <header className="n-section-head">
+            <Subtitle1 id="n-today">{t('home.start.today')}</Subtitle1>
+            {overdueCount > 0 ? <Badge appearance="tint" color="danger">{t('home.start.overdue', { n: overdueCount })}</Badge> : null}
+          </header>
+          <div className="n-surface">
+            {loading ? (
+              <div className="n-skeleton">{[0, 1].map((n) => <Skeleton key={n}><SkeletonItem size={36} /></Skeleton>)}</div>
+            ) : tasksPreview.length === 0 ? (
+              <div className="n-row n-row--empty"><CheckmarkCircleRegular fontSize={18} aria-hidden /><Caption1 className="n-muted">{t('home.start.noTasks')}</Caption1></div>
+            ) : (
+              tasksPreview.map((a) => {
+                const diff = daysLeft(a.at)
+                const color = diff < 0 ? 'danger' : diff <= 3 ? 'warning' : 'informative'
+                return (
+                  <button key={a.key} type="button" className="n-row" onClick={() => openAlert(a)}>
+                    <span className="n-row-icon" aria-hidden><ClipboardTaskRegular fontSize={18} /></span>
+                    <span className="n-row-copy">
+                      <Body1Strong className="n-row-title">{a.title}</Body1Strong>
+                      <Caption1 className="n-muted">{a.libName} · {dayjs(a.at).format('MM-DD')}</Caption1>
+                    </span>
+                    <Badge appearance="tint" color={color}>
+                      {diff < 0 ? t('dash.overdue', { n: -diff }) : diff === 0 ? t('dash.today') : t('dash.inDays', { n: diff })}
+                    </Badge>
+                  </button>
+                )
+              })
+            )}
           </div>
-          <div className="index-list">
-            {quickActions.map((q, i) => (
-              <IndexRow
-                key={q.key}
-                num={String(i + 1).padStart(2, '0')}
-                title={q.label}
-                meta=""
-                right={<span aria-hidden style={{ display: 'inline-flex', color: 'var(--text-muted)' }}>{q.icon}</span>}
-                onClick={q.onClick}
-              />
-            ))}
-          </div>
-        </div>
+        </section>
       </div>
+
+      <section className="n-section" aria-labelledby="n-more">
+        <header className="n-section-head"><Subtitle1 id="n-more">{t('home.start.quick')}</Subtitle1></header>
+        <div className="n-surface">
+          <button type="button" className="n-row n-row--56" onClick={openAI}>
+            <span className="n-row-icon n-row-icon--accent" aria-hidden><SparkleRegular fontSize={18} /></span>
+            <span className="n-row-copy">
+              <Body1Strong className="n-row-title">{t('home.start.aiTitle')}</Body1Strong>
+              <Caption1 className="n-muted">{t('home.start.aiBody')}</Caption1>
+            </span>
+            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
+          </button>
+          <button type="button" className="n-row n-row--56" onClick={() => navigate('/settings')}>
+            <span className="n-row-icon" aria-hidden><ShieldCheckmarkRegular fontSize={18} /></span>
+            <span className="n-row-copy">
+              <Body1Strong className="n-row-title">{t('home.start.localTitle')}</Body1Strong>
+              <Caption1 className="n-muted">
+                {`${t('home.start.syncLocal')} · ${fmt(totalLibs)} ${t('dash.stat.libs')} · ${fmt(totalItems)} ${t('dash.stat.items')} · +${fmt(itemsThisWeek)} ${t('dash.stat.week')}`}
+              </Caption1>
+            </span>
+            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
+          </button>
+          <button type="button" className="n-row" onClick={() => setTplOpen(true)}>
+            <span className="n-row-icon" aria-hidden><LibraryRegular fontSize={18} /></span>
+            <span className="n-row-copy"><Body1Strong className="n-row-title">{t('tpl.center.entry')}</Body1Strong></span>
+            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
+          </button>
+          <button type="button" className="n-row" onClick={() => navigate('/trash')}>
+            <span className="n-row-icon" aria-hidden><DeleteRegular fontSize={18} /></span>
+            <span className="n-row-copy"><Body1Strong className="n-row-title">{t('app.trash')}</Body1Strong></span>
+            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
+          </button>
+          <button type="button" className="n-row" onClick={() => navigate('/settings')}>
+            <span className="n-row-icon" aria-hidden><SettingsRegular fontSize={18} /></span>
+            <span className="n-row-copy"><Body1Strong className="n-row-title">{t('app.settings')}</Body1Strong></span>
+            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
+          </button>
+          <button type="button" className="n-row" onClick={() => navigate('/help')}>
+            <span className="n-row-icon" aria-hidden><QuestionCircleRegular fontSize={18} /></span>
+            <span className="n-row-copy"><Body1Strong className="n-row-title">{t('app.help')}</Body1Strong></span>
+            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
+          </button>
+        </div>
+      </section>
 
       <TemplateCenter open={tplOpen} onClose={() => setTplOpen(false)} />
     </div>

@@ -45,10 +45,10 @@ web
 ## Brand Commitments
 
 - 产品名：「信息管理」（登录页/侧边栏品牌标识）。
-- 设计语言：「Windows 11 / Fluent 2」——Mica 云母窗口 + Bloom 壁纸 + Mica Alt/Layer/Card 分层 + Segoe UI Variable + Fluent 分层阴影 + 官方 Fluent System Icons；FluentProvider + antd tokens + Motion + react-resizable-panels + @dnd-kit。
-- 颜色：Mica `#F3F3F3` / 白卡 / 主字 `#242424` / Windows 强调蓝 `#0067C0`；暗色 `#202020` / `#2B2B2B` / `#60CDFF`；全部通过 WCAG AA。
+- 设计语言：「Windows 11 原生应用」——68px 图标导航 + 拖拽标题栏 + Mica/Acrylic + 深色中性 + #4CC2FF 强调 + Segoe UI Variable；无渐变、无网页 Dashboard；FluentProvider + antd + Fluent System Icons + Motion + react-resizable-panels + @dnd-kit。
+- 颜色：深色 `#1F1F1F/#252525/#2B2B2B/#303030` + 文字 `#FFF/#D6D6D6` + 强调 `#4CC2FF`；浅色 `#F0F0F0/#1F1F1F/#0067C0`；全部通过 WCAG AA。
 - 字体：Plus Jakarta Sans（display/UI，OFL 自托管）+ Inter（body，OFL 自托管）；中文系统黑体；mono 只用于标签/编号/日期/ID；禁止网络字体 CDN。
-- 形状：12px 卡片/窗口/弹窗圆角（Fluent borderRadius2XLarge）+ 4/8px 控件；1px 轮廓 + Fluent shadow2/4/8/16/28/64；禁止极光/霓虹/硬投影。
+- 形状：8px 控件/面板/窗口/弹窗圆角 + 极淡 1px 轮廓 + 轻软阴影；禁止渐变/霓虹/硬投影/网页大圆角卡片墙。
 
 ## Evidence on Hand
 

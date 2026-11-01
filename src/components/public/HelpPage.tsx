@@ -341,7 +341,7 @@ export default function HelpPage() {
   )
 
   return (
-    <div className="workbench">
+    <div className="workbench help-window">
       <header className="page-head">
         <div className="page-head-main">
           <div className="page-kicker">{t('help.kicker')}</div>

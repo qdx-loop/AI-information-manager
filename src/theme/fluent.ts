@@ -40,9 +40,15 @@ const windowsBrand: BrandVariants = {
   160: '#a3d3f4',
 }
 
-function withWindowsOverrides(base: Theme): Theme {
+function withWindowsOverrides(base: Theme, accent: string, onAccent: string): Theme {
   return {
     ...base,
+    colorBrandBackground: accent,
+    colorBrandBackgroundHover: accent,
+    colorBrandBackgroundPressed: accent,
+    colorBrandForeground1: accent,
+    colorBrandForeground2: accent,
+    colorNeutralForegroundOnBrand: onAccent,
     fontFamilyBase: SEGOE,
     fontFamilyMonospace: CONSOLAS,
     fontFamilyNumeric: SEGOE_DISPLAY,
@@ -55,6 +61,6 @@ function withWindowsOverrides(base: Theme): Theme {
   }
 }
 
-export const fluentWindowsLight = withWindowsOverrides(createLightTheme(windowsBrand))
-export const fluentWindowsDark = withWindowsOverrides(createDarkTheme(windowsBrand))
+export const fluentWindowsLight = withWindowsOverrides(createLightTheme(windowsBrand), '#0067C0', '#FFFFFF')
+export const fluentWindowsDark = withWindowsOverrides(createDarkTheme(windowsBrand), '#4CC2FF', '#08131A')
 export { SEGOE, SEGOE_DISPLAY, CONSOLAS }

@@ -128,5 +128,5 @@ export const DEFAULT_SETTINGS: Settings = {
   storageMode: 'local',
   cloud: { url: '', anonKey: '' },
   ai: { baseUrl: '', apiKey: '', model: '', scope: 'current', memory: '', customPrompt: '', usePlatformAI: false },
-  theme: 'light',
+  theme: 'dark',
 }

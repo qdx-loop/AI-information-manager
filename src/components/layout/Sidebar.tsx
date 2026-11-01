@@ -293,6 +293,7 @@ function SortableLibRow({
         title={lib.name}
         onClick={onOpen}
       >
+        <span className="rail-lib-badge" aria-hidden>{lib.name.slice(0, 1).toUpperCase()}</span>
         <span className="rail-lib-name">{lib.name}</span>
       </button>
       <Dropdown menu={actions} trigger={['click']}>
@@ -368,6 +369,8 @@ function SidebarBody({
         <button
           type="button"
           className={`rail-item${selectedKey === '/' ? ' is-active' : ''}`}
+          title={t('app.home')}
+          aria-label={t('app.home')}
           onClick={() => handleClick('/')}
         >
           <HomeRegular fontSize={16} />
@@ -389,7 +392,7 @@ function SidebarBody({
         })}
           </SortableContext>
         </DndContext>
-        <button type="button" className="rail-new" onClick={() => handleClick('new-library')}>
+        <button type="button" className="rail-new" title={t('app.newLibrary')} aria-label={t('app.newLibrary')} onClick={() => handleClick('new-library')}>
           <AddRegular fontSize={16} />
           <span>{t('app.newLibrary')}</span>
         </button>
@@ -398,6 +401,8 @@ function SidebarBody({
         <button
           type="button"
           className={`rail-item${selectedKey === '/trash' ? ' is-active' : ''}`}
+          title={t('app.trash')}
+          aria-label={t('app.trash')}
           onClick={() => handleClick('/trash')}
         >
           <DeleteRegular fontSize={16} />
@@ -406,6 +411,8 @@ function SidebarBody({
         <button
           type="button"
           className={`rail-item${selectedKey === '/settings' ? ' is-active' : ''}`}
+          title={t('app.settings')}
+          aria-label={t('app.settings')}
           onClick={() => handleClick('/settings')}
         >
           <SettingsRegular fontSize={16} />
@@ -414,6 +421,8 @@ function SidebarBody({
         <button
           type="button"
           className={`rail-item${selectedKey === '/help' ? ' is-active' : ''}`}
+          title={t('app.help')}
+          aria-label={t('app.help')}
           onClick={() => handleClick('/help')}
         >
           <QuestionCircleRegular fontSize={16} />

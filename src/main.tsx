@@ -72,23 +72,23 @@ function injectStaticTokens() {
 
     // 圆角：玻璃语言（12/16/20/28 + 胶囊）
     // Windows 11 / Fluent：控件 4、次级 8、卡片与窗口 12
-    '--radius-sm': '4px',
+    '--radius-sm': '6px',
     '--radius-md': '8px',
-    '--radius-lg': '12px',
+    '--radius-lg': '8px',
     '--radius-xl': '12px',
     '--radius-pill': '999px',
     '--border-width': '1px',
-    '--glass-blur': '40px',
-    '--glass-blur-strong': '60px',
+    '--glass-blur': '30px',
+    '--glass-blur-strong': '40px',
 
     // 尺寸
-    '--topbar-h': '52px',
-    '--rail-w': '260px',
+    '--topbar-h': '48px',
+    '--rail-w': '68px',
     '--caption-h': '40px',
-    '--control-h': '36px',
+    '--control-h': '32px',
     '--control-h-sm': '28px',
     '--control-h-lg': '44px',
-    '--row-h': '40px',
+    '--row-h': '44px',
     '--row-h-sm': '32px',
     '--row-h-lg': '48px',
     '--table-head-h': '40px',
@@ -115,7 +115,7 @@ function renderBootError(err: unknown) {
   const msg = err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err)
   const el = document.getElementById('root')
   if (!el || el.childElementCount > 0) return
-  el.innerHTML = `<div style="font-family:system-ui;padding:32px 20px;color:#DC2626;background:#F3F3F3;min-height:100vh;word-break:break-all">
+  el.innerHTML = `<div style="font-family:system-ui;padding:32px 20px;color:#DC2626;background:#1F1F1F;min-height:100vh;word-break:break-all">
     <h2 style="margin:0 0 12px">页面加载出错</h2>
     <p style="margin:0 0 12px">请截图反馈给管理员。常见解决方式：更新浏览器 / 清除该网站数据后重试。</p>
     <pre style="white-space:pre-wrap;font-size:12px;line-height:1.6">${msg.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string))}</pre>
@@ -179,17 +179,17 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
       '--focus': c.focus,
       // —— 柔和阴影（无硬投影） ——
       // Fluent 2 官方 elevation：shadow2/4/8/16/28/64
-      '--shadow-1': '0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14)',
-      '--shadow-2': '0 0 2px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.14)',
-      '--shadow-3': '0 0 8px rgba(0,0,0,0.12), 0 14px 28px rgba(0,0,0,0.14)',
-      '--shadow-4': '0 0 8px rgba(0,0,0,0.12), 0 32px 64px rgba(0,0,0,0.14)',
-      '--shadow-glow': '0 0 0 3px rgba(0,103,192,0.30)',
-      '--shadow-inset': 'inset 0 1px 0 rgba(255,255,255,0.35)',
-      '--wallpaper': 'url(/win11-bloom-dark.jpg)',
-      '--layer-fill': mode === 'dark' ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.40)',
-      '--card-fill': mode === 'dark' ? 'rgba(43,43,43,0.78)' : 'rgba(255,255,255,0.66)',
-      '--card-stroke': mode === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)',
-      '--mica-wash': mode === 'dark' ? 'rgba(32,32,32,0.72)' : 'rgba(243,243,243,0.62)',
+      '--shadow-1': mode === 'dark' ? '0 2px 8px rgba(0,0,0,0.32)' : '0 2px 8px rgba(0,0,0,0.10)',
+      '--shadow-2': mode === 'dark' ? '0 8px 24px rgba(0,0,0,0.38)' : '0 8px 24px rgba(0,0,0,0.12)',
+      '--shadow-3': mode === 'dark' ? '0 12px 40px rgba(0,0,0,0.46)' : '0 12px 40px rgba(0,0,0,0.16)',
+      '--shadow-4': mode === 'dark' ? '0 16px 48px rgba(0,0,0,0.5)' : '0 16px 48px rgba(0,0,0,0.18)',
+      '--shadow-glow': '0 0 0 3px rgba(76,194,255,0.25)',
+      '--shadow-inset': 'none',
+      '--wallpaper': mode === 'dark' ? 'url(/win11-wallpaper.jpg)' : 'url(/win11-wallpaper-light.jpg)',
+      '--layer-fill': mode === 'dark' ? 'rgba(31,31,31,0.55)' : 'rgba(255,255,255,0.45)',
+      '--card-fill': mode === 'dark' ? 'rgba(37,37,37,0.42)' : 'rgba(255,255,255,0.50)',
+      '--card-stroke': mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
+      '--mica-wash': mode === 'dark' ? 'rgba(31,31,31,0.72)' : 'rgba(240,240,240,0.66)',
       // —— 极光光球（画布背景由 CSS 组合） ——
       '--aurora-1': mode === 'dark' ? 'rgba(99,102,241,0.40)' : 'rgba(99,102,241,0.46)',
       '--aurora-2': mode === 'dark' ? 'rgba(34,211,238,0.24)' : 'rgba(34,211,238,0.34)',

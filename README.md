@@ -50,7 +50,7 @@
 - 可用 `REGISTRATION_OPEN=0` 紧急关闭注册（被灌水时）
 
 ### 🎨 界面体验
-- 「Windows 11 / Fluent 2」设计系统：Mica 云母 + Bloom 壁纸 + Segoe UI Variable + Fluent 分层阴影 + 12px 圆角 + 官方 Fluent System Icons；FluentProvider + antd + Motion + react-resizable-panels + @dnd-kit
+- 「Windows 11 原生应用」设计系统：68px 图标导航 + 拖拽标题栏 + Mica/Acrylic + 深色中性 + #4CC2FF + Segoe UI Variable；无渐变/无网页 Dashboard；FluentProvider + antd + Fluent icons + Motion + react-resizable-panels + @dnd-kit
 - 深色 / 浅色主题切换（登录页、后台、管理库、移动端全部适配）
 - 响应式布局，适配不同屏幕
 

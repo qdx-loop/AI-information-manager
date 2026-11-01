@@ -247,3 +247,14 @@ Before delivering any UI code, verify:
 - **Icons**：`@fluentui/react-icons`（Fluent System Icons / Segoe Fluent Icons 语义），Regular 线型，16/20/24，`fontSize` 控制；全站经 `src/components/common/icons.tsx` 映射，业务代码零改动。
 - **Motion**：Fluent duration/curve：150–250ms；`curveEasyEase` / `curveDecelerateMid`；页面转场 200ms fade + 4px；reduced-motion 直接渲染终态。
 - **Forbidden**：极光/玻璃内容卡、渐变霓虹、0 圆角、2px 硬边、硬投影、emoji 图标、12px 以下功能文字。
+
+## Project Overrides v8（Windows 11 Native / 前端提示词）
+
+- **布局**：68px 图标窄导航 + 40px 拖拽标题栏 + Mica 内容；桌面移除 command bar；图标文字仅 hover 显示。
+- **材质**：Mica 窗口 + Acrylic 导航/标题栏/浮层 + 内容 Card 层；对话框 Smoke。
+- **颜色**：深色 #1F1F1F/#252525/#2B2B2B/#303030 + 文字 #FFF/#D6D6D6/#A0A0A0；强调 #4CC2FF/#3DAEE9/#5FB3FF（只 10%）；浅色 #0067C0。
+- **圆角**：控件/面板/窗口/弹窗 8px（8–12 范围内）；禁止旧版 12/20/28 大圆角体系。
+- **阴影**：0 2px 8px / 0 8px 24px / 0 12px 40px，轻软短；无彩色光。
+- **反模式**：渐变（含蓝紫/大面积）、霓虹、科技 HUD、网页 Dashboard 卡片网格、大圆角卡片墙；全部禁止。
+- **首页**：Windows Start/Settings 混合：身份页头 + 已固定大图标磁贴 + 推荐/今天列表 + 设置式快速行；非 KPI 大色块 Dashboard。
+- **落地页**：Windows 11 应用产品页（深色 Mica、Acrylic、原生窗口截图、设置式功能行）；无营销渐变/巨大装饰。
