@@ -21,7 +21,7 @@ import {
   CopyOutlined,
   DownloadOutlined,
   SafetyCertificateOutlined,
-} from '@ant-design/icons'
+} from '@/components/common/icons'
 import dayjs from 'dayjs'
 import { useI18n } from '@/i18n'
 import {
@@ -466,29 +466,18 @@ export default function AdminPage() {
         className="toolbar"
         style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
       >
-        <div style={{ display: 'flex' }}>
-          {(['accounts', 'audit'] as const).map((k, i) => {
+        <div className="auth-tabs admin-tabs" role="tablist">
+          {(['accounts', 'audit'] as const).map((k) => {
             const active = tab === k
             const label = k === 'accounts' ? t('admin.tab.accounts') : t('admin.tab.audit')
             return (
               <button
                 key={k}
                 type="button"
+                role="tab"
+                aria-selected={active}
                 onClick={() => setTab(k)}
-                style={{
-                  height: 'var(--control-h)',
-                  padding: '0 14px',
-                  marginLeft: i === 0 ? 0 : -2,
-                  border: '2px solid var(--border-strong)',
-                  background: active ? 'var(--accent)' : 'var(--surface)',
-                  color: active ? 'var(--on-accent)' : 'var(--text-secondary)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--t-2xs)',
-                  fontWeight: 700,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer',
-                }}
+                className={`auth-tab admin-tab${active ? ' is-active' : ''}`}
               >
                 {label}
               </button>

@@ -13,7 +13,7 @@
 //   3) 主按钮是「开始使用」，二维码只是卡片里的次要内容（不做最大视觉、不在按钮上）。
 // 视觉：弹窗外壳（sheet 面 / 2px ink / 0 圆角 / shadow-3 / 遮罩 / 关闭键）由 Lead 的全局 CSS 统一收编。
 import { Modal, Button } from 'antd'
-import { CloseOutlined } from '@ant-design/icons'
+import { CloseOutlined } from '@/components/common/icons'
 import { useI18n, type TFunc } from '@/i18n'
 import { markWelcomeSeen } from '@/utils/welcome'
 import RewardQr from './RewardQr'

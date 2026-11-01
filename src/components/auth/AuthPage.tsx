@@ -14,7 +14,7 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { Form, Input, Button, Checkbox, App } from 'antd'
-import { SafetyOutlined } from '@ant-design/icons'
+import { SafetyOutlined } from '@/components/common/icons'
 import { useAuthStore } from '@/store/authStore'
 import { apiRegistrationOpen } from '@/lib/serverApi'
 import { useI18n } from '@/i18n'
@@ -146,30 +146,19 @@ export default function AuthPage() {
     </div>
   ) : null
 
-  // 方块 Tabs：两格等宽、2px ink 边、选中 lime 底
+  // Mode tabs：Nova 式分段控件（灰底、选中白块 + 细阴影）
   const tabs = (
-    <div style={{ display: 'flex', marginBottom: 20 }}>
-      {(['login', 'register'] as const).map((k, i) => {
+    <div className="auth-tabs" role="tablist" aria-label={t('auth.tab.login')}>
+      {(['login', 'register'] as const).map((k) => {
         const active = mode === k
         return (
           <button
             key={k}
             type="button"
+            role="tab"
+            aria-selected={active}
             onClick={() => switchMode(k)}
-            style={{
-              flex: 1,
-              height: 'var(--control-h)',
-              marginLeft: i === 0 ? 0 : -2,
-              border: '2px solid var(--border-strong)',
-              background: active ? 'var(--accent)' : 'var(--surface)',
-              color: active ? 'var(--on-accent)' : 'var(--text-secondary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--t-2xs)',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-            }}
+            className={`auth-tab${active ? ' is-active' : ''}`}
           >
             {t(k === 'login' ? 'auth.tab.login' : 'auth.tab.register')}
           </button>
@@ -418,9 +407,15 @@ export default function AuthPage() {
           <div className="auth-poster-list">
             {features.map((text, i) => (
               <div key={i} className="auth-poster-item">
-                {text}
+                <span className="auth-poster-num">0{i + 1}</span>
+                <span>{text}</span>
               </div>
             ))}
+          </div>
+          <div className="auth-poster-meta">
+            <span>LOCAL-FIRST</span>
+            <span>FREE FOREVER</span>
+            <span>YOUR DATA, YOUR DEVICE</span>
           </div>
         </div>
 

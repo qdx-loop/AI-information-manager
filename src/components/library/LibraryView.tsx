@@ -20,7 +20,7 @@ import {
   CopyOutlined,
   MoreOutlined,
   PlusOutlined,
-} from '@ant-design/icons'
+} from '@/components/common/icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import LibraryTable from './LibraryTable'
 import ItemEditor from './ItemEditor'

@@ -1,6 +1,6 @@
 import { Table, Button, Tooltip, Pagination } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { EditOutlined, DeleteOutlined, StarOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, StarOutlined } from '@/components/common/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FieldDef, FieldValue, Item } from '@/types'
 import FieldRenderer, { renderCellValue } from '@/components/fields/FieldRenderer'

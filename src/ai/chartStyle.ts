@@ -76,10 +76,9 @@ export function readChartTokens(dark: boolean): ChartTokens {
     canvas: v('--paper', '#ECE9E0'),
     danger: v('--danger', dark ? '#FF6B5A' : '#C22A1C'),
     series,
-    // 图表文字跟随应用的系统字链（不再引用 Plus Jakarta Sans：它既未随包分发，
-    // 也不在用户的系统字体里，写了等于静默回退）。中文由系统黑体渲染，数字用 tabular。
+    // 图表文字跟随 Nova Editorial 的字阶：Inter 正文 + 系统中文回退；数字 tabular。
     font:
-      "Outfit, 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
+      "Inter, 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
   }
 }
 

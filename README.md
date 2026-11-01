@@ -50,7 +50,7 @@
 - 可用 `REGISTRATION_OPEN=0` 紧急关闭注册（被灌水时）
 
 ### 🎨 界面体验
-- 「流光玻璃 LUMINOUS GLASS」设计系统：极光渐变画布 + 磨砂玻璃面板 + 靛紫渐变 + 柔和光影；Plus Jakarta Sans + Inter + 等宽标签（由 ui-ux-pro-max skill 的 Liquid Glass 方向生成）
+- 「新星编务 NOVA EDITORIAL」设计系统：近白画布 + 白卡细边 + 单一钴蓝强调 + 编辑式排版；Plus Jakarta Sans + Inter + 等宽标签；antd + Lucide + Motion + react-resizable-panels + @dnd-kit
 - 深色 / 浅色主题切换（登录页、后台、管理库、移动端全部适配）
 - 响应式布局，适配不同屏幕
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Modal, Button, Space, Typography, Progress, Alert, Result } from 'antd'
 import { App as AntdApp } from 'antd'
-import { SwapOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { SwapOutlined, ArrowLeftOutlined } from '@/components/common/icons'
 import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'

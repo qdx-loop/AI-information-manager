@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Modal, Button, App } from 'antd'
-import { DownloadOutlined } from '@ant-design/icons'
+import { DownloadOutlined } from '@/components/common/icons'
 import { useI18n } from '@/i18n'
 import { styleChart } from '@/ai/chartStyle'
 import { useAppStore } from '@/store/appStore'

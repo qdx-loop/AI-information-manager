@@ -9,7 +9,7 @@ import {
   DeleteOutlined,
   QuestionCircleOutlined,
   RobotOutlined,
-} from '@ant-design/icons'
+} from '@/components/common/icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAuthStore } from '@/store/authStore'
 import { gatherInsights, itemDisplayName, type InsightData } from '@/utils/insights'
@@ -290,13 +290,29 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
               </div>
             </div>
           ) : (
-            <div className="metric" style={{ flex: '1 1 auto', justifyContent: 'center' }}>
-              <div className="metric-label">{t('dash.stat.items')}</div>
-              <div className="metric-value metric-value--lg">{loading || error ? '—' : fmt(totalItems)}</div>
-              <div className="metric-note">
-                {loading || error ? ' ' : t('dash.kpi.delta.week', { n: itemsThisWeek })}
+            <>
+              <div className="metric" style={{ flex: '1 1 auto', justifyContent: 'center' }}>
+                <div className="metric-label">{t('dash.stat.items')}</div>
+                <div className="metric-value metric-value--lg">{loading || error ? '—' : fmt(totalItems)}</div>
+                <div className="metric-note">
+                  {loading || error ? ' ' : t('dash.kpi.delta.week', { n: itemsThisWeek })}
+                </div>
               </div>
-            </div>
+              <div className="tile-accent-meta">
+                <div>
+                  <span>{t('dash.stat.libs')}</span>
+                  <b>{loading || error ? '—' : fmt(totalLibs)}</b>
+                </div>
+                <div>
+                  <span>{t('dash.kpi.todo')}</span>
+                  <b>{loading || error ? '—' : fmt(alerts.length)}</b>
+                </div>
+                <div>
+                  <span>{t('dash.brief.sync')}</span>
+                  <b>{t('dash.brief.local')}</b>
+                </div>
+              </div>
+            </>
           )}
         </div>
 

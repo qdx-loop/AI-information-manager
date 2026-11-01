@@ -69,14 +69,14 @@ function injectStaticTokens() {
     '--s12': '96px',
 
     // 圆角：玻璃语言（12/16/20/28 + 胶囊）
-    '--radius-sm': '12px',
-    '--radius-md': '16px',
-    '--radius-lg': '20px',
-    '--radius-xl': '28px',
+    '--radius-sm': '6px',
+    '--radius-md': '8px',
+    '--radius-lg': '10px',
+    '--radius-xl': '12px',
     '--radius-pill': '999px',
     '--border-width': '1px',
-    '--glass-blur': '28px',
-    '--glass-blur-strong': '40px',
+    '--glass-blur': '0px',
+    '--glass-blur-strong': '0px',
 
     // 尺寸
     '--topbar-h': '56px',
@@ -167,17 +167,17 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
       '--shadow-color': c.shadowColor,
       '--focus': c.focus,
       // —— 柔和阴影（无硬投影） ——
-      '--shadow-1': '0 2px 8px rgba(15,23,42,0.06), 0 12px 32px rgba(15,23,42,0.08)',
-      '--shadow-2': '0 8px 24px rgba(15,23,42,0.10), 0 24px 64px rgba(15,23,42,0.12)',
-      '--shadow-3': '0 24px 80px rgba(15,23,42,0.20)',
-      '--shadow-glow': '0 18px 50px rgba(99,102,241,0.28)',
-      '--shadow-inset': 'inset 0 1px 0 rgba(255,255,255,0.55)',
+      '--shadow-1': '0 1px 2px rgba(9,9,11,0.04)',
+      '--shadow-2': '0 1px 3px rgba(9,9,11,0.06), 0 8px 24px rgba(9,9,11,0.08)',
+      '--shadow-3': '0 24px 64px rgba(9,9,11,0.16)',
+      '--shadow-glow': '0 0 0 3px rgba(37,99,235,0.14)',
+      '--shadow-inset': 'none',
       // —— 极光光球（画布背景由 CSS 组合） ——
       '--aurora-1': mode === 'dark' ? 'rgba(99,102,241,0.40)' : 'rgba(99,102,241,0.46)',
       '--aurora-2': mode === 'dark' ? 'rgba(34,211,238,0.24)' : 'rgba(34,211,238,0.34)',
       '--aurora-3': mode === 'dark' ? 'rgba(244,114,182,0.18)' : 'rgba(244,114,182,0.26)',
-      '--aurora-base': mode === 'dark' ? '#060913' : '#E7EBF7',
-      '--glass-sheen': mode === 'dark' ? 'linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0) 58%)' : 'linear-gradient(135deg, rgba(255,255,255,0.55), rgba(255,255,255,0) 58%)',
+      '--aurora-base': mode === 'dark' ? '#09090B' : '#FAFAFA',
+      '--glass-sheen': 'none',
     }
     for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v)
     c.series.forEach((col, i) => {

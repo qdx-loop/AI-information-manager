@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { HomeOutlined, AppstoreOutlined, RobotOutlined, SettingOutlined } from '@ant-design/icons'
+import { Home, LayoutGrid, Bot, Settings } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAiUiStore } from '@/store/aiUiStore'
 import { useI18n } from '@/i18n'
@@ -42,14 +42,14 @@ export default function MobileTabBar({
       {
         key: '/',
         label: t('app.home'),
-        icon: <HomeOutlined />,
+        icon: <Home size={20} strokeWidth={1.8} />,
         active: location.pathname === '/',
         onClick: () => { onDismiss?.(); navigate('/') },
       },
       {
         key: 'libs',
         label: t('app.group.libraries'),
-        icon: <AppstoreOutlined />,
+        icon: <LayoutGrid size={20} strokeWidth={1.8} />,
         // 任何库页面（含子库）都算「库」选中
         active: location.pathname.startsWith('/library/'),
         // 以前这里是 `if (!pathname.startsWith('/library/')) navigate('/')`：
@@ -61,14 +61,14 @@ export default function MobileTabBar({
       {
         key: 'ai',
         label: t('app.aiAssistant'),
-        icon: <RobotOutlined />,
+        icon: <Bot size={20} strokeWidth={1.8} />,
         active: aiOpen,
         onClick: () => { onDismiss?.(); setAiOpen(!aiOpen) },
       },
       {
         key: '/settings',
         label: t('app.settings'),
-        icon: <SettingOutlined />,
+        icon: <Settings size={20} strokeWidth={1.8} />,
         active: location.pathname === '/settings',
         onClick: () => { onDismiss?.(); navigate('/settings') },
       },

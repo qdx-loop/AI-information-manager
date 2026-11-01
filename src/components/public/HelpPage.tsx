@@ -282,14 +282,14 @@ export default function HelpPage() {
               className="index-row"
               onClick={() => jump(c.id)}
               style={{
-                background: isActive ? 'var(--accent)' : undefined,
-                color: isActive ? 'var(--on-accent)' : undefined,
-                borderLeft: isActive ? '4px solid var(--text)' : '4px solid transparent',
+                background: isActive ? 'var(--text)' : undefined,
+                color: isActive ? 'var(--bg)' : undefined,
+                borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
               }}
             >
               <span
                 className="index-num"
-                style={{ color: isActive ? 'var(--on-accent)' : undefined }}
+                style={{ color: isActive ? 'var(--bg)' : undefined, opacity: isActive ? 0.7 : 1 }}
               >
                 {String(i + 1).padStart(2, '0')}
               </span>
@@ -298,7 +298,7 @@ export default function HelpPage() {
                   className="index-title"
                   style={{
                     whiteSpace: 'normal',
-                    color: isActive ? 'var(--on-accent)' : undefined,
+                    color: isActive ? 'var(--bg)' : undefined,
                   }}
                 >
                   {c.title}

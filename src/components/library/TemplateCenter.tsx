@@ -12,7 +12,7 @@ import {
   CarOutlined,
   WarningOutlined,
   MedicineBoxOutlined,
-} from '@ant-design/icons'
+} from '@/components/common/icons'
 import { useNavigate } from 'react-router-dom'
 import { LIB_TEMPLATES, applyTemplate, applySampleData, type LibTemplate } from '@/utils/libraryTemplates'
 import { useLibraryStore } from '@/store/libraryStore'

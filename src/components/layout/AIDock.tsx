@@ -1,10 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Spin, Tooltip } from 'antd'
-import {
-  CloseOutlined,
-  VerticalLeftOutlined,
-  DownOutlined,
-} from '@ant-design/icons'
+import { X, PanelRightClose, ChevronDown } from 'lucide-react'
 import { useAiUiStore, AI_DOCK_MIN, AI_DOCK_MAX } from '@/store/aiUiStore'
 import { useI18n } from '@/i18n'
 import { useBackButtonLayer } from '@/utils/backButton'
@@ -144,7 +140,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           aria-label={t('common.close')}
           title={t('common.close')}
         >
-          <CloseOutlined />
+          <X size={17} strokeWidth={1.8} />
         </Button>
       </aside>
     )
@@ -216,7 +212,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
               onClick={() => setCollapsed(true)}
               aria-label={t('ai.collapse')}
             >
-              {isSheet ? <DownOutlined /> : <VerticalLeftOutlined />}
+              {isSheet ? <ChevronDown size={17} strokeWidth={1.8} /> : <PanelRightClose size={17} strokeWidth={1.8} />}
             </Button>
           </Tooltip>
           <Tooltip title={t('common.close')}>
@@ -226,7 +222,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
               onClick={() => setOpen(false)}
               aria-label={t('common.close')}
             >
-              <CloseOutlined />
+              <X size={17} strokeWidth={1.8} />
             </Button>
           </Tooltip>
         </header>

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Table, Button, Popconfirm, App } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { InfoCircleOutlined, UndoOutlined } from '@ant-design/icons'
+import { InfoCircleOutlined, UndoOutlined } from '@/components/common/icons'
 import dayjs from 'dayjs'
 import { useLibraryStore } from '@/store/libraryStore'
 import type { TrashEntry } from '@/types'

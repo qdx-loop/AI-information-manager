@@ -1,5 +1,5 @@
 import { Modal, Button, Input, Select, Switch, App } from 'antd'
-import { DeleteOutlined, HolderOutlined, PlusOutlined } from '@ant-design/icons'
+import { DeleteOutlined, HolderOutlined, PlusOutlined } from '@/components/common/icons'
 import { useState } from 'react'
 import {
   DndContext,

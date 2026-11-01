@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from 'antd'
-import { CloseOutlined } from '@ant-design/icons'
+import { CloseOutlined } from '@/components/common/icons'
 import { useAppStore } from '@/store/appStore'
 import { useI18n } from '@/i18n'
 import HomeDashboard from './HomeDashboard'

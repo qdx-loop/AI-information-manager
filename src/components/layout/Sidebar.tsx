@@ -1,18 +1,34 @@
 import { Button, Input, App, Dropdown } from 'antd'
 import {
-  DeleteOutlined,
-  SettingOutlined,
-  PlusOutlined,
-  MoreOutlined,
-  EditOutlined,
-  HomeOutlined,
-  TagsOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  QuestionCircleOutlined,
-  LogoutOutlined,
-  RobotOutlined,
-} from '@ant-design/icons'
+  Trash2,
+  Settings,
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  Home,
+  Tag,
+  ArrowUp,
+  ArrowDown,
+  CircleHelp,
+  LogOut,
+  Bot,
+  GripVertical,
+} from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type { MenuProps } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
@@ -164,19 +180,19 @@ function useSidebarState(onNavigate?: () => void) {
     const idx = libraries.findIndex((l) => l.id === lib.id)
     return {
       items: [
-        { key: 'child', label: t('app.newChild'), icon: <PlusOutlined /> },
-        { key: 'rename', label: t('common.rename'), icon: <EditOutlined /> },
-        { key: 'category', label: t('app.lib.category'), icon: <TagsOutlined /> },
+        { key: 'child', label: t('app.newChild'), icon: <Plus size={16} strokeWidth={1.8} /> },
+        { key: 'rename', label: t('common.rename'), icon: <Pencil size={15} strokeWidth={1.8} /> },
+        { key: 'category', label: t('app.lib.category'), icon: <Tag size={15} strokeWidth={1.8} /> },
         { type: 'divider' },
-        { key: 'up', label: t('app.lib.moveUp'), icon: <ArrowUpOutlined />, disabled: idx <= 0 },
+        { key: 'up', label: t('app.lib.moveUp'), icon: <ArrowUp size={15} strokeWidth={1.8} />, disabled: idx <= 0 },
         {
           key: 'down',
           label: t('app.lib.moveDown'),
-          icon: <ArrowDownOutlined />,
+          icon: <ArrowDown size={15} strokeWidth={1.8} />,
           disabled: idx < 0 || idx >= libraries.length - 1,
         },
         { type: 'divider' },
-        { key: 'delete', label: t('common.delete'), icon: <DeleteOutlined />, danger: true },
+        { key: 'delete', label: t('common.delete'), icon: <Trash2 size={16} strokeWidth={1.8} />, danger: true },
       ],
       onClick: ({ key, domEvent }) => {
         domEvent.stopPropagation()
@@ -229,8 +245,68 @@ function useSidebarState(onNavigate?: () => void) {
   return {
     account, selectedKey, handleClick, handleLogout, loggingOut,
     creatingLib, setCreatingLib, creatingChildOf, setCreatingChildOf,
-    grouped, childrenOf, libActions,
+    grouped, childrenOf, libActions, libraries, reorderLibraries,
   }
+}
+
+function SortableLibRow({
+  lib,
+  depth,
+  active,
+  actions,
+  onOpen,
+  moreLabel,
+}: {
+  lib: Library
+  depth: number
+  active: boolean
+  actions: React.ComponentProps<typeof Dropdown>['menu']
+  onOpen: () => void
+  moreLabel: string
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lib.id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`rail-lib-row${isDragging ? ' is-dragging' : ''}`}
+      data-lib-id={lib.id}
+    >
+      <button
+        type="button"
+        className="rail-drag"
+        aria-label="拖动排序"
+        title="拖动排序"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={13} strokeWidth={1.8} />
+      </button>
+      <button
+        type="button"
+        className={`rail-lib${active ? ' is-active' : ''}`}
+        style={{ paddingLeft: 8 + depth * 12 }}
+        title={lib.name}
+        onClick={onOpen}
+      >
+        <span className="rail-lib-name">{lib.name}</span>
+      </button>
+      <Dropdown menu={actions} trigger={['click']}>
+        <button
+          type="button"
+          className="rail-lib-more"
+          aria-label={moreLabel}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MoreHorizontal size={15} strokeWidth={1.8} />
+        </button>
+      </Dropdown>
+    </div>
+  )
 }
 
 function SidebarBody({
@@ -245,35 +321,34 @@ function SidebarBody({
   const t = useI18n()
   const {
     account, selectedKey, handleClick, handleLogout, loggingOut,
-    grouped, childrenOf, libActions,
+    grouped, childrenOf, libActions, libraries, reorderLibraries,
   } = state
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const libIds = libraries.map((l) => l.id)
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active: a, over } = event
+    if (!over || a.id === over.id) return
+    const oldIndex = libIds.indexOf(String(a.id))
+    const newIndex = libIds.indexOf(String(over.id))
+    if (oldIndex < 0 || newIndex < 0) return
+    const next = arrayMove(libIds, oldIndex, newIndex)
+    void reorderLibraries(next)
+  }
 
   const renderLib = (lib: Library, depth: number): React.ReactNode => {
     const children = childrenOf.get(lib.id) ?? []
     const active = selectedKey === `/library/${lib.id}`
     return (
       <div key={lib.id}>
-        <div className="rail-lib-row">
-          <button
-            type="button"
-            className={`rail-lib${active ? ' is-active' : ''}`}
-            style={{ paddingLeft: 14 + depth * 12 }}
-            title={lib.name}
-            onClick={() => handleClick(`/library/${lib.id}`)}
-          >
-            <span className="rail-lib-name">{lib.name}</span>
-          </button>
-          <Dropdown menu={libActions(lib)} trigger={['click']}>
-            <button
-              type="button"
-              className="rail-lib-more"
-              aria-label={t('common.more')}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreOutlined />
-            </button>
-          </Dropdown>
-        </div>
+        <SortableLibRow
+          lib={lib}
+          depth={depth}
+          active={active}
+          actions={libActions(lib)}
+          onOpen={() => handleClick(`/library/${lib.id}`)}
+          moreLabel={t('common.more')}
+        />
         {children.map((c) => renderLib(c, depth + 1))}
       </div>
     )
@@ -285,7 +360,7 @@ function SidebarBody({
         <span className="rail-mark" aria-hidden />
         <span style={{ minWidth: 0, textAlign: 'left' }}>
           <span className="rail-brand-name">{t('app.brand')}</span>
-          <span className="rail-brand-sub">SIGNAL PRESS · LOCAL</span>
+          <span className="rail-brand-sub">LOCAL-FIRST · AI CAPTURE</span>
         </span>
       </button>
 
@@ -295,11 +370,13 @@ function SidebarBody({
           className={`rail-item${selectedKey === '/' ? ' is-active' : ''}`}
           onClick={() => handleClick('/')}
         >
-          <HomeOutlined />
+          <Home size={16} strokeWidth={1.8} />
           <span className="rail-text">{t('app.home')}</span>
         </button>
 
         <div className="rail-group">{t('app.group.libraries')}</div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={libIds} strategy={verticalListSortingStrategy}>
         {grouped.map(([cat, libs]) => {
           const roots = libs.filter((l) => !l.parentId)
           if (roots.length === 0) return null
@@ -310,8 +387,10 @@ function SidebarBody({
             </div>
           )
         })}
+          </SortableContext>
+        </DndContext>
         <button type="button" className="rail-new" onClick={() => handleClick('new-library')}>
-          <PlusOutlined />
+          <Plus size={16} strokeWidth={1.8} />
           <span>{t('app.newLibrary')}</span>
         </button>
 
@@ -321,7 +400,7 @@ function SidebarBody({
           className={`rail-item${selectedKey === '/trash' ? ' is-active' : ''}`}
           onClick={() => handleClick('/trash')}
         >
-          <DeleteOutlined />
+          <Trash2 size={16} strokeWidth={1.8} />
           <span className="rail-text">{t('app.trash')}</span>
         </button>
         <button
@@ -329,7 +408,7 @@ function SidebarBody({
           className={`rail-item${selectedKey === '/settings' ? ' is-active' : ''}`}
           onClick={() => handleClick('/settings')}
         >
-          <SettingOutlined />
+          <Settings size={16} strokeWidth={1.8} />
           <span className="rail-text">{t('app.settings')}</span>
         </button>
         <button
@@ -337,7 +416,7 @@ function SidebarBody({
           className={`rail-item${selectedKey === '/help' ? ' is-active' : ''}`}
           onClick={() => handleClick('/help')}
         >
-          <QuestionCircleOutlined />
+          <CircleHelp size={16} strokeWidth={1.8} />
           <span className="rail-text">{t('app.help')}</span>
         </button>
       </div>
@@ -350,7 +429,7 @@ function SidebarBody({
           onClick={onOpenPanel}
           title={t('app.aiAssistant')}
         >
-          <RobotOutlined />
+          <Bot size={16} strokeWidth={1.8} />
           <span className="rail-ai-text">{t('app.aiAssistant')}</span>
           <kbd className="rail-ai-kbd">
             {/Mac|iP(hone|ad)/.test(navigator.platform) ? '⌘J' : 'Ctrl·J'}
@@ -369,7 +448,7 @@ function SidebarBody({
             disabled={loggingOut}
             onClick={handleLogout}
           >
-            <LogoutOutlined />
+            <LogOut size={15} strokeWidth={1.8} />
           </button>
         </div>
       </div>

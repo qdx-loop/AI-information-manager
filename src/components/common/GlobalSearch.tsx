@@ -15,7 +15,7 @@ import {
   GlobalOutlined,
   CloudSyncOutlined,
   SaveOutlined,
-} from '@ant-design/icons'
+} from '@/components/common/icons'
 import { useNavigate } from 'react-router-dom'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAppStore } from '@/store/appStore'

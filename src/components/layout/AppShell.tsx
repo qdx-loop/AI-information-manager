@@ -1,12 +1,14 @@
 import { Drawer, Tooltip, Dropdown, Avatar, App as AntApp } from 'antd'
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
-import { MoonOutlined, SunOutlined, MenuOutlined, SearchOutlined, LogoutOutlined, WifiOutlined } from '@ant-design/icons'
+import { Moon, Sun, Menu, Search, LogOut, Wifi } from 'lucide-react'
 import Sidebar, { SidebarContent } from './Sidebar'
 import AIDock from './AIDock'
 import AIFab from './AIFab'
 import MobileTabBar from './MobileTabBar'
 import LibraryPickerSheet from '@/components/library/LibraryPickerSheet'
+import PageTransition from '@/components/common/PageTransition'
+import { Group, Panel, Separator } from 'react-resizable-panels'
 import { useAiUiStore, aiPanelVisible } from '@/store/aiUiStore'
 import { resetSession } from '@/store/session'
 import GlobalSearch from '@/components/common/GlobalSearch'
@@ -105,6 +107,8 @@ export default function AppShell() {
 
   // 供新手清单等处通过自定义事件打开 AI 面板
   const setAiOpen = useAiUiStore((s) => s.setOpen)
+  const aiOpen = useAiUiStore((s) => s.open)
+  const aiCollapsed = useAiUiStore((s) => s.collapsed)
   useEffect(() => {
     const open = () => setAiOpen(true)
     window.addEventListener('open-ai-panel', open)
@@ -194,6 +198,8 @@ export default function AppShell() {
 
   useBackButtonLayer(sidebarOpen, () => setSidebarOpen(false))
 
+  const showDock = !isMobile && aiOpen && !aiCollapsed
+
   return (
     <div className="app-shell">
       {isMobile ? (
@@ -212,10 +218,12 @@ export default function AppShell() {
       ) : (
         <Sidebar onOpenPanel={() => setAiOpen(true)} siderRef={siderRef} />
       )}
+      <Group orientation="horizontal" id="nova-ai-dock" className="app-panels">
+        <Panel id="main" minSize="54%" className="app-panel-main">
       <div className="app-main">
         {!online && (
           <div className="offline-bar" role="status">
-            <WifiOutlined />
+            <Wifi size={15} strokeWidth={1.8} />
             <span>{t('app.offline')}</span>
           </div>
         )}
@@ -228,7 +236,7 @@ export default function AppShell() {
                   aria-label={t('nav.menu')}
                   onClick={() => setSidebarOpen(true)}
                 >
-                  <MenuOutlined />
+                  <Menu size={18} strokeWidth={1.8} />
                 </button>
               )}
               {isMobile ? (
@@ -257,7 +265,7 @@ export default function AppShell() {
                 onClick={() => setSearchOpen(true)}
                 aria-label={t('app.search')}
               >
-                <SearchOutlined />
+                <Search size={16} strokeWidth={1.8} />
                 <span>{t('app.search')}</span>
                 <kbd>⌘K</kbd>
               </button>
@@ -268,7 +276,7 @@ export default function AppShell() {
                   aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
                   onClick={() => setTheme(isDark ? 'light' : 'dark')}
                 >
-                  {isDark ? <SunOutlined /> : <MoonOutlined />}
+                  {isDark ? <Sun size={17} strokeWidth={1.8} /> : <Moon size={17} strokeWidth={1.8} />}
                 </button>
               </Tooltip>
               <Tooltip title={settings.language === 'zh' ? 'English' : '中文'}>
@@ -290,7 +298,7 @@ export default function AppShell() {
                     { type: 'divider' },
                     {
                       key: 'logout',
-                      icon: <LogoutOutlined />,
+                      icon: <LogOut size={16} strokeWidth={1.8} />,
                       label: t('app.signOut'),
                       onClick: async () => {
                         await resetSession()
@@ -301,7 +309,7 @@ export default function AppShell() {
                 }}
               >
                 <button type="button" className="topbar-icon" aria-label={t('app.signOut')}>
-                  <Avatar size={26} style={{ background: 'var(--accent)', color: 'var(--text)', border: '1.5px solid var(--border-strong)' }}>
+                  <Avatar size={26} style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border-strong)' }}>
                     {(account?.username ?? '?').slice(0, 1).toUpperCase()}
                   </Avatar>
                 </button>
@@ -309,11 +317,23 @@ export default function AppShell() {
             </div>
           </header>
           <div ref={contentRef} className="app-content">
-            <Outlet />
+            <PageTransition>
+              <Outlet />
+            </PageTransition>
           </div>
       </div>
-      {/* AI 助手：桌面停靠在右侧、把内容推开；手机是底部抽屉。两者都不带遮罩 */}
-      <AIDock variant={isMobile ? 'sheet' : 'dock'} />
+        </Panel>
+        {showDock && (
+          <>
+            <Separator id="ai-sep" className="ai-resize-handle" aria-label={t('ai.resize')} />
+            <Panel id="ai" defaultSize="30%" minSize="20%" maxSize="46%" className="app-panel-ai">
+              <AIDock variant="dock" />
+            </Panel>
+          </>
+        )}
+      </Group>
+      {/* AI 助手：桌面停靠已由 react-resizable-panels 承载；手机/收起/关闭时仍由 AIDock 处理 */}
+      {!showDock && <AIDock variant={isMobile ? 'sheet' : 'dock'} />}
       {/* 桌面：右下角悬浮 AI 入口。手机：AI 已经是底部标签之一，
           再放一个悬浮按钮既重复又会和标签栏抢位置。 */}
       {!isMobile && <AIFab />}

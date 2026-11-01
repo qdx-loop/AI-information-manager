@@ -1,6 +1,6 @@
 import { Button, Modal, Select, App } from 'antd'
 import { Fragment, useImperativeHandle, useRef, useState, forwardRef } from 'react'
-import { InboxOutlined } from '@ant-design/icons'
+import { InboxOutlined } from '@/components/common/icons'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import { itemsToCSV, parseCSV, downloadCSV } from '@/utils/csv'
 import { itemsToExcel, parseExcel } from '@/utils/excel'

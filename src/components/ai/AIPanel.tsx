@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Input, Button, App, Upload, Dropdown } from 'antd'
-import { SendOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, PlusOutlined, DeleteOutlined, MessageOutlined, DownOutlined, UndoOutlined, RightOutlined } from '@ant-design/icons'
+import { SendOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, PlusOutlined, DeleteOutlined, MessageOutlined, DownOutlined, UndoOutlined, RightOutlined } from '@/components/common/icons'
 import { useNavigate } from 'react-router-dom'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'

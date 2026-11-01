@@ -1723,7 +1723,7 @@ Object.assign(en, {
 // ===================== v4 新增：登录海报 / 落地页 / 页头 kicker / 各页 v4 文案 =====================
 Object.assign(zh, {
   'ai.goConfigure': '去配置',
-  'auth.poster.kicker': 'SIGNAL PRESS',
+  'auth.poster.kicker': 'LOCAL-FIRST · AI CAPTURE',
   'auth.poster.pre': '把数据，',
   'auth.poster.mark': '管成版面',
   'auth.poster.post': '。',
@@ -1758,7 +1758,7 @@ Object.assign(zh, {
 
 Object.assign(en, {
   'ai.goConfigure': 'Configure',
-  'auth.poster.kicker': 'SIGNAL PRESS',
+  'auth.poster.kicker': 'LOCAL-FIRST · AI CAPTURE',
   'auth.poster.pre': 'Your data,',
   'auth.poster.mark': 'set in type',
   'auth.poster.post': '.',

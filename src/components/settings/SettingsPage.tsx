@@ -12,7 +12,7 @@ import {
   RollbackOutlined,
   DeleteOutlined,
   PlusOutlined,
-} from '@ant-design/icons'
+} from '@/components/common/icons'
 import dayjs from 'dayjs'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
@@ -269,21 +269,21 @@ export default function SettingsPage() {
                     className="index-row"
                     onClick={() => select(it.key as TabKey)}
                     style={{
-                      background: active ? 'var(--accent)' : undefined,
-                      color: active ? 'var(--on-accent)' : undefined,
-                      borderLeft: active ? '4px solid var(--text)' : '4px solid transparent',
+                      background: active ? 'var(--text)' : undefined,
+                      color: active ? 'var(--bg)' : undefined,
+                      borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
                     }}
                   >
                     <span
                       className="index-num"
-                      style={{ color: active ? 'var(--on-accent)' : undefined }}
+                      style={{ color: active ? 'var(--bg)' : undefined, opacity: active ? 0.7 : 1 }}
                     >
                       {String(i + 1).padStart(2, '0')}
                     </span>
                     <span className="index-main">
                       <span
                         className="index-title"
-                        style={{ color: active ? 'var(--on-accent)' : undefined }}
+                        style={{ color: active ? 'var(--bg)' : undefined }}
                       >
                         {it.label}
                       </span>

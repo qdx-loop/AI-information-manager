@@ -6,7 +6,7 @@ import {
   CheckOutlined,
   CloseOutlined,
   StarOutlined,
-} from '@ant-design/icons'
+} from '@/components/common/icons'
 import type { FieldDef, FieldValue } from '@/types'
 import { isAndroidApp } from '@/utils/platform'
 import { tNow } from '@/i18n'
