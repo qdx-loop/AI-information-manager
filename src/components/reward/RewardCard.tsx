@@ -1,12 +1,12 @@
 // 设置页「关于与支持」内容（常驻，全站唯一长期展示二维码的地方）。
 //
-// 依据：`redesign-brief/02-donation-research.md` §F.4（逐字文案）、§G.5–G.7（可扫性/无障碍）、
-//       `redesign-brief/06-v4-signal-press.md` §8.9（v4 视觉：sheet 面 + 2px ink + 硬边 + lime 按钮）。
+// 依据：`redesign-brief/02-donation-research.md` §F.4（逐字文案）、§G.5–G.7（可扫性/无障碍）。
+// v9 视觉：Win11 设置卡片（`.w-card` + 卡片组标题 + 14/20 说明 + 白色二维码卡面 + 右下按钮）。
 // - 二维码卡面抽到 `RewardQr`（卡面固定白、不反色），本组件只负责排版与文案。
 // - 已支持（终态）只显示致谢，不再显示码与「我已经支持过了」。
-// - 设置页 support tab 直接渲染本组件（父级不再外包卡片），因此这里提供唯一的 `.sheet` 面。
+// - 设置页 support tab 直接渲染本组件（父级不再外包卡片），因此这里提供唯一的卡片面。
 import { useEffect, useState } from 'react'
-import { Button } from 'antd'
+import { CheckmarkCircleRegular, HeartRegular } from '@fluentui/react-icons'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n, type TFunc } from '@/i18n'
 import { isSupported, markSupported } from '@/utils/support'
@@ -62,106 +62,44 @@ export default function RewardCard({ qrSrc = DEFAULT_QR_SRC }: RewardCardProps) 
   }
 
   return (
-    <section className="sheet" style={styles.card}>
-      <h2 className="page-title-sm" style={styles.title}>
-        {copy.title}
-      </h2>
-      <p style={styles.body}>{copy.lead}</p>
-      <p style={styles.body}>{copy.privacy}</p>
-
-      {supported ? (
-        <div className="muted-block" style={styles.thanks}>
-          {copy.supportedThanks}
+    <section className="w-card pub-reward">
+      <div className="w-card-head">
+        <div className="w-card-title">
+          <HeartRegular fontSize={18} aria-hidden />
+          {copy.title}
         </div>
-      ) : (
-        <div style={styles.qrRow}>
-          <RewardQr src={qrSrc} />
-          <div style={styles.notes}>
-            <div className="mono" style={styles.scan}>
-              {copy.scan}
-            </div>
-            <div className="mono" style={styles.note}>
-              {copy.payBy}
-            </div>
-            <div className="mono" style={styles.note}>
-              {copy.privacyShort}
-            </div>
-            <div style={styles.save}>{copy.save}</div>
+      </div>
+      <div className="w-card-body">
+        <p className="pub-reward-body">{copy.lead}</p>
+        <p className="pub-reward-body">{copy.privacy}</p>
+
+        {supported ? (
+          <div className="pub-reward-thanks">
+            <CheckmarkCircleRegular fontSize={16} aria-hidden />
+            <span>{copy.supportedThanks}</span>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="pub-reward-qr">
+            <RewardQr src={qrSrc} />
+            <div className="pub-reward-notes">
+              <div className="pub-reward-note-strong">{copy.scan}</div>
+              <div className="pub-reward-note">{copy.payBy}</div>
+              <div className="pub-reward-note">{copy.privacyShort}</div>
+              <div className="pub-reward-save">{copy.save}</div>
+            </div>
+          </div>
+        )}
 
-      <div style={styles.free}>{copy.free}</div>
+        <div className="pub-reward-free">{copy.free}</div>
 
-      {!supported && (
-        <div className="welcome-actions" style={styles.actions}>
-          <Button type="primary" size="small" onClick={handleSupported}>
-            {copy.supportedBtn}
-          </Button>
-        </div>
-      )}
+        {!supported && (
+          <div className="pub-reward-actions">
+            <button type="button" className="w-btn w-btn--accent w-btn--sm" onClick={handleSupported}>
+              {copy.supportedBtn}
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   )
 }
-
-const styles = {
-  card: {
-    maxWidth: 620,
-    padding: 'var(--s6)',
-  },
-  title: {
-    // Outfit 700 24（.page-title-sm 给 800，这里按 brief §8.9 压到 700）
-    fontWeight: 700,
-    marginBottom: 'var(--s3)',
-  },
-  body: {
-    margin: '0 0 var(--s3)',
-    fontSize: 'var(--t-base)',
-    lineHeight: 1.65,
-    color: 'var(--text-secondary)',
-  },
-  qrRow: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    alignItems: 'flex-start',
-    gap: 'var(--s6)',
-    margin: 'var(--s5) 0 var(--s4)',
-  },
-  notes: {
-    flex: '1 1 200px',
-    minWidth: 200,
-    paddingTop: 'var(--s1)',
-  },
-  scan: {
-    fontSize: 'var(--t-xs)',
-    lineHeight: 1.4,
-    fontWeight: 600,
-    color: 'var(--text)',
-  },
-  note: {
-    marginTop: 'var(--s2)',
-    fontSize: 'var(--t-xs)',
-    lineHeight: 1.4,
-    color: 'var(--text-secondary)',
-  },
-  save: {
-    marginTop: 'var(--s4)',
-    fontSize: 'var(--t-xs)',
-    lineHeight: 1.5,
-    color: 'var(--text-muted)',
-  },
-  free: {
-    marginTop: 'var(--s4)',
-    paddingTop: 'var(--s3)',
-    borderTop: '1px solid var(--border)',
-    fontSize: 'var(--t-xs)',
-    lineHeight: 1.5,
-    color: 'var(--text-muted)',
-  },
-  actions: {
-    marginTop: 'var(--s4)',
-  },
-  thanks: {
-    margin: 'var(--s5) 0 var(--s4)',
-  },
-} as const

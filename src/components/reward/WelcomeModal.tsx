@@ -1,8 +1,6 @@
 // 首次注册「关于作者 + 赞赏码」欢迎卡（每账号只弹一次）。
 //
-// 依据：`redesign-brief/05-first-run-support.md` §C（结构与逐字文案）、§D.4（形态，文案/状态机一字不改）、
-//       `redesign-brief/06-v4-signal-press.md` §8.9（v4 视觉：头部 ink 条 + Outfit 800 标题 + Work Sans 15 正文
-//       + QR 白色卡面 2px ink 边 + lime 唯一 CTA + mono 页脚）。
+// 依据：`redesign-brief/05-first-run-support.md` §C（结构与逐字文案）、§D.4（形态，文案/状态机一字不改）。
 // 契约（Lead 定稿）：**受控组件**，`{ open, accountId, onClose }`；
 //   挂载/卸载与「该不该显示」全由宿主（AppShell）决定，本组件不消费 pending、不判断 seen；
 //   关闭时先 `markWelcomeSeen(accountId)` 再 `onClose()`，四种关闭方式（× / Esc / 点遮罩 /「开始使用」）
@@ -11,8 +9,10 @@
 //   1) 不阻塞：任何一条关闭路径都能立刻进入应用；
 //   2) 首屏正文必须可见「不扫，功能和体验完全一样」；
 //   3) 主按钮是「开始使用」，二维码只是卡片里的次要内容（不做最大视觉、不在按钮上）。
-// 视觉：弹窗外壳（sheet 面 / 2px ink / 0 圆角 / shadow-3 / 遮罩 / 关闭键）由 Lead 的全局 CSS 统一收编。
-import { Modal, Button } from 'antd'
+// v9 视觉：Windows 11 内容对话框（antd Modal 已被 w11/antd.css 二次主题成 Acrylic + 8px + 20px 标题）；
+//   内部只用 `.pub-*` 排版类：12px 关于作者眉标、20px 标题、14/20 正文、白底二维码、按钮右下。
+import { Modal } from 'antd'
+import { HeartRegular } from '@fluentui/react-icons'
 import { CloseOutlined } from '@/components/common/icons'
 import { useI18n, type TFunc } from '@/i18n'
 import { markWelcomeSeen } from '@/utils/welcome'
@@ -83,18 +83,14 @@ export default function WelcomeModal({ open, accountId, onClose }: WelcomeModalP
       open={open}
       onCancel={close}
       centered
-      width="min(440px, calc(100vw - 32px))"
+      width="min(480px, calc(100vw - 32px))"
       title={
-        <div style={styles.head}>
-          <div className="page-kicker" style={styles.kicker}>
-            {/* 「ABOUT / 关于作者」：拉丁 kicker + 中文说明；两段分开放，读屏与测试都能单独命中 */}
-            <span>ABOUT</span>
-            <span style={styles.kickerSep}>/</span>
-            <span style={styles.kickerZh}>{copy.eyebrow}</span>
-          </div>
-          <div className="page-title-sm" style={styles.title}>
-            {copy.title}
-          </div>
+        <div className="pub-dlg-head">
+          <span className="pub-dlg-eyebrow">
+            <HeartRegular fontSize={14} aria-hidden />
+            {copy.eyebrow}
+          </span>
+          <span className="pub-dlg-title">{copy.title}</span>
         </div>
       }
       footer={null}
@@ -102,98 +98,25 @@ export default function WelcomeModal({ open, accountId, onClose }: WelcomeModalP
       keyboard
       closable={{ closeIcon: <CloseOutlined />, 'aria-label': copy.closeAria }}
     >
-      <p style={styles.body}>{copy.body1}</p>
-      <p style={styles.body}>{copy.body2}</p>
+      <p className="pub-dlg-body">{copy.body1}</p>
+      <p className="pub-dlg-body">{copy.body2}</p>
 
-      <div style={styles.qrRow}>
+      <div className="pub-dlg-qr">
         <RewardQr size={QR_SIZE} />
-        <div style={styles.notes}>
-          <div className="mono" style={styles.scan}>
-            {copy.scan}
-          </div>
-          <div className="mono" style={styles.note}>
-            {copy.privacy}
-          </div>
+        <div className="pub-dlg-notes">
+          <div className="pub-dlg-note-strong">{copy.scan}</div>
+          <div className="pub-dlg-note">{copy.privacy}</div>
         </div>
       </div>
 
-      <div className="welcome-actions">
+      <div className="pub-dlg-actions">
         {/* 初始焦点放主按钮，不放码上（05 §D.6） */}
-        <Button type="primary" size="large" autoFocus onClick={close} style={styles.startBtn}>
+        <button type="button" className="w-btn w-btn--accent w-btn--lg" autoFocus onClick={close}>
           {copy.start}
-        </Button>
+        </button>
       </div>
 
-      <div className="mono" style={styles.once}>
-        {copy.once}
-      </div>
+      <div className="pub-dlg-foot">{copy.once}</div>
     </Modal>
   )
 }
-
-const styles = {
-  head: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 'var(--s2)',
-  },
-  kicker: {
-    marginBottom: 'var(--s2)',
-  },
-  kickerSep: {
-    opacity: 0.5,
-    margin: '0 2px',
-  },
-  kickerZh: {
-    // 中文不进等宽：正文族 + 正常字距
-    fontFamily: 'var(--font-body)',
-    letterSpacing: 0,
-    textTransform: 'none' as const,
-    fontWeight: 600,
-  },
-  title: {
-    color: 'var(--text)',
-    letterSpacing: '-0.02em',
-    whiteSpace: 'normal' as const,
-  },
-  body: {
-    margin: '0 0 var(--s3)',
-    fontSize: 'var(--t-base)',
-    lineHeight: 1.65,
-    color: 'var(--text-secondary)',
-  },
-  qrRow: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    alignItems: 'flex-start',
-    gap: 'var(--s4)',
-    margin: 'var(--s4) 0 var(--s5)',
-  },
-  notes: {
-    flex: '1 1 120px',
-    minWidth: 120,
-    paddingTop: 'var(--s1)',
-  },
-  scan: {
-    fontSize: 'var(--t-xs)',
-    lineHeight: 1.4,
-    fontWeight: 600,
-    color: 'var(--text)',
-  },
-  note: {
-    marginTop: 'var(--s2)',
-    fontSize: 'var(--t-xs)',
-    lineHeight: 1.4,
-    color: 'var(--text-secondary)',
-  },
-  startBtn: {
-    minWidth: 128,
-  },
-  once: {
-    marginTop: 'var(--s4)',
-    fontSize: 'var(--t-2xs)',
-    lineHeight: 1.3,
-    letterSpacing: '0.04em',
-    color: 'var(--text-muted)',
-  },
-} as const

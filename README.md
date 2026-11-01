@@ -49,10 +49,12 @@
 - CSV 导出、操作审计日志、用户行为分布
 - 可用 `REGISTRATION_OPEN=0` 紧急关闭注册（被灌水时）
 
-### 🎨 界面体验
-- 「Windows 11 原生应用」设计系统：68px 图标导航 + 拖拽标题栏 + Mica/Acrylic + 深色中性 + #4CC2FF + Segoe UI Variable；无渐变/无网页 Dashboard；FluentProvider + antd + Fluent icons + Motion + react-resizable-panels + @dnd-kit
-- 深色 / 浅色主题切换（登录页、后台、管理库、移动端全部适配）
-- 响应式布局，适配不同屏幕
+### 🎨 界面体验（v9 · Windows 11 原生）
+- **从零重做的 Windows 11 原生桌面体验**：桌面壁纸 + Windows 任务栏 + 无边框圆角 Mica 窗口（可拖拽标题栏、最小化/最大化/关闭）+ 68px Acrylic 图标导航 + 原生状态栏
+- Win11 设置式页面 / 文件资源管理器式库页（命令栏 + 面包屑 + details 表格）/ Copilot 式 AI 侧栏 / Windows 锁屏式登录
+- 字体 Segoe UI Variable（Selawik 回退）、中性低饱和色板、#4CC2FF 强调、4/8px 圆角、短软阴影；**无渐变、无霓虹、无网页 Dashboard**
+- 深色（默认）/ 浅色双主题；桌面、平板、手机（底部 Acrylic 标签栏）全部适配；`prefers-reduced-motion` 可访问性支持
+- 设计说明：`DESIGN.md`；实现合同：`redesign-brief/11-v9-win11-desktop.md`
 
 ## 🛠️ 技术栈
 
@@ -60,7 +62,7 @@
 |------|------|
 | 框架 | React 18 + TypeScript |
 | 构建 | Vite 5 |
-| UI | Ant Design v5 |
+| UI | Ant Design v5（全局 Win11 皮肤二次主题）+ Fluent UI v9 图标 |
 | 状态管理 | Zustand |
 | 路由 | React Router v6 |
 | 本地存储 | Dexie.js (IndexedDB) |

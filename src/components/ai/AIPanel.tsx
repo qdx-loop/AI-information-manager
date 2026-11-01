@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { Input, Button, App, Upload, Dropdown } from 'antd'
+import { App, Upload, Dropdown } from 'antd'
 import { SendOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, PlusOutlined, DeleteOutlined, MessageOutlined, DownOutlined, UndoOutlined, RightOutlined } from '@/components/common/icons'
+import {
+  AddRegular,
+  ChartMultipleRegular,
+  LibraryRegular,
+  SparkleRegular,
+  StopRegular,
+} from '@fluentui/react-icons'
 import { useNavigate } from 'react-router-dom'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
@@ -53,20 +60,6 @@ import type { Library, FieldDef, Item, FieldType } from '@/types'
 import { newId } from '@/utils/id'
 import ConfirmActionModal from './ConfirmActionModal'
 import ConfirmLibActionModal from './ConfirmLibActionModal'
-
-/**
- * 字阶只引用 v4 §2 的 8 档（11/12/13/15/17/20/24/32），全部走 CSS 变量；
- * 行高由 `.ai-md` / class 决定，这里只在需要压缩的地方显式写比例。
- */
-const T = {
-  kicker: 'var(--t-2xs)',
-  xs: 'var(--t-xs)',
-  sm: 'var(--t-sm)',
-  base: 'var(--t-base)',
-  md: 'var(--t-md)',
-  lg: 'var(--t-lg)',
-  xl: 'var(--t-xl)',
-}
 
 interface UndoInfo {
   label: string
@@ -1363,18 +1356,7 @@ export default function AIPanel() {
                   message.error(t('ai.locate.failed', { msg: (e as Error).message })),
                 )
               }
-              style={{
-                border: 'none',
-                background: 'transparent',
-                padding: 0,
-                color: 'var(--text)',
-                fontFamily: 'var(--font-mono)',
-                fontVariantNumeric: 'tabular-nums',
-                fontSize: '0.88em',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: 'inset 0 -2px 0 var(--accent)',
-              }}
+              className="ai-p-ref"
             >
               {summary.slice(0, 12) || itemId.slice(0, 6)}
             </button>
@@ -1413,66 +1395,26 @@ export default function AIPanel() {
     void handleSend()
   }
 
+  // 执行步骤：默认收起（chevron 旋转），展开为编号列表
   const renderSteps = (m: UIMessage, idx: number) => {
     if (!m.steps || m.steps.length === 0) return null
     const open = openedSteps.has(idx)
     return (
-      <div style={{ marginBottom: 'var(--s3)' }}>
+      <div className="ai-p-steps">
         <button
           type="button"
           aria-expanded={open}
           onClick={() => toggleSteps(idx)}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            padding: 0,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 'var(--s2)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: T.kicker,
-            lineHeight: 1.3,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-          }}
+          className="ai-p-steps-toggle"
         >
           <span>{t('ai.steps.summary', { n: m.steps.length })}</span>
-          <DownOutlined
-            style={{
-              fontSize: 10,
-              transform: open ? 'rotate(180deg)' : 'none',
-              transition: 'transform 140ms ease-out',
-            }}
-          />
+          <DownOutlined />
         </button>
         {open && (
-          <ol style={{ margin: 'var(--s2) 0 0', padding: 0, listStyle: 'none' }}>
+          <ol className="ai-p-steps-list">
             {m.steps.map((s, si) => (
-              <li
-                key={si}
-                style={{
-                  display: 'flex',
-                  gap: 'var(--s2)',
-                  padding: '2px 0',
-                  fontSize: T.sm,
-                  lineHeight: 1.45,
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <span
-                  className="mono"
-                  style={{
-                    minWidth: 20,
-                    color: 'var(--text-muted)',
-                    fontSize: T.kicker,
-                    fontWeight: 600,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {String(si + 1).padStart(2, '0')}
-                </span>
+              <li key={si} className="ai-p-step">
+                <span className="ai-p-step-idx">{String(si + 1).padStart(2, '0')}</span>
                 <span style={{ minWidth: 0, wordBreak: 'break-word' }}>{plainStepLabel(s)}</span>
               </li>
             ))}
@@ -1485,30 +1427,57 @@ export default function AIPanel() {
   // 「去配置」跳转到设置页的 AI 分区（?tab=ai 由 SettingsPage 读取）
   const goConfigure = () => navigate('/settings?tab=ai')
 
-  // 未配置态：.empty-state + lime 方块 + 主按钮「去配置」
+  // 输入框自适应高度（1~5 行）；发送后复位
+  const composerRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const el = composerRef.current
+    if (!el) return
+    if (!input.trim()) el.style.height = 'auto'
+  }, [input])
+  const resizeComposer = () => {
+    const el = composerRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+  }
+
+  // 快捷动作：Win11 中性 chip，点击把示例指令填进输入框（不自动发送）
+  const isEn = settings.language === 'en'
+  const quickActions = [
+    {
+      icon: <ChartMultipleRegular />,
+      label: isEn ? 'Count items by category' : '统计每个分类的条目数',
+      prompt: isEn ? 'Count how many items each category has' : '统计每个分类的条目数',
+    },
+    {
+      icon: <LibraryRegular />,
+      label: isEn ? 'List all libraries' : '查看全部管理库',
+      prompt: isEn ? 'List all libraries with their fields' : '列出全部管理库及其字段',
+    },
+    {
+      icon: <AddRegular />,
+      label: isEn ? 'Add a new item' : '新增一条记录',
+      prompt: isEn ? 'Add a new item: ' : '新增一条记录：',
+    },
+  ]
+
+  const currentSessionTitle =
+    sessions.find((s) => s.id === sessionId)?.title || t('ai.session.untitled')
+
+  // 未配置态：Win11 空状态 + 主按钮「去配置」
   if (!aiConfigured) {
     return (
-      <div
-        style={{
-          height: '100%',
-          minWidth: 0,
-          overflow: 'auto',
-          background: 'var(--surface)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <div className="empty-state" style={{ maxWidth: 360 }}>
-          <span className="empty-mark" aria-hidden>
-            AI
+      <div className="ai-p ai-p-unconfigured">
+        <div className="w-empty">
+          <span className="w-empty-icon" aria-hidden>
+            <SparkleRegular />
           </span>
-          <h2 className="empty-title">{t('ai.notConfigured')}</h2>
-          <p className="empty-body">{t('ai.notConfiguredHint')}</p>
-          <div className="empty-actions">
-            <Button type="primary" onClick={goConfigure}>
+          <div className="w-empty-title">{t('ai.notConfigured')}</div>
+          <div className="w-empty-desc">{t('ai.notConfiguredHint')}</div>
+          <div className="w-empty-actions">
+            <button type="button" className="w-btn w-btn--accent" onClick={goConfigure}>
               {t('ai.goConfigure')}
-            </Button>
+            </button>
           </div>
         </div>
       </div>
@@ -1517,271 +1486,161 @@ export default function AIPanel() {
 
   return (
     <AutoConfirmContext.Provider value={{ alwaysAllowFor: alwaysAllow, setAlwaysAllowFor }}>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          minWidth: 0,
-          background: 'var(--surface)',
-        }}
-      >
-        {/* 会话条：当前会话名 + 会话切换/清空（头部 56 由 AIDock 渲染） */}
-        <div
-          style={{
-            height: 40,
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--s2)',
-            padding: '0 var(--s2) 0 var(--s3)',
-            borderBottom: '1px solid var(--border)',
-            background: 'var(--surface)',
-          }}
-        >
-          <span
-            style={{
-              flex: 1,
-              minWidth: 0,
-              fontSize: T.sm,
-              fontWeight: 500,
-              color: 'var(--text)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-            title={sessions.find((s) => s.id === sessionId)?.title || t('ai.session.untitled')}
-          >
-            {sessions.find((s) => s.id === sessionId)?.title || t('ai.session.untitled')}
+      <div className="ai-p">
+        {/* 会话条：当前会话名 + 切换 / 清空（头部 44 由 AIDock 外壳渲染） */}
+        <div className="ai-p-sessionbar">
+          <span className="ai-p-session-title" title={currentSessionTitle}>
+            {currentSessionTitle}
           </span>
-          <Dropdown
-            open={sessionSwitcherOpen}
-            onOpenChange={setSessionSwitcherOpen}
-            trigger={['click']}
-            menu={{
-              items: [
-                ...sessions.map((s) => ({
-                  key: s.id,
-                  label: (
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 'var(--s2)',
-                        minWidth: 180,
-                      }}
-                    >
-                      <span
-                        style={{
-                          maxWidth: 150,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          fontSize: T.sm,
-                          fontWeight: s.id === sessionId ? 600 : 400,
-                        }}
-                      >
-                        {s.title || t('ai.session.untitled')}
+          <span className="ai-p-session-actions">
+            <Dropdown
+              open={sessionSwitcherOpen}
+              onOpenChange={setSessionSwitcherOpen}
+              trigger={['click']}
+              menu={{
+                items: [
+                  ...sessions.map((s) => ({
+                    key: s.id,
+                    label: (
+                      <div className="ai-p-menu-item">
+                        <span
+                          className="ai-p-menu-title"
+                          style={{ fontWeight: s.id === sessionId ? 600 : 400 }}
+                        >
+                          {s.title || t('ai.session.untitled')}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={t('common.delete')}
+                          className="ai-p-menu-del"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeSession(s.id)
+                          }}
+                        >
+                          <DeleteOutlined />
+                        </button>
+                      </div>
+                    ),
+                  })),
+                  { type: 'divider' as const },
+                  {
+                    key: '__new__',
+                    label: (
+                      <span className="ai-p-menu-new">
+                        <PlusOutlined />
+                        {t('ai.session.new')}
                       </span>
-                      <button
-                        type="button"
-                        aria-label={t('common.delete')}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          removeSession(s.id)
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          padding: 2,
-                          height: 20,
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <DeleteOutlined style={{ fontSize: 14 }} />
-                      </button>
-                    </div>
-                  ),
-                })),
-                { type: 'divider' as const },
-                {
-                  key: '__new__',
-                  label: (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 'var(--s2)',
-                        fontSize: T.sm,
-                      }}
-                    >
-                      <PlusOutlined style={{ fontSize: 14 }} />
-                      {t('ai.session.new')}
-                    </span>
-                  ),
+                    ),
+                  },
+                ],
+                onClick: ({ key }) => {
+                  if (key === '__new__') startNewSession()
+                  else switchSession(key)
                 },
-              ],
-              onClick: ({ key }) => {
-                if (key === '__new__') startNewSession()
-                else switchSession(key)
-              },
-            }}
-          >
+              }}
+            >
+              <button
+                type="button"
+                className="w-iconbtn w-iconbtn--sm"
+                aria-label={t('ai.session.switch')}
+                title={t('ai.session.switch')}
+              >
+                <MessageOutlined />
+              </button>
+            </Dropdown>
             <button
               type="button"
-              className="icon-btn"
-              aria-label={t('ai.session.switch')}
-              title={t('ai.session.switch')}
-              style={{ width: 32, height: 32 }}
+              className="w-iconbtn w-iconbtn--sm"
+              aria-label={t('ai.session.clear')}
+              title={t('ai.session.clear')}
+              onClick={() =>
+                modal.confirm({
+                  title: t('ai.session.clearTitle'),
+                  content: t('ai.session.delConfirm'),
+                  okText: t('common.confirm'),
+                  okButtonProps: { danger: true },
+                  cancelText: t('common.cancel'),
+                  onOk: handleClear,
+                })
+              }
             >
-              <MessageOutlined />
+              <DeleteOutlined />
             </button>
-          </Dropdown>
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label={t('ai.session.clear')}
-            title={t('ai.session.clear')}
-            style={{ width: 32, height: 32 }}
-            onClick={() =>
-              modal.confirm({
-                title: t('ai.session.clearTitle'),
-                content: t('ai.session.delConfirm'),
-                okText: t('common.confirm'),
-                okButtonProps: { danger: true },
-                cancelText: t('common.cancel'),
-                onOk: handleClear,
-              })
-            }
-          >
-            <DeleteOutlined />
-          </button>
+          </span>
         </div>
 
-        {/* 运行中：3px lime 静态条 + mono 12「正在核对…」（不闪不呼吸） */}
+        {/* 运行中：2px Win11 进度线 + 一行状态（不闪不呼吸） */}
         {loading && (
-          <>
-            <div className="clerk-run" role="progressbar" aria-label={t('ai.runningChecking')} />
-            <div
-              style={{
-                flexShrink: 0,
-                padding: 'var(--s2) var(--s3)',
-                borderBottom: '1px solid var(--border)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: T.xs,
-                lineHeight: 1.35,
-                letterSpacing: '0.04em',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <span role="status" aria-atomic="true">
-                {t('ai.runningChecking')}
-              </span>
+          <div className="ai-p-runbar" role="status" aria-live="polite">
+            <div className="ai-p-runline" aria-hidden />
+            <div className="ai-p-runtext">
+              <SparkleRegular />
+              <span>{t('ai.runningChecking')}</span>
             </div>
-          </>
+          </div>
         )}
 
-        {/* 主体：sheet 面消息流。用户消息 = lime-wash 硬边块右对齐，AI 输出无底色。 */}
-        <div
-          ref={scrollRef}
-          style={{ flex: 1, overflow: 'auto', padding: 'var(--s4)', minWidth: 0 }}
-        >
+        {/* 消息流：用户 accent-soft 气泡右对齐；助手透明底 + 分隔 */}
+        <div ref={scrollRef} className="ai-p-scroll">
           {messages.length === 0 ? (
-            <div
-              style={{
-                minHeight: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <div className="empty-state">
-                <span className="empty-mark" aria-hidden>
-                  AI
-                </span>
-                <h2 className="empty-title">{t('app.aiAssistant')}</h2>
-                <p className="empty-body">{t('ai.emptyHint')}</p>
+            <div className="ai-p-empty">
+              <span className="ai-p-empty-icon" aria-hidden>
+                <SparkleRegular />
+              </span>
+              <div className="ai-p-empty-title">{t('app.aiAssistant')}</div>
+              <div className="ai-p-empty-desc">{t('ai.emptyHint')}</div>
+              <div className="ai-p-chips">
+                {quickActions.map((a) => (
+                  <button
+                    key={a.label}
+                    type="button"
+                    className="w-chip ai-p-chip"
+                    onClick={() => {
+                      setInput(a.prompt)
+                      requestAnimationFrame(resizeComposer)
+                    }}
+                  >
+                    {a.icon}
+                    <span className="ai-p-chip-label">{a.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
           ) : (
             messages.map((m, i) =>
               m.role === 'user' ? (
-                <div
-                  key={i}
-                  style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--s4)' }}
-                >
-                  <div
-                    style={{
-                      maxWidth: '85%',
-                      background: 'var(--accent-soft)',
-                      border: 'var(--border-width) solid var(--border-strong)',
-                      borderRadius: 0,
-                      padding: 'var(--s2) var(--s3)',
-                      fontSize: T.base,
-                      lineHeight: 1.5,
-                      color: 'var(--text)',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {renderContent(m.content, lastContextsRef.current)}
-                  </div>
+                <div key={i} className="ai-p-msg ai-p-msg--user">
+                  <div className="ai-p-bubble">{renderContent(m.content, lastContextsRef.current)}</div>
                 </div>
               ) : (
-                <div key={i} style={{ marginBottom: 'var(--s5)', minWidth: 0 }}>
+                <div key={i} className="ai-p-msg ai-p-msg--assistant">
                   {renderSteps(m, i)}
                   {m.content ? (
-                    <div className="ai-md" style={{ fontSize: T.base, lineHeight: 1.65 }}>
-                      {renderContent(m.content, lastContextsRef.current, true)}
-                    </div>
+                    <div className="ai-p-md">{renderContent(m.content, lastContextsRef.current, true)}</div>
+                  ) : m.pending ? (
+                    <span className="ai-p-typing" role="status" aria-label={t('ai.running')}>
+                      <i />
+                      <i />
+                      <i />
+                    </span>
                   ) : null}
-                  {/* 图表缩略：panel 硬边卡一行 + mono 11 图注，点击进弹窗 */}
                   {m.chart && (
                     <button
                       type="button"
-                      className="panel"
+                      className="ai-p-chart"
                       onClick={() => setChartPayload(m.chart as ChartPayload)}
-                      style={{
-                        marginTop: 'var(--s3)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--s2)',
-                        width: '100%',
-                        padding: 'var(--s2) var(--s3)',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                      }}
                     >
-                      <span
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          fontSize: T.sm,
-                          fontWeight: 600,
-                          color: 'var(--text)',
-                        }}
-                      >
-                        {m.chart.title}
+                      <span className="ai-p-chart-icon" aria-hidden>
+                        <ChartMultipleRegular />
                       </span>
-                      <span
-                        className="mono"
-                        style={{
-                          fontSize: T.kicker,
-                          fontWeight: 600,
-                          letterSpacing: '0.08em',
-                          textTransform: 'uppercase',
-                          color: 'var(--text-muted)',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {t('ai.chart.thumbHint')}
+                      <span className="ai-p-chart-main">
+                        <span className="ai-p-chart-title">{m.chart.title}</span>
+                        <span className="ai-p-chart-hint">{t('ai.chart.thumbHint')}</span>
                       </span>
-                      <RightOutlined style={{ fontSize: 11, color: 'var(--text-muted)' }} />
+                      <span className="ai-p-chart-chev" aria-hidden>
+                        <RightOutlined />
+                      </span>
                     </button>
                   )}
                 </div>
@@ -1790,77 +1649,42 @@ export default function AIPanel() {
           )}
         </div>
 
-        {/* 输入区：顶边 2px ink；输入 40（2px ink 边）；发送 40×40 lime 方块；附件 40 方形 */}
-        <div
-          style={{
-            flexShrink: 0,
-            background: 'var(--surface)',
-            borderTop: 'var(--border-width) solid var(--border-strong)',
-            padding: 'var(--s3)',
-          }}
-        >
+        {/* Composer：Win11 输入框 + accent 发送按钮 + 快捷键提示 */}
+        <div className="ai-p-composer">
           {undoStack.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--s2)' }}>
-              <Button
-                type="text"
-                size="small"
+            <div className="ai-p-undo">
+              <button
+                type="button"
+                className="w-btn w-btn--subtle w-btn--sm"
                 disabled={undoBusy}
                 onClick={() => void handleUndoLast()}
-                icon={<UndoOutlined />}
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: T.kicker,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-secondary)',
-                }}
               >
+                <UndoOutlined />
                 {t('ai.undo.last')}
-              </Button>
+              </button>
             </div>
           )}
+
           {attachments.length > 0 && (
-            <div
-              style={{
-                marginBottom: 'var(--s2)',
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 'var(--s2)',
-              }}
-            >
+            <div className="ai-p-attachments">
               {attachments.map((a) => (
-                <span key={a.id} className="tag-mono">
+                <span key={a.id} className="ai-p-attach">
                   {a.kind === 'image' ? <PictureOutlined /> : <FileTextOutlined />}
-                  <span
-                    style={{
-                      maxWidth: 140,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {a.name}
-                  </span>
+                  <span className="ai-p-attach-name">{a.name}</span>
                   <button
                     type="button"
+                    className="ai-p-attach-x"
                     aria-label={t('common.close')}
                     onClick={() => setAttachments((p) => p.filter((x) => x.id !== a.id))}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      padding: 0,
-                      height: 16,
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
                   >
-                    <CloseOutlined style={{ fontSize: 11 }} />
+                    <CloseOutlined />
                   </button>
                 </span>
               ))}
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+
+          <div className="ai-p-inputrow">
             <Upload
               accept="*/*"
               showUploadList={false}
@@ -1882,80 +1706,64 @@ export default function AIPanel() {
             >
               <button
                 type="button"
-                className="icon-btn"
+                className="ai-p-attach-btn"
                 aria-label={t('ai.upload.tooltip')}
                 title={t('ai.upload.tooltip')}
                 aria-busy={parsingFile || undefined}
-                style={{
-                  width: 40,
-                  height: 40,
-                  flexShrink: 0,
-                  opacity: parsingFile ? 0.5 : 1,
-                  cursor: parsingFile ? 'progress' : 'pointer',
-                }}
+                disabled={parsingFile}
               >
                 <PaperClipOutlined />
               </button>
             </Upload>
-            {/* 保留多行：占位符宣传「粘贴 Excel 交给 AI 录入」，视觉上仍是 40px 输入条 */}
-            <Input.TextArea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleComposerKeyDown}
-              placeholder={t('ai.inputPlaceholder')}
-              disabled={loading}
-              autoSize={{ minRows: 1, maxRows: 5 }}
-              style={{
-                flex: 1,
-                minHeight: 40,
-                padding: '9px 10px',
-                fontSize: T.base,
-                lineHeight: 1.5,
-                background: 'var(--surface)',
-                border: 'var(--border-width) solid var(--border-strong)',
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: 'none',
-                resize: 'none',
-              }}
-              aria-label={t('ai.inputPlaceholder')}
-            />
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
+
+            <div className="ai-p-input">
+              <textarea
+                ref={composerRef}
+                className="ai-p-textarea"
+                rows={1}
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value)
+                  const el = e.currentTarget
+                  el.style.height = 'auto'
+                  el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+                }}
+                onKeyDown={handleComposerKeyDown}
+                placeholder={t('ai.inputPlaceholder')}
+                disabled={loading}
+                aria-label={t('ai.inputPlaceholder')}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="ai-p-send"
               onClick={() => void handleSend()}
               disabled={!input.trim() || loading}
               aria-label={t('ai.send')}
               title={t('ai.send')}
-              style={{
-                width: 40,
-                height: 40,
-                padding: 0,
-                borderRadius: 0,
-                flexShrink: 0,
-                border: 'var(--border-width) solid var(--border-strong)',
-              }}
-            />
+            >
+              <SendOutlined />
+            </button>
           </div>
-          {/* 运行状态只在顶部条出现，这里只保留「停止」 */}
-          <div
-            style={{
-              marginTop: 'var(--s1)',
-              minHeight: 18,
-              display: 'flex',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-            }}
-          >
-            {loading && (
-              <Button
-                type="text"
-                size="small"
-                onClick={handleStop}
-                style={{ fontSize: T.xs, color: 'var(--text-secondary)' }}
-              >
-                {t('ai.stop')}
-              </Button>
-            )}
+
+          <div className="ai-p-foot">
+            <span className="ai-p-foot-hint">
+              <kbd className="w-kbd">Enter</kbd>
+              {isEn ? 'send' : '发送'}
+              <span aria-hidden>·</span>
+              <kbd className="w-kbd">Shift</kbd>+<kbd className="w-kbd">Enter</kbd>
+              {isEn ? 'new line' : '换行'}
+            </span>
+            <span className="ai-p-foot-right">
+              {parsingFile && <span className="ai-p-foot-hint">{t('common.loading')}</span>}
+              {loading && (
+                <button type="button" className="ai-p-stop" onClick={handleStop}>
+                  <StopRegular />
+                  {t('ai.stop')}
+                </button>
+              )}
+            </span>
           </div>
         </div>
 

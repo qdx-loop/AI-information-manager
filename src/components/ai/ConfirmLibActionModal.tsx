@@ -1,4 +1,4 @@
-import { Modal, Button, App, Checkbox } from 'antd'
+import { Modal, App, Checkbox } from 'antd'
 import { useEffect, useState } from 'react'
 import type { LibraryAction, TemplateAction } from '@/ai/tools'
 import type { Library, FieldDef } from '@/types'
@@ -6,14 +6,6 @@ import { useI18n } from '@/i18n'
 import { autoConfirmKey, isDestructiveAction, useAutoConfirm } from '@/ai/autoConfirm'
 
 import { useBackButtonLayer } from '@/utils/backButton'
-
-// v4 §2：弹窗正文 15/1.6，注脚 13，mono 小标签 11，标题 20
-const T = {
-  body: 'var(--t-base)',
-  sm: 'var(--t-sm)',
-  mono: 'var(--t-2xs)',
-  title: 'var(--t-lg)',
-}
 
 interface Props {
   open: boolean
@@ -31,7 +23,8 @@ interface Row {
 }
 
 /**
- * 管理库 / 字段模板操作的确认弹窗（v3：440 宽、标题 20/600、正文 14/1.6、按钮右对齐）。
+ * 管理库 / 字段模板操作的确认弹窗（v9 Windows 11 ContentDialog：标题 20/600、
+ * 正文 14/20、按钮右下）。
  *
  * 与 `ConfirmActionModal` 同语言；「不再询问」按动作粒度授权；
  * **删库 / 删字段永不提供自动放行**（删库会连条目一起进回收站、
@@ -106,7 +99,7 @@ export default function ConfirmLibActionModal({
     }
   }
 
-  // 结构化行：标签 + 值两列文本（无表格边框，v3 弹窗内不再叠一层表格）
+  // 结构化行：标签 + 值两列文本（无表格边框，Win11 弹窗内不再叠一层表格）
   const rows: Row[] = []
   if (libAction) {
     rows.push({ label: t('ai.confirm.lib.op'), value: actionLabel })
@@ -150,89 +143,50 @@ export default function ConfirmLibActionModal({
     }
   }
 
-  const labelStyle = { minWidth: 76, flexShrink: 0, color: 'var(--text-secondary)' }
-
   return (
     <Modal
-      title={
-        <span
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: T.title,
-            fontWeight: 700,
-            lineHeight: 1.3,
-            letterSpacing: '-0.02em',
-            color: 'var(--text)',
-          }}
-        >
-          {t('ai.confirm.libTitle')}
-        </span>
-      }
+      title={<span className="ai-confirm-title">{t('ai.confirm.libTitle')}</span>}
       open={open}
       onCancel={onCancel}
       width={440}
       footer={
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 'var(--s2)',
-            marginTop: 'var(--s1)',
-          }}
-        >
-          <Button type="text" onClick={onCancel}>
+        <div className="ai-dialog-actions">
+          <button type="button" className="w-btn w-btn--subtle" onClick={onCancel}>
             {t('common.cancel')}
-          </Button>
-          <Button type="primary" danger={isDelete} loading={loading} onClick={() => void handleOk()}>
+          </button>
+          <button
+            type="button"
+            className={`w-btn ${isDelete ? 'w-btn--danger' : 'w-btn--accent'}`}
+            disabled={loading}
+            onClick={() => void handleOk()}
+          >
             {t('ai.confirm.ok')}
-          </Button>
+          </button>
         </div>
       }
     >
-      <div style={{ fontSize: T.body, lineHeight: 1.6, color: 'var(--text)' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: 'var(--s2)',
-            marginBottom: 'var(--s3)',
-          }}
-        >
-          <span style={{ color: isDelete ? 'var(--danger)' : 'var(--accent-2)', fontWeight: 500 }}>
+      <div className="ai-confirm">
+        <div className="ai-confirm-head">
+          <span className={`ai-confirm-action${isDelete ? ' ai-confirm-action--danger' : ''}`}>
             {actionLabel}
           </span>
-          <span style={{ color: 'var(--text-secondary)', fontSize: T.sm }}>
+          <span className="ai-confirm-target">
             {library?.name ?? libAction?.libraryId ?? tplAction?.libraryId ?? ''}
           </span>
         </div>
 
         {(libAction || tplAction)!.reason && (
-          <p
-            style={{
-              margin: '0 0 var(--s4)',
-              paddingTop: 'var(--s2)',
-              borderTop: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            <span style={{ color: 'var(--text-muted)' }}>{t('ai.confirm.reason')}</span>
+          <p className="ai-confirm-reason">
+            <span>{t('ai.confirm.reason')}</span>
             {(libAction || tplAction)!.reason}
           </p>
         )}
 
-        <div
-          style={{
-            borderTop: '1px solid var(--border)',
-            paddingTop: 'var(--s3)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--s1)',
-          }}
-        >
+        <div className="ai-confirm-block">
           {rows.map((r) => (
-            <div key={r.label} style={{ display: 'flex', gap: 'var(--s2)', lineHeight: 1.6 }}>
-              <span style={labelStyle}>{r.label}</span>
-              <span style={{ minWidth: 0, wordBreak: 'break-word', color: 'var(--text)' }}>{r.value}</span>
+            <div key={r.label} className="ai-confirm-row">
+              <span className="ai-confirm-label">{r.label}</span>
+              <span className="ai-confirm-value">{r.value}</span>
             </div>
           ))}
         </div>
@@ -242,21 +196,13 @@ export default function ConfirmLibActionModal({
             checked={always}
             disabled={alreadyRemembered}
             onChange={(e) => setAlways(e.target.checked)}
-            style={{ marginTop: 'var(--s3)', fontSize: T.sm, color: 'var(--text-secondary)' }}
+            className="ai-confirm-check"
           >
             {t('ai.confirm.always', { action: actionLabel })}
           </Checkbox>
         )}
 
-        <p
-          style={{
-            marginTop: 'var(--s3)',
-            marginBottom: 0,
-            fontSize: T.sm,
-            lineHeight: 1.6,
-            color: isDelete ? 'var(--danger)' : 'var(--text-secondary)',
-          }}
-        >
+        <p className={`ai-confirm-note${isDelete ? ' ai-confirm-note--danger' : ''}`}>
           {t('ai.confirm.lib.note')}
         </p>
       </div>

@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Modal, Button, Space, Typography, Progress, Alert, Result } from 'antd'
+import { Modal, Button, Progress } from 'antd'
 import { App as AntdApp } from 'antd'
-import { SwapOutlined, ArrowLeftOutlined } from '@/components/common/icons'
+import {
+  SwapOutlined,
+  ArrowLeftOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
+  InfoCircleOutlined,
+} from '@/components/common/icons'
 import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
@@ -23,8 +29,6 @@ import {
 import { apiSignalHost, apiSignalGuest, apiSignalPoll, apiSignalCancel, type P2PSignalRow } from '@/lib/serverApi'
 
 import { useBackButtonLayer } from '@/utils/backButton'
-
-const { Text } = Typography
 
 type Stage =
   | 'choose'       // 选择发起/加入
@@ -110,7 +114,8 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
     closedRef.current = true
     stopPolling()
     teardownSession()
-    void apiSignalCancel(deviceIdRef.current).catch(() => {})
+    // 从未发起过同步时 deviceId 为空：此时没必要打 /api/sync/signal（服务端会 400）
+    if (deviceIdRef.current) void apiSignalCancel(deviceIdRef.current).catch(() => {})
   }, [open, stopPolling, teardownSession])
 
   useEffect(() => {
@@ -387,7 +392,7 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
     closedRef.current = true
     stopPolling()
     teardownSession()
-    void apiSignalCancel(deviceIdRef.current).catch(() => {})
+    if (deviceIdRef.current) void apiSignalCancel(deviceIdRef.current).catch(() => {})
     resetState()
     onClose()
   }, [stopPolling, teardownSession, resetState, onClose])
@@ -397,68 +402,101 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
     teardownSession()
     resetState()
   }, [stopPolling, teardownSession, resetState])
-
   // ———————— 渲染 ————————
+
+  /** Win11 InfoBar：说明与麦克风权限提示（不再用彩色 Alert 大块） */
+  const note = (
+    kind: 'info' | 'warning',
+    title: string,
+    body: string,
+  ) => {
+    const Icon = kind === 'info' ? InfoCircleOutlined : WarningOutlined
+    return (
+      <div className={`w-set-note${kind === 'warning' ? ' w-set-note--warning' : ''}`}>
+        <span className="w-set-note-icon" aria-hidden>
+          <Icon />
+        </span>
+        <div className="w-set-note-main">
+          <div className="w-set-note-title">{title}</div>
+          <div className="w-set-note-body">{body}</div>
+        </div>
+      </div>
+    )
+  }
+
+  const backButton = (
+    <button type="button" className="w-btn w-btn--subtle w-btn--sm w-f2f-back" onClick={handleRetry}>
+      <ArrowLeftOutlined />
+      {t('settings.f2f.back')}
+    </button>
+  )
 
   const renderBody = () => {
     switch (stage) {
       case 'choose':
         return (
-          <div>
-            <Alert type="info" showIcon style={{ marginBottom: 16 }} message={t('settings.f2f.intro.title')} description={t('settings.f2f.intro.body')} />
+          <div className="w-f2f">
             {/* 提前告知会请求麦克风权限 —— 这是修复「同一 Wi-Fi 却连不上」的关键，
                 浏览器不授权就不会给出真实内网地址。不提前说会显得唐突。 */}
-            <Alert
-              type="warning"
-              showIcon
-              style={{ marginBottom: 16 }}
-              message={t('settings.f2f.mic.title')}
-              description={t('settings.f2f.mic.body')}
-            />
-            <Space direction="vertical" style={{ width: '100%' }} size={12}>
-              <Button block size="large" type="primary" icon={<SwapOutlined />} loading={busy} onClick={() => void startInitiate()}>
+            <div className="w-f2f-notes">
+              {note('info', t('settings.f2f.intro.title'), t('settings.f2f.intro.body'))}
+              {note('warning', t('settings.f2f.mic.title'), t('settings.f2f.mic.body'))}
+            </div>
+            <div className="w-f2f-actions">
+              <Button
+                block
+                size="large"
+                type="primary"
+                icon={<SwapOutlined />}
+                loading={busy}
+                onClick={() => void startInitiate()}
+              >
                 {t('settings.f2f.choose.initiate')}
               </Button>
-              <Text type="secondary" style={{ fontSize: 12, textAlign: 'center', display: 'block' }}>{t('settings.f2f.choose.initiateDesc')}</Text>
+              <div className="w-f2f-hint">{t('settings.f2f.choose.initiateDesc')}</div>
               <Button block size="large" onClick={startJoinScan} disabled={busy}>
                 {t('settings.f2f.choose.join')}
               </Button>
-              <Text type="secondary" style={{ fontSize: 12, textAlign: 'center', display: 'block' }}>{t('settings.f2f.choose.joinDesc')}</Text>
-            </Space>
+              <div className="w-f2f-hint">{t('settings.f2f.choose.joinDesc')}</div>
+            </div>
           </div>
         )
 
       case 'waiting':
         return (
-          <div style={{ padding: '8px 0' }}>
-            <Button type="link" size="small" icon={<ArrowLeftOutlined />} onClick={handleRetry} style={{ padding: 0, marginBottom: 8 }}>
-              {t('settings.f2f.back')}
-            </Button>
-            <Text strong style={{ display: 'block', marginBottom: 12 }}>{t('settings.f2f.waitPeer')}</Text>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>{t('settings.f2f.waitPeerDesc')}</Text>
-            <Progress percent={0} size="small" status="active" />
+          <div className="w-f2f">
+            {backButton}
+            <div className="w-f2f-stage">
+              <div className="w-f2f-stage-title">{t('settings.f2f.waitPeer')}</div>
+              <div className="w-f2f-stage-desc">{t('settings.f2f.waitPeerDesc')}</div>
+              <div className="w-f2f-progress">
+                <Progress percent={0} size="small" status="active" showInfo={false} />
+              </div>
+            </div>
           </div>
         )
 
       case 'joining':
         return (
-          <div style={{ padding: '8px 0' }}>
-            <Button type="link" size="small" icon={<ArrowLeftOutlined />} onClick={handleRetry} style={{ padding: 0, marginBottom: 8 }}>
-              {t('settings.f2f.back')}
-            </Button>
+          <div className="w-f2f">
+            {backButton}
             {pendingHost ? (
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: 12 }}>{t('settings.f2f.foundPeer')}</Text>
-                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>{t('settings.f2f.foundPeerDesc')}</Text>
-                <Button block type="primary" size="large" loading={busy} onClick={() => void confirmJoin()}>
-                  {t('settings.f2f.confirmJoin')}
-                </Button>
+              <div className="w-f2f-stage">
+                <div className="w-f2f-stage-title">{t('settings.f2f.foundPeer')}</div>
+                <div className="w-f2f-stage-desc">{t('settings.f2f.foundPeerDesc')}</div>
+                <div className="w-set-actions w-set-actions--top" style={{ marginTop: 8 }}>
+                  <Button block type="primary" size="large" loading={busy} onClick={() => void confirmJoin()}>
+                    {t('settings.f2f.confirmJoin')}
+                  </Button>
+                </div>
               </div>
             ) : (
-              <div>
-                <Text strong style={{ display: 'block', marginBottom: 12 }}>{t('settings.f2f.scanning')}</Text>
-                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>{t('settings.f2f.scanningDesc')}</Text>
-                <Progress percent={0} size="small" status="active" />
+              <div className="w-f2f-stage">
+                <div className="w-f2f-stage-title">{t('settings.f2f.scanning')}</div>
+                <div className="w-f2f-stage-desc">{t('settings.f2f.scanningDesc')}</div>
+                <div className="w-f2f-progress">
+                  <Progress percent={0} size="small" status="active" showInfo={false} />
+                </div>
               </div>
             )}
           </div>
@@ -466,54 +504,70 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
 
       case 'transferring':
         return (
-          <div style={{ padding: '8px 0' }}>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>
-              {peerUsername ? t('settings.f2f.withPeer', { name: peerUsername }) : t('settings.f2f.transferring')}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>{t('settings.f2f.keepOpen')}</Text>
-            <div style={{ marginBottom: 12 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>{t('settings.f2f.sendProgress')}</Text>
-              <Progress percent={Math.round(progress.sent * 100)} size="small" />
-            </div>
-            <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>{t('settings.f2f.recvProgress')}</Text>
-              <Progress percent={Math.round(progress.recv * 100)} size="small" />
+          <div className="w-f2f">
+            <div className="w-f2f-stage">
+              <div className="w-f2f-stage-title">
+                {peerUsername ? t('settings.f2f.withPeer', { name: peerUsername }) : t('settings.f2f.transferring')}
+              </div>
+              <div className="w-f2f-stage-desc">{t('settings.f2f.keepOpen')}</div>
+              <div className="w-f2f-progress">
+                <div className="w-f2f-progress-label">
+                  <span>{t('settings.f2f.sendProgress')}</span>
+                  <span className="w-f2f-progress-value">{Math.round(progress.sent * 100)}%</span>
+                </div>
+                <Progress percent={Math.round(progress.sent * 100)} size="small" showInfo={false} />
+              </div>
+              <div className="w-f2f-progress">
+                <div className="w-f2f-progress-label">
+                  <span>{t('settings.f2f.recvProgress')}</span>
+                  <span className="w-f2f-progress-value">{Math.round(progress.recv * 100)}%</span>
+                </div>
+                <Progress percent={Math.round(progress.recv * 100)} size="small" showInfo={false} />
+              </div>
             </div>
           </div>
         )
 
       case 'done':
         return (
-          <Result
-            status="success"
-            title={t('settings.f2f.done.title')}
-            subTitle={
-              mergeResult
+          <div className="w-f2f-result">
+            <span className="w-f2f-result-mark" aria-hidden>
+              <CheckCircleOutlined />
+            </span>
+            <div className="w-f2f-result-title">{t('settings.f2f.done.title')}</div>
+            <div className="w-f2f-result-desc">
+              {mergeResult
                 ? t('settings.f2f.done.summary', {
                     libs: mergeResult.addedLibraries,
                     items: mergeResult.addedItems,
                     updated: mergeResult.updatedItems,
                   })
-                : t('settings.f2f.done.title')
-            }
-            extra={[
-              <Button key="again" onClick={handleRetry}>{t('settings.f2f.again')}</Button>,
-              <Button key="close" type="primary" onClick={handleClose}>{t('settings.f2f.close')}</Button>,
-            ]}
-          />
+                : t('settings.f2f.done.title')}
+            </div>
+            <div className="w-f2f-result-actions">
+              <Button onClick={handleRetry}>{t('settings.f2f.again')}</Button>
+              <Button type="primary" onClick={handleClose}>
+                {t('settings.f2f.close')}
+              </Button>
+            </div>
+          </div>
         )
 
       case 'error':
         return (
-          <Result
-            status="error"
-            title={t('settings.f2f.err.title')}
-            subTitle={t(errorKey(errorCode))}
-            extra={[
-              <Button key="retry" type="primary" onClick={handleRetry}>{t('settings.f2f.retry')}</Button>,
-              <Button key="close" onClick={handleClose}>{t('settings.f2f.close')}</Button>,
-            ]}
-          />
+          <div className="w-f2f-result">
+            <span className="w-f2f-result-mark w-f2f-result-mark--error" aria-hidden>
+              <WarningOutlined />
+            </span>
+            <div className="w-f2f-result-title">{t('settings.f2f.err.title')}</div>
+            <div className="w-f2f-result-desc">{t(errorKey(errorCode))}</div>
+            <div className="w-f2f-result-actions">
+              <Button type="primary" onClick={handleRetry}>
+                {t('settings.f2f.retry')}
+              </Button>
+              <Button onClick={handleClose}>{t('settings.f2f.close')}</Button>
+            </div>
+          </div>
         )
     }
   }
@@ -526,8 +580,8 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
       open={open}
       footer={null}
       onCancel={handleClose}
-      width={440}
-      destroyOnClose
+      width={480}
+      destroyOnHidden
     >
       {renderBody()}
     </Modal>

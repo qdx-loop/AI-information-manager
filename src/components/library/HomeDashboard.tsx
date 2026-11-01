@@ -1,32 +1,19 @@
 /**
- * 首页 · Windows 11 原生（Fluent 2 / Win11 Start + Settings 混合）
+ * 首页 · Windows 11 原生 v9
  *
- * 用户要求：首页与任何旧版本「一丝一毫关系都没有」，完全按 microsoft/fluentui
- * React v9 与 Windows 11 原生应用规范重做：
- *   - 无网页 Dashboard 卡片/KPI 大色块/渐变；
- *   - 原生页头 + 「已固定」大图标磁贴 + 「推荐 / 今天」列表 + 设置式快速行；
- *   - Mica 内容 + Acrylic 面板 + Fluent 低饱和组件。
- * 数据读取与行为（打开库/条目、AI、模板、设置）保持不变。
+ * 结构参考 Windows 11「设置 · 主页」+「开始 · 已固定」：
+ *   - 页头：账户头像 + 问候标题 + 日期/本地优先说明 + 主命令按钮
+ *   - 已固定：库磁贴网格（Win11 Start 式）
+ *   - 最近修改：Win11 设置行列表
+ *   - 今天：临期/逾期提醒（设置行 + 中性状态标签）
+ *   - 数据概览：三行事实条（不使用 KPI 大色块 / 彩色渐变）
+ *   - 快速操作：AI / 模板中心 / 回收站 / 帮助
+ *
+ * 数据读取与行为（打开库/条目、AI、模板、设置）与旧版完全一致。
  */
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
-import {
-  Avatar,
-  Badge,
-  Body1,
-  Body1Strong,
-  Button,
-  Caption1,
-  MessageBar,
-  MessageBarBody,
-  Skeleton,
-  SkeletonItem,
-  Subtitle1,
-  Title1,
-  Title2,
-  Tooltip,
-} from '@fluentui/react-components'
 import {
   AddRegular,
   ArrowClockwiseRegular,
@@ -214,107 +201,150 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
   const greeting = t(greetingKey(dayjs().hour()), { name: account?.username ?? '' }).trim()
 
   return (
-    <div className="n-home">
+    <div className="w-page w-home">
       {notice}
 
-      <header className="n-head">
-        <div className="n-identity">
-          <Avatar name={account?.username ?? '?'} size={48} color="colorful" />
-          <div className="n-greeting">
-            <Caption1 className="n-muted">{dateLabel()} · {t('landing.marquee.local')}</Caption1>
-            <Title1 className="n-title">{greeting || t('dash.titleFallback')}</Title1>
-            <Body1 className="n-muted">
+      <header className="w-page-head w-home-head">
+        <div className="w-home-identity">
+          <span className="w-avatar w-avatar--lg" aria-hidden>
+            {(account?.username ?? '?').slice(0, 1)}
+          </span>
+          <div className="w-head-main">
+            <div className="w-home-date">{dateLabel()} · {t('landing.marquee.local')}</div>
+            <h1 className="w-title">{greeting || t('dash.titleFallback')}</h1>
+            <div className="w-desc">
               {t('home.start.summary', { libs: fmt(totalLibs), items: fmt(totalItems) })}
-            </Body1>
+            </div>
           </div>
         </div>
-        <div className="n-tools">
-          <Tooltip content={t('home.start.aiTitle')} relationship="label">
-            <Button appearance="subtle" icon={<SparkleRegular />} onClick={openAI} aria-label={t('home.start.aiTitle')} />
-          </Tooltip>
-          <Button appearance="primary" icon={<AddRegular />} onClick={onCreate}>
+        <div className="w-actions">
+          <button type="button" className="w-btn" onClick={openAI}>
+            <SparkleRegular fontSize={16} />
+            {t('app.aiAssistant')}
+          </button>
+          <button type="button" className="w-btn w-btn--accent" onClick={onCreate}>
+            <AddRegular fontSize={16} />
             {t('app.newLibrary')}
-          </Button>
+          </button>
         </div>
       </header>
 
       {error ? (
-        <MessageBar intent="error">
-          <MessageBarBody>
-            <Body1Strong>{t('dash.loadFailed')}</Body1Strong>
-            <Caption1>{error}</Caption1>
-          </MessageBarBody>
-          <Button appearance="secondary" icon={<ArrowClockwiseRegular />} onClick={() => setRetryKey((n) => n + 1)}>
+        <div className="w-card w-home-error" role="alert">
+          <div className="w-home-error-main">
+            <strong>{t('dash.loadFailed')}</strong>
+            <span className="w-faint">{error}</span>
+          </div>
+          <button type="button" className="w-btn w-btn--sm" onClick={() => setRetryKey((n) => n + 1)}>
+            <ArrowClockwiseRegular fontSize={16} />
             {t('dash.retry')}
-          </Button>
-        </MessageBar>
+          </button>
+        </div>
       ) : null}
 
-      <section className="n-section" aria-labelledby="n-pinned">
-        <header className="n-section-head">
-          <Subtitle1 id="n-pinned">{t('home.start.pinned')}</Subtitle1>
-          <Caption1 className="n-muted">{fmt(pinned.length)}</Caption1>
+      <section className="w-home-section" aria-labelledby="home-pinned">
+        <header className="w-home-section-head">
+          <h2 id="home-pinned" className="w-home-section-title">{t('home.start.pinned')}</h2>
+          {pinned.length > 0 ? <span className="w-count">{fmt(pinned.length)}</span> : null}
         </header>
         {noLib ? (
-          <div className="n-surface n-empty">
-            <span className="n-empty-icon" aria-hidden><AddRegular fontSize={26} /></span>
-            <div className="n-empty-copy">
-              <Title2>{t('home.start.emptyTitle')}</Title2>
-              <Body1 className="n-muted">{t('home.start.emptyBody')}</Body1>
+          <div className="w-card w-home-empty">
+            <span className="w-home-empty-icon" aria-hidden>
+              <AddRegular fontSize={24} />
+            </span>
+            <div className="w-head-main">
+              <h3 className="w-home-empty-title">{t('home.start.emptyTitle')}</h3>
+              <p className="w-desc">{t('home.start.emptyBody')}</p>
             </div>
-            <div className="n-empty-actions">
-              <Button appearance="primary" onClick={onCreate}>{t('home.createFirst')}</Button>
-              <Button appearance="secondary" onClick={() => setTplOpen(true)}>{t('tpl.center.entry')}</Button>
+            <div className="w-actions">
+              <button type="button" className="w-btn w-btn--accent" onClick={onCreate}>
+                {t('home.createFirst')}
+              </button>
+              <button type="button" className="w-btn" onClick={() => setTplOpen(true)}>
+                {t('tpl.center.entry')}
+              </button>
             </div>
           </div>
         ) : (
-          <div className="n-pinned">
-            {pinned.map((lib, i) => {
+          <div className="w-pin-grid">
+            {pinned.map((lib) => {
               const Icon = iconForLibrary(lib)
               return (
-                <button key={lib.id} type="button" className="n-pin" onClick={() => openLibrary(lib)} title={lib.name}>
-                  <span className={`n-pin-icon n-tone-${i % 6}`} aria-hidden><Icon fontSize={24} /></span>
-                  <span className="n-pin-name">{lib.name}</span>
-                  <Caption1 className="n-muted n-pin-meta">
-                    {loading ? '—' : `${fmt(extras.counts[lib.id] ?? 0)} · ${lib.category || t('app.group.libraries')}`}
-                  </Caption1>
+                <button key={lib.id} type="button" className="w-pin" onClick={() => openLibrary(lib)} title={lib.name}>
+                  <span className="w-pin-top">
+                    <span className="w-pin-icon" aria-hidden>
+                      <Icon fontSize={20} />
+                    </span>
+                    <ChevronRightRegular fontSize={14} className="w-pin-chev" aria-hidden />
+                  </span>
+                  <span className="w-pin-name">{lib.name}</span>
+                  <span className="w-pin-meta">
+                    {loading
+                      ? '—'
+                      : `${fmt(extras.counts[lib.id] ?? 0)} · ${lib.category || t('app.group.libraries')}`}
+                  </span>
                 </button>
               )
             })}
-            <button type="button" className="n-pin n-pin--add" onClick={onCreate}>
-              <span className="n-pin-icon n-pin-add" aria-hidden><AddRegular fontSize={22} /></span>
-              <span className="n-pin-name">{t('home.start.pinAdd')}</span>
-              <Caption1 className="n-muted n-pin-meta">{t('tpl.center.entry')}</Caption1>
+            <button type="button" className="w-pin w-pin--add" onClick={onCreate}>
+              <span className="w-pin-top">
+                <span className="w-pin-icon w-pin-icon--add" aria-hidden>
+                  <AddRegular fontSize={20} />
+                </span>
+              </span>
+              <span className="w-pin-name">{t('home.start.pinAdd')}</span>
+              <span className="w-pin-meta">{t('tpl.center.entry')}</span>
             </button>
           </div>
         )}
       </section>
 
-      <div className="n-grid">
-        <section className="n-section" aria-labelledby="n-recent">
-          <header className="n-section-head">
-            <Subtitle1 id="n-recent">{t('home.start.recommended')}</Subtitle1>
+      <div className="w-home-grid">
+        <section className="w-card w-home-recent" aria-labelledby="home-recent">
+          <header className="w-card-head">
+            <h2 id="home-recent" className="w-card-title">
+              <HistoryRegular fontSize={18} />
+              {t('home.start.recent')}
+            </h2>
             {recent.length > 0 ? (
-              <Button appearance="subtle" size="small" onClick={() => openLibrary(libraries[0])}>{t('home.start.viewAll')}</Button>
+              <button type="button" className="w-btn w-btn--subtle w-btn--sm" onClick={() => openLibrary(libraries[0])}>
+                {t('home.start.viewAll')}
+              </button>
             ) : null}
           </header>
-          <div className="n-surface">
+          <div className="w-rows">
             {loading ? (
-              <div className="n-skeleton">{[0, 1, 2].map((n) => <Skeleton key={n}><SkeletonItem size={36} /></Skeleton>)}</div>
+              [0, 1, 2, 3].map((n) => (
+                <div key={n} className="w-row">
+                  <span className="w-skeleton w-skeleton--text" style={{ width: 32, height: 32 }} />
+                  <span className="w-row-main">
+                    <span className="w-skeleton w-skeleton--text" style={{ width: '40%' }} />
+                    <span className="w-skeleton w-skeleton--text" style={{ width: '24%', marginTop: 6 }} />
+                  </span>
+                </div>
+              ))
             ) : recent.length === 0 ? (
-              <div className="n-row n-row--empty"><HistoryRegular fontSize={18} aria-hidden /><Caption1 className="n-muted">{t('home.start.noRecent')}</Caption1></div>
+              <div className="w-empty" style={{ minHeight: 180, padding: '32px 16px' }}>
+                <span className="w-empty-icon" aria-hidden><HistoryRegular fontSize={24} /></span>
+                <span className="w-empty-desc">{t('home.start.noRecent')}</span>
+              </div>
             ) : (
               recent.map((r) => {
                 const lib = libraries.find((l) => l.id === r.libId)
                 const Icon = lib ? iconForLibrary(lib) : DocumentRegular
                 return (
-                  <button key={r.key} type="button" className="n-row" onClick={() => { focusItem(r.itemId); navigate(`/library/${r.libId}`) }}>
-                    <span className="n-row-icon" aria-hidden><Icon fontSize={18} /></span>
-                    <span className="n-row-copy">
-                      <Body1Strong className="n-row-title">{r.title}</Body1Strong>
-                      <Caption1 className="n-muted">{r.libName} · {dayjs(r.updatedAt).format('MM-DD HH:mm')}</Caption1>
+                  <button
+                    key={r.key}
+                    type="button"
+                    className="w-row w-row--button"
+                    onClick={() => { focusItem(r.itemId); navigate(`/library/${r.libId}`) }}
+                  >
+                    <span className="w-row-icon w-row-icon--neutral" aria-hidden><Icon fontSize={16} /></span>
+                    <span className="w-row-main">
+                      <span className="w-row-title">{r.title}</span>
+                      <span className="w-row-desc">{r.libName} · {dayjs(r.updatedAt).format('MM-DD HH:mm')}</span>
                     </span>
-                    <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
+                    <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
                   </button>
                 )
               })
@@ -322,81 +352,125 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
           </div>
         </section>
 
-        <section className="n-section" aria-labelledby="n-today">
-          <header className="n-section-head">
-            <Subtitle1 id="n-today">{t('home.start.today')}</Subtitle1>
-            {overdueCount > 0 ? <Badge appearance="tint" color="danger">{t('home.start.overdue', { n: overdueCount })}</Badge> : null}
-          </header>
-          <div className="n-surface">
-            {loading ? (
-              <div className="n-skeleton">{[0, 1].map((n) => <Skeleton key={n}><SkeletonItem size={36} /></Skeleton>)}</div>
-            ) : tasksPreview.length === 0 ? (
-              <div className="n-row n-row--empty"><CheckmarkCircleRegular fontSize={18} aria-hidden /><Caption1 className="n-muted">{t('home.start.noTasks')}</Caption1></div>
-            ) : (
-              tasksPreview.map((a) => {
-                const diff = daysLeft(a.at)
-                const color = diff < 0 ? 'danger' : diff <= 3 ? 'warning' : 'informative'
-                return (
-                  <button key={a.key} type="button" className="n-row" onClick={() => openAlert(a)}>
-                    <span className="n-row-icon" aria-hidden><ClipboardTaskRegular fontSize={18} /></span>
-                    <span className="n-row-copy">
-                      <Body1Strong className="n-row-title">{a.title}</Body1Strong>
-                      <Caption1 className="n-muted">{a.libName} · {dayjs(a.at).format('MM-DD')}</Caption1>
+        <div className="w-home-side">
+          <section className="w-card" aria-labelledby="home-today">
+            <header className="w-card-head">
+              <h2 id="home-today" className="w-card-title">
+                <ClipboardTaskRegular fontSize={18} />
+                {t('home.start.today')}
+              </h2>
+              {overdueCount > 0 ? (
+                <span className="w-tag w-tag--danger">{t('home.start.overdue', { n: overdueCount })}</span>
+              ) : null}
+            </header>
+            <div className="w-rows">
+              {loading ? (
+                [0, 1].map((n) => (
+                  <div key={n} className="w-row">
+                    <span className="w-skeleton w-skeleton--text" style={{ width: 32, height: 32 }} />
+                    <span className="w-row-main">
+                      <span className="w-skeleton w-skeleton--text" style={{ width: '52%' }} />
                     </span>
-                    <Badge appearance="tint" color={color}>
-                      {diff < 0 ? t('dash.overdue', { n: -diff }) : diff === 0 ? t('dash.today') : t('dash.inDays', { n: diff })}
-                    </Badge>
-                  </button>
-                )
-              })
-            )}
-          </div>
-        </section>
-      </div>
+                  </div>
+                ))
+              ) : tasksPreview.length === 0 ? (
+                <div className="w-empty" style={{ minHeight: 140, padding: '28px 16px' }}>
+                  <span className="w-empty-icon" aria-hidden><CheckmarkCircleRegular fontSize={24} /></span>
+                  <span className="w-empty-desc">{t('home.start.noTasks')}</span>
+                </div>
+              ) : (
+                tasksPreview.map((a) => {
+                  const diff = daysLeft(a.at)
+                  const tone = diff < 0 ? 'danger' : diff <= 3 ? 'warning' : 'neutral'
+                  return (
+                    <button key={a.key} type="button" className="w-row w-row--button" onClick={() => openAlert(a)}>
+                      <span className="w-row-icon w-row-icon--neutral" aria-hidden><ClipboardTaskRegular fontSize={16} /></span>
+                      <span className="w-row-main">
+                        <span className="w-row-title">{a.title}</span>
+                        <span className="w-row-desc">{a.libName} · {dayjs(a.at).format('MM-DD')}</span>
+                      </span>
+                      <span className={`w-tag w-tag--${tone}`}>
+                        {diff < 0
+                          ? t('dash.overdue', { n: -diff })
+                          : diff === 0
+                            ? t('dash.today')
+                            : t('dash.inDays', { n: diff })}
+                      </span>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </section>
 
-      <section className="n-section" aria-labelledby="n-more">
-        <header className="n-section-head"><Subtitle1 id="n-more">{t('home.start.quick')}</Subtitle1></header>
-        <div className="n-surface">
-          <button type="button" className="n-row n-row--56" onClick={openAI}>
-            <span className="n-row-icon n-row-icon--accent" aria-hidden><SparkleRegular fontSize={18} /></span>
-            <span className="n-row-copy">
-              <Body1Strong className="n-row-title">{t('home.start.aiTitle')}</Body1Strong>
-              <Caption1 className="n-muted">{t('home.start.aiBody')}</Caption1>
-            </span>
-            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
-          </button>
-          <button type="button" className="n-row n-row--56" onClick={() => navigate('/settings')}>
-            <span className="n-row-icon" aria-hidden><ShieldCheckmarkRegular fontSize={18} /></span>
-            <span className="n-row-copy">
-              <Body1Strong className="n-row-title">{t('home.start.localTitle')}</Body1Strong>
-              <Caption1 className="n-muted">
-                {`${t('home.start.syncLocal')} · ${fmt(totalLibs)} ${t('dash.stat.libs')} · ${fmt(totalItems)} ${t('dash.stat.items')} · +${fmt(itemsThisWeek)} ${t('dash.stat.week')}`}
-              </Caption1>
-            </span>
-            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
-          </button>
-          <button type="button" className="n-row" onClick={() => setTplOpen(true)}>
-            <span className="n-row-icon" aria-hidden><LibraryRegular fontSize={18} /></span>
-            <span className="n-row-copy"><Body1Strong className="n-row-title">{t('tpl.center.entry')}</Body1Strong></span>
-            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
-          </button>
-          <button type="button" className="n-row" onClick={() => navigate('/trash')}>
-            <span className="n-row-icon" aria-hidden><DeleteRegular fontSize={18} /></span>
-            <span className="n-row-copy"><Body1Strong className="n-row-title">{t('app.trash')}</Body1Strong></span>
-            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
-          </button>
-          <button type="button" className="n-row" onClick={() => navigate('/settings')}>
-            <span className="n-row-icon" aria-hidden><SettingsRegular fontSize={18} /></span>
-            <span className="n-row-copy"><Body1Strong className="n-row-title">{t('app.settings')}</Body1Strong></span>
-            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
-          </button>
-          <button type="button" className="n-row" onClick={() => navigate('/help')}>
-            <span className="n-row-icon" aria-hidden><QuestionCircleRegular fontSize={18} /></span>
-            <span className="n-row-copy"><Body1Strong className="n-row-title">{t('app.help')}</Body1Strong></span>
-            <ChevronRightRegular fontSize={14} className="n-chev" aria-hidden />
-          </button>
+          <section className="w-card" aria-labelledby="home-overview">
+            <header className="w-card-head">
+              <h2 id="home-overview" className="w-card-title">
+                <DatabaseRegular fontSize={18} />
+                {t('home.start.overview')}
+              </h2>
+            </header>
+            <div className="w-rows">
+              <div className="w-row">
+                <span className="w-row-main"><span className="w-row-title">{t('dash.stat.libs')}</span></span>
+                <span className="w-fact-value w-fact-value--sm">{fmt(totalLibs)}</span>
+              </div>
+              <div className="w-row">
+                <span className="w-row-main"><span className="w-row-title">{t('dash.stat.items')}</span></span>
+                <span className="w-fact-value w-fact-value--sm">{fmt(totalItems)}</span>
+              </div>
+              <div className="w-row">
+                <span className="w-row-main"><span className="w-row-title">{t('dash.stat.week')}</span></span>
+                <span className="w-fact-value w-fact-value--sm">+{fmt(itemsThisWeek)}</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="w-card" aria-labelledby="home-settings">
+            <header className="w-card-head">
+              <h2 id="home-settings" className="w-card-title">
+                <SettingsRegular fontSize={18} />
+                {t('home.start.quickSettings')}
+              </h2>
+            </header>
+            <div className="w-rows">
+              <button type="button" className="w-row w-row--button" onClick={openAI}>
+                <span className="w-row-icon" aria-hidden><SparkleRegular fontSize={16} /></span>
+                <span className="w-row-main">
+                  <span className="w-row-title">{t('home.start.aiTitle')}</span>
+                  <span className="w-row-desc">{t('home.start.aiBody')}</span>
+                </span>
+                <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
+              </button>
+              <button type="button" className="w-row w-row--button" onClick={() => navigate('/settings')}>
+                <span className="w-row-icon w-row-icon--neutral" aria-hidden><ShieldCheckmarkRegular fontSize={16} /></span>
+                <span className="w-row-main">
+                  <span className="w-row-title">{t('home.start.localTitle')}</span>
+                  <span className="w-row-desc">
+                    {`${t('home.start.syncLocal')} · ${fmt(totalLibs)} ${t('dash.stat.libs')} · ${fmt(totalItems)} ${t('dash.stat.items')}`}
+                  </span>
+                </span>
+                <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
+              </button>
+              <button type="button" className="w-row w-row--button" onClick={() => setTplOpen(true)}>
+                <span className="w-row-icon w-row-icon--neutral" aria-hidden><LibraryRegular fontSize={16} /></span>
+                <span className="w-row-main"><span className="w-row-title">{t('tpl.center.entry')}</span></span>
+                <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
+              </button>
+              <button type="button" className="w-row w-row--button" onClick={() => navigate('/trash')}>
+                <span className="w-row-icon w-row-icon--neutral" aria-hidden><DeleteRegular fontSize={16} /></span>
+                <span className="w-row-main"><span className="w-row-title">{t('app.trash')}</span></span>
+                <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
+              </button>
+              <button type="button" className="w-row w-row--button" onClick={() => navigate('/help')}>
+                <span className="w-row-icon w-row-icon--neutral" aria-hidden><QuestionCircleRegular fontSize={16} /></span>
+                <span className="w-row-main"><span className="w-row-title">{t('app.help')}</span></span>
+                <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
+              </button>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
 
       <TemplateCenter open={tplOpen} onClose={() => setTplOpen(false)} />
     </div>

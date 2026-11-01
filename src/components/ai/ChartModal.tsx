@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Modal, Button, App } from 'antd'
+import { Modal, App } from 'antd'
 import { DownloadOutlined } from '@/components/common/icons'
 import { useI18n } from '@/i18n'
 import { styleChart } from '@/ai/chartStyle'
@@ -37,25 +37,18 @@ export interface ChartPayload {
   option: Record<string, unknown>
 }
 
-// v4 §2：弹窗标题 24/700（Outfit）、mono kicker 11、页脚 mono 11
-const T = {
-  title: 'var(--t-xl)',
-  xs: 'var(--t-xs)',
-  mono: 'var(--t-2xs)',
-}
-
-/** canvas 不解析 CSS 变量，画之前把 v3 token 读成具体值 */
+/** canvas 不解析 CSS 变量，画之前把 v9 token 读成具体值 */
 function readTokens() {
   const cs = typeof document !== 'undefined' ? getComputedStyle(document.documentElement) : null
   const v = (name: string) => (cs?.getPropertyValue(name) ?? '').trim()
   return {
-    fontSans: v('--font-body'),
-    ink: v('--ink'),
-    inkSoft: v('--ink-soft'),
-    lineSoft: v('--line-soft'),
-    line: v('--line'),
-    surface: v('--sheet'),
-    raised: v('--sheet'),
+    fontSans: v('--w-font'),
+    ink: v('--w-text'),
+    inkSoft: v('--w-text-3'),
+    lineSoft: v('--w-divider'),
+    line: v('--w-divider-strong'),
+    surface: v('--w-card'),
+    raised: v('--w-flyout'),
   }
 }
 
@@ -66,7 +59,7 @@ type AxisLike = Record<string, unknown> & {
   nameTextStyle?: Record<string, unknown>
 }
 
-/** 把 axis 上的线/字颜色强制成 v3 token（不改结构，只覆盖颜色） */
+/** 把 axis 上的线/字颜色强制成 v9 token（不改结构，只覆盖颜色） */
 function paintAxis(axis: unknown, tk: ReturnType<typeof readTokens>): unknown {
   if (!axis || typeof axis !== 'object' || Array.isArray(axis)) return axis
   const a = axis as AxisLike
@@ -80,10 +73,10 @@ function paintAxis(axis: unknown, tk: ReturnType<typeof readTokens>): unknown {
 }
 
 /**
- * house style + v3 视觉约束：
- * - 关闭入场动画（v4 §9 动效：只允许交互过渡）
- * - 网格线 `--line-soft`、坐标/图例文字 `--ink-soft`、图例无底色
- * - 字体换 v3 系统字链（chartStyle 内部写死了旧字链，这里统一覆盖）
+ * house style + Win11 视觉约束：
+ * - 关闭入场动画（v9 动效：只允许交互过渡）
+ * - 网格线 `--w-divider`、坐标/图例文字 `--w-text-3`、图例无底色
+ * - 字体统一 v9 系统字链
  */
 function paperOption(option: Record<string, unknown>, dark: boolean): Record<string, unknown> {
   const styled = styleChart(option, dark) as Record<string, unknown>
@@ -119,9 +112,9 @@ function paperOption(option: Record<string, unknown>, dark: boolean): Record<str
 }
 
 /**
- * 图表弹窗（v4：840 sheet + 2px ink + shadow-3、标题 Outfit 700 24 + mono kicker、
- * 图表区纸面白底、网格线 `--line-soft`、轴文字 `--ink-soft`、无入场动画、
- * 底部 mono 11「数据来源 · 生成时间」）。
+ * 图表弹窗（v9 Windows 11 ContentDialog）：
+ * 标题 20 semibold + 12 次级说明、图表容器卡片底、坐标/网格走 v9 token、
+ * 无入场动画、底部 mono 11「数据来源 · 生成时间」、右下按钮。
  */
 export default function ChartModal({
   payload,
@@ -230,89 +223,31 @@ export default function ChartModal({
       // 标题在弹窗头部，ECharts 里不再重复画一遍
       title={
         <div>
-          <div
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: T.title,
-              fontWeight: 700,
-              lineHeight: 1.2,
-              letterSpacing: '-0.025em',
-              color: 'var(--text)',
-            }}
-          >
-            {payload?.title ?? ''}
-          </div>
-          <div
-            style={{
-              marginTop: 'var(--s1)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: T.mono,
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'var(--text-muted)',
-            }}
-          >
-            {t('ai.chart.defaultName')}
-          </div>
+          <div className="ai-chart-title">{payload?.title ?? ''}</div>
+          <div className="ai-chart-kicker">{t('ai.chart.defaultName')}</div>
         </div>
       }
       width={840}
       onCancel={onClose}
       afterOpenChange={(open) => open && setReady(true)}
       footer={
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 'var(--s2)',
-            marginTop: 'var(--s1)',
-          }}
-        >
-          <Button type="text" onClick={onClose}>
+        <div className="ai-chart-actions">
+          <button type="button" className="w-btn w-btn--subtle" onClick={onClose}>
             {t('common.close')}
-          </Button>
-          <Button icon={<DownloadOutlined />} type="primary" onClick={handleDownload}>
+          </button>
+          <button type="button" className="w-btn w-btn--accent" onClick={handleDownload}>
+            <DownloadOutlined />
             {t('ai.chart.download')}
-          </Button>
+          </button>
         </div>
       }
     >
-      <div style={{ position: 'relative', minHeight: 460 }}>
-        {/* 图表区：白底、无边框；网格线/文字色在 paperOption 里强制成 v3 token */}
-        <div
-          ref={chartDivRef}
-          style={{ width: '100%', height: 460, background: 'var(--surface)' }}
-        />
-        {loading && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: T.xs,
-              color: 'var(--text-secondary)',
-            }}
-          >
-            {t('ai.chart.loading')}
-          </div>
-        )}
+      <div className="ai-chart-body">
+        {/* 图表容器：卡片底 + 1px 描边；网格线/文字色在 paperOption 里强制成 v9 token */}
+        <div ref={chartDivRef} className="ai-chart-canvas" />
+        {loading && <div className="ai-chart-loading">{t('ai.chart.loading')}</div>}
       </div>
-      <div
-        className="mono"
-        style={{
-          marginTop: 'var(--s2)',
-          paddingTop: 'var(--s2)',
-          borderTop: '1px solid var(--border)',
-          fontSize: T.mono,
-          letterSpacing: '0.02em',
-          color: 'var(--text-muted)',
-        }}
-      >
-        {t('ai.chart.foot', { time: openedAt })}
-      </div>
+      <div className="ai-chart-foot">{t('ai.chart.foot', { time: openedAt })}</div>
     </Modal>
   )
 }

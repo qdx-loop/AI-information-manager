@@ -1,0 +1,272 @@
+/* v9 · 首页（Windows 11 设置主页 + 开始已固定） */
+
+.w-home {
+  gap: 22px;
+}
+.w-home-head {
+  align-items: center;
+  padding-bottom: 2px;
+}
+.w-home-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.w-home-date {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--w-text-3);
+}
+.w-home-identity .w-title {
+  font-size: 28px;
+  line-height: 34px;
+}
+.w-home-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-color: rgba(255, 153, 164, 0.32);
+  background: var(--w-danger-soft);
+}
+:root[data-theme='light'] .w-home-error {
+  border-color: rgba(196, 43, 28, 0.28);
+}
+.w-home-error-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--w-text);
+}
+.w-home-error-main .w-faint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.w-home-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+.w-home-notice .w-row-desc {
+  white-space: normal;
+  line-height: 18px;
+}
+
+/* ══ 已固定（Start 式磁贴）══ */
+.w-home-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.w-home-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+.w-home-section-title {
+  font-family: var(--w-font-display);
+  font-size: var(--w-fs-subtitle);
+  line-height: var(--w-lh-subtitle);
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+}
+.w-pin-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.w-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  min-height: 106px;
+  padding: 12px 14px;
+  text-align: left;
+  background: var(--w-card);
+  border: 1px solid var(--w-card-border);
+  border-radius: var(--w-radius-card);
+  box-shadow: var(--w-shadow-card);
+  color: var(--w-text);
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease,
+    box-shadow 0.12s ease, transform 0.08s ease;
+}
+.w-pin:hover {
+  background: var(--w-card-hover);
+  border-color: var(--w-divider);
+  box-shadow: var(--w-shadow-card-hover);
+}
+.w-pin:active {
+  transform: scale(0.99);
+}
+.w-pin-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.w-pin-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--w-accent-soft);
+  color: var(--w-accent);
+  flex: 0 0 auto;
+}
+.w-pin-chev {
+  color: var(--w-text-3);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.w-pin:hover .w-pin-chev,
+.w-pin:focus-visible .w-pin-chev {
+  opacity: 1;
+}
+.w-pin-name {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--w-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.w-pin-meta {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--w-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.w-pin--add {
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+}
+.w-pin--add:hover {
+  border-color: var(--w-accent);
+  background: var(--w-layer);
+}
+.w-pin-icon--add {
+  background: var(--w-layer-alt);
+  color: var(--w-text-2);
+}
+.w-pin--add:hover .w-pin-icon--add {
+  background: var(--w-accent-soft);
+  color: var(--w-accent);
+}
+
+/* ══ 空态：第一个管理库 ══ */
+.w-home-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 28px 24px;
+}
+.w-home-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--w-accent-soft);
+  color: var(--w-accent);
+}
+.w-home-empty-title {
+  font-family: var(--w-font-display);
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--w-text);
+}
+
+/* ══ 主区两栏 ══ */
+.w-home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.w-home-recent {
+  min-width: 0;
+}
+.w-home-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.w-home-side .w-card {
+  min-width: 0;
+}
+.w-home-side .w-fact-value {
+  font-family: var(--w-font);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--w-text);
+}
+
+@media (max-width: 1180px) {
+  .w-home-grid {
+    grid-template-columns: 1fr;
+  }
+  .w-pin-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .w-home {
+    gap: 18px;
+  }
+  .w-home-identity .w-title {
+    font-size: 24px;
+    line-height: 30px;
+  }
+  .w-home-head {
+    align-items: flex-start;
+  }
+  .w-home-head .w-actions {
+    width: 100%;
+  }
+  .w-home-head .w-actions .w-btn {
+    flex: 1;
+  }
+}
+@media (max-width: 720px) {
+  .w-pin-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .w-pin {
+    min-height: 98px;
+    padding: 10px 12px;
+  }
+  .w-home-identity {
+    gap: 12px;
+  }
+  .w-home-identity .w-avatar--lg {
+    width: 44px;
+    height: 44px;
+    font-size: 17px;
+  }
+  .w-home-error {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

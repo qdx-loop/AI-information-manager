@@ -1,21 +1,35 @@
 /**
- * 登录 / 注册 · v4「硬边印刷 SIGNAL PRESS」
+ * 登录 / 注册 · v9「WINDOWS 11 LOCK SCREEN」
  *
- * 结构：`.auth-page`（5fr / 6fr）
- *   左 `.auth-poster` = 墨黑海报：lime 几何标 + mono kicker `SIGNAL PRESS` + Outfit 800
- *     标题（关键词用 `<em>` lime 底块）+ 3 条 mono 说明 + 底部 mono 版权。
- *   右 `.auth-form-side` = 骨白画布上 400px `.auth-card`（2px ink 边 + shadow-3 + 0 圆角）。
+ * 视觉合同（`redesign-brief/11-v9-win11-desktop.md` §8 登录/注册）：
+ *   整页 Windows 11 壁纸 + 压暗 → 左上大号时间 / 日期（锁屏）；
+ *   中央偏右 Acrylic 登录面板：应用图标 AppIcon + 应用名 + Win11 输入框 +
+ *   accent 全宽登录按钮 + Pivot 切换注册 + Win11 checkbox「记住登录状态」；
+ *   错误提示贴着字段（面板内 InfoBar + 表单项内联报错）；右下角托盘图标/语言/主题。
  *
- * 三条不可退让的行为约束（与视觉无关，契约 §8.6）：
- * 1) 品牌只出现一次（海报即品牌），表单卡里不再重复 logo/名字；
- * 2) Turnstile 未就绪时不预留空洞，按钮可点、点击时才提示（回车提交同样拦截）；
- * 3) 注册成功先 `markWelcomePending()` 再 navigate，**不弹注册成功 toast**
- *    （否则欢迎卡 0.5s 内会再「欢迎」一次）。
+ * 行为契约（与视觉无关，逐条保留）：
+ * 1) Turnstile 只在注册页签挂载；拿不到 token 时不在表单里预留空洞，
+ *    提交时才拦截（回车提交同样拦截）；
+ * 2) 注册成功先 `markWelcomePending()` 再 navigate，**不弹注册成功 toast**；
+ * 3) 记住登录状态复选框控制 token 落 localStorage / sessionStorage（store 逻辑不变）；
+ * 4) ?mode=register 直达注册页签；已登录访问本页自动跳回主页；
+ * 5) 移动端单列，面板纵向滚动，不裁切表单。
  */
 import { useState, useEffect, useCallback } from 'react'
 import { Form, Input, Button, Checkbox, App } from 'antd'
+import dayjs from 'dayjs'
+import {
+  Battery10Regular,
+  Speaker2Regular,
+  WarningRegular,
+  Wifi1Regular,
+  WeatherMoonRegular,
+  WeatherSunnyRegular,
+} from '@fluentui/react-icons'
 import { SafetyOutlined } from '@/components/common/icons'
+import AppIcon from '@/components/common/AppIcon'
 import { useAuthStore } from '@/store/authStore'
+import { useAppStore } from '@/store/appStore'
 import { apiRegistrationOpen } from '@/lib/serverApi'
 import { useI18n } from '@/i18n'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -37,16 +51,21 @@ export default function AuthPage() {
   const navigate = useNavigate()
   const [search] = useSearchParams()
   const { login, register, account } = useAuthStore()
+  const t = useI18n()
+  const theme = useAppStore((s) => s.settings.theme)
+  const setTheme = useAppStore((s) => s.setTheme)
+  const language = useAppStore((s) => s.settings.language ?? 'zh')
+  const setLanguage = useAppStore((s) => s.setLanguage)
+
   // 落地页导航的「免费注册」会带 ?mode=register，直接落到注册页签
   const [mode, setMode] = useState<Mode>(search.get('mode') === 'register' ? 'register' : 'login')
   const [loading, setLoading] = useState(false)
   const [remember, setRemember] = useState(false)
   const [loginForm] = Form.useForm<{ username: string; password: string }>()
   const [regForm] = Form.useForm<RegisterValues>()
-  const t = useI18n()
   const [regOpen, setRegOpen] = useState<boolean | null>(null)
   const inApp = isAndroidApp()
-  // 内联错误：错误不只在顶部 toast 一闪而过，表单里留一行
+  // 内联错误：错误不只在顶部 toast 一闪而过，面板里留一行
   const [errorText, setErrorText] = useState('')
   // Turnstile token：拿不到时留空，服务端会按故障降级逻辑处理
   const [tsToken, setTsToken] = useState('')
@@ -58,6 +77,21 @@ export default function AuthPage() {
 
   // 人机验证没过 / 加载失败都由提交时拦截（不占位、不禁用整张表单）
   const tsBlocking = tsStatus !== 'passed'
+
+  // 锁屏时钟：Win11 锁屏左上角大号时间 + 日期（30s 刷新足够，秒不显示）。
+  // 存时间戳而不是 dayjs 对象：dayjs 对象会记住创建时的 locale，切语言后
+  // 星期/月份不会跟着变；每次渲染用当前 locale 重新格式化。
+  const [nowTs, setNowTs] = useState(() => Date.now())
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTs(Date.now()), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
+  // 显式指定 dayjs locale：全局 locale 由 main.tsx 的副作用切换，
+  // 切换语言时本组件可能还没重渲染，不能依赖全局值（否则出现「9:36 晚上」）。
+  const isEn = language === 'en'
+  const now = dayjs(nowTs).locale(isEn ? 'en' : 'zh-cn')
+  const timeText = now.format(isEn ? 'h:mm A' : 'HH:mm')
+  const dateText = now.format(isEn ? 'dddd, MMMM D' : 'YYYY年M月D日 dddd')
 
   // 如果 init() 在跳转到 /login 后才完成恢复，自动跳回主页
   useEffect(() => {
@@ -130,25 +164,15 @@ export default function AuthPage() {
   }
 
   const errorLine = errorText ? (
-    <div
-      role="alert"
-      style={{
-        background: 'var(--danger-wash)',
-        border: '2px solid var(--danger)',
-        padding: '8px 12px',
-        marginBottom: 16,
-        fontSize: 'var(--t-xs)',
-        lineHeight: 1.45,
-        color: 'var(--danger)',
-      }}
-    >
-      {errorText}
+    <div className="pub-auth-error" role="alert">
+      <WarningRegular fontSize={16} aria-hidden />
+      <span>{errorText}</span>
     </div>
   ) : null
 
-  // Mode tabs：Nova 式分段控件（灰底、选中白块 + 细阴影）
+  // Win11 Pivot：文字 14，选中项 accent 下划线（`.w-tab` 已由 primitives 提供）
   const tabs = (
-    <div className="auth-tabs" role="tablist" aria-label={t('auth.tab.login')}>
+    <div className="w-tabs pub-auth-tabs" role="tablist" aria-label={t('auth.tab.login')}>
       {(['login', 'register'] as const).map((k) => {
         const active = mode === k
         return (
@@ -158,7 +182,7 @@ export default function AuthPage() {
             role="tab"
             aria-selected={active}
             onClick={() => switchMode(k)}
-            className={`auth-tab${active ? ' is-active' : ''}`}
+            className={`w-tab${active ? ' is-active' : ''}`}
           >
             {t(k === 'login' ? 'auth.tab.login' : 'auth.tab.register')}
           </button>
@@ -172,14 +196,20 @@ export default function AuthPage() {
       form={loginForm}
       onFinish={onLogin}
       layout="vertical"
+      className="pub-auth-form"
       validateTrigger={['onSubmit', 'onChange']}
       requiredMark={false}
     >
-      <Form.Item name="username" label={t('auth.username')} rules={[{ required: true, message: t('auth.err.username') }]}>
+      <Form.Item
+        name="username"
+        label={t('auth.username')}
+        rules={[{ required: true, message: t('auth.err.username') }]}
+      >
         <Input
           placeholder={t('auth.username')}
           autoComplete="username"
           aria-label={t('auth.username')}
+          autoFocus
         />
       </Form.Item>
       <Form.Item
@@ -196,20 +226,12 @@ export default function AuthPage() {
           aria-label={t('auth.password')}
         />
       </Form.Item>
-      <Form.Item style={{ marginBottom: 16 }}>
+      <Form.Item className="pub-auth-remember">
         <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
-          <span style={{ fontSize: 'var(--t-sm)', color: 'var(--text-secondary)' }}>
-            {t('auth.remember')}
-          </span>
+          {t('auth.remember')}
         </Checkbox>
       </Form.Item>
-      <Button
-        type="primary"
-        htmlType="submit"
-        block
-        loading={loading}
-        style={{ height: 'var(--control-h-lg)' }}
-      >
+      <Button type="primary" htmlType="submit" block loading={loading} className="pub-auth-submit">
         {t('auth.login')}
       </Button>
     </Form>
@@ -218,25 +240,19 @@ export default function AuthPage() {
   const registerPane = (
     <>
       {regOpen === false && (
-        <div
-          style={{
-            background: 'var(--warning-wash)',
-            border: '2px solid var(--warning)',
-            padding: '8px 12px',
-            marginBottom: 16,
-            fontSize: 'var(--t-xs)',
-            lineHeight: 1.45,
-            color: 'var(--text)',
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: 2 }}>{t('auth.reg.closedTitle')}</div>
-          {t('auth.reg.closedBody')}
+        <div className="pub-infobar pub-infobar--warning" role="status">
+          <WarningRegular fontSize={18} aria-hidden />
+          <div className="pub-infobar-main">
+            <div className="pub-infobar-title">{t('auth.reg.closedTitle')}</div>
+            <div className="pub-infobar-desc">{t('auth.reg.closedBody')}</div>
+          </div>
         </div>
       )}
       <Form
         form={regForm}
         onFinish={onRegister}
         layout="vertical"
+        className="pub-auth-form"
         validateTrigger={['onSubmit', 'onChange']}
         requiredMark={false}
         disabled={regOpen === false}
@@ -244,6 +260,7 @@ export default function AuthPage() {
         <Form.Item
           name="username"
           label={t('auth.reg.usernameLabel')}
+          extra={<span className="pub-auth-extra">{t('auth.err.usernamePattern')}</span>}
           rules={[
             { required: true, message: t('auth.err.username') },
             { pattern: /^[A-Za-z0-9_]{3,20}$/, message: t('auth.err.usernamePattern') },
@@ -258,6 +275,7 @@ export default function AuthPage() {
         <Form.Item
           name="password"
           label={t('auth.reg.passwordLabel')}
+          extra={<span className="pub-auth-extra">{t('auth.err.passwordMin8')}</span>}
           rules={[
             { required: true, message: t('auth.err.password') },
             { min: 8, message: t('auth.err.passwordMin8') },
@@ -293,7 +311,7 @@ export default function AuthPage() {
           name="contact"
           label={t('auth.reg.contactLabel')}
           rules={[{ max: 120, message: t('auth.err.contactMax') }]}
-          style={{ marginBottom: 12 }}
+          className="pub-auth-contact"
         >
           <Input
             placeholder={t('auth.reg.contact')}
@@ -303,35 +321,23 @@ export default function AuthPage() {
         </Form.Item>
 
         {/* Turnstile 宿主：脚本未就绪时只有一行状态，不占固定高度 */}
-        <div style={{ marginBottom: 8 }}>
+        <div className="pub-auth-ts">
           <div ref={tsHost} />
           {tsStatus === 'loading' && (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)' }}>
-              {t('auth.reg.ts.loading')}
-            </div>
+            <div className="pub-auth-ts-hint">{t('auth.reg.ts.loading')}</div>
           )}
           {tsStatus === 'failed' && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontFamily: 'var(--font-mono)',
-                fontSize: '10px',
-                color: 'var(--danger)',
-              }}
-            >
-              <SafetyOutlined />
-              {t('auth.reg.ts.failed')}
+            <div className="pub-auth-ts-error">
+              <SafetyOutlined size={14} />
+              <span>{t('auth.reg.ts.failed')}</span>
             </div>
           )}
           {tsStatus === 'unavailable' && (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              {t('auth.reg.ts.unavailable')}
-              <Button
-                type="link"
-                size="small"
-                style={{ padding: '0 0 0 4px', fontSize: 'var(--t-2xs)' }}
+            <div className="pub-auth-ts-hint">
+              <span>{t('auth.reg.ts.unavailable')}</span>
+              <button
+                type="button"
+                className="w-btn w-btn--sm"
                 onClick={() => {
                   // 当前 URL 可能是 /login（没有 mode 参数），直接 reload 会再次
                   // 停在登录页签、再次失败。先把 mode=register 补进地址栏。
@@ -342,7 +348,7 @@ export default function AuthPage() {
                 }}
               >
                 {t('auth.reg.ts.retry')}
-              </Button>
+              </button>
             </div>
           )}
         </div>
@@ -353,115 +359,93 @@ export default function AuthPage() {
           block
           loading={loading}
           disabled={regOpen === false}
-          style={{ height: 'var(--control-h-lg)' }}
+          className="pub-auth-submit"
         >
           {t('auth.reg.submit')}
         </Button>
-        <p
-          style={{
-            marginTop: 12,
-            marginBottom: 0,
-            fontSize: 'var(--t-xs)',
-            lineHeight: 1.5,
-            color: 'var(--text-secondary)',
-          }}
-        >
-          {t('auth.reg.privacy')}
-        </p>
+        <p className="pub-auth-privacy">{t('auth.reg.privacy')}</p>
       </Form>
     </>
   )
 
-  const features = [t('auth.f1'), t('auth.f2'), t('auth.f3')]
+  const isDark = theme === 'dark'
 
   return (
-    <div className="auth-page">
-      {/* 左：墨黑海报（品牌只在这里出现） */}
-      <aside className="auth-poster" style={{ justifyContent: 'flex-start' }}>
-        <div className="auth-brand">
-          <span className="rail-mark" aria-hidden />
-          {t('auth.brand')}
-        </div>
-
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            minHeight: 0,
-          }}
-        >
-          <div className="auth-poster-kicker">{t('auth.poster.kicker')}</div>
-          {/* 固定两层：第一行普通色，第二行整块 lime —— 高亮短语绝不跨行断成单字 */}
-          <h1
-            className="auth-poster-title"
-            style={{ fontSize: 'clamp(36px, 4vw, 56px)', maxWidth: '100%' }}
-          >
-            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{t('auth.poster.pre')}</span>
-            <span style={{ display: 'block' }}>
-              <em style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>{t('auth.poster.mark')}</em>
-              <span>{t('auth.poster.post')}</span>
+    <div className="pub-lock">
+      <div className="pub-lock-scrim" aria-hidden />
+      <div className="pub-lock-content">
+        {/* 左：锁屏时间 / 日期 + 本地优先说明（Windows 锁屏） */}
+        <div className="pub-lock-left">
+          <div className="pub-lock-clock" aria-hidden>
+            <div className="pub-lock-time">{timeText}</div>
+            <div className="pub-lock-date">{dateText}</div>
+          </div>
+          <div className="pub-lock-tagline">
+            <span className="pub-lock-tagline-mark" aria-hidden>
+              <AppIcon size={18} />
             </span>
-          </h1>
-          <div className="auth-poster-list">
-            {features.map((text, i) => (
-              <div key={i} className="auth-poster-item">
-                <span className="auth-poster-num">0{i + 1}</span>
-                <span>{text}</span>
+            <span>{t('w11.status.local')}</span>
+            <span className="w-sep--v" aria-hidden />
+            <span>aiim.de5.net</span>
+          </div>
+        </div>
+
+        {/* 右：Acrylic 登录面板 */}
+        <div className="pub-lock-right">
+          <section className="pub-auth-panel" aria-labelledby="auth-title">
+            <div className="pub-auth-brand">
+              <AppIcon size={48} className="pub-auth-icon" />
+              <div className="pub-auth-brand-main">
+                <h1 id="auth-title" className="pub-auth-app">
+                  {t('app.brand')}
+                </h1>
+                <p className="pub-auth-sub">{t('auth.hero.subtitle')}</p>
               </div>
-            ))}
-          </div>
-          <div className="auth-poster-meta">
-            <span>LOCAL-FIRST</span>
-            <span>FREE FOREVER</span>
-            <span>YOUR DATA, YOUR DEVICE</span>
-          </div>
+            </div>
+
+            {tabs}
+            {errorLine}
+            {mode === 'login' ? loginPane : registerPane}
+
+            <div className="pub-auth-foot">
+              {!inApp && (
+                <button type="button" className="w-btn w-btn--subtle w-btn--sm" onClick={() => navigate('/')}>
+                  {t('auth.backHome')}
+                </button>
+              )}
+              <span className="pub-auth-hint">{t('auth.footerNote')}</span>
+            </div>
+          </section>
         </div>
 
-        {/* 底部视觉锚点：印刷对位标 + 一块 lime（移动端隐藏） */}
-        
-
-        <div className="auth-poster-foot">
-          <span>© {new Date().getFullYear()} {t('auth.brand')}</span>
-          <span>aiim.de5.net</span>
+        {/* 右下：语言 / 主题 / 托盘图标（锁屏风格，装饰性托盘为 aria-hidden） */}
+        <div className="pub-lock-status">
+          <button
+            type="button"
+            className="pub-lock-tool"
+            aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
+            title={isDark ? t('app.theme.light') : t('app.theme.dark')}
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+          >
+            {isDark ? <WeatherSunnyRegular fontSize={15} /> : <WeatherMoonRegular fontSize={15} />}
+          </button>
+          <button
+            type="button"
+            className="pub-lock-tool pub-lock-tool--text"
+            aria-label={t('app.language')}
+            title={t('app.language')}
+            onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+          >
+            {language === 'zh' ? 'EN' : '中'}
+          </button>
+          <span className="pub-lock-tray" aria-hidden>
+            <Wifi1Regular fontSize={15} />
+            <Speaker2Regular fontSize={15} />
+            <Battery10Regular fontSize={15} />
+          </span>
         </div>
-      </aside>
 
-      {/* 右：骨白画布 + 表单卡 */}
-      <main className="auth-form-side">
-        <div className="auth-signin-brand">
-          <span className="rail-mark" aria-hidden />
-          <span>{t('auth.brand')}</span>
-        </div>
-        <div className="auth-card">
-          <div className="auth-card-head">
-            <h2 className="auth-card-title">{t('auth.welcome')}</h2>
-            <p className="auth-card-sub">{t('auth.hint')}</p>
-          </div>
-
-          {tabs}
-          {errorLine}
-          {mode === 'login' ? loginPane : registerPane}
-
-          <div className="auth-foot">
-            {!inApp && (
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-              >
-                {t('auth.backHome')}
-              </button>
-            )}
-            <span>{t('auth.cloudHint')}</span>
-          </div>
-          {/* 刻意不放「管理员入口」：/admin 由运营方单独告知地址，
-              出现在用户界面会让普通用户误点后看到「无权访问」。 */}
-        </div>
-        <div className="auth-signin-foot">
-          <span>LOCAL-FIRST</span><span aria-hidden>·</span><span>WINDOWS 11 MICA</span><span aria-hidden>·</span><span>aiim.de5.net</span>
-        </div>
-      </main>
+      </div>
     </div>
   )
 }

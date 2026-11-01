@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Drawer } from 'antd'
+import { Drawer } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { FolderRegular, AddRegular, FolderAddRegular } from '@fluentui/react-icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import type { Library } from '@/types'
 import { useI18n } from '@/i18n'
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
 import CreateLibraryDialog from './CreateLibraryDialog'
+import { useLibText } from './labels'
 
 /**
- * 「管理库」标签的点开目标 —— 手机上的库切换面板。
+ * 「管理库」标签的点开目标 —— 手机上的库切换面板（v9 Win11 NavigationView Sheet）。
  *
  * 之前这个标签是死按钮：
  *   if (!location.pathname.startsWith('/library/')) navigate('/')
@@ -20,8 +22,8 @@ import CreateLibraryDialog from './CreateLibraryDialog'
  * 现在点开是这个底部抽屉：完整库树 + 当前库高亮 + 就地新建。
  * 「主目的地一个都不许藏」是当初引入底栏的理由，切库就不该再藏回抽屉里。
  *
- * 视觉（v4）：一行一个库（44px 索引行），当前库 = lime-wash 底 + 3px ink 左条；
- * 分组用 mono kicker，不放图标（库列表不需要图标）。
+ * 视觉（v9）：Win11 NavigationView sheet —— 分类组标题 12 + 一行一个库
+ * （图标 28 圆角 6 + 名称，当前库 = 中性提亮 + 左侧 3px 强调条），底部虚线新建行。
  */
 export default function LibraryPickerSheet({
   open,
@@ -31,6 +33,7 @@ export default function LibraryPickerSheet({
   onClose: () => void
 }) {
   const t = useI18n()
+  const lt = useLibText()
   const navigate = useNavigate()
   const location = useLocation()
   const { libraries, currentLibraryId } = useLibraryStore()
@@ -76,7 +79,7 @@ export default function LibraryPickerSheet({
   }, [open, pending, navigate])
 
   const go = (id: string) => {
-    consumeTopOverlay()          // 关这一层，但别回退历史
+    consumeTopOverlay() // 关这一层，但别回退历史
     setPending(id)
     onClose()
   }
@@ -91,7 +94,7 @@ export default function LibraryPickerSheet({
         <div
           onClick={onClose}
           aria-hidden
-          style={{ position: 'fixed', inset: 0, zIndex: 869, background: 'var(--overlay)' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 869, background: 'var(--w-overlay)' }}
         />
       )}
       <Drawer
@@ -105,21 +108,20 @@ export default function LibraryPickerSheet({
         styles={{ body: { padding: 12 }, wrapper: { zIndex: 870 } }}
       >
         {libraries.length === 0 ? (
-          <div className="empty-state" style={{ padding: '40px 12px' }}>
-            <div className="empty-mark" aria-hidden>+</div>
-            <h3 className="empty-title">{t('home.empty')}</h3>
-            <div className="empty-actions">
-              <Button type="primary" onClick={() => setCreating(true)}>
-                {t('home.createFirst')}
-              </Button>
-            </div>
+          <div className="lib-picker-empty">
+            <span className="lib-picker-empty-icon" aria-hidden>
+              <FolderAddRegular />
+            </span>
+            <div className="lib-picker-empty-title">{t('home.empty')}</div>
+            <button type="button" className="w-btn w-btn--accent" onClick={() => setCreating(true)}>
+              {t('home.createFirst')}
+            </button>
           </div>
         ) : (
           <>
             {groups.map(([cat, rows]) => (
-              <div key={cat} style={{ marginBottom: 12 }}>
-                <div className="panel-kicker" style={{ padding: '4px 4px 8px' }}>{cat}</div>
-                <div className="panel" style={{ overflow: 'hidden' }}>
+              <div key={cat} style={{ marginBottom: 8 }}>
+                <div className="w-sheet-group">{cat}</div>
                 {rows.map(({ lib, depth }) => {
                   const on = currentLibraryId === lib.id || location.pathname === `/library/${lib.id}`
                   return (
@@ -128,54 +130,33 @@ export default function LibraryPickerSheet({
                       type="button"
                       onClick={() => go(lib.id)}
                       aria-current={on ? 'page' : undefined}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        width: '100%',
-                        minHeight: 44,
-                        padding: `8px 12px 8px ${12 + depth * 16}px`,
-                        margin: 0,
-                        // v4 索引行：1px line-soft 行线，选中 = lime-wash 底 + 左侧 3px ink 条
-                        border: 0,
-                        borderBottom: '1px solid var(--border)',
-                        borderLeft: on ? '3px solid var(--border-strong)' : '3px solid transparent',
-                        borderRadius: 0,
-                        background: on ? 'var(--accent-soft)' : 'transparent',
-                        font: 'inherit',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        color: 'inherit',
-                      }}
+                      className={`w-sheet-item${on ? ' is-active' : ''}`}
+                      style={{ paddingInlineStart: 12 + depth * 16 }}
                     >
-                      <span
-                        style={{
-                          flex: 1,
-                          fontSize: 'var(--t-sm)',
-                          fontWeight: on ? 700 : 500,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {lib.name}
+                      <span className="w-sheet-lib-icon" aria-hidden>
+                        <FolderRegular style={{ fontSize: 16 }} />
                       </span>
+                      <span className="w-sheet-item-label">{lib.name}</span>
+                      {on ? <span className="lib-picker-current">{lt('picker.current')}</span> : null}
                     </button>
                   )
                 })}
-                </div>
               </div>
             ))}
-            <Button type="primary" block onClick={() => setCreating(true)} style={{ marginTop: 4 }}>
-              {t('app.newLibrary')}
-            </Button>
+            <button type="button" className="w-sheet-add" onClick={() => setCreating(true)}>
+              <AddRegular />
+              <span>{lt('picker.new')}</span>
+            </button>
           </>
         )}
       </Drawer>
       <CreateLibraryDialog
         open={creating}
         onClose={() => setCreating(false)}
-        onCreated={() => { setCreating(false); onClose() }}
+        onCreated={() => {
+          setCreating(false)
+          onClose()
+        }}
       />
     </>
   )

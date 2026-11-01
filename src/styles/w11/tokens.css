@@ -1,0 +1,333 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   v9 · WINDOWS 11 NATIVE — Design Tokens
+   ──────────────────────────────────────────────────────────────────────────
+   唯一色板/材质/字阶/尺寸来源。深色为默认（提示词主色板 #1f1f1f…#303030 +
+   #ffffff + #4cc2ff），浅色为 Win11 亮色对应值。页面 CSS 只消费变量，
+   禁止再出现裸 hex（界面色）。
+
+   命名：--w-* 为 v9 语义 token；--legacy-* 仅为过渡期旧类名兜底。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 字体：Segoe UI Variable（Windows 系统字体）；Selawik = OFL 度量兼容回退 ── */
+@font-face {
+  font-family: 'Selawik';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/selawik-regular.woff') format('woff');
+}
+@font-face {
+  font-family: 'Selawik';
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+  src: url('/fonts/selawik-bold.woff') format('woff');
+}
+
+:root {
+  /* ════ 字体 ════ */
+  --w-font: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', Selawik,
+    -apple-system, BlinkMacSystemFont, 'Microsoft YaHei UI', 'PingFang SC',
+    'Noto Sans CJK SC', 'Source Han Sans SC', sans-serif;
+  --w-font-display: 'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', Selawik,
+    -apple-system, BlinkMacSystemFont, 'Microsoft YaHei UI', 'PingFang SC',
+    'Noto Sans CJK SC', 'Source Han Sans SC', sans-serif;
+  --w-font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'Courier New',
+    'Noto Sans Mono CJK SC', monospace;
+
+  --w-fs-caption: 12px;
+  --w-fs-body: 14px;
+  --w-fs-body-lg: 16px;
+  --w-fs-subtitle: 18px;
+  --w-fs-title: 28px;
+  --w-fs-hero: 36px;
+  --w-lh-caption: 16px;
+  --w-lh-body: 20px;
+  --w-lh-body-lg: 22px;
+  --w-lh-subtitle: 24px;
+  --w-lh-title: 36px;
+  --w-lh-hero: 44px;
+  --w-fw-semibold: 600;
+
+  /* ════ 尺寸 ════ */
+  --w-caption-h: 40px;
+  --w-taskbar-h: 48px;
+  --w-rail-w: 68px;
+  --w-control-h: 32px;
+  --w-control-h-sm: 28px;
+  --w-control-h-lg: 40px;
+  --w-row-h: 48px;
+  --w-statusbar-h: 28px;
+  --w-content-max: 1280px;
+  --w-content-max-wide: 1600px;
+  --w-page-pad-x: 32px;
+
+  /* ════ 圆角 ════ */
+  --w-radius-control: 4px;
+  --w-radius-card: 8px;
+  --w-radius-flyout: 8px;
+  --w-radius-dialog: 8px;
+  --w-radius-window: 8px;
+  --w-radius-pill: 999px;
+
+  /* ════ 深色（默认）════ */
+  --w-stage: #0d0d0d;
+  --w-wallpaper: url('/win11-wallpaper.jpg');
+  --w-mica: rgba(32, 32, 32, 0.82);
+  --w-acrylic: rgba(32, 32, 32, 0.55);
+  --w-acrylic-strong: rgba(44, 44, 44, 0.78);
+  --w-layer: rgba(255, 255, 255, 0.0337);
+  --w-layer-alt: rgba(255, 255, 255, 0.0512);
+  --w-layer-hover: rgba(255, 255, 255, 0.0837);
+  --w-card: rgba(255, 255, 255, 0.0512);
+  --w-card-hover: rgba(255, 255, 255, 0.0837);
+  --w-card-pressed: rgba(255, 255, 255, 0.0326);
+  --w-card-border: rgba(255, 255, 255, 0.0698);
+  --w-divider: rgba(255, 255, 255, 0.0837);
+  --w-divider-strong: rgba(255, 255, 255, 0.14);
+  --w-flyout: rgba(43, 43, 43, 0.92);
+  --w-flyout-border: rgba(255, 255, 255, 0.093);
+  --w-overlay: rgba(0, 0, 0, 0.45);
+  --w-smoke: rgba(0, 0, 0, 0.5);
+
+  --w-text: #ffffff;
+  --w-text-2: #d6d6d6;
+  --w-text-3: #a0a0a0;
+  --w-text-disabled: #6b6b6b;
+  --w-text-on-accent: #000000;
+
+  --w-accent: #4cc2ff;
+  --w-accent-hover: #6dd0ff;
+  --w-accent-pressed: #38a9df;
+  --w-accent-soft: rgba(76, 194, 255, 0.12);
+  --w-accent-soft-hover: rgba(76, 194, 255, 0.18);
+  --w-focus: #ffffff;
+
+  --w-danger: #ff99a4;
+  --w-danger-soft: rgba(255, 153, 164, 0.12);
+  --w-success: #6ccb5f;
+  --w-success-soft: rgba(108, 203, 95, 0.14);
+  --w-warning: #fce100;
+  --w-warning-soft: rgba(252, 225, 0, 0.12);
+  --w-info: #60cdff;
+  --w-info-soft: rgba(96, 205, 255, 0.12);
+
+  --w-shadow-card: 0 2px 4px rgba(0, 0, 0, 0.24);
+  --w-shadow-card-hover: 0 4px 8px rgba(0, 0, 0, 0.28);
+  --w-shadow-flyout: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 8px 16px rgba(0, 0, 0, 0.4);
+  --w-shadow-dialog: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 32px 64px rgba(0, 0, 0, 0.6);
+  --w-shadow-window: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 24px 48px rgba(0, 0, 0, 0.55);
+  --w-shadow-focus: 0 0 0 2px rgba(0, 0, 0, 0.55);
+  --w-noise-opacity: 0.028;
+
+  /* ════ 兼容旧变量（过渡期兜底，页面重写完成后仅作别名）════ */
+  --bg: #202020;
+  --surface: var(--w-card);
+  --surface-solid: #252525;
+  --surface-2: var(--w-layer);
+  --glass-border: var(--w-card-border);
+  --border: var(--w-card-border);
+  --border-strong: var(--w-divider-strong);
+  --text: var(--w-text);
+  --text-secondary: var(--w-text-2);
+  --text-muted: var(--w-text-3);
+  --accent: var(--w-accent);
+  --accent-hover: var(--w-accent-hover);
+  --accent-soft: var(--w-accent-soft);
+  --accent-2: #3daee9;
+  --accent-gradient: var(--w-accent);
+  --on-accent: var(--w-text-on-accent);
+  --on-dark: #ffffff;
+  --danger: var(--w-danger);
+  --danger-soft: var(--w-danger-soft);
+  --success: var(--w-success);
+  --success-soft: var(--w-success-soft);
+  --warning: var(--w-warning);
+  --warning-soft: var(--w-warning-soft);
+  --overlay: var(--w-overlay);
+  --focus: var(--w-focus);
+  --shadow-1: var(--w-shadow-card);
+  --shadow-2: var(--w-shadow-card);
+  --shadow-3: var(--w-shadow-flyout);
+  --shadow-4: var(--w-shadow-dialog);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-pill: 999px;
+  --font-display: var(--w-font-display);
+  --font-body: var(--w-font);
+  --font-mono: var(--w-font-mono);
+  --topbar-h: 40px;
+  --rail-w: 68px;
+  --caption-h: 40px;
+  --control-h: 32px;
+  --control-h-sm: 28px;
+  --control-h-lg: 40px;
+  --row-h: 48px;
+  --row-h-sm: 32px;
+  --row-h-lg: 56px;
+  --table-head-h: 32px;
+  --content-max: 1280px;
+  --ai-w: 400px;
+  --canvas: var(--w-stage);
+  --canvas-2: #171717;
+  --chart-1: #4cc2ff;
+  --chart-2: #6ccb5f;
+  --chart-3: #fce100;
+  --chart-4: #ff99a4;
+  --chart-5: #c8c8c8;
+  --app-series-0: #4cc2ff;
+  --app-series-1: #6ccb5f;
+  --app-series-2: #fce100;
+  --app-series-3: #ff99a4;
+  --app-series-4: #c8c8c8;
+
+  /* 过渡期内联样式仍可能引用：保留旧字号/间距/尺寸变量，避免样式失效 */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s7: 32px;
+  --s8: 40px;
+  --s9: 48px;
+  --s10: 64px;
+  --s11: 80px;
+  --s12: 96px;
+  --t-2xs: 11px;
+  --t-xs: 12px;
+  --t-sm: 13px;
+  --t-base: 14px;
+  --t-md: 15px;
+  --t-lg: 16px;
+  --t-xl: 18px;
+  --t-2xl: 22px;
+  --t-3xl: 28px;
+  --t-4xl: 36px;
+  --t-5xl: 48px;
+  --t-6xl: 64px;
+  --lh-2xs: 1.3;
+  --lh-xs: 1.4;
+  --lh-sm: 1.45;
+  --lh-base: 1.5;
+  --lh-md: 1.5;
+  --lh-lg: 1.5;
+  --lh-xl: 1.4;
+  --lh-2xl: 1.3;
+  --lh-3xl: 1.2;
+  --lh-4xl: 1.12;
+  --lh-5xl: 1.05;
+  --lh-6xl: 1;
+  --border-width: 1px;
+  --mobile-tabs-h: 56px;
+  --warning-wash: var(--w-warning-soft);
+  --danger-wash: var(--w-danger-soft);
+  --glass-blur: 30px;
+  --glass-blur-strong: 48px;
+  --layer-fill: var(--w-layer);
+  --card-fill: var(--w-card);
+  --card-stroke: var(--w-card-border);
+  --mica-wash: var(--w-mica);
+  --mica-alt: var(--w-acrylic);
+  --command-fill: var(--w-layer);
+  --wallpaper: var(--w-wallpaper);
+  --aurora-1: transparent;
+  --aurora-2: transparent;
+  --aurora-3: transparent;
+  --aurora-base: var(--w-stage);
+  --glass-sheen: none;
+  --shadow-glow: var(--w-shadow-focus);
+  --shadow-inset: none;
+}
+
+/* ════ 浅色（Windows 11 Light）════ */
+:root[data-theme='light'] {
+  --w-stage: #e9e9e9;
+  --w-wallpaper: url('/win11-wallpaper-light.jpg');
+  --w-mica: rgba(243, 243, 243, 0.86);
+  --w-acrylic: rgba(249, 249, 249, 0.62);
+  --w-acrylic-strong: rgba(249, 249, 249, 0.88);
+  --w-layer: rgba(255, 255, 255, 0.45);
+  --w-layer-alt: rgba(255, 255, 255, 0.7);
+  --w-layer-hover: rgba(255, 255, 255, 0.9);
+  --w-card: #ffffff;
+  --w-card-hover: #f7f7f7;
+  --w-card-pressed: #f2f2f2;
+  --w-card-border: rgba(0, 0, 0, 0.0578);
+  --w-divider: rgba(0, 0, 0, 0.0803);
+  --w-divider-strong: rgba(0, 0, 0, 0.16);
+  --w-flyout: rgba(249, 249, 249, 0.94);
+  --w-flyout-border: rgba(0, 0, 0, 0.08);
+  --w-overlay: rgba(0, 0, 0, 0.3);
+  --w-smoke: rgba(0, 0, 0, 0.32);
+
+  --w-text: #1b1b1b;
+  --w-text-2: #5c5c5c;
+  --w-text-3: #8a8a8a;
+  --w-text-disabled: #b0b0b0;
+  --w-text-on-accent: #ffffff;
+
+  --w-accent: #0067c0;
+  --w-accent-hover: #0078d4;
+  --w-accent-pressed: #005a9e;
+  --w-accent-soft: rgba(0, 103, 192, 0.09);
+  --w-accent-soft-hover: rgba(0, 103, 192, 0.14);
+  --w-focus: #1b1b1b;
+
+  --w-danger: #c42b1c;
+  --w-danger-soft: rgba(196, 43, 28, 0.09);
+  --w-success: #0f7b0f;
+  --w-success-soft: rgba(15, 123, 15, 0.1);
+  --w-warning: #9d5d00;
+  --w-warning-soft: rgba(157, 93, 0, 0.1);
+  --w-info: #0067c0;
+  --w-info-soft: rgba(0, 103, 192, 0.09);
+
+  --w-shadow-card: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --w-shadow-card-hover: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --w-shadow-flyout: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 8px 16px rgba(0, 0, 0, 0.14);
+  --w-shadow-dialog: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 32px 64px rgba(0, 0, 0, 0.24);
+  --w-shadow-window: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 24px 48px rgba(0, 0, 0, 0.28);
+  --w-shadow-focus: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  --w-noise-opacity: 0.018;
+
+  --bg: #f3f3f3;
+  --surface: var(--w-card);
+  --surface-solid: #ffffff;
+  --surface-2: var(--w-layer);
+  --glass-border: var(--w-card-border);
+  --border: var(--w-card-border);
+  --border-strong: var(--w-divider-strong);
+  --text: var(--w-text);
+  --text-secondary: var(--w-text-2);
+  --text-muted: var(--w-text-3);
+  --accent: var(--w-accent);
+  --accent-hover: var(--w-accent-hover);
+  --accent-soft: var(--w-accent-soft);
+  --accent-2: #0078d4;
+  --on-accent: var(--w-text-on-accent);
+  --on-dark: #1b1b1b;
+  --danger: var(--w-danger);
+  --success: var(--w-success);
+  --warning: var(--w-warning);
+  --overlay: var(--w-overlay);
+  --focus: var(--w-focus);
+  --shadow-1: var(--w-shadow-card);
+  --shadow-2: var(--w-shadow-card);
+  --shadow-3: var(--w-shadow-flyout);
+  --shadow-4: var(--w-shadow-dialog);
+  --canvas: var(--w-stage);
+  --canvas-2: #f0f0f0;
+  --chart-1: #0067c0;
+  --chart-2: #0f7b0f;
+  --chart-3: #9d5d00;
+  --chart-4: #c42b1c;
+  --chart-5: #5c5c5c;
+  --app-series-0: #0067c0;
+  --app-series-1: #0f7b0f;
+  --app-series-2: #9d5d00;
+  --app-series-3: #c42b1c;
+  --app-series-4: #5c5c5c;
+}

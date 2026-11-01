@@ -1,11 +1,10 @@
-// 二维码卡面（纯白，v4 SIGNAL PRESS）——WelcomeModal 与 RewardCard 共用。
+// 二维码卡面（纯白，v9 Windows 11 内容对话框）——WelcomeModal 与 RewardCard 共用。
 //
-// 依据：`redesign-brief/06-v4-signal-press.md` §8.9 + §5（`.reward-qr-card` 由 Lead 在全局 CSS 实现）。
 // 硬约束（两处都不能破）：
 // - 卡面**固定纯白**：暗色下也不反色，浅色模块变深后扫不出来（全项目唯一允许写死的颜色）。
 // - 图片不反色、不加滤镜、不加 mix-blend-mode；不放大失真（源图 640×640，显示 240–248）。
 // - 卡面保留内 padding 作 quiet zone（源图自带白边 + 卡内 12px）。
-// 视觉：白色卡面 + 2px ink 硬边 + 硬投影（`.reward-qr-card`），零圆角。
+// v9 视觉：白色卡面 + 4px 圆角 + 1px 中性描边（`.pub-qr`，见 public.css）。
 import type { CSSProperties } from 'react'
 import { useI18n } from '@/i18n'
 
@@ -38,7 +37,7 @@ export default function RewardQr({
 
   return (
     <div
-      className={['reward-qr-card', className].filter(Boolean).join(' ')}
+      className={['pub-qr', className].filter(Boolean).join(' ')}
       role="group"
       aria-label={groupLabel}
       style={{ ...styles.card, ...style }}
@@ -50,7 +49,7 @@ export default function RewardQr({
 
 const styles = {
   card: {
-    // 白底 / 2px ink 边 / 硬投影由 `.reward-qr-card` 提供，这里只保证不被父级 flex 拉伸
+    // 白底 / 描边 / 4px 圆角由 `.pub-qr` 提供，这里只保证不被父级 flex 拉伸
     flexShrink: 0,
   },
   img: {

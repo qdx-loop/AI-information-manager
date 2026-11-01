@@ -66,11 +66,11 @@ export function EmptyState({
   compact?: boolean
 }) {
   return (
-    <div className="empty-state" style={compact ? { padding: '24px 16px' } : undefined}>
-      <div className="empty-mark" aria-hidden>{icon ?? '◇'}</div>
-      <h3 className="empty-title">{title}</h3>
-      {body ? <p className="empty-body">{body}</p> : null}
-      {action ? <div className="empty-actions">{action}</div> : null}
+    <div className="w-empty" style={compact ? { minHeight: 160, padding: '28px 16px' } : undefined}>
+      <div className="w-empty-icon" aria-hidden>{icon ?? '◇'}</div>
+      <div className="w-empty-title">{title}</div>
+      {body ? <div className="w-empty-desc">{body}</div> : null}
+      {action ? <div className="w-empty-actions">{action}</div> : null}
     </div>
   )
 }

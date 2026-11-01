@@ -1,4 +1,4 @@
-import { Modal, Button, App, Checkbox } from 'antd'
+import { Modal, App, Checkbox } from 'antd'
 import { useEffect, useState } from 'react'
 import type { ItemAction } from '@/ai/tools'
 import type { Library, FieldDef, Item } from '@/types'
@@ -17,16 +17,8 @@ interface Props {
   onCancel: () => void
 }
 
-// v4 §2：弹窗正文 15/1.6，注脚 13，mono 小标签 11，标题 20
-const T = {
-  body: 'var(--t-base)',
-  sm: 'var(--t-sm)',
-  mono: 'var(--t-2xs)',
-  title: 'var(--t-lg)',
-}
-
 /**
- * AI 写操作的确认弹窗（v3：440 宽、标题 20/600、正文 14/1.6、按钮右对齐）。
+ * AI 写操作的确认弹窗（v9 Windows 11 ContentDialog：标题 20/600、正文 14/20、按钮右下）。
  *
  * 两个安全改进（对应 03-ai.md 风险 P0-1 / P0-2；本轮只改视觉，逻辑保持）：
  *  1. 删除时渲染**被删条目的只读字段快照**——旧版只显示 itemId，用户无法核对
@@ -82,153 +74,99 @@ export default function ConfirmActionModal({
 
   const visibleFields = fields.filter((f) => f.visible)
   const actionLabel = t('ai.action.' + action.action)
-  const labelStyle = { minWidth: 76, flexShrink: 0, color: 'var(--text-secondary)' }
 
   return (
     <Modal
-      title={
-        <span
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: T.title,
-            fontWeight: 700,
-            lineHeight: 1.3,
-            letterSpacing: '-0.02em',
-            color: 'var(--text)',
-          }}
-        >
-          {t('ai.confirm.itemTitle')}
-        </span>
-      }
+      title={<span className="ai-confirm-title">{t('ai.confirm.itemTitle')}</span>}
       open={open}
       onCancel={onCancel}
       width={440}
       footer={
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 'var(--s2)',
-            marginTop: 'var(--s1)',
-          }}
-        >
-          <Button type="text" onClick={onCancel}>
+        <div className="ai-dialog-actions">
+          <button type="button" className="w-btn w-btn--subtle" onClick={onCancel}>
             {t('common.cancel')}
-          </Button>
-          <Button type="primary" danger={isDelete} loading={loading} onClick={() => void handleOk()}>
+          </button>
+          <button
+            type="button"
+            className={`w-btn ${isDelete ? 'w-btn--danger' : 'w-btn--accent'}`}
+            disabled={loading}
+            onClick={() => void handleOk()}
+          >
             {t('ai.confirm.ok')}
-          </Button>
+          </button>
         </div>
       }
     >
-      <div style={{ fontSize: T.body, lineHeight: 1.6, color: 'var(--text)' }}>
+      <div className="ai-confirm">
         {/* 头部一行：动作 + 目标库名 */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: 'var(--s2)',
-            marginBottom: 'var(--s3)',
-          }}
-        >
-          <span style={{ color: isDelete ? 'var(--danger)' : 'var(--accent-2)', fontWeight: 500 }}>
+        <div className="ai-confirm-head">
+          <span className={`ai-confirm-action${isDelete ? ' ai-confirm-action--danger' : ''}`}>
             {actionLabel}
           </span>
-          <span style={{ color: 'var(--text-secondary)', fontSize: T.sm }}>
-            {library?.name ?? action.libraryId}
-          </span>
+          <span className="ai-confirm-target">{library?.name ?? action.libraryId}</span>
         </div>
 
         {action.reason && (
-          <p
-            style={{
-              margin: '0 0 var(--s4)',
-              paddingTop: 'var(--s2)',
-              borderTop: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            <span style={{ color: 'var(--text-muted)' }}>{t('ai.confirm.reason')}</span>
+          <p className="ai-confirm-reason">
+            <span>{t('ai.confirm.reason')}</span>
             {action.reason}
           </p>
         )}
 
         {/* 删除：渲染被删条目的只读快照（用户必须能核对删的是什么） */}
         {isDelete ? (
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--s3)' }}>
-            <div
-              className="eyebrow"
-              style={{
-                fontSize: T.mono,
-                letterSpacing: '0.04em',
-                color: 'var(--text-muted)',
-                marginBottom: 'var(--s2)',
-              }}
-            >
-              {t('ai.confirm.snapshot')}
-            </div>
+          <div className="ai-confirm-block">
+            <div className="ai-confirm-kicker">{t('ai.confirm.snapshot')}</div>
             {existingItem ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
+              <>
                 {(visibleFields.length > 0 ? visibleFields : fields).map((f) => (
-                  <div key={f.key} style={{ display: 'flex', gap: 'var(--s2)', lineHeight: 1.6 }}>
-                    <span style={labelStyle}>{f.label}</span>
-                    <span style={{ minWidth: 0, wordBreak: 'break-word', color: 'var(--text)' }}>
+                  <div key={f.key} className="ai-confirm-row">
+                    <span className="ai-confirm-label">{f.label}</span>
+                    <span className="ai-confirm-value">
                       {String(existingItem.fields[f.key] ?? '—')}
                     </span>
                   </div>
                 ))}
-                <div
-                  className="mono"
-                  style={{ marginTop: 'var(--s1)', fontSize: T.mono, color: 'var(--text-muted)' }}
-                >
-                  {existingItem.id}
-                </div>
-              </div>
+                <div className="ai-confirm-id">{existingItem.id}</div>
+              </>
             ) : (
-              <div style={{ color: 'var(--text-secondary)' }}>
+              <div className="ai-confirm-missing">
                 {t('ai.confirm.snapshotMissing')}
-                <span className="mono" style={{ marginLeft: 6 }}>
-                  {action.itemId ?? '—'}
-                </span>
+                <code>{action.itemId ?? '—'}</code>
               </div>
             )}
           </div>
         ) : (
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--s3)' }}>
+          <div className="ai-confirm-block">
             {action.action !== 'create' && (
-              <div
-                className="mono"
-                style={{ fontSize: T.mono, color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}
-              >
+              <div className="ai-confirm-kicker">
                 {t('ai.confirm.targetItem')}
-                <span style={{ marginLeft: 6, color: 'var(--text-secondary)' }}>{action.itemId}</span>
+                <code className="ai-confirm-id" style={{ display: 'inline', marginLeft: 6 }}>
+                  {action.itemId}
+                </code>
               </div>
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
-              {visibleFields.map((f) => {
-                const newVal = action.fields?.[f.key]
-                const oldVal = existingItem?.fields[f.key]
-                const changed = action.action === 'create' || String(newVal) !== String(oldVal)
-                return (
-                  <div key={f.key} style={{ display: 'flex', gap: 'var(--s2)', lineHeight: 1.6 }}>
-                    <span style={labelStyle}>{f.label}</span>
-                    <span style={{ minWidth: 0, wordBreak: 'break-word' }}>
-                      {action.action === 'update' && changed ? (
-                        <>
-                          <span style={{ textDecorationLine: 'line-through', color: 'var(--text-muted)' }}>
-                            {String(oldVal ?? '-')}
-                          </span>
-                          <span style={{ margin: '0 4px', color: 'var(--text-muted)' }}>→</span>
-                          <span style={{ color: 'var(--text)', fontWeight: 500 }}>{String(newVal ?? '-')}</span>
-                        </>
-                      ) : (
-                        <span style={{ color: 'var(--text)' }}>{String(newVal ?? '-')}</span>
-                      )}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
+            {visibleFields.map((f) => {
+              const newVal = action.fields?.[f.key]
+              const oldVal = existingItem?.fields[f.key]
+              const changed = action.action === 'create' || String(newVal) !== String(oldVal)
+              return (
+                <div key={f.key} className="ai-confirm-row">
+                  <span className="ai-confirm-label">{f.label}</span>
+                  <span className="ai-confirm-value">
+                    {action.action === 'update' && changed ? (
+                      <>
+                        <span className="ai-confirm-old">{String(oldVal ?? '-')}</span>
+                        <span className="ai-confirm-arrow">→</span>
+                        <span className="ai-confirm-new">{String(newVal ?? '-')}</span>
+                      </>
+                    ) : (
+                      <span>{String(newVal ?? '-')}</span>
+                    )}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -237,21 +175,13 @@ export default function ConfirmActionModal({
             checked={always}
             disabled={alreadyRemembered}
             onChange={(e) => setAlways(e.target.checked)}
-            style={{ marginTop: 'var(--s3)', fontSize: T.sm, color: 'var(--text-secondary)' }}
+            className="ai-confirm-check"
           >
             {t('ai.confirm.always', { action: actionLabel })}
           </Checkbox>
         )}
 
-        <p
-          style={{
-            marginTop: 'var(--s3)',
-            marginBottom: 0,
-            fontSize: T.sm,
-            lineHeight: 1.6,
-            color: isDelete ? 'var(--danger)' : 'var(--text-secondary)',
-          }}
-        >
+        <p className={`ai-confirm-note${isDelete ? ' ai-confirm-note--danger' : ''}`}>
           {t('ai.confirm.note')}
         </p>
       </div>

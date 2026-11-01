@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Modal, Button, Checkbox, Input, App } from 'antd'
+import { Modal, Checkbox, Input, App } from 'antd'
 import {
   AppstoreOutlined,
   TeamOutlined,
@@ -20,8 +20,9 @@ import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/i18n'
 
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
+import { useLibText } from './labels'
 
-/** 模板图标：每个模板一个线性图标（只用 Outlined），与左侧索引行同一视觉重量 */
+/** 模板图标：每个模板一个 Fluent 线性图标 */
 const TPL_ICONS: Record<string, ReactNode> = {
   customer: <TeamOutlined />,
   inventory: <InboxOutlined />,
@@ -36,16 +37,18 @@ const TPL_ICONS: Record<string, ReactNode> = {
 }
 
 /**
- * 模板中心（v4 SIGNAL PRESS）。
+ * 模板中心（v9 Win11 ContentDialog）。
  *
- * 结构：左侧 = 硬边 panel + `.index-row` 模板索引（编号 01..、名称、字段数），
- * 选中行 lime-wash + 3px ink 左条；右侧 = `.sheet` 纸面预览（细线字段表 + 主按钮）。
+ * 左侧 = Win11 导航列表（分组 + 图标 + 名称 + 字段数，选中 = accent-soft + 左 3px）；
+ * 右侧 = 模板预览（标题 18 semibold + 说明 + 字段设置式列表 + 附带示例数据 + 主按钮）。
+ *
  * 业务逻辑（建库 → 套字段 → 可选示例数据 → 跳转）与原来完全一致。
  */
 export default function TemplateCenter({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { message, modal } = App.useApp()
   const navigate = useNavigate()
   const t = useI18n()
+  const lt = useLibText()
   const { account } = useAuthStore()
   const { createLibrary, selectLibrary, loadLibraries } = useLibraryStore()
   const [withSample, setWithSample] = useState(true)
@@ -69,6 +72,7 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
   const applyLibTemplate = (tpl: LibTemplate) => {
     let name = tpl.name
     modal.confirm({
+      icon: null,
       title: t('tpl.center.nameTitle', { name: tpl.name }),
       content: (
         <Input
@@ -116,110 +120,78 @@ export default function TemplateCenter({ open, onClose }: { open: boolean; onClo
       open={open}
       onCancel={onClose}
       footer={null}
-      width={920}
+      width={880}
       style={{ maxWidth: 'calc(100vw - 24px)' }}
+      destroyOnHidden
     >
-      <div className="page-kicker" style={{ marginBottom: 8 }}>{t('tpl.center.kicker')}</div>
-      <p className="page-sub" style={{ marginBottom: 12 }}>{t('tpl.center.subtitle')}</p>
-      <Checkbox checked={withSample} onChange={(e) => setWithSample(e.target.checked)} style={{ marginBottom: 16 }}>
-        {t('tpl.center.sample')}
-      </Checkbox>
+      <p className="lib-dialog-sub">{t('tpl.center.subtitle')}</p>
 
       {grouped.length === 0 ? (
-        <p className="field-hint">{t('lib.tpl.empty')}</p>
+        <p className="lib-dialog-sub">{t('lib.tpl.empty')}</p>
       ) : (
-        <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', flexWrap: 'wrap' }}>
-          {/* 左：模板索引（panel + index-row；选中 lime-wash + 3px ink 左条） */}
-          <div className="panel" style={{ width: 320, flexShrink: 0, maxHeight: 460, overflowY: 'auto' }}>
-            <div className="panel-head">
-              <span className="panel-kicker">TEMPLATES / INDEX</span>
-              <span className="table-count">{grouped.reduce((n, [, list]) => n + list.length, 0)}</span>
-            </div>
-            <div className="panel-body" style={{ padding: 0 }}>
+        <div className="lib-tpl">
+          {/* 左：模板导航列表（分组 + 选中 accent-soft + 左 3px） */}
+          <div className="lib-tpl-nav">
+            <div className="lib-tpl-nav-scroll">
               {grouped.map(([cat, tpls]) => (
                 <div key={cat}>
-                  <div className="panel-kicker" style={{ padding: '10px 16px 4px' }}>{cat}</div>
-                  <div className="index-list">
-                    {tpls.map((tpl, i) => {
-                      const on = tpl.key === selectedKey
-                      return (
-                        <div
-                          key={tpl.key}
-                          role="button"
-                          tabIndex={0}
-                          className="index-row"
-                          aria-current={on ? 'true' : undefined}
-                          onClick={() => setSelectedKey(tpl.key)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              setSelectedKey(tpl.key)
-                            }
-                          }}
-                          style={on ? { background: 'var(--accent-soft)', boxShadow: 'inset 3px 0 0 var(--border-strong)' } : undefined}
-                        >
-                          <span className="index-num" aria-hidden>
-                            <span style={{ display: 'inline-flex', color: on ? 'var(--text)' : 'var(--text-muted)', fontSize: 16 }}>
-                              {TPL_ICONS[tpl.key] ?? <AppstoreOutlined />}
-                            </span>
+                  <div className="lib-tpl-group">{cat}</div>
+                  {tpls.map((tpl) => {
+                    const on = tpl.key === selectedKey
+                    return (
+                      <button
+                        key={tpl.key}
+                        type="button"
+                        className={`lib-tpl-item${on ? ' is-active' : ''}`}
+                        aria-current={on ? 'true' : undefined}
+                        onClick={() => setSelectedKey(tpl.key)}
+                      >
+                        <span className="lib-tpl-icon" aria-hidden>
+                          {TPL_ICONS[tpl.key] ?? <AppstoreOutlined />}
+                        </span>
+                        <span className="lib-tpl-main">
+                          <span className="lib-tpl-name">{tpl.name}</span>
+                          <span className="lib-tpl-meta">
+                            {tpl.fields.length} {t('tpl.center.fields')}
                           </span>
-                          <span className="index-main">
-                            <span className="index-title" style={{ fontWeight: on ? 700 : 600 }}>{tpl.name}</span>
-                            <span className="index-meta">{String(i + 1).padStart(2, '0')} · {tpl.fields.length} {t('tpl.center.fields')}</span>
-                          </span>
-                          <span className="tag-mono">{tpl.fields.length}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* 右：纸面预览（sheet + 细线字段表 + 主按钮） */}
-          <div className="sheet" style={{ flex: '1 1 420px', minWidth: 0, padding: 'var(--s5)' }}>
+          {/* 右：模板预览（标题 + 说明 + 字段设置式列表 + 主按钮） */}
+          <div className="lib-tpl-preview">
             {selected ? (
               <>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                  <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--t-lg)', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>
-                    {selected.name}
-                  </h3>
-                  <span className="table-count">{selected.fields.length} {t('tpl.center.fields')}</span>
+                <div className="lib-tpl-preview-head">
+                  <div className="lib-tpl-preview-title">{selected.name}</div>
+                  <span className="w-tag">{lt('center.fieldsCount', { n: selected.fields.length })}</span>
                 </div>
-                <p className="page-sub" style={{ fontSize: 'var(--t-xs)', margin: '6px 0 16px' }}>{selected.desc}</p>
-                <div style={{ borderTop: 'var(--border-width) solid var(--border-strong)' }}>
-                  {selected.fields.map((f, i) => (
-                    <div
-                      key={f.key}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'baseline',
-                        justifyContent: 'space-between',
-                        gap: 12,
-                        minHeight: 40,
-                        padding: '8px 0',
-                        borderBottom: '1px solid var(--border)',
-                      }}
-                    >
-                      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
-                        <span className="index-num">{String(i + 1).padStart(2, '0')}</span>
-                        <span style={{ fontSize: 'var(--t-sm)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {f.label}
-                        </span>
-                      </span>
-                      <span className="tag-mono">{t(`lib.tpl.type.${f.type}`)}</span>
+                <p className="lib-tpl-preview-desc">{selected.desc}</p>
+                <div className="lib-tpl-fields">
+                  {selected.fields.map((f) => (
+                    <div key={f.key} className="lib-tpl-field-row">
+                      <span className="lib-tpl-field-name">{f.label}</span>
+                      <span className="w-tag">{t(`lib.tpl.type.${f.type}`)}</span>
                     </div>
                   ))}
                 </div>
-                <div style={{ marginTop: 'var(--s5)' }}>
-                  <Button type="primary" onClick={() => applyLibTemplate(selected)}>
+                <div className="lib-tpl-foot">
+                  <Checkbox checked={withSample} onChange={(e) => setWithSample(e.target.checked)}>
+                    {t('tpl.center.sample')}
+                  </Checkbox>
+                  <span className="lib-tpl-foot-spacer" />
+                  <button type="button" className="w-btn w-btn--accent" onClick={() => applyLibTemplate(selected)}>
                     {t('tpl.center.use')}
-                  </Button>
+                  </button>
                 </div>
               </>
             ) : (
-              <p className="field-hint">{t('lib.tpl.empty')}</p>
+              <p className="lib-dialog-sub">{t('lib.tpl.empty')}</p>
             )}
           </div>
         </div>

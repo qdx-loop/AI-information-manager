@@ -1,30 +1,31 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#F0F0F0" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1F1F1F" media="(prefers-color-scheme: dark)" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#202020" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F3F3F3" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark light" />
     <!-- PWA：添加到主屏幕后以独立 App 模式运行（iOS 同时豁免 7 天存储清理） -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="信息管理" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+    <!-- Win11 字体：Segoe UI Variable（系统）→ Selawik（OFL，度量兼容，自托管，禁止网络字体 CDN） -->
     <link rel="preload" href="/fonts/selawik-regular.woff" as="font" type="font/woff" crossorigin />
-    
+    <link rel="preload" href="/fonts/selawik-bold.woff" as="font" type="font/woff" crossorigin />
     <meta
       name="description"
-      content="AI 智能信息管理助手——用自然语言管理你的数据：建库、录入、检索、统计、图表。"
+      content="AI 智能信息管理助手——Windows 11 原生桌面体验：用自然语言管理你的数据，建库、录入、检索、统计、图表。"
     />
     <title>信息管理 · AI 智能信息管理助手</title>
   </head>
   <body>
     <div id="root"></div>
     <noscript>
-      <div style="font-family: system-ui; padding: 40px 20px; text-align: center; color: #FFFFFF;">
+      <div style="font-family:'Segoe UI',system-ui;padding:40px 20px;text-align:center;color:#FFFFFF;background:#202020;min-height:100vh">
         <h2>请启用 JavaScript</h2>
         <p>本应用需要浏览器启用 JavaScript 才能运行。</p>
       </div>

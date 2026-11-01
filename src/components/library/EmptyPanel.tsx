@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
+import { InfoRegular } from '@fluentui/react-icons'
 
 /**
- * 空态（v4 SIGNAL PRESS）：56px lime 方块（`.empty-mark`，2px ink 边 + 硬投影）
- * + Outfit 800 24 标题 + 15 正文 + 主按钮。
+ * 空态（v9 Win11）：Fluent 线性图标 48 + 标题 16 semibold + 说明 13 + 操作按钮，
+ * 居中留白，不用彩色方块 / 硬投影 / 卡片套卡片。
  *
- * `surface` 为 true 时自身是一块 `.panel`（用于替换表格/列表区域）；
- * 放在已有 panel/tile 内时传 false（只渲染空态内容，避免 panel 套 panel）。
+ * `surface` 为 true 时自身占满页面主体区（替换表格区域）；
+ * 放在已有面板内部时传 false（只渲染空态内容）。
  */
 export default function EmptyPanel({
   title,
@@ -21,15 +22,15 @@ export default function EmptyPanel({
   surface?: boolean
 }) {
   const inner = (
-    <div className="empty-state">
-      <div className="empty-mark" aria-hidden>
-        {icon ?? '!'}
+    <div className="w-empty">
+      <div className="w-empty-icon" aria-hidden>
+        {icon ?? <InfoRegular />}
       </div>
-      <h3 className="empty-title">{title}</h3>
-      {body ? <p className="empty-body">{body}</p> : null}
-      {action ? <div className="empty-actions">{action}</div> : null}
+      <div className="w-empty-title">{title}</div>
+      {body ? <div className="w-empty-desc">{body}</div> : null}
+      {action ? <div className="w-empty-actions">{action}</div> : null}
     </div>
   )
   if (!surface) return inner
-  return <div className="panel panel--flush">{inner}</div>
+  return <div className="lib-empty-body">{inner}</div>
 }

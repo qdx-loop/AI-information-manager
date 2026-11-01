@@ -1,6 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Spin, Tooltip } from 'antd'
-import { DismissRegular, PanelRightContractRegular, ChevronDownRegular } from '@fluentui/react-icons'
+import { Spin, Tooltip } from 'antd'
+import {
+  DismissRegular,
+  PanelRightContractRegular,
+  ChevronDownRegular,
+  SparkleRegular,
+} from '@fluentui/react-icons'
 import { useAiUiStore, AI_DOCK_MIN, AI_DOCK_MAX } from '@/store/aiUiStore'
 import { useI18n } from '@/i18n'
 import { useBackButtonLayer } from '@/utils/backButton'
@@ -11,18 +16,11 @@ const AIPanel = lazy(() => import('@/components/ai/AIPanel'))
 const SHEET_RATIO = 0.68 // 手机底部抽屉默认高度（占视口比例）
 
 /**
- * AI 助手的承载外壳。
+ * AI 助手的承载外壳 v9（Windows 11 Copilot 式侧栏）。
  *
- * 之前用 antd <Drawer>，而 Drawer 的 mask 默认是 true，一打开就给整页加遮罩，
- * 底下什么都点不了；而且它是盖在内容上的，表格被压住但看不见。
- * 调研（微软 Copilot UX 指南、Wiley《UX for AI》）的结论一致：
- * 常驻助手应该是「把内容推到左边」，而不是盖住内容，另外给一个画中画形态。
- *
- * 关键实现约束：**只渲染一份 DOM**。
- * 之前桌面（右侧停靠列）和手机（底部抽屉）是两个独立的 JSX 分支，
- * 跨越 768px 缩放窗口时分支切换会把 AIPanel 整个卸载重建 ——
- * abortRef 丢失、正在跑的任务被静默中断。现在两种形态共用同一个节点，
- * 只靠 class 切换外观，任务跨形态、跨断点都能存活。
+ * 关键约束保持不变：**只渲染一份 DOM** —— 桌面右侧停靠列与手机底部抽屉
+ * 共用同一节点，只靠 class 切换外观；跨断点缩放不会中断正在执行的任务。
+ * 唯一改动是外观：Acrylic 侧栏 / Win11 头部 / 输入区（输入区由 AIPanel 渲染）。
  */
 export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
   const t = useI18n()
@@ -40,7 +38,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
   const [sheetFull, setSheetFull] = useState(false)
   const dragRef = useRef<{ startX: number; startW: number } | null>(null)
 
-  // 面板真正可见时清掉未读红点（之前 markSeen 全项目无人调用，红点永远不消）
+  // 面板真正可见时清掉未读红点
   useEffect(() => {
     if (open && !collapsed) markSeen()
   }, [open, collapsed, markSeen])
@@ -52,12 +50,8 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
       dragRef.current = { startX: e.clientX, startW: width }
       const move = (ev: PointerEvent) => {
         if (!dragRef.current) return
-        // 边在左边，往左拖是变宽
         setWidth(dragRef.current.startW + (dragRef.current.startX - ev.clientX))
       }
-      // pointercancel 和 blur 也要清理：指针在窗口外松开、或手势被系统取消（触屏滚动）
-      // 时不会触发 pointerup。少了这两个分支，move 监听会永久留在 window 上，
-      // 之后每次鼠标移动都写一遍 localStorage，且下次拖拽会再叠一份。
       const end = () => {
         dragRef.current = null
         window.removeEventListener('pointermove', move)
@@ -83,18 +77,14 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
     sheetTouch.current = null
     if (start == null) return
     const dy = e.changedTouches[0].clientY - start
-    if (dy > 60) setCollapsed(true) // 往下拖 = 收成小条
-    else setSheetFull((v) => !v) // 轻点/上推 = 切换高度
+    if (dy > 60) setCollapsed(true)
+    else setSheetFull((v) => !v)
   }
 
-  // 安卓返回键此前关不掉这个抽屉 —— 而 backButton 的注释里「AI 抽屉」正是它要解决的场景，
-  // 唯独这里漏了注册。结果 PWA 上按实体返回键会把整个页面换掉，而不是关掉眼前这层。
-  // 只在手机抽屉形态注册：桌面是右侧停靠列，返回键应当留给路由导航。
-  // 状态（open）在 aiUiStore 里、组件自己读，所以由本组件登记，符合「状态在哪一层谁注册」。
+  // 安卓返回键：只在手机抽屉形态注册
   useBackButtonLayer(variant === 'sheet' && open && !collapsed, () => setOpen(false))
 
-  // Esc 关闭。只在没有模态层时接管，否则在 AI 的确认弹窗里按 Esc
-  // 会把弹窗和整个 AI 面板一起关掉，任务虽然在跑但用户失去了上下文。
+  // Esc 关闭（仅桌面侧栏，且没有其它模态层时）
   useEffect(() => {
     if (variant !== 'dock') return
     const onKey = (e: KeyboardEvent) => {
@@ -112,46 +102,42 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
   const hidden = !open
   const isSheet = variant === 'sheet'
 
-  // ── 画中画：一条窄边（桌面）/ 一个药丸（手机） ──
+  // ── 画中画（收起态）：桌面窄条 / 手机药丸 ──
   if (collapsed) {
     return isSheet ? (
       <button type="button" className="ai-sheet-peek" onClick={() => setCollapsed(false)}>
-        <span className="ai-dock-title">AI</span>
+        <SparkleRegular fontSize={16} />
         <span>{t('app.aiAssistant')}</span>
         {running ? <span className="ai-pulse" /> : <span className="ai-peek-open">{t('ai.open')}</span>}
       </button>
     ) : (
       <aside className="ai-dock-collapsed" aria-label={t('app.aiAssistant')}>
-        <Button
-          type="text"
-          className="tap"
+        <button
+          type="button"
+          className="w-iconbtn"
           onClick={() => setCollapsed(false)}
           aria-label={t('ai.open')}
           title={t('ai.open')}
         >
-          <span className="ai-mono-mark">记</span>
-        </Button>
+          <SparkleRegular fontSize={18} />
+        </button>
         {running && <span className="ai-pulse" title={t('ai.runningInBackground')} />}
         {!running && unseen && <span className="ai-fab-dot" aria-hidden />}
-        <Button
-          type="text"
-          className="tap"
+        <button
+          type="button"
+          className="w-iconbtn"
           onClick={() => setOpen(false)}
           aria-label={t('common.close')}
           title={t('common.close')}
         >
-          <DismissRegular fontSize={17} />
-        </Button>
+          <DismissRegular fontSize={16} />
+        </button>
       </aside>
     )
   }
 
   // ── 展开态：单一 DOM，靠 class 切形态 ──
-  const cls = [
-    'ai-host',
-    isSheet ? 'ai-host-sheet' : 'ai-host-dock',
-    hidden ? 'is-hidden' : '',
-  ]
+  const cls = ['ai-host', isSheet ? 'ai-host-sheet' : 'ai-host-dock', hidden ? 'is-hidden' : '']
     .filter(Boolean)
     .join(' ')
 
@@ -169,7 +155,6 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           aria-valuemax={AI_DOCK_MAX}
           tabIndex={0}
           onKeyDown={(e) => {
-            // 拖拽条也要能用键盘调
             if (e.key === 'ArrowLeft') setWidth(width + 24)
             if (e.key === 'ArrowRight') setWidth(width - 24)
           }}
@@ -181,8 +166,6 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
         style={
           isSheet
             ? {
-                // 底栏现在浮在抽屉下方（CSS 里 bottom: var(--mobile-tabs-h)），
-                // 92dvh 会顶出屏幕，所以按可用高度夹一下，顶部留出抓手/标题的位置
                 height: `min(${sheetFull ? 92 : SHEET_RATIO * 100}dvh, calc(100dvh - var(--mobile-tabs-h, 0px) - 76px))`,
               }
             : { width }
@@ -201,29 +184,31 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           </div>
         )}
         <header className="ai-dock-head">
-          <span className="ai-mono-mark">AI</span>
+          <span className="ai-dock-mark" aria-hidden>
+            <SparkleRegular fontSize={16} />
+          </span>
           <span className="ai-dock-title">{t('app.aiAssistant')}</span>
           <span className={`ai-dock-status${running ? '' : ' is-idle'}`} aria-hidden />
-          <span style={{ flex: 1 }} />
+          <span className="ai-dock-head-spacer" />
           <Tooltip title={t('ai.collapse')}>
-            <Button
-              type="text"
-              size="small"
+            <button
+              type="button"
+              className="w-iconbtn w-iconbtn--sm"
               onClick={() => setCollapsed(true)}
               aria-label={t('ai.collapse')}
             >
-              {isSheet ? <ChevronDownRegular fontSize={17} /> : <PanelRightContractRegular fontSize={17} />}
-            </Button>
+              {isSheet ? <ChevronDownRegular fontSize={16} /> : <PanelRightContractRegular fontSize={16} />}
+            </button>
           </Tooltip>
           <Tooltip title={t('common.close')}>
-            <Button
-              type="text"
-              size="small"
+            <button
+              type="button"
+              className="w-iconbtn w-iconbtn--sm"
               onClick={() => setOpen(false)}
               aria-label={t('common.close')}
             >
-              <DismissRegular fontSize={17} />
-            </Button>
+              <DismissRegular fontSize={16} />
+            </button>
           </Tooltip>
         </header>
         <div className="ai-dock-body">

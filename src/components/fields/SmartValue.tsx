@@ -5,8 +5,8 @@ import {
   LinkOutlined,
   CheckOutlined,
   CloseOutlined,
-  StarOutlined,
 } from '@/components/common/icons'
+import { StarFilled, StarRegular } from '@fluentui/react-icons'
 import type { FieldDef, FieldValue } from '@/types'
 import { isAndroidApp } from '@/utils/platform'
 import { tNow } from '@/i18n'
@@ -31,10 +31,10 @@ export function detectSmartLink(value: string): SmartLink | null {
   return null
 }
 
-// 只保留线性（Outlined）图标：实心/双色图标是「AI 味」的第二来源
+// 只保留线性图标：Fluent Regular 图标与 Win11 原生一致
 const ICONS = { phone: <PhoneOutlined />, mail: <MailOutlined />, link: <LinkOutlined /> }
 
-const DASH = <span className="faint">—</span>
+const DASH = <span className="w-faint">—</span>
 
 /** 空值统一占位，避免表格里出现一片空白 */
 function isEmpty(v: FieldValue): boolean {
@@ -42,30 +42,29 @@ function isEmpty(v: FieldValue): boolean {
 }
 
 /**
- * 表格/卡片单元格的值渲染。
+ * 表格 / 卡片单元格的值渲染（v9 Win11 文件资源管理器）。
  *
- * 之前这里只做「智能链接识别」，其它类型一律 String(value)，
- * 于是 checkbox 列在中文界面里直接显示 true / false，rating 显示裸数字。
- * 现在先按字段类型渲染（复选→是/否、评分→星级、日期→格式化），
- * 文本类再走链接识别，桌面表格 / 移动卡片 / 条目标题三处口径统一。
+ * - checkbox → 线性对勾/叉 + 是/否；
+ * - rating → 实心/线性星（5 颗，中性色，不用彩色大星）；
+ * - date → 等宽 + tabular-nums；
+ * - 文本 → 电话/邮箱/网址识别为系统链接（强调色由全局 a 样式提供）；
+ * - 数字 → tabular-nums，让金额/数量纵向对齐。
  *
- * v4 语言：数字/日期/ID 走 `.mono tabular`（等宽 + tabular-nums），纵向扫读不跳；
- * 布尔值用线性图标 + 文字（成功/次要色），评分用 5 个 StarOutlined（Outlined only，
- * 不用实心星字符），链接是 ink 字 + 2px lime 下划线。颜色/字号全部走 token。
+ * 渲染口径在桌面表格 / 移动卡片 / 条目标题三处保持一致。
  */
 export default function SmartValue({ field, value }: { field: FieldDef; value: FieldValue }) {
   if (field.type === 'checkbox') {
     if (isEmpty(value)) return DASH
     if (value) {
       return (
-        <span style={{ color: 'var(--success)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <span className="lib-cell" style={{ color: 'var(--w-success)', gap: 4 }}>
           <CheckOutlined style={{ fontSize: 14 }} />
           {tNow('field.yes')}
         </span>
       )
     }
     return (
-      <span className="faint" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span className="lib-cell w-faint" style={{ gap: 4 }}>
         <CloseOutlined style={{ fontSize: 14 }} />
         {tNow('field.no')}
       </span>
@@ -75,20 +74,26 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
   if (field.type === 'rating') {
     if (isEmpty(value)) return DASH
     const n = Math.max(0, Math.min(5, Number(value) || 0))
-    if (n === 0) return <span className="faint">{tNow('field.no')}</span>
-    // 只允许 Outlined 图标：5 个 StarOutlined，实心感由 ink 色表达，空星走 line-soft
+    if (n === 0) return <span className="w-faint">{tNow('field.no')}</span>
     return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }} aria-label={tNow('field.stars', { n: String(n) })}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <StarOutlined key={i} style={{ fontSize: 13, color: i < n ? 'var(--text)' : 'var(--border)' }} />
-        ))}
+      <span
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}
+        aria-label={tNow('field.stars', { n: String(n) })}
+      >
+        {Array.from({ length: 5 }).map((_, i) =>
+          i < n ? (
+            <StarFilled key={i} style={{ fontSize: 13, color: 'var(--w-text-2)' }} aria-hidden />
+          ) : (
+            <StarRegular key={i} style={{ fontSize: 13, color: 'var(--w-divider-strong)' }} aria-hidden />
+          ),
+        )}
       </span>
     )
   }
 
   if (field.type === 'date') {
     if (isEmpty(value)) return DASH
-    return <span className="mono tabular">{String(value)}</span>
+    return <span style={{ fontVariantNumeric: 'tabular-nums' }}>{String(value)}</span>
   }
 
   if (isEmpty(value)) return DASH
@@ -113,16 +118,12 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
               window.open(link.href, '_self')
             }
           }}
-          style={{
-            wordBreak: 'break-all',
-            color: 'var(--text)',
-            textDecoration: 'underline',
-            textDecorationThickness: 2,
-            textDecorationColor: 'var(--accent)',
-            textUnderlineOffset: 2,
-          }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0 }}
         >
-          {ICONS[link.icon]} {str}
+          <span style={{ display: 'inline-flex', color: 'var(--w-text-3)', flex: '0 0 auto' }}>
+            {ICONS[link.icon]}
+          </span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{str}</span>
         </a>
       </Tooltip>
     )
@@ -130,7 +131,12 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
 
   const num = field.type === 'number'
   return (
-    <span className={num ? 'mono tabular' : undefined} style={{ wordBreak: 'break-all' }}>
+    <span
+      style={{
+        wordBreak: 'break-word',
+        fontVariantNumeric: num ? 'tabular-nums' : undefined,
+      }}
+    >
       {str}
     </span>
   )

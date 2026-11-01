@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { Button } from 'antd'
+import { ErrorCircleRegular } from '@fluentui/react-icons'
 import { tNow } from '@/i18n'
 
 interface Props {
@@ -12,6 +12,10 @@ interface State {
   error: Error | null
 }
 
+/**
+ * 全局错误边界 v9：Windows 11 设置式错误页（居中图标 + 标题 + 说明 + 两条出路）。
+ * reset 只清状态；reload 才是真正能恢复的那条。
+ */
 export default class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props)
@@ -33,23 +37,31 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback
-      // 不使用 antd Result 的默认插图：那是「后台模板」最典型的指纹之一。
-      // 这里只用文字 + 左对齐的账页排版，并同时给「重试」和「重新加载」两条出路——
-      // reset 只清状态，同一子树会再崩一次；reload 才是真正能恢复的那条。
       return (
-        <div style={{ maxWidth: 560, margin: '0 auto', padding: '64px 24px' }}>
-          <div className="page-kicker">ERROR</div>
-          <h1 className="page-title" style={{ marginTop: 8 }}>
-            {tNow('errorBoundary.title')}
-          </h1>
-          <p className="page-sub" style={{ marginTop: 8 }}>
-            {this.state.error?.message}
-          </p>
-          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-            <Button type="primary" onClick={this.handleReset}>
-              {tNow('errorBoundary.retry')}
-            </Button>
-            <Button onClick={() => window.location.reload()}>{tNow('errorBoundary.reload')}</Button>
+        <div className="w-page" style={{ maxWidth: 720 }}>
+          <div
+            className="w-card"
+            style={{ marginTop: 48, padding: 28, display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            <span
+              className="w-home-empty-icon"
+              aria-hidden
+              style={{ background: 'var(--w-danger-soft)', color: 'var(--w-danger)' }}
+            >
+              <ErrorCircleRegular fontSize={24} />
+            </span>
+            <h1 className="w-title w-title--sm">{tNow('errorBoundary.title')}</h1>
+            <p className="w-desc" style={{ wordBreak: 'break-word' }}>
+              {this.state.error?.message}
+            </p>
+            <div className="w-actions" style={{ marginTop: 8 }}>
+              <button type="button" className="w-btn w-btn--accent" onClick={this.handleReset}>
+                {tNow('errorBoundary.retry')}
+              </button>
+              <button type="button" className="w-btn" onClick={() => window.location.reload()}>
+                {tNow('errorBoundary.reload')}
+              </button>
+            </div>
           </div>
         </div>
       )

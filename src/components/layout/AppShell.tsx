@@ -1,4 +1,4 @@
-import { Drawer, Tooltip, Dropdown, Avatar, App as AntApp } from 'antd'
+import { Drawer, Tooltip, Dropdown, App as AntApp } from 'antd'
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import {
@@ -8,15 +8,29 @@ import {
   SearchRegular,
   SignOutRegular,
   Wifi1Regular,
+  WifiOffRegular,
+  Speaker2Regular,
+  Battery10Regular,
+  ChevronUpRegular,
+  SubtractRegular,
+  SquareRegular,
+  DismissRegular,
+  ArrowMinimizeRegular,
+  FolderRegular,
+  GlobeRegular,
+  SettingsRegular,
+  WindowMultipleRegular,
+  DatabaseRegular,
 } from '@fluentui/react-icons'
+import dayjs from 'dayjs'
 import Sidebar, { SidebarContent } from './Sidebar'
 import AIDock from './AIDock'
-import AIFab from './AIFab'
 import MobileTabBar from './MobileTabBar'
 import LibraryPickerSheet from '@/components/library/LibraryPickerSheet'
 import PageTransition from '@/components/common/PageTransition'
+import AppIcon from '@/components/common/AppIcon'
 import { Group, Panel, Separator } from 'react-resizable-panels'
-import { useAiUiStore, aiPanelVisible } from '@/store/aiUiStore'
+import { useAiUiStore } from '@/store/aiUiStore'
 import { resetSession } from '@/store/session'
 import GlobalSearch from '@/components/common/GlobalSearch'
 import { useAppStore } from '@/store/appStore'
@@ -27,24 +41,52 @@ import { sweepTrashOncePerDay } from '@/utils/trashSweep'
 import WelcomeModal, { FIRST_RUN_SUPPORT_ENABLED } from '@/components/reward/WelcomeModal'
 import { consumeWelcomePending, isWelcomeSeen, markWelcomeSeen } from '@/utils/welcome'
 import { startReminderWatcher } from '@/utils/reminderNotify'
-
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
 
+type WindowState = 'normal' | 'maximized' | 'minimized' | 'closed'
 
+/** Windows 11 任务栏 Start 标记（四格） */
+function WinLogo({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <rect x="1" y="1" width="8" height="8" rx="1.2" fill="var(--w-accent)" />
+      <rect x="11" y="1" width="8" height="8" rx="1.2" fill="var(--w-accent)" opacity="0.9" />
+      <rect x="1" y="11" width="8" height="8" rx="1.2" fill="var(--w-accent)" opacity="0.9" />
+      <rect x="11" y="11" width="8" height="8" rx="1.2" fill="var(--w-accent)" opacity="0.8" />
+    </svg>
+  )
+}
+
+/**
+ * v9 · Windows 11 原生窗口外壳
+ *
+ * 屏幕 = Windows 11 桌面：壁纸 + 任务栏 + 无边框圆角 Mica 窗口。
+ * 窗口 = 40px 标题栏（应用标识 / 拖拽区 / 搜索 / 主题 / 语言 / 账户 / 窗口按钮）
+ *        + 68px Acrylic 图标导航 + Mica 内容区 + 28px 原生状态栏。
+ * 保留：Ctrl+K 搜索、Ctrl+J AI、离线提示、AI 完成通知、欢迎弹窗、回收站清理、
+ * 服务端校验、移动端抽屉与底栏。移动端退化为全屏 App。
+ */
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  // 手机底栏「管理库」标签的库切换面板
   const [libPickerOpen, setLibPickerOpen] = useState(false)
+  const [windowState, setWindowState] = useState<WindowState>('normal')
   const { settings, setTheme, setLanguage } = useAppStore()
   const t = useI18n()
   const isDark = settings.theme === 'dark'
 
-  // 检测移动端
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768)
+  // 移动端断点与 CSS 保持一致
+  const [isMobile, setIsMobile] = useState(() => (typeof window === 'undefined' ? false : window.innerWidth <= 900))
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth <= 768)
+    const handler = () => setIsMobile(window.innerWidth <= 900)
     window.addEventListener('resize', handler)
     return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  // 任务栏时钟
+  const [now, setNow] = useState(() => dayjs())
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(dayjs()), 30_000)
+    return () => window.clearInterval(id)
   }, [])
 
   // 回收站自动清理：每天首次进入主界面时扫除一次（软删超 30 天彻底删除）
@@ -52,14 +94,9 @@ export default function AppShell() {
     void sweepTrashOncePerDay()
   }, [])
 
-  // —— 首次登录引导 Tour（仅桌面端，每账号一次）——
+  // —— 首次注册欢迎页（含赞赏码）——
   const { account } = useAuthStore()
   const navigate = useNavigate()
-
-  // —— 首次注册欢迎页（含赞赏码）——
-  // 用户明确要求：新用户注册登录后直接展示赞赏码，并说明以后在「设置 → 关于与支持」能找到。
-  // 一次性由 sessionStorage 的 pending 口令保证：只有 register() 路径会写它，
-  // 老账号登录 / 刷新 / 换设备 / 清缓存都不会触发；关闭后写 localStorage seen 兜底。
   const [welcomeOpen, setWelcomeOpen] = useState(false)
   const closeWelcome = () => {
     if (account) markWelcomeSeen(account.id)
@@ -73,21 +110,7 @@ export default function AppShell() {
   }, [account])
   useBackButtonLayer(welcomeOpen, closeWelcome)
 
-  /**
-   * 库列表必须在这里加载，不能放在 Sidebar 里。
-   *
-   * Sidebar 在手机上只存在于 `<Drawer open={sidebarOpen}>` 内部，而 antd Drawer
-   * 默认不预渲染（没有 forceRender），首次打开前根本不挂载 ——
-   * 于是 Sidebar 里的 useEffect 从不执行，libraries 一直是空数组。后果：
-   *   1. 库详情页标题显示「未命名管理库」、分类标签消失（找不到 lib）
-   *   2. 侧边栏的库列表是空的，非得先点开汉堡才看得到
-   *   3. libsReady 永远为 false —— 那是我为「库不存在」保护页加的判定依据，
-   *      于是那道保护在手机上等于从未生效
-   * 条目数据是好的（selectLibrary 不依赖 libraries），所以问题被掩盖成
-   * 「就是标题不对」，很容易被当成小毛病。
-   *
-   * AppShell 在两种布局下都常驻，是唯一正确的加载点。
-   */
+  // 库列表必须在 AppShell 加载（手机端 Drawer 不预渲染，Sidebar 内加载会拿不到）
   const loadLibraries = useLibraryStore((s) => s.loadLibraries)
   useEffect(() => {
     if (!account) return
@@ -99,9 +122,8 @@ export default function AppShell() {
   const currentLibraryId = useLibraryStore((s) => s.currentLibraryId)
   const currentLib = libraries.find((l) => l.id === currentLibraryId) ?? null
   const siderRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
 
-  // —— 到期提醒的浏览器通知：登录态下常驻检查（每 30 分钟 + 启动一次）——
+  // 到期提醒浏览器通知
   useEffect(() => {
     if (!account) return
     const stop = startReminderWatcher(
@@ -109,10 +131,10 @@ export default function AppShell() {
       () => useLibraryStore.getState().libraries,
     )
     return stop
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 启动函数内部现行从 store 读最新账号，只需在 登录/退出 时重建
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 启动函数内部现行从 store 读最新账号
   }, [account?.id])
 
-  // 供新手清单等处通过自定义事件打开 AI 面板
+  // 供外部通过自定义事件打开 AI 面板
   const setAiOpen = useAiUiStore((s) => s.setOpen)
   const aiOpen = useAiUiStore((s) => s.open)
   const aiCollapsed = useAiUiStore((s) => s.collapsed)
@@ -122,7 +144,7 @@ export default function AppShell() {
     return () => window.removeEventListener('open-ai-panel', open)
   }, [setAiOpen])
 
-  // —— 全局搜索：Ctrl/Cmd + K 唤起 ——
+  // —— 全局搜索：Ctrl/Cmd + K ——
   const [searchOpen, setSearchOpen] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -136,19 +158,15 @@ export default function AppShell() {
   }, [])
 
   // —— 后台任务完成提示 ——
-  // 面板关着/收起时任务照样在跑（面板常驻挂载），跑完要能通知到人，
-  // 否则用户根本不知道后台已经做完了。
   const { notification } = AntApp.useApp()
   const lastDoneAt = useAiUiStore((s) => s.lastDone?.at ?? 0)
   const setDockOpen = useAiUiStore((s) => s.setOpen)
   useEffect(() => {
     if (!lastDoneAt) return
     const st = useAiUiStore.getState()
-    if (aiPanelVisible(st)) return // 正在看着面板，就别弹提示抢注意力
+    if (st.open && !st.collapsed) return
     const done = st.lastDone
     if (!done) return
-    // 用 notification 而不是 message：这是「后台做完了」的一条独立事件，
-    // 需要能带一个「查看结果」按钮把人带回面板。
     void notification.open({
       key: `ai-done-${done.at}`,
       message: t('ai.doneTitle'),
@@ -158,7 +176,7 @@ export default function AppShell() {
       actions: (
         <button
           type="button"
-          className="ai-done-link"
+          className="w-btn w-btn--subtle w-btn--sm"
           onClick={() => {
             setDockOpen(true)
             void notification.destroy(`ai-done-${done.at}`)
@@ -168,7 +186,6 @@ export default function AppShell() {
         </button>
       ),
     })
-    // t 变化不该重复弹
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastDoneAt, setDockOpen])
 
@@ -185,12 +202,7 @@ export default function AppShell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [toggleDock])
 
-  /**
-   * 离线状态此前完全不可见。这个应用是本地优先的：断网时新建、编辑、
-   * 删除都照常工作，数据就在本机 IndexedDB 里。
-   * 所以提示不该用红色的「错误」语气 —— 那会让人以为东西丢了，
-   * 反而不敢继续操作。要说清的是：数据没丢，只是暂时同步不了。
-   */
+  // 离线状态
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
   useEffect(() => {
     const up = () => setOnline(true)
@@ -206,222 +218,326 @@ export default function AppShell() {
   useBackButtonLayer(sidebarOpen, () => setSidebarOpen(false))
 
   const showDock = !isMobile && aiOpen && !aiCollapsed
+  const hiddenWindow = windowState === 'minimized' || windowState === 'closed'
+  const restored = () => setWindowState('normal')
 
-  return (
-    <div className="app-shell">
-      {!isMobile && (
-        <header className="app-captionbar" data-tauri-drag-region>
-          <button type="button" className="caption-brand" data-tauri-drag-region onClick={() => navigate('/')} aria-label={t('app.home')}>
-            <span className="rail-mark caption-mark" aria-hidden />
-            <span className="caption-title">{t('app.brand')}</span>
-          </button>
-          <div className="caption-drag" data-tauri-drag-region />
+  const clockTime = now.format(settings.language === 'en' ? 'h:mm A' : 'HH:mm')
+  const clockDate = now.format(settings.language === 'en' ? 'M/D/YYYY' : 'YYYY/M/D')
+
+  const windowCls = [
+    'w-window',
+    isMobile ? 'w-window--mobile' : '',
+    windowState === 'maximized' ? 'w-window--maximized' : '',
+    hiddenWindow ? 'w-window--hidden' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const titlebar = !isMobile && (
+    <header
+      className="w-titlebar"
+      data-tauri-drag-region
+      onDoubleClick={(e) => {
+        if ((e.target as HTMLElement).closest('button, input, [role="button"]')) return
+        setWindowState((s) => (s === 'maximized' ? 'normal' : 'maximized'))
+      }}
+    >
+      <button
+        type="button"
+        className="w-titlebar-brand"
+        data-tauri-drag-region
+        onClick={() => navigate('/')}
+        aria-label={t('app.home')}
+      >
+        <AppIcon size={16} />
+        <span className="w-titlebar-title">
+          {t('app.brand')}
+          {currentLib ? ` — ${currentLib.name}` : ''}
+        </span>
+      </button>
+      <div className="w-titlebar-drag" data-tauri-drag-region />
+      <button
+        type="button"
+        className="w-titlebar-search"
+        onClick={() => setSearchOpen(true)}
+        aria-label={t('app.search')}
+      >
+        <SearchRegular fontSize={14} />
+        <span className="w-titlebar-search-label">{t('app.search')}</span>
+        <kbd className="w-kbd">Ctrl K</kbd>
+      </button>
+      <div className="w-titlebar-tools">
+        <Tooltip title={isDark ? t('app.theme.light') : t('app.theme.dark')}>
           <button
             type="button"
-            className="caption-search"
-            onClick={() => setSearchOpen(true)}
-            aria-label={t('app.search')}
+            className="w-titlebar-tool"
+            aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
           >
-            <SearchRegular fontSize={16} />
-            <span>{t('app.search')}</span>
-            <kbd>Ctrl K</kbd>
+            {isDark ? <WeatherSunnyRegular fontSize={15} /> : <WeatherMoonRegular fontSize={15} />}
           </button>
-          <div className="caption-tools">
-            <Tooltip title={isDark ? t('app.theme.light') : t('app.theme.dark')}>
-              <button
-                type="button"
-                className="caption-tool"
-                aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
-                onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              >
-                {isDark ? <WeatherSunnyRegular fontSize={16} /> : <WeatherMoonRegular fontSize={16} />}
-              </button>
-            </Tooltip>
+        </Tooltip>
+        <Tooltip title={settings.language === 'zh' ? 'English' : '中文'}>
+          <button
+            type="button"
+            className="w-titlebar-tool w-titlebar-tool--text"
+            aria-label={t('app.language')}
+            onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}
+          >
+            {settings.language === 'zh' ? 'EN' : '中'}
+          </button>
+        </Tooltip>
+        <Dropdown
+          trigger={['click']}
+          placement="bottomRight"
+          menu={{
+            items: [
+              { key: 'who', label: account?.username ?? '', disabled: true },
+              { type: 'divider' },
+              {
+                key: 'logout',
+                icon: <SignOutRegular fontSize={16} />,
+                label: t('app.signOut'),
+                onClick: async () => {
+                  await resetSession()
+                  navigate('/login')
+                },
+              },
+            ],
+          }}
+        >
+          <button type="button" className="w-titlebar-tool" aria-label={t('app.signOut')}>
+            <span className="w-avatar w-avatar--sm">{(account?.username ?? '?').slice(0, 1)}</span>
+          </button>
+        </Dropdown>
+      </div>
+      <div className="w-caption">
+        <button
+          type="button"
+          className="w-caption-btn"
+          aria-label={t('w11.caption.min')}
+          title={t('w11.caption.min')}
+          onClick={() => setWindowState('minimized')}
+        >
+          <SubtractRegular fontSize={12} />
+        </button>
+        <button
+          type="button"
+          className="w-caption-btn"
+          aria-label={windowState === 'maximized' ? t('w11.caption.restore') : t('w11.caption.max')}
+          title={windowState === 'maximized' ? t('w11.caption.restore') : t('w11.caption.max')}
+          onClick={() => setWindowState((s) => (s === 'maximized' ? 'normal' : 'maximized'))}
+        >
+          {windowState === 'maximized' ? <ArrowMinimizeRegular fontSize={12} /> : <SquareRegular fontSize={11} />}
+        </button>
+        <button
+          type="button"
+          className="w-caption-btn w-caption-btn--close"
+          aria-label={t('w11.caption.close')}
+          title={t('w11.caption.close')}
+          onClick={() => setWindowState('closed')}
+        >
+          <DismissRegular fontSize={13} />
+        </button>
+      </div>
+    </header>
+  )
+
+  const mobileTitlebar = isMobile && (
+    <header className="w-mobile-titlebar">
+      <button
+        type="button"
+        className="w-iconbtn w-iconbtn--sm"
+        aria-label={t('nav.menu')}
+        onClick={() => setSidebarOpen(true)}
+      >
+        <NavigationRegular fontSize={18} />
+      </button>
+      <span className="w-mobile-titlebar-title">
+        <AppIcon size={18} />
+        {currentLib ? currentLib.name : t('app.brand')}
+      </span>
+      <button
+        type="button"
+        className="w-iconbtn w-iconbtn--sm"
+        aria-label={t('app.search')}
+        onClick={() => setSearchOpen(true)}
+      >
+        <SearchRegular fontSize={18} />
+      </button>
+    </header>
+  )
+
+  return (
+    <div className="w-stage">
+      {!isMobile && (
+        <div className="w-taskbar" role="toolbar" aria-label={t('w11.taskbar')}>
+          <div className="w-taskbar-center">
+            <span className="w-tb-btn w-tb-start" aria-hidden="true">
+              <WinLogo size={20} />
+            </span>
             <button
               type="button"
-              className="caption-tool"
-              aria-label={t('app.language')}
-              onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}
+              className="w-tb-btn"
+              aria-label={t('app.search')}
+              title={t('app.search')}
+              onClick={() => setSearchOpen(true)}
             >
-              {settings.language === 'zh' ? 'EN' : '中'}
+              <SearchRegular fontSize={18} />
             </button>
-            <Dropdown
-              trigger={['click']}
-              menu={{
-                items: [
-                  { key: 'who', label: account?.username ?? '', disabled: true },
-                  { type: 'divider' },
-                  {
-                    key: 'logout',
-                    icon: <SignOutRegular fontSize={16} />,
-                    label: t('app.signOut'),
-                    onClick: async () => { await resetSession(); navigate('/login') },
-                  },
-                ],
+            <span className="w-tb-btn" aria-hidden="true">
+              <WindowMultipleRegular fontSize={18} />
+            </span>
+            <span className="w-tb-sep" role="presentation" />
+            <button
+              type="button"
+              className={`w-tb-btn${!hiddenWindow ? ' is-active' : ''}`}
+              aria-label={t('app.brand')}
+              title={t('app.brand')}
+              onClick={() => {
+                if (!hiddenWindow) navigate('/')
+                else restored()
               }}
             >
-              <button type="button" className="caption-tool caption-account" aria-label={t('app.signOut')}>
-                <Avatar size={24} style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 0, fontWeight: 600 }}>
-                  {(account?.username ?? '?').slice(0, 1).toUpperCase()}
-                </Avatar>
-              </button>
-            </Dropdown>
+              <AppIcon size={22} className="w-tb-appicon" />
+            </button>
+            <button
+              type="button"
+              className="w-tb-btn"
+              aria-label={t('app.home')}
+              title={t('app.home')}
+              onClick={() => navigate('/')}
+            >
+              <FolderRegular fontSize={18} />
+            </button>
+            <button
+              type="button"
+              className="w-tb-btn"
+              aria-label={t('app.help')}
+              title={t('app.help')}
+              onClick={() => navigate('/help')}
+            >
+              <GlobeRegular fontSize={18} />
+            </button>
+            <button
+              type="button"
+              className="w-tb-btn"
+              aria-label={t('app.settings')}
+              title={t('app.settings')}
+              onClick={() => navigate('/settings')}
+            >
+              <SettingsRegular fontSize={18} />
+            </button>
           </div>
-        </header>
-      )}
-      <div className="app-window-body">
-      {isMobile ? (
-        <Drawer
-          placement="left"
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          width={288}
-          styles={{ body: { padding: 0, background: 'var(--text)' } }}
-        >
-          <SidebarContent
-            onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }}
-            onNavigate={() => setSidebarOpen(false)}
-          />
-        </Drawer>
-      ) : (
-        <Sidebar onOpenPanel={() => setAiOpen(true)} siderRef={siderRef} />
-      )}
-      <Group orientation="horizontal" id="nova-ai-dock" className="app-panels">
-        <Panel id="main" minSize="54%" className="app-panel-main">
-      <div className="app-main">
-        {!online && (
-          <div className="offline-bar" role="status">
-            <Wifi1Regular fontSize={15} />
-            <span>{t('app.offline')}</span>
-          </div>
-        )}
-          <header className="app-topbar">
-            <div className="topbar-left">
-              {isMobile && (
-                <button
-                  type="button"
-                  className="topbar-icon"
-                  aria-label={t('nav.menu')}
-                  onClick={() => setSidebarOpen(true)}
-                >
-                  <NavigationRegular fontSize={18} />
-                </button>
-              )}
-              {isMobile ? (
-                <div className="topbar-breadcrumb">
-                  <span className="rail-mark" aria-hidden style={{ width: 18, height: 18 }} />
-                  <span className="is-current">{t('app.brand')}</span>
-                </div>
-              ) : (
-                <div className="topbar-breadcrumb">
-                  <span>{t('app.home')}</span>
-                  {currentLib && (
-                    <>
-                      <span aria-hidden>/</span>
-                      <span className="is-current">{currentLib.name}</span>
-                    </>
-                  )}
-                  {currentLib?.category && <span>{currentLib.category}</span>}
-                </div>
-              )}
+          <div className="w-taskbar-tray">
+            <span className="w-tb-tray-btn" aria-hidden="true">
+              <ChevronUpRegular fontSize={13} />
+            </span>
+            <span className="w-tb-tray-btn" aria-hidden="true">
+              {online ? <Wifi1Regular fontSize={15} /> : <WifiOffRegular fontSize={15} />}
+            </span>
+            <span className="w-tb-tray-btn" aria-hidden="true">
+              <Speaker2Regular fontSize={15} />
+            </span>
+            <span className="w-tb-tray-btn" aria-hidden="true">
+              <Battery10Regular fontSize={15} />
+            </span>
+            <div className="w-tb-clock" aria-hidden="true">
+              <span>{clockTime}</span>
+              <span className="w-tb-clock-date">{clockDate}</span>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="topbar-actions">
-              <button
-                type="button"
-                className="topbar-search"
-                onClick={() => setSearchOpen(true)}
-                aria-label={t('app.search')}
-              >
-                <SearchRegular fontSize={16} />
-                <span>{t('app.search')}</span>
-                <kbd>⌘K</kbd>
-              </button>
-              <Tooltip title={isDark ? t('app.theme.light') : t('app.theme.dark')}>
-                <button
-                  type="button"
-                  className="topbar-icon"
-                  aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
-                  onClick={() => setTheme(isDark ? 'light' : 'dark')}
-                >
-                  {isDark ? <WeatherSunnyRegular fontSize={17} /> : <WeatherMoonRegular fontSize={17} />}
-                </button>
-              </Tooltip>
-              <Tooltip title={settings.language === 'zh' ? 'English' : '中文'}>
-                <button
-                  type="button"
-                  className="topbar-icon"
-                  style={{ width: 'auto', padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700 }}
-                  aria-label={t('app.language')}
-                  onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}
-                >
-                  {settings.language === 'zh' ? 'EN' : '中'}
-                </button>
-              </Tooltip>
-              <Dropdown
-                trigger={['click']}
-                menu={{
-                  items: [
-                    { key: 'who', label: account?.username ?? '', disabled: true },
-                    { type: 'divider' },
-                    {
-                      key: 'logout',
-                      icon: <SignOutRegular fontSize={16} />,
-                      label: t('app.signOut'),
-                      onClick: async () => {
-                        await resetSession()
-                        navigate('/login')
-                      },
-                    },
-                  ],
-                }}
-              >
-                <button type="button" className="topbar-icon" aria-label={t('app.signOut')}>
-                  <Avatar size={26} style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border-strong)' }}>
-                    {(account?.username ?? '?').slice(0, 1).toUpperCase()}
-                  </Avatar>
-                </button>
-              </Dropdown>
-            </div>
-          </header>
-          <div ref={contentRef} className="app-content">
-            <PageTransition>
-              <Outlet />
-            </PageTransition>
-          </div>
-      </div>
-        </Panel>
-        {showDock && (
-          <>
-            <Separator id="ai-sep" className="ai-resize-handle" aria-label={t('ai.resize')} />
-            <Panel id="ai" defaultSize="30%" minSize="20%" maxSize="46%" className="app-panel-ai">
-              <AIDock variant="dock" />
+      {hiddenWindow && (
+        <div className="w-desktop-icons">
+          <button type="button" className="w-desktop-app" onClick={restored} aria-label={`${t('w11.desktop.reopen')}${t('app.brand')}`}>
+            <AppIcon size={48} className="w-desktop-icon-img" />
+            <span className="w-desktop-app-label">{t('app.brand')}</span>
+          </button>
+        </div>
+      )}
+
+      <div className={windowCls} aria-hidden={hiddenWindow || undefined}>
+        {isMobile ? mobileTitlebar : titlebar}
+        <div className="w-window-body">
+          {isMobile ? (
+            <Drawer
+              placement="left"
+              open={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+              width={300}
+              closable={false}
+              styles={{ body: { padding: 0, background: 'transparent' } }}
+            >
+              <SidebarContent
+                onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }}
+                onNavigate={() => setSidebarOpen(false)}
+              />
+            </Drawer>
+          ) : (
+            <Sidebar onOpenPanel={() => setAiOpen(true)} siderRef={siderRef} />
+          )}
+          <Group orientation="horizontal" id="v9-ai-dock" className="w-panels">
+            <Panel id="main" minSize="54%" className="w-panel-main">
+              <div className="w-main">
+                {!online && (
+                  <div className="w-banner w-banner--warning" role="status">
+                    <WifiOffRegular fontSize={16} />
+                    <span>{t('app.offline')}</span>
+                  </div>
+                )}
+                <div className="w-content">
+                  <PageTransition>
+                    <Outlet />
+                  </PageTransition>
+                </div>
+              </div>
             </Panel>
+            {showDock && (
+              <>
+                <Separator id="ai-sep" className="w-resize-handle" aria-label={t('ai.resize')} />
+                <Panel id="ai" defaultSize="30%" minSize="20%" maxSize="46%" className="w-panel-ai">
+                  <AIDock variant="dock" />
+                </Panel>
+              </>
+            )}
+          </Group>
+        </div>
+        {!isMobile && (
+          <footer className="w-statusbar">
+            <div className="w-statusbar-group">
+              <span className={`w-statusbar-dot${online ? '' : ' is-offline'}`} aria-hidden="true" />
+              <DatabaseRegular fontSize={13} />
+              <span>{t('w11.status.local')}</span>
+              <span className="w-statusbar-sep" role="presentation" />
+              <span>{t('w11.status.libraries', { n: String(libraries.length) })}</span>
+            </div>
+            <div className="w-statusbar-group">
+              {currentLib ? <span>{currentLib.name}</span> : null}
+              <span className="w-statusbar-sep" role="presentation" />
+              <span>{online ? t('w11.status.online') : t('w11.status.offline')}</span>
+            </div>
+          </footer>
+        )}
+        {isMobile && (
+          <>
+            <MobileTabBar
+              onOpenLibraries={() => setLibPickerOpen(true)}
+              onDismiss={() => {
+                if (libPickerOpen) consumeTopOverlay()
+                setLibPickerOpen(false)
+              }}
+            />
+            <LibraryPickerSheet open={libPickerOpen} onClose={() => setLibPickerOpen(false)} />
           </>
         )}
-      </Group>
-      {/* AI 助手：桌面停靠已由 react-resizable-panels 承载；手机/收起/关闭时仍由 AIDock 处理 */}
+      </div>
+
       {!showDock && <AIDock variant={isMobile ? 'sheet' : 'dock'} />}
-      {/* 桌面：右下角悬浮 AI 入口。手机：AI 已经是底部标签之一，
-          再放一个悬浮按钮既重复又会和标签栏抢位置。 */}
-      {!isMobile && <AIFab />}
-      {isMobile && (
-        <MobileTabBar
-          onOpenLibraries={() => setLibPickerOpen(true)}
-          onDismiss={() => {
-            // 面板关闭时会 history.back()，那会把这次导航撤销掉（实测停在 /）。
-            // 只有面板确实开着时才消费栈顶，避免误标别的弹层。
-            if (libPickerOpen) consumeTopOverlay()
-            setLibPickerOpen(false)
-          }}
-        />
-      )}
-      {isMobile && (
-        <LibraryPickerSheet open={libPickerOpen} onClose={() => setLibPickerOpen(false)} />
-      )}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       {account && <WelcomeModal open={welcomeOpen} accountId={account.id} onClose={closeWelcome} />}
-      </div>
     </div>
   )
 }

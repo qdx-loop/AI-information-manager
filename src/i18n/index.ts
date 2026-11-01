@@ -1850,3 +1850,43 @@ Object.assign(en, {
 })
 
 DICTS.en = en
+
+// —— v9 · Windows 11 原生外壳文案 ——
+Object.assign(zh, {
+  'w11.status.local': '本地优先 · 数据存储在本机',
+  'w11.status.libraries': '{n} 个管理库',
+  'w11.status.online': '已连接',
+  'w11.status.offline': '离线模式',
+  'w11.caption.min': '最小化',
+  'w11.caption.max': '最大化',
+  'w11.caption.restore': '还原',
+  'w11.caption.close': '关闭',
+  'w11.desktop.reopen': '重新打开',
+  'w11.taskbar': 'Windows 任务栏',
+})
+
+Object.assign(en, {
+  'w11.status.local': 'Local-first · data stays on this device',
+  'w11.status.libraries': '{n} libraries',
+  'w11.status.online': 'Connected',
+  'w11.status.offline': 'Offline mode',
+  'w11.caption.min': 'Minimize',
+  'w11.caption.max': 'Maximize',
+  'w11.caption.restore': 'Restore',
+  'w11.caption.close': 'Close',
+  'w11.desktop.reopen': 'Reopen',
+  'w11.taskbar': 'Windows taskbar',
+})
+
+// —— v9 · 首页新增区块 ——
+Object.assign(zh, {
+  'home.start.recent': '最近修改',
+  'home.start.overview': '数据概览',
+  'home.start.quickSettings': '快速设置',
+})
+
+Object.assign(en, {
+  'home.start.recent': 'Recently updated',
+  'home.start.overview': 'At a glance',
+  'home.start.quickSettings': 'Quick settings',
+})

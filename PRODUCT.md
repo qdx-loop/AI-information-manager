@@ -44,11 +44,19 @@ web
 
 ## Brand Commitments
 
-- 产品名：「信息管理」（登录页/侧边栏品牌标识）。
-- 设计语言：「Windows 11 原生应用」——68px 图标导航 + 拖拽标题栏 + Mica/Acrylic + 深色中性 + #4CC2FF 强调 + Segoe UI Variable；无渐变、无网页 Dashboard；FluentProvider + antd + Fluent System Icons + Motion + react-resizable-panels + @dnd-kit。
-- 颜色：深色 `#1F1F1F/#252525/#2B2B2B/#303030` + 文字 `#FFF/#D6D6D6` + 强调 `#4CC2FF`；浅色 `#F0F0F0/#1F1F1F/#0067C0`；全部通过 WCAG AA。
-- 字体：Plus Jakarta Sans（display/UI，OFL 自托管）+ Inter（body，OFL 自托管）；中文系统黑体；mono 只用于标签/编号/日期/ID；禁止网络字体 CDN。
-- 形状：8px 控件/面板/窗口/弹窗圆角 + 极淡 1px 轮廓 + 轻软阴影；禁止渐变/霓虹/硬投影/网页大圆角卡片墙。
+- 产品名：「信息管理」（窗口标题栏 / 登录页 / 导航品牌标识）。
+- 设计语言（v9 · 2026-11）：**严格按《前端提示词》从零重做的 Windows 11 原生桌面应用**——
+  桌面壁纸 + Windows 任务栏 + 无边框圆角 Mica 窗口（拖拽标题栏 + 最小化/最大化/关闭）+ 68px Acrylic 图标导航 +
+  Win11 设置式页面 / 文件资源管理器式库页 / Copilot 式 AI 侧栏；无渐变、无霓虹、无网页 Dashboard。
+  实现合同见 `redesign-brief/11-v9-win11-desktop.md`，设计说明见 `DESIGN.md`。
+- 颜色（v9）：窗口 Mica `rgba(32,32,32,.82)`、Acrylic `rgba(32,32,32,.55)`、Card `rgba(255,255,255,.0512)`、
+  文字 `#FFF/#D6D6D6/#A0A0A0`、强调 `#4CC2FF`；浅色 `#F3F3F3/#FFF/#0067C0`；全部通过 WCAG AA。
+- 字体（v9）：Segoe UI Variable Text/Display（Windows 系统字体），非 Windows 回退 Selawik（OFL，度量兼容，自托管）；
+  中文回退 Microsoft YaHei UI / PingFang SC / Noto Sans CJK SC；mono 只用于 ID/时间/快捷键；禁止网络字体 CDN。
+- 形状（v9）：控件 4px、卡片/浮层/对话框/窗口 8px 圆角 + 极淡 1px 轮廓 + 短软中性阴影；
+  禁止渐变/霓虹/厚投影/网页大圆角卡片墙/emoji 图标。
+- UI 栈（v9）：React 18 + Vite + antd v5（全局 Win11 皮肤二次主题）+ Fluent UI v9 图标 +
+  Motion + react-resizable-panels + @dnd-kit；图标只用 `@fluentui/react-icons`。
 
 ## Evidence on Hand
 

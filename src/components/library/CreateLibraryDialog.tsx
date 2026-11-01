@@ -11,21 +11,11 @@ import { LabelText } from './labels'
 /**
  * 新建管理库 —— 全应用唯一的建库入口。
  *
- * 之前有两套实现，而且**方向是反的**：
- *   · EmptyHome 的 <Modal>：名称 + 父级 + 行业模板 + 提示
- *     但只在 `libraries.length === 0` 时才渲染（按钮在空态分支里）
- *   · Sidebar 的 modal.confirm：只有名称框，无父级、无模板、无字段标签，
- *     还带 antd 默认的 exclamation-circle（把正常的新建操作画成了警告），
- *     并且「确定」文案与前者不一致
- * 结果是新用户拿到完整版、**所有老用户拿到残废版**，而移动端唯一的建库路径
- * 恰好是 Sidebar 那条。另外 modal.confirm 的 onOk 同步 return 会让弹窗直接关闭，
- * 空名提交只留一个瞬时 toast。
+ * 视觉（v9 Win11 ContentDialog）：标题 20 semibold + 表单三行（名称 / 父级 / 字段模板）
+ * + 说明 12 次级 + 右下角「取消 / 创建」。不再有 kicker、彩色方块或硬边阴影。
  *
- * 现在两边都渲染这一个受控 <Modal>：字段标签齐全、模板可选、
- * 空名/失败时用一个不 settle 的 Promise 把弹窗撑住不关。
- *
- * 视觉（v4 SIGNAL PRESS）：弹窗 520 / 0 圆角 / 2px ink 边 + 硬投影；
- * 字段标签 mono 大写（`.field-label`）+ lime 必填方块；输入 40 由 theme 统一。
+ * 业务逻辑（唯一的建库入口、空名/失败时撑住弹窗、选父库时继承字段结构、
+ * 返回键层级、创建后导航）与原来完全一致。
  */
 export default function CreateLibraryDialog({
   open,
@@ -84,11 +74,10 @@ export default function CreateLibraryDialog({
   }, [libraries])
 
   // 返回键关闭：登记在这一层，因为弹层由本组件渲染、也由本组件负责关。
-  // 父组件如果再登记一次 open，就会压两条历史条目，用户得按两次返回键（这正是
-  // backButton.ts 注释里写的那个坑）。
+  // 父组件如果再登记一次 open，就会压两条历史条目，用户得按两次返回键。
   useBackButtonLayer(open, onClose)
 
-  /** 空名 / 失败时返回一个永不 settle 的 Promise，弹窗就不会被 antd 关掉 */
+  /** 空名 / 失败时返回一个永不 settle 的 Promise，弹窗就不会被关掉 */
   const stayOpen = () => new Promise<never>(() => {})
 
   const handleOk = (): Promise<unknown> => {
@@ -134,25 +123,31 @@ export default function CreateLibraryDialog({
     <Modal
       title={t('home.create.modalTitle')}
       open={open}
-      onOk={handleOk}
       onCancel={onClose}
-      okText={t('home.create.ok')}
-      cancelText={t('common.cancel')}
-      confirmLoading={creating}
-      destroyOnHidden
-      maskClosable={!creating}
       width={520}
       centered
       style={{ maxWidth: 'calc(100vw - 24px)', top: 0 }}
+      destroyOnHidden
+      maskClosable={!creating}
+      footer={
+        <div className="lib-dialog-footer">
+          <span className="lib-dialog-footer-spacer" />
+          <button type="button" className="w-btn" onClick={onClose} disabled={creating}>
+            {t('common.cancel')}
+          </button>
+          <button type="button" className="w-btn w-btn--accent" onClick={handleOk} disabled={creating}>
+            {creating ? t('common.loading') : t('home.create.ok')}
+          </button>
+        </div>
+      }
     >
-      <div className="page-kicker" style={{ marginBottom: 16 }}>{t('lib.create.kicker')}</div>
-      <Form layout="vertical" requiredMark={false}>
+      <Form layout="vertical" requiredMark={false} style={{ marginTop: 4 }}>
         <Form.Item
           label={<LabelText label={t('home.create.nameLabel')} required />}
           required
           validateStatus={name.length > 0 && !name.trim() ? 'error' : undefined}
           help={name.length > 0 && !name.trim() ? t('app.lib.nameRequired') : undefined}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 14 }}
         >
           <Input
             placeholder={t('home.create.placeholder')}
@@ -163,7 +158,7 @@ export default function CreateLibraryDialog({
             disabled={creating}
           />
         </Form.Item>
-        <Form.Item label={<LabelText label={t('home.create.parentLabel')} />} style={{ marginBottom: 16 }}>
+        <Form.Item label={<LabelText label={t('home.create.parentLabel')} />} style={{ marginBottom: 14 }}>
           <Select
             value={parentId ?? undefined}
             onChange={(v) => setParentId(v ?? null)}
@@ -186,7 +181,9 @@ export default function CreateLibraryDialog({
           />
         </Form.Item>
       </Form>
-      <div className="field-hint" style={{ marginTop: 8 }}>{t('home.create.tplHint')}</div>
+      <div className="lib-dialog-sub" style={{ marginBottom: 0 }}>
+        {t('home.create.tplHint')}
+      </div>
     </Modal>
   )
 }

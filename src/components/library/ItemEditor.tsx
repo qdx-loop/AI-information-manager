@@ -1,5 +1,5 @@
-import { Modal, Form, App, DatePicker, Select, Button } from 'antd'
-import { InfoCircleOutlined, DeleteOutlined } from '@/components/common/icons'
+import { Modal, Form, App, DatePicker, Select } from 'antd'
+import { InfoRegular, DeleteRegular, ClockRegular } from '@fluentui/react-icons'
 import { useEffect, useRef, useState } from 'react'
 import dayjs from 'dayjs'
 import type { FieldDef, Item, FieldValue } from '@/types'
@@ -8,7 +8,7 @@ import { useI18n } from '@/i18n'
 import { REMINDER_FIELD_KEY, REMINDER_REPEAT_KEY, getReminderAt, getReminderRepeat, isoToLocalTs } from '@/utils/reminder'
 import { getProvider } from '@/db/providerFactory'
 import { notificationSupported } from '@/utils/reminderNotify'
-import { LabelText } from './labels'
+import { LabelText, useLibText } from './labels'
 
 interface Props {
   open: boolean
@@ -21,9 +21,10 @@ interface Props {
 }
 
 /**
- * 条目编辑器（v4 SIGNAL PRESS）：Modal 760 / 0 圆角 / 2px ink / 硬投影；
- * 标题区手动（mono kicker + Outfit 800 24 标题）；字段两列 `.form-grid`；
- * 底部 sticky 操作条：左「删除」danger text，右「取消」ghost +「保存」lime primary。
+ * 条目编辑器（v9 Win11 ContentDialog）。
+ *
+ * 结构：标题 20 semibold（由 antd 皮肤统一）+ 元信息行 + 两列字段网格 +
+ * 提醒分区（Win11 设置式分区标题 + 说明）+ 右下角取消/保存，删除在左下角。
  *
  * 业务逻辑与之前完全一致：并发冲突检测（updatedAt 快照 + 数据库复查）、
  * 提醒日历日字符串、Notification 不可用提示。
@@ -32,6 +33,7 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
   const { message, modal } = App.useApp()
   const [form] = Form.useForm()
   const t = useI18n()
+  const lt = useLibText()
 
   /**
    * 这个环境到底能不能弹提醒。分三种「不能」：
@@ -74,7 +76,7 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
   const baseUpdatedAt = useRef<number | null>(null)
   useEffect(() => {
     if (open) baseUpdatedAt.current = item?.updatedAt ?? null
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 打开那一刻快照一次，存盘时任务网比；之后条目变化不重置基线
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 打开那一刻快照一次，存盘时再比；之后条目变化不重置基线
   }, [open, item?.id])
 
   const handleOk = async () => {
@@ -96,6 +98,7 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
       } else if (baseUpdatedAt.current != null && latest.updatedAt !== baseUpdatedAt.current) {
         const go = await new Promise<boolean>((resolve) => {
           modal.confirm({
+            icon: null,
             title: t('item.conflict.title'),
             content: t('item.conflict.body', { at: dayjs(latest.updatedAt).format('MM-DD HH:mm') }),
             okText: t('item.conflict.overwrite'),
@@ -140,110 +143,106 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
 
   return (
     <Modal
-      // 标题区手动渲染（kicker + Outfit 800），因此不传 title
-      title={null}
+      title={item ? t('lib.editor.editTitle') : t('lib.editor.newTitle')}
       open={open}
       onCancel={handleCancel}
-      footer={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-          {item && onDelete ? (
-            <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(item)}>
-              {t('common.delete')}
-            </Button>
-          ) : null}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Button onClick={handleCancel}>{t('common.cancel')}</Button>
-            <Button type="primary" loading={saving} onClick={handleOk}>
-              {t('common.save')}
-            </Button>
-          </div>
-        </div>
-      }
-      width={760}
+      width={640}
       centered
       style={{ maxWidth: 'calc(100vw - 24px)', top: 0 }}
       styles={{ body: { maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' } }}
       destroyOnHidden
+      footer={
+        <div className="lib-dialog-footer">
+          {item && onDelete ? (
+            <button
+              type="button"
+              className="w-btn w-btn--danger lib-editor-delete"
+              onClick={() => onDelete(item)}
+            >
+              <DeleteRegular />
+              {lt('editor.deleteItem')}
+            </button>
+          ) : null}
+          <span className="lib-dialog-footer-spacer" />
+          <button type="button" className="w-btn" onClick={handleCancel}>
+            {t('common.cancel')}
+          </button>
+          <button type="button" className="w-btn w-btn--accent" onClick={handleOk} disabled={saving}>
+            {saving ? t('common.loading') : t('common.save')}
+          </button>
+        </div>
+      }
     >
-      {/* 标题区：mono kicker + Outfit 800 24 标题 */}
-      <div style={{ marginBottom: 'var(--s5)' }}>
-        <div className="page-kicker">{t('lib.editor.kicker')}</div>
-        <h2 className="page-title-sm" style={{ marginTop: 8 }}>
-          {item ? t('lib.editor.editTitle') : t('lib.editor.newTitle')}
-        </h2>
-      </div>
+      {/* 元信息：编辑时间（Win11 对话框里常见的一行次级说明） */}
+      {item ? (
+        <div className="lib-editor-meta">
+          <ClockRegular />
+          <span>
+            {dayjs(item.updatedAt).format('YYYY-MM-DD HH:mm')}
+            {item.pinned ? ` · ${t('common.pinned')}` : ''}
+          </span>
+        </div>
+      ) : null}
 
       <Form form={form} layout="vertical" requiredMark={false}>
-        <div className="form-grid">
+        <div className="lib-form-grid">
           {visibleFields.map((f, i) => (
             <Form.Item
               key={f.key}
               name={f.key}
               label={<LabelText label={f.label} required={f.required} />}
               rules={f.required ? [{ required: true, message: t('common.requiredField', { name: f.label }) }] : []}
-              style={{ marginBottom: 16 }}
-              className={f.type === 'textarea' ? 'form-grid-full' : undefined}
+              className={f.type === 'textarea' ? 'lib-form-full' : undefined}
             >
               <FieldRenderer field={f} value={null} onChange={() => {}} autoFocus={i === 0} />
             </Form.Item>
           ))}
         </div>
-        {visibleFields.length === 0 && (
-          <p className="page-sub">{t('lib.editor.noFields')}</p>
-        )}
+        {visibleFields.length === 0 && <p className="lib-dialog-sub">{t('lib.editor.noFields')}</p>}
 
-        <div className="divider" />
-        <div className="form-grid">
-          <Form.Item
-            name={REMINDER_FIELD_KEY}
-            label={<LabelText label={t('reminder.label')} />}
-            style={{ marginBottom: 16 }}
-          >
-            <DatePicker style={{ width: '100%' }} placeholder={t('reminder.placeholder')} allowClear />
-          </Form.Item>
-          <Form.Item noStyle shouldUpdate={(a, b) => a[REMINDER_FIELD_KEY] !== b[REMINDER_FIELD_KEY]}>
-            {() => {
-              const picked = form.getFieldValue(REMINDER_FIELD_KEY)
-              if (!picked) return null
-              return (
-                <Form.Item name={REMINDER_REPEAT_KEY} label={<LabelText label={t('reminder.repeat')} />} style={{ marginBottom: 16 }}>
-                  <Select
-                    options={[
-                      { value: 'none', label: t('reminder.repeat.none') },
-                      { value: 'daily', label: t('reminder.repeat.daily') },
-                      { value: 'weekly', label: t('reminder.repeat.weekly') },
-                      { value: 'monthly', label: t('reminder.repeat.monthly') },
-                    ]}
-                  />
-                </Form.Item>
-              )
-            }}
-          </Form.Item>
+        {/* 提醒分区：Win11 设置式分区（标题 + 说明 + 两列控件） */}
+        <div className="lib-dialog-section">
+          <div className="lib-dialog-section-head">
+            <span className="lib-dialog-section-title">{lt('editor.reminder')}</span>
+          </div>
+          <div className="lib-dialog-section-desc">{lt('editor.reminderDesc')}</div>
+          <div className="lib-form-grid">
+            <Form.Item name={REMINDER_FIELD_KEY} label={<LabelText label={t('reminder.label')} />}>
+              <DatePicker style={{ width: '100%', fontVariantNumeric: 'tabular-nums' }} placeholder={t('reminder.placeholder')} allowClear />
+            </Form.Item>
+            <Form.Item noStyle shouldUpdate={(a, b) => a[REMINDER_FIELD_KEY] !== b[REMINDER_FIELD_KEY]}>
+              {() => {
+                const picked = form.getFieldValue(REMINDER_FIELD_KEY)
+                if (!picked) return null
+                return (
+                  <Form.Item name={REMINDER_REPEAT_KEY} label={<LabelText label={t('reminder.repeat')} />}>
+                    <Select
+                      options={[
+                        { value: 'none', label: t('reminder.repeat.none') },
+                        { value: 'daily', label: t('reminder.repeat.daily') },
+                        { value: 'weekly', label: t('reminder.repeat.weekly') },
+                        { value: 'monthly', label: t('reminder.repeat.monthly') },
+                      ]}
+                    />
+                  </Form.Item>
+                )
+              }}
+            </Form.Item>
+          </div>
         </div>
+
         {/*
           提醒依赖浏览器 Notification API。在安卓 App 壳（WebView）里
           window.Notification 根本不存在，notificationSupported() 恒为 false，
           checkAndNotify() 直接 return 0 —— 也就是说设了日期、显示保存成功，
           但永远不会有任何通知。
           之前界面上完全看不出这一点，用户只能自己发现「提醒从来没响过」。
-          所以在设置提醒的地方直接说明它在这个环境里会不会生效。
+          所以这里用 Win11 InfoBar 直接说明它在这个环境里会不会生效。
         */}
         {notifyState !== 'ok' && (
-          <div
-            className="panel"
-            style={{
-              display: 'flex',
-              gap: 8,
-              alignItems: 'flex-start',
-              padding: '10px 12px',
-              borderLeft: '6px solid var(--accent-2)',
-              background: 'var(--surface)',
-            }}
-          >
-            <InfoCircleOutlined style={{ fontSize: 16, color: 'var(--accent-2)', flexShrink: 0, marginTop: 1 }} aria-hidden />
-            <span className="field-hint" style={{ lineHeight: 1.5 }}>
-              {t(`reminder.unavailable.${notifyState}`)}
-            </span>
+          <div className="lib-infobar lib-infobar--warning" role="status">
+            <InfoRegular />
+            <span className="lib-infobar-body">{t(`reminder.unavailable.${notifyState}`)}</span>
           </div>
         )}
       </Form>

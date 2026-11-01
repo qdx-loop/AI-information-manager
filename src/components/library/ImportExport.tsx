@@ -1,6 +1,7 @@
-import { Button, Modal, Select, App } from 'antd'
+import { Modal, Select, App } from 'antd'
 import { Fragment, useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import { InboxOutlined } from '@/components/common/icons'
+import { ArrowImportRegular, ArrowLeftRegular, CheckmarkCircleRegular } from '@fluentui/react-icons'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import { itemsToCSV, parseCSV, downloadCSV } from '@/utils/csv'
 import { itemsToExcel, parseExcel } from '@/utils/excel'
@@ -8,6 +9,7 @@ import { downloadBlob } from '@/utils/csv'
 import { useI18n } from '@/i18n'
 
 import { useBackButtonLayer } from '@/utils/backButton'
+import { useLibText } from './labels'
 
 /** 窄屏时工具栏把这些动作收进「更多」菜单，需要父组件能命令式触发。
  *  导出直接给两种格式，而不是命令式打开一个二级菜单——嵌套菜单在手机上很难点准。 */
@@ -23,53 +25,29 @@ interface Props {
 }
 
 /**
- * 三步步骤条（v4）：三个 40×40 方形编号块 + 2px ink 连线。
- * 当前步 = lime 底 ink 边；已完成 = ink 底 on-ink 字；未开始 = panel 底。
+ * 三步步骤指示（v9 Win11）：20px 圆形序号 + 连接线。
+ * 当前步 = 强调填充；已完成 = accent-soft 底 + 对勾语汇；未开始 = 描边中性。
+ * 这里的编号是**功能性步骤序号**，不是装饰性 index。
  */
 function StepBar({ current }: { current: 1 | 2 | 3 }) {
   const t = useI18n()
-  const steps = [
-    { n: '01', label: t('lib.importExport.chooseFile') },
-    { n: '02', label: t('lib.importExport.mapTitle') },
-    { n: '03', label: t('lib.importExport.import') },
-  ]
+  const steps = [t('lib.importExport.chooseFile'), t('lib.importExport.mapTitle'), t('lib.importExport.import')]
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-      {steps.map((s, i) => {
-        const state = i + 1 < current ? 'done' : i + 1 === current ? 'now' : 'todo'
+    <div className="lib-steps">
+      {steps.map((label, i) => {
+        const n = (i + 1) as 1 | 2 | 3
+        const state = n < current ? 'done' : n === current ? 'current' : 'todo'
         return (
-          <Fragment key={s.n}>
-            {i > 0 ? <div style={{ flex: '1 1 0%', height: 2, background: 'var(--border-strong)' }} /> : null}
-            <div
-              aria-current={state === 'now' ? 'step' : undefined}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexShrink: 0 }}
-            >
-              <span
-                style={{
-                  width: 40,
-                  height: 40,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--t-xs)',
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  background: state === 'now' ? 'var(--accent)' : state === 'done' ? 'var(--text)' : 'var(--surface-2)',
-                  color: state === 'now' ? 'var(--on-accent)' : state === 'done' ? 'var(--on-dark)' : 'var(--text-secondary)',
-                  border: 'var(--border-width) solid var(--border-strong)',
-                  boxShadow: state === 'todo' ? 'none' : 'var(--shadow-1)',
-                }}
-              >
-                {s.n}
+          <Fragment key={label}>
+            {i > 0 ? <span className="lib-step-line" aria-hidden /> : null}
+            <span className="lib-step" aria-current={state === 'current' ? 'step' : undefined}>
+              <span className={`lib-step-dot${state === 'current' ? ' is-current' : state === 'done' ? ' is-done' : ''}`}>
+                {n}
               </span>
-              <span
-                className="panel-kicker"
-                style={{ color: state === 'now' ? 'var(--text)' : 'var(--text-muted)' }}
-              >
-                {s.label}
+              <span className={`lib-step-label${state === 'current' ? ' is-current' : state === 'done' ? ' is-done' : ''}`}>
+                {label}
               </span>
-            </div>
+            </span>
           </Fragment>
         )
       })}
@@ -78,11 +56,11 @@ function StepBar({ current }: { current: 1 | 2 | 3 }) {
 }
 
 /**
- * 导入 / 导出（v4 SIGNAL PRESS）。
+ * 导入 / 导出（v9 Win11 ContentDialog）。
  *
- * 导入三步：01 选择文件（panel + 2px dashed ink 拖拽区）→ 02 字段映射（左映射表 + 右预览）
- * → 03 完成（大 lime 方块 + 导入条数）。映射/类型转换/逐行写入逻辑与原来完全一致
- * （coerceValue 没有改动）。导出仍是 csv/excel 两个选项。
+ * 导入三步：1 选择文件（虚线拖放区）→ 2 字段映射（左映射列表 + 右预览表）
+ * → 3 完成。映射/类型转换/逐行写入逻辑与原来完全一致（coerceValue 没有改动）。
+ * 导出仍是 csv/excel 两个选项。
  */
 const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport(
   { fields, items, onImport },
@@ -94,6 +72,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { message } = App.useApp()
   const t = useI18n()
+  const lt = useLibText()
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([])
   const [headers, setHeaders] = useState<string[]>([])
@@ -216,18 +195,42 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
     })
 
   const importable = parsedRows.length > 0
-  const monoHead: React.CSSProperties = {
-    background: 'var(--text)',
-    color: 'var(--on-dark)',
-    fontFamily: 'var(--font-mono)',
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    padding: '10px 12px',
-    textAlign: 'left',
-    whiteSpace: 'nowrap',
-  }
+
+  const footer =
+    step === 2 ? (
+      <div className="lib-dialog-footer">
+        <button type="button" className="w-btn w-btn--subtle" onClick={() => setStep(1)}>
+          <ArrowLeftRegular />
+          {t('common.back')}
+        </button>
+        <span className="lib-dialog-footer-spacer" />
+        <button type="button" className="w-btn" onClick={closeModal}>
+          {t('common.cancel')}
+        </button>
+        <button
+          type="button"
+          className="w-btn w-btn--accent"
+          disabled={!importable || importing}
+          onClick={confirmImport}
+        >
+          {importing ? t('common.loading') : t('lib.importExport.confirmN', { n: parsedRows.length })}
+        </button>
+      </div>
+    ) : step === 3 ? (
+      <div className="lib-dialog-footer">
+        <span className="lib-dialog-footer-spacer" />
+        <button type="button" className="w-btn w-btn--accent" onClick={closeModal}>
+          {t('common.close')}
+        </button>
+      </div>
+    ) : (
+      <div className="lib-dialog-footer">
+        <span className="lib-dialog-footer-spacer" />
+        <button type="button" className="w-btn" onClick={closeModal}>
+          {t('common.cancel')}
+        </button>
+      </div>
+    )
 
   return (
     <>
@@ -248,12 +251,11 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
         title={t('lib.importExport.import')}
         open={modalOpen}
         onCancel={closeModal}
-        footer={null}
-        width={step === 2 ? 880 : 540}
+        footer={footer}
+        width={step === 2 ? 880 : 560}
         style={{ maxWidth: 'calc(100vw - 24px)' }}
         destroyOnHidden
       >
-        <div className="page-kicker" style={{ marginBottom: 12 }}>{t('lib.importExport.kicker')}</div>
         <StepBar current={step} />
 
         {step === 1 && (
@@ -269,160 +271,115 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
               const f = e.dataTransfer.files?.[0]
               if (f) void handleFile(f)
             }}
-            className="panel"
-            style={{
-              border: '2px dashed var(--border-strong)',
-              background: dragging ? 'var(--accent-soft)' : 'var(--surface-2)',
-              padding: '44px 20px',
-              textAlign: 'center',
-              boxShadow: 'none',
-              cursor: 'pointer',
-            }}
+            className={`lib-dropzone${dragging ? ' is-drag' : ''}`}
             onClick={() => fileInputRef.current?.click()}
           >
-            <InboxOutlined style={{ fontSize: 40, color: 'var(--text-muted)' }} aria-hidden />
-            <div className="page-sub" style={{ fontSize: 'var(--t-sm)', margin: '12px 0 16px' }}>
-              {t('lib.importExport.dropHint')}
-            </div>
-            <Button type="primary" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}>
+            <span className="lib-dropzone-icon" aria-hidden>
+              <InboxOutlined />
+            </span>
+            <span className="lib-dropzone-title">{t('lib.importExport.dropHint')}</span>
+            <span className="lib-dropzone-hint">{lt('import.supported')}</span>
+            <button
+              type="button"
+              className="w-btn w-btn--accent"
+              onClick={(e) => {
+                e.stopPropagation()
+                fileInputRef.current?.click()
+              }}
+            >
+              <ArrowImportRegular />
               {t('lib.importExport.chooseFile')}
-            </Button>
-            <div className="field-hint" style={{ marginTop: 16 }}>
-              {t('lib.importExport.tooLarge')}
-            </div>
+            </button>
           </div>
         )}
 
         {step === 2 && (
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            {/* 左：文件列 → 库字段 的对应表（行 40 + 1px line-soft） */}
-            <div className="panel" style={{ flex: '1 1 360px', minWidth: 0 }}>
-              <div className="panel-head">
-                <span className="panel-kicker">{t('lib.importExport.mapTitle')}</span>
-                <span className="table-count">{t('lib.importExport.mapIntro', { n: parsedRows.length })}</span>
+          <>
+            <p className="lib-dialog-sub" style={{ marginBottom: 10 }}>
+              {t('lib.importExport.mapIntro', { n: parsedRows.length })}
+            </p>
+            <div className="lib-import-cols">
+              {/* 左：文件列 → 库字段 的对应列表（行 40 + 1px 分割线） */}
+              <div className="lib-map-panel">
+                <div className="lib-map-head">
+                  <span>{t('lib.importExport.mapTitle')}</span>
+                  <span className="lib-status-strong" style={{ fontSize: 12 }}>
+                    {headers.length}
+                  </span>
+                </div>
+                <div className="lib-map-scroll">
+                  {headers.map((h) => (
+                    <div key={h} className="lib-map-row">
+                      <span className="lib-map-src" title={h}>
+                        {h}
+                      </span>
+                      <Select
+                        size="small"
+                        className="lib-map-select"
+                        value={mapping[h]}
+                        onChange={(v) => setMapping({ ...mapping, [h]: v })}
+                        options={[
+                          { label: lt('import.skipCol'), value: '' },
+                          ...fields.map((f) => ({ label: f.label, value: f.key })),
+                        ]}
+                        allowClear
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="panel-body" style={{ padding: 0 }}>
-                {headers.map((h) => (
-                  <div
-                    key={h}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      minHeight: 40,
-                      padding: '6px 12px',
-                      borderBottom: '1px solid var(--border)',
-                    }}
-                  >
-                    <span
-                      style={{ flex: '1 1 0%', minWidth: 0, fontSize: 'var(--t-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      title={h}
-                    >
-                      {h}
-                    </span>
-                    <Select
-                      size="small"
-                      style={{ width: 184, flexShrink: 0 }}
-                      value={mapping[h]}
-                      onChange={(v) => setMapping({ ...mapping, [h]: v })}
-                      options={[
-                        { label: t('lib.importExport.skip'), value: '' },
-                        ...fields.map((f) => ({ label: f.label, value: f.key })),
-                      ]}
-                      allowClear
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* 右：预览账表（ink 表头 + 40 行 + 数字右对齐） */}
-            <div style={{ flex: '1 1 340px', minWidth: 0 }}>
-              <div className="panel-kicker" style={{ marginBottom: 8 }}>{t('lib.importExport.preview')}</div>
-              {previewCols.length === 0 ? (
-                <p className="field-hint">{t('lib.importExport.skip')}</p>
-              ) : (
-                <div className="data-table">
-                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                    <thead>
-                      <tr>
-                        {previewCols.map((c) => (
-                          <th
-                            key={c.header}
-                            style={{ ...monoHead, textAlign: c.numeric ? 'right' : 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                          >
-                            {c.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedRows.slice(0, 4).map((r, ri) => (
-                        <tr key={ri}>
+              {/* 右：预览（中性表头 + 30 行高 + 数字右对齐） */}
+              <div className="lib-preview-panel">
+                <div className="lib-map-head">
+                  <span>{lt('import.preview')}</span>
+                  <span className="lib-status-strong" style={{ fontSize: 12 }}>
+                    {lt('import.parseRows', { n: parsedRows.length })}
+                  </span>
+                </div>
+                {previewCols.length === 0 ? (
+                  <p className="lib-dialog-sub" style={{ padding: '16px 12px', margin: 0 }}>
+                    {t('lib.importExport.skip')}
+                  </p>
+                ) : (
+                  <div className="lib-preview-scroll">
+                    <table className="lib-preview-table">
+                      <thead>
+                        <tr>
                           {previewCols.map((c) => (
-                            <td
-                              key={c.header}
-                              style={{
-                                padding: '9px 12px',
-                                fontSize: 'var(--t-sm)',
-                                color: 'var(--text)',
-                                textAlign: c.numeric ? 'right' : 'left',
-                                fontFamily: c.numeric ? 'var(--font-mono)' : undefined,
-                                fontVariantNumeric: c.numeric ? 'tabular-nums' : undefined,
-                                borderBottom: '1px solid var(--border)',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {r[c.header] == null ? '' : String(r[c.header])}
-                            </td>
+                            <th key={c.header} className={c.numeric ? 'is-num' : undefined}>
+                              {c.label}
+                            </th>
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      </thead>
+                      <tbody>
+                        {parsedRows.slice(0, 20).map((r, ri) => (
+                          <tr key={ri}>
+                            {previewCols.map((c) => (
+                              <td key={c.header} className={c.numeric ? 'is-num' : undefined}>
+                                {r[c.header] == null ? '' : String(r[c.header])}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {step === 3 && (
-          <div className="empty-state" style={{ padding: '24px 0 8px' }}>
-            <div
-              className="empty-mark"
-              style={{ width: 72, height: 72, fontSize: 'var(--t-xl)', fontVariantNumeric: 'tabular-nums' }}
-              aria-hidden
-            >
-              {importedCount}
-            </div>
-            <h3 className="empty-title">{t('lib.importExport.imported', { n: importedCount })}</h3>
+          <div className="lib-import-done">
+            <span className="lib-import-done-icon" aria-hidden>
+              <CheckmarkCircleRegular />
+            </span>
+            <div className="lib-import-done-title">{t('lib.importExport.imported', { n: importedCount })}</div>
           </div>
         )}
-
-        {/* 底部操作：上一步是文字项；导入/完成是 lime 主按钮 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 24 }}>
-          {step === 2 ? (
-            <Button type="text" onClick={() => setStep(1)}>
-              {t('common.back')}
-            </Button>
-          ) : null}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            {step === 3 ? (
-              <Button type="primary" onClick={closeModal}>{t('common.close')}</Button>
-            ) : (
-              <>
-                <Button onClick={closeModal}>{t('common.cancel')}</Button>
-                {step === 2 ? (
-                  <Button type="primary" loading={importing} disabled={!importable} onClick={confirmImport}>
-                    {t('lib.importExport.confirmN', { n: parsedRows.length })}
-                  </Button>
-                ) : null}
-              </>
-            )}
-          </div>
-        </div>
       </Modal>
     </>
   )

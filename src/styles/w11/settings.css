@@ -1,0 +1,1201 @@
+/* v9 · settings page styles（见 redesign-brief/11-v9-win11-desktop.md；只允许 var(--w-*)） */
+/* 归属：C · 设置页 / 管理后台 / 局域网同步弹窗（设置页内）。AI / 搜索 / 图表 / 确认弹窗在 ai.css。 */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   设置页 · Windows 11「设置」应用
+   页头「设置」+ 左 208px 分类列表卡（选中项左侧 3px 强调条）+ 右 Win11 设置卡
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.w-set {
+  gap: 20px;
+}
+
+/* ── 两栏骨架 ── */
+.w-set-layout {
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  min-width: 0;
+}
+
+/* ── 左侧分类列表（设置卡片容器）── */
+.w-set-nav {
+  position: sticky;
+  top: 0;
+  padding: 6px;
+  min-width: 0;
+}
+.w-set-nav .w-rows {
+  gap: 1px;
+}
+.w-set-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: var(--w-radius-control);
+  background: transparent;
+  color: var(--w-text-2);
+  font-size: var(--w-fs-body);
+  line-height: var(--w-lh-body);
+  text-align: left;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.w-set-nav-item:hover {
+  background: var(--w-layer-hover);
+  color: var(--w-text);
+}
+.w-set-nav-item:active {
+  background: var(--w-layer-alt);
+}
+.w-set-nav-item.is-active {
+  background: var(--w-layer-alt);
+  color: var(--w-text);
+  font-weight: var(--w-fw-semibold);
+}
+.w-set-nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
+  background: var(--w-accent);
+}
+.w-set-nav-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+.w-set-nav-icon svg {
+  font-size: 17px;
+}
+.w-set-nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 右侧内容区 ── */
+.w-set-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.w-set-pane-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 2px;
+}
+.w-set-pane-mark {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--w-accent-soft);
+  color: var(--w-accent);
+}
+.w-set-pane-mark svg {
+  font-size: 20px;
+}
+.w-set-pane-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.w-set-pane-title {
+  font-family: var(--w-font-display);
+  font-size: var(--w-fs-subtitle);
+  line-height: var(--w-lh-subtitle);
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+}
+.w-set-pane-desc {
+  font-size: var(--w-fs-caption);
+  line-height: var(--w-lh-caption);
+  color: var(--w-text-3);
+  max-width: 68ch;
+}
+.w-set-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* ── 设置卡片：组标题 + 设置行 ── */
+.w-set-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 16px 16px 10px;
+  min-width: 0;
+}
+.w-set-group-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.w-set-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--w-font);
+  font-size: var(--w-fs-body);
+  line-height: var(--w-lh-body);
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+}
+.w-set-group-title svg {
+  font-size: 16px;
+  color: var(--w-text-2);
+}
+.w-set-group-desc {
+  font-size: var(--w-fs-caption);
+  line-height: var(--w-lh-caption);
+  color: var(--w-text-3);
+  max-width: 76ch;
+}
+
+/* 设置行：32px 图标 + 14 标题 + 12 说明 + 右侧控件 */
+.w-set .w-row,
+.w-set-row {
+  min-height: 56px;
+  padding: 8px 16px;
+}
+.w-set .w-row-title {
+  font-size: var(--w-fs-body);
+  line-height: var(--w-lh-body);
+}
+.w-set .w-row-desc {
+  white-space: normal;
+  overflow: visible;
+  line-height: 16px;
+}
+.w-set-row--field {
+  align-items: center;
+}
+.w-set-row--field .w-row-control {
+  flex: 0 1 320px;
+  width: 320px;
+  min-width: 0;
+}
+.w-set-row--field .w-row-control .w-input,
+.w-set-row--field .w-row-control .ant-input-affix-wrapper {
+  width: 100%;
+}
+.w-set-row-chev {
+  color: var(--w-text-3);
+  font-size: 14px;
+  display: inline-flex;
+  transition: transform 0.14s cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+.w-set-row-chev.is-open {
+  transform: rotate(180deg);
+}
+
+/* 展开器（卡片内附加区块） */
+.w-set-expander {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--w-divider);
+  background: var(--w-layer);
+}
+.w-set-expander-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.w-set-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 16px 16px;
+}
+.w-set-actions--top {
+  padding: 0;
+  flex: 0 0 auto;
+}
+.w-set-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+.w-set-hint {
+  font-size: var(--w-fs-caption);
+  line-height: var(--w-lh-caption);
+  color: var(--w-text-3);
+}
+.w-set-mono {
+  font-family: var(--w-font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--w-text-3);
+}
+
+/* Win11 分段控件（连接方式 / 筛选） */
+.w-set-form > .w-set-seg {
+  align-self: flex-start;
+}
+.w-set-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--w-radius-control);
+  background: var(--w-layer-alt);
+  border: 1px solid var(--w-card-border);
+  flex-wrap: wrap;
+}
+.w-set-seg-item {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 3px;
+  border: 0;
+  background: transparent;
+  color: var(--w-text-2);
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.w-set-seg-item:hover {
+  color: var(--w-text);
+  background: var(--w-layer-hover);
+}
+.w-set-seg-item.is-active {
+  background: var(--w-card);
+  color: var(--w-text);
+  font-weight: var(--w-fw-semibold);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.w-set-seg-item:disabled {
+  color: var(--w-text-disabled);
+  cursor: default;
+  background: transparent;
+}
+
+/* 说明条（Win11 InfoBar，独立卡片） */
+.w-set-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid var(--w-card-border);
+  border-radius: var(--w-radius-card);
+  background: var(--w-layer);
+  color: var(--w-text-2);
+  font-size: var(--w-fs-caption);
+  line-height: var(--w-lh-caption);
+}
+.w-set-note-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--w-accent);
+  margin-top: 1px;
+}
+.w-set-note-icon svg {
+  font-size: 16px;
+}
+.w-set-note--warning {
+  background: var(--w-warning-soft);
+  color: var(--w-text);
+  border-color: var(--w-card-border);
+}
+.w-set-note--warning .w-set-note-icon {
+  color: var(--w-warning);
+}
+.w-set-note--danger {
+  background: var(--w-danger-soft);
+  color: var(--w-text);
+  border-color: var(--w-card-border);
+}
+.w-set-note--danger .w-set-note-icon {
+  color: var(--w-danger);
+}
+.w-set-note-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.w-set-note-title {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+}
+.w-set-note-body {
+  min-width: 0;
+}
+
+/* 云同步状态行 */
+.w-set-sync {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 16px;
+  color: var(--w-text-2);
+  font-size: var(--w-fs-caption);
+  line-height: var(--w-lh-caption);
+}
+.w-set-sync svg {
+  flex: 0 0 auto;
+  font-size: 16px;
+  color: var(--w-text-3);
+}
+.w-set-sync--error svg,
+.w-set-sync--error .w-set-sync-tone {
+  color: var(--w-danger);
+}
+.w-set-sync--ok .w-set-sync-tone {
+  color: var(--w-text);
+}
+.w-set-sync strong {
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+}
+
+/* 代码块 / SQL（一次性技术步骤） */
+.w-set-details {
+  margin: 0;
+  padding: 0 16px 16px;
+}
+.w-set-details > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  font-size: var(--w-fs-caption);
+  color: var(--w-text-2);
+}
+.w-set-details > summary::-webkit-details-marker {
+  display: none;
+}
+.w-set-details > summary:hover {
+  color: var(--w-text);
+}
+.w-set-code {
+  margin: 8px 0 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: var(--w-radius-control);
+  border: 1px solid var(--w-card-border);
+  background: var(--w-layer);
+  color: var(--w-text-2);
+  font-family: var(--w-font-mono);
+  font-size: 11px;
+  line-height: 18px;
+  white-space: pre;
+}
+
+/* 快照 / 日志行 */
+.w-set-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.w-set-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--w-divider);
+}
+.w-set-list-row:last-child {
+  border-bottom: 0;
+}
+.w-set-list-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.w-set-list-title {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--w-text);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.w-set-list-desc {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--w-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.w-set-list-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.w-set-icon-danger {
+  color: var(--w-danger);
+}
+.w-set-icon-danger:hover {
+  color: var(--w-danger);
+  background: var(--w-danger-soft);
+}
+.w-set-empty {
+  padding: 20px 16px;
+  font-size: var(--w-fs-caption);
+  line-height: var(--w-lh-caption);
+  color: var(--w-text-3);
+}
+
+/* 危险卡片（退出登录 / 删除类） */
+.w-set-danger {
+  border-color: rgba(255, 153, 164, 0.3);
+}
+:root[data-theme='light'] .w-set-danger {
+  border-color: rgba(196, 43, 28, 0.22);
+}
+.w-set-danger .w-set-group-title {
+  color: var(--w-danger);
+}
+
+/* 多行说明文本 */
+.w-set-prose {
+  padding: 0 16px 16px;
+  font-size: var(--w-fs-caption);
+  line-height: 18px;
+  color: var(--w-text-2);
+  max-width: 72ch;
+}
+.w-set-prose strong {
+  color: var(--w-text);
+  font-weight: var(--w-fw-semibold);
+}
+
+/* ── 移动端：Win11 Pivot 式横向分类 ── */
+@media (max-width: 1100px) {
+  .w-set-layout {
+    grid-template-columns: 184px minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+@media (max-width: 900px) {
+  .w-set {
+    gap: 16px;
+  }
+  .w-set-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .w-set-nav {
+    position: static;
+    padding: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .w-set-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .w-set-nav .w-rows {
+    flex-direction: row;
+    gap: 2px;
+    width: max-content;
+  }
+  .w-set-nav-item {
+    width: auto;
+    min-height: 36px;
+    padding: 6px 10px;
+    white-space: nowrap;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+  .w-set-nav-item.is-active {
+    background: var(--w-accent-soft);
+  }
+  .w-set-nav-item.is-active::before {
+    left: 10px;
+    right: 10px;
+    top: auto;
+    bottom: -2px;
+    width: auto;
+    height: 2px;
+    transform: none;
+    border-radius: 1px;
+  }
+  .w-set-nav-label {
+    flex: 0 0 auto;
+  }
+  .w-set-content {
+    max-width: none;
+    gap: 14px;
+  }
+  .w-set-pane-title {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .w-set-group {
+    padding: 14px 14px 8px;
+  }
+  .w-set .w-row,
+  .w-set-row {
+    padding: 8px 14px;
+  }
+  .w-set-actions,
+  .w-set-form,
+  .w-set-prose,
+  .w-set-details {
+    padding-inline: 14px;
+  }
+  .w-set-expander {
+    padding-inline: 14px;
+  }
+  .w-set-list-row {
+    padding: 8px 14px;
+  }
+}
+@media (max-width: 720px) {
+  .w-set-row--field {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .w-set-row--field .w-row-icon {
+    margin-top: 4px;
+  }
+  .w-set-row--field .w-row-control {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .w-set-expander-grid {
+    grid-template-columns: 1fr;
+  }
+  .w-set-group-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+@media (max-width: 560px) {
+  .w-set .w-row,
+  .w-set-row {
+    padding: 8px 12px;
+    gap: 12px;
+  }
+  .w-set-group,
+  .w-set-actions,
+  .w-set-form,
+  .w-set-prose,
+  .w-set-details,
+  .w-set-expander,
+  .w-set-list-row,
+  .w-set-empty {
+    padding-inline: 12px;
+  }
+  .w-set-actions {
+    padding-bottom: 12px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   管理后台 · Windows 11「系统信息 / 任务管理器」
+   登录 = 桌面壁纸上的居中 Acrylic 小窗；控制台 = 窗口 + 页头 + 事实条 + 表格
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 登录（独立于 AppShell，自带桌面舞台）── */
+.w-admin-stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: auto;
+  z-index: 1;
+}
+.w-admin-login {
+  width: min(420px, calc(100vw - 32px));
+  padding: 28px 28px 24px;
+  background: var(--w-flyout);
+  -webkit-backdrop-filter: blur(48px) saturate(140%);
+  backdrop-filter: blur(48px) saturate(140%);
+  border: 1px solid var(--w-flyout-border);
+  border-radius: var(--w-radius-dialog);
+  box-shadow: var(--w-shadow-dialog);
+  color: var(--w-text);
+  display: flex;
+  flex-direction: column;
+}
+.w-admin-login-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--w-layer-alt);
+  border: 1px solid var(--w-card-border);
+  margin-bottom: 16px;
+}
+.w-admin-login-title {
+  font-family: var(--w-font-display);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+}
+.w-admin-login-desc {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--w-text-2);
+}
+.w-admin-login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 20px;
+}
+.w-admin-login-field .w-label {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--w-text-2);
+}
+.w-admin-login .w-btn--accent {
+  margin-top: 16px;
+  height: var(--w-control-h-lg);
+}
+.w-admin-login-foot {
+  margin-top: 16px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--w-text-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.w-admin-login-foot svg {
+  font-size: 14px;
+}
+
+/* ── 控制台窗口 ── */
+.w-admin-window {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-radius: var(--w-radius-window);
+  overflow: hidden;
+  background: var(--w-mica);
+  -webkit-backdrop-filter: blur(60px) saturate(140%);
+  backdrop-filter: blur(60px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--w-shadow-window);
+  color: var(--w-text);
+  z-index: 2;
+}
+:root[data-theme='light'] .w-admin-window {
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 24px 48px rgba(0, 0, 0, 0.22);
+}
+.w-admin-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  flex: 0 0 40px;
+  padding: 0 8px 0 12px;
+  background: var(--w-acrylic);
+  -webkit-backdrop-filter: blur(30px) saturate(130%);
+  backdrop-filter: blur(30px) saturate(130%);
+  border-bottom: 1px solid var(--w-divider);
+  user-select: none;
+}
+:root[data-theme='light'] .w-admin-titlebar {
+  background: rgba(255, 255, 255, 0.4);
+}
+.w-admin-titlebar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+}
+.w-admin-titlebar-spacer {
+  flex: 1;
+}
+.w-admin-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--w-layer);
+}
+.w-admin-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overflow-x: hidden;
+}
+.w-admin-page {
+  width: 100%;
+  max-width: var(--w-content-max-wide);
+  margin: 0 auto;
+  padding: 24px var(--w-page-pad-x) 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: var(--w-text);
+}
+
+/* ── 事实条（一个 CardFill 表面，不做 KPI 大卡）── */
+.w-admin-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--w-card);
+  border: 1px solid var(--w-card-border);
+  border-radius: var(--w-radius-card);
+  box-shadow: var(--w-shadow-card);
+  overflow: hidden;
+}
+.w-admin-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 20px;
+  border-left: 1px solid var(--w-divider);
+  min-width: 0;
+}
+.w-admin-fact:first-child {
+  border-left: 0;
+}
+.w-admin-fact-label {
+  font-size: var(--w-fs-caption);
+  line-height: var(--w-lh-caption);
+  color: var(--w-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.w-admin-fact-value {
+  font-family: var(--w-font-display);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+  font-variant-numeric: tabular-nums;
+}
+.w-admin-fact-note {
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--w-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 工具栏：Pivot + 筛选 + 搜索 ── */
+.w-admin-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 36px;
+}
+.w-admin-toolbar .w-tabs {
+  flex: 0 0 auto;
+}
+.w-admin-search {
+  margin-left: auto;
+  min-width: 220px;
+  max-width: 300px;
+  flex: 0 1 280px;
+}
+.w-admin-count {
+  font-size: var(--w-fs-caption);
+  line-height: var(--w-lh-caption);
+  color: var(--w-text-3);
+  white-space: nowrap;
+}
+
+/* ── 表格：账户设置式行高 48 ── */
+.w-admin-table {
+  background: var(--w-card);
+  border: 1px solid var(--w-card-border);
+  border-radius: var(--w-radius-card);
+  box-shadow: var(--w-shadow-card);
+  overflow: hidden;
+  min-width: 0;
+}
+.w-admin-table .ant-table-wrapper,
+.w-admin-table .ant-spin-nested-loading,
+.w-admin-table .ant-spin-container {
+  min-width: 0;
+}
+.w-admin-table .ant-table {
+  border-radius: 0;
+}
+.w-admin-table .ant-table-thead > tr > th {
+  height: 36px;
+}
+.w-admin-table .ant-table-tbody > tr > td {
+  height: 48px;
+  padding: 6px 12px;
+}
+.w-admin-table .ant-table-pagination.ant-pagination {
+  padding: 0 12px 12px;
+  margin: 8px 0 0;
+}
+.w-admin-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.w-admin-user-avatar {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--w-accent-soft);
+  color: var(--w-accent);
+  font-size: 12px;
+  font-weight: var(--w-fw-semibold);
+  text-transform: uppercase;
+  user-select: none;
+}
+.w-admin-user-name {
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.w-admin-ops {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.w-admin-cell-date {
+  font-family: var(--w-font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--w-text-2);
+  white-space: nowrap;
+}
+.w-admin-cell-soft {
+  font-size: 12px;
+  color: var(--w-text-2);
+}
+.w-admin-cell-faint {
+  color: var(--w-text-3);
+}
+.w-admin-events {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 2px 2px 0;
+}
+.w-admin-events-title {
+  font-size: var(--w-fs-caption);
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text-2);
+}
+.w-admin-event {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--w-text-3);
+  font-variant-numeric: tabular-nums;
+}
+.w-admin-event b {
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+}
+.w-admin-tips {
+  font-size: var(--w-fs-caption);
+  line-height: 18px;
+  color: var(--w-text-3);
+  max-width: 70ch;
+}
+.w-admin-tips strong {
+  color: var(--w-text-2);
+  font-weight: var(--w-fw-semibold);
+}
+
+/* 重置密码弹窗内部 */
+.w-admin-dialog-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: var(--w-radius-control);
+  background: var(--w-warning-soft);
+  color: var(--w-text);
+  font-size: 12px;
+  line-height: 16px;
+}
+.w-admin-dialog-note svg {
+  flex: 0 0 auto;
+  color: var(--w-warning);
+  font-size: 15px;
+  margin-top: 1px;
+}
+.w-admin-secret {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--w-card-border);
+  border-radius: var(--w-radius-control);
+  background: var(--w-layer);
+  margin-bottom: 10px;
+  min-width: 0;
+}
+.w-admin-secret-name {
+  font-size: 12px;
+  color: var(--w-text-3);
+  margin-bottom: 2px;
+}
+.w-admin-secret-value {
+  font-family: var(--w-font-mono);
+  font-size: 15px;
+  font-weight: var(--w-fw-semibold);
+  letter-spacing: 0.02em;
+  color: var(--w-text);
+  word-break: break-all;
+}
+.w-admin-dialog-body {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--w-text-2);
+}
+.w-admin-dialog-body p {
+  margin: 0 0 10px;
+}
+
+@media (max-width: 1100px) {
+  .w-admin-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .w-admin-fact:nth-child(3) {
+    border-left: 0;
+  }
+  .w-admin-fact:nth-child(n + 3) {
+    border-top: 1px solid var(--w-divider);
+  }
+}
+@media (max-width: 900px) {
+  .w-admin-stage {
+    padding: 16px;
+  }
+  .w-admin-window {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 0;
+    border: 0;
+  }
+  .w-admin-titlebar {
+    height: 48px;
+    flex-basis: 48px;
+  }
+  .w-admin-page {
+    padding: 16px 16px 28px;
+    gap: 14px;
+  }
+  .w-admin-search {
+    margin-left: 0;
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}
+@media (max-width: 560px) {
+  .w-admin-page {
+    padding: 14px 12px 24px;
+    gap: 12px;
+  }
+  .w-admin-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .w-admin-fact {
+    padding: 10px 12px;
+  }
+  .w-admin-fact-value {
+    font-size: 20px;
+    line-height: 26px;
+  }
+  .w-admin-login {
+    padding: 22px 18px 18px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   局域网同步弹窗（设置页内，Win11 ContentDialog）
+   ══════════════════════════════════════════════════════════════════════════ */
+.w-f2f {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.w-f2f-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.w-f2f-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.w-f2f-actions .w-btn {
+  width: 100%;
+  height: var(--w-control-h-lg);
+}
+.w-f2f-hint {
+  font-size: var(--w-fs-caption);
+  line-height: var(--w-lh-caption);
+  color: var(--w-text-3);
+  text-align: center;
+}
+.w-f2f-back {
+  align-self: flex-start;
+  margin-bottom: 2px;
+}
+.w-f2f-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 2px;
+}
+.w-f2f-stage-title {
+  font-size: var(--w-fs-body);
+  line-height: var(--w-lh-body);
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+}
+.w-f2f-stage-desc {
+  font-size: var(--w-fs-caption);
+  line-height: var(--w-lh-caption);
+  color: var(--w-text-2);
+}
+.w-f2f-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.w-f2f-progress-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--w-text-2);
+}
+.w-f2f-progress-value {
+  font-family: var(--w-font-mono);
+  font-size: 11px;
+  color: var(--w-text-3);
+  font-variant-numeric: tabular-nums;
+}
+.w-f2f-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 4px 4px;
+  text-align: center;
+}
+.w-f2f-result-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--w-success-soft);
+  color: var(--w-success);
+  margin-bottom: 2px;
+}
+.w-f2f-result-mark--error {
+  background: var(--w-danger-soft);
+  color: var(--w-danger);
+}
+.w-f2f-result-mark svg {
+  font-size: 24px;
+}
+.w-f2f-result-title {
+  font-family: var(--w-font-display);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: var(--w-fw-semibold);
+  color: var(--w-text);
+}
+.w-f2f-result-desc {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--w-text-2);
+  max-width: 46ch;
+}
+.w-f2f-result-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}

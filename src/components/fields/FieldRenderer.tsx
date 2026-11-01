@@ -13,15 +13,28 @@ interface Props {
   compact?: boolean
 }
 
-// 字段输入渲染器：按 type 渲染对应输入控件
-// v4：控件 40 / 2px ink 边 / 0 圆角由 theme + 全局 antd 收编统一，
-// 这里只管语义（类型 → 控件）；compact 用于表格内联编辑（32px）。
+/**
+ * 字段输入渲染器（v9 Win11）：按 type 渲染对应控件。
+ *
+ * 控件形态（32 高 / 4px 圆角 / 极淡描边 / 底部强调下划线）由全局 antd 皮肤
+ * （src/styles/w11/antd.css）统一负责，这里只管「类型 → 控件」的语义映射；
+ * compact 用于表格内联编辑（28px）。
+ */
 export default function FieldRenderer({ field, value, onChange, autoFocus, compact }: Props) {
   const sz = compact ? ('small' as const) : ('middle' as const)
   const t = useI18n()
+
   switch (field.type) {
     case 'text':
-      return <Input size={sz} autoFocus={autoFocus} value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={t('field.inputPlaceholder', { name: field.label })} />
+      return (
+        <Input
+          size={sz}
+          autoFocus={autoFocus}
+          value={(value as string) ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={t('field.inputPlaceholder', { name: field.label })}
+        />
+      )
     case 'textarea':
       return (
         <Input.TextArea
@@ -31,20 +44,27 @@ export default function FieldRenderer({ field, value, onChange, autoFocus, compa
           rows={compact ? 2 : 3}
           onChange={(e) => onChange(e.target.value)}
           placeholder={t('field.inputPlaceholder', { name: field.label })}
-          // 长文本是「阅读区」：15/1.6（v4 正文基准），不是 13/1.45
-          style={compact ? undefined : { fontSize: 'var(--t-base)', lineHeight: 1.6 }}
         />
       )
     case 'number':
       // 数字列右对齐 + tabular：金额/数量纵向比较时不跳位
-      return <InputNumber size={sz} autoFocus={autoFocus} value={value as number} onChange={(v) => onChange(v ?? null)} style={{ width: '100%' }} placeholder={t('field.numberPlaceholder')} />
+      return (
+        <InputNumber
+          size={sz}
+          autoFocus={autoFocus}
+          value={value as number}
+          onChange={(v) => onChange(v ?? null)}
+          style={{ width: '100%', fontVariantNumeric: 'tabular-nums' }}
+          placeholder={t('field.numberPlaceholder')}
+        />
+      )
     case 'date':
       return (
         <DatePicker
-          className="mono tabular"
+          size={sz}
           value={value ? dayjs(value as string) : null}
           onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : null)}
-          style={{ width: '100%' }}
+          style={{ width: '100%', fontVariantNumeric: 'tabular-nums' }}
         />
       )
     case 'select':
@@ -61,7 +81,11 @@ export default function FieldRenderer({ field, value, onChange, autoFocus, compa
         />
       )
     case 'checkbox':
-      return <Checkbox autoFocus={autoFocus} checked={!!value} onChange={(e) => onChange(e.target.checked)}>{t('field.yes')}</Checkbox>
+      return (
+        <Checkbox autoFocus={autoFocus} checked={!!value} onChange={(e) => onChange(e.target.checked)}>
+          {t('field.yes')}
+        </Checkbox>
+      )
     case 'rating':
       // 评分在编辑器里是交互控件，仍用 antd Rate；表格里的只读渲染走 SmartValue
       return <Rate style={{ fontSize: compact ? 14 : 18 }} value={(value as number) ?? 0} onChange={(v) => onChange(v)} />
@@ -72,7 +96,7 @@ export default function FieldRenderer({ field, value, onChange, autoFocus, compa
 
 // 表格单元格值展示
 export function renderCellValue(field: FieldDef, value: FieldValue): string {
-  if (value === null || value === undefined || value === '') return '-'
+  if (value === null || value === undefined || value === '') return '—'
   switch (field.type) {
     case 'checkbox':
       return value ? tNow('field.yes') : tNow('field.no')

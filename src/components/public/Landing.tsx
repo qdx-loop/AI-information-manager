@@ -1,294 +1,338 @@
 /**
- * 未登录落地页 · v4「硬边印刷 SIGNAL PRESS」
+ * 未登录落地页 · v9「WINDOWS 11 STORE / WELCOME」
  *
- * 版面即海报（契约 §8.7）：
- *   lp-nav（lime 方块 brand + mono nav + EN + lime 注册按钮）
- *   → hero 12 列（左 7：kicker / lp-display 巨型 Outfit 800，关键词 `<em>` lime 底块 /
- *     lp-lede / 双 CTA / mono 小注；右 5：硬边截图框 + 三点 + 图注）
- *   → lime marquee（两条轨道同内容，-50% 平移无缝）
- *   → 编号功能行（不用卡片网格）
- *   → 墨黑数据主权段（唯一深色断口）
- *   → FAQ（编号 + 2px 上边）
- *   → 收尾大标题 + lime CTA
- *   → 联系方式
- *   → 墨黑页脚：巨大 lime wordmark + 「一个人维护 · 永久免费 · 关于与支持」
+ * 视觉合同（`redesign-brief/11-v9-win11-desktop.md` §8 落地页）：
+ *   桌面壁纸 + Win11 无边框窗口（Acrylic 标题栏 = 应用标识 + 语言/主题/登录/注册）；
+ *   内容按「商店详情页」组织：应用图标 + 名称 + 一句话价值 + 主 CTA →
+ *   真实界面截图（固定 /hero-table.png，由 Lead 替换）→ 3 张 Win11 设置卡 →
+ *   「数据归你」设置行 → FAQ Win11 Expander → 收尾 CTA 卡 → 联系设置行 → 低调页脚。
  *
- * 营销页固定浅色纸面（--paper），不跟随 data-theme；本文件只写结构，不自造颜色。
+ * 明确不做（brief §2 反模式）：营销大渐变 / 巨幅英文标语 / 霓虹 / 大圆角卡片墙 /
+ * 英文 kicker / 装饰性编号。链接与文案尽量复用既有 i18n key。
  */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  ArrowDownloadRegular,
+  ArrowRightRegular,
+  ChartMultipleRegular,
+  CheckmarkCircleRegular,
+  ChatRegular,
+  ChevronDownRegular,
+  ChevronRightRegular,
+  CloudSyncRegular,
+  CopyRegular,
+  GridRegular,
+  KeyRegular,
+  MailRegular,
+  QuestionCircleRegular,
+  ShieldCheckmarkRegular,
+  WeatherMoonRegular,
+  WeatherSunnyRegular,
+  WifiOffRegular,
+  type FluentIcon,
+} from '@fluentui/react-icons'
 import { useI18n } from '@/i18n'
 import { useAppStore } from '@/store/appStore'
 import { SITE } from '@/config/site'
+import AppIcon from '@/components/common/AppIcon'
 import SupportLink from '@/components/reward/SupportLink'
-
-const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-
-/** 真实界面截图：硬边框 + 墨黑三点栏 + mono 图注；窄屏保持可读最小宽并横向滚动 */
-function ProductShot() {
-  const t = useI18n()
-  return (
-    <div className="lp-shot">
-      <div className="lp-shot-bar" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </div>
-      <div className="lp-shot-scroll">
-        <img src="/hero-table.png" alt={t('landing.shot.alt')} loading="eager" decoding="async" />
-      </div>
-      <div className="lp-shot-cap">{t('landing.shot.caption')}</div>
-    </div>
-  )
-}
 
 export default function Landing() {
   const navigate = useNavigate()
   const t = useI18n()
   const lang = useAppStore((s) => s.settings.language ?? 'zh')
   const setLanguage = useAppStore((s) => s.setLanguage)
+  const theme = useAppStore((s) => s.settings.theme)
+  const setTheme = useAppStore((s) => s.setTheme)
   const [copiedEmail, setCopiedEmail] = useState('')
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const goRegister = () => navigate('/login?mode=register')
   const goLogin = () => navigate('/login')
+  const isDark = theme === 'dark'
+  const year = new Date().getFullYear()
 
-  const features = [
-    { title: t('landing.f1t'), desc: t('landing.f1d') },
-    { title: t('landing.f2t'), desc: t('landing.f2d') },
-    { title: t('landing.f3t'), desc: t('landing.f3d') },
-    { title: t('landing.f4t'), desc: t('landing.f4d') },
+  const features: { icon: FluentIcon; title: string; desc: string }[] = [
+    { icon: ChatRegular, title: t('landing.f1t'), desc: t('landing.f1d') },
+    { icon: GridRegular, title: t('landing.f2t'), desc: t('landing.f2d') },
+    { icon: ChartMultipleRegular, title: t('landing.f3t'), desc: t('landing.f3d') },
   ]
-  const povFacts = [
-    { title: t('landing.pov.f1t'), desc: t('landing.pov.f1d') },
-    { title: t('landing.pov.f2t'), desc: t('landing.pov.f2d') },
-    { title: t('landing.pov.f3t'), desc: t('landing.pov.f3d') },
+  const ownership: { icon: FluentIcon; title: string; desc: string }[] = [
+    { icon: WifiOffRegular, title: t('landing.pov.f1t'), desc: t('landing.pov.f1d') },
+    { icon: CloudSyncRegular, title: t('landing.pov.f2t'), desc: t('landing.pov.f2d') },
+    { icon: ShieldCheckmarkRegular, title: t('landing.pov.f3t'), desc: t('landing.pov.f3d') },
   ]
-  const faqs = [
+  const faqs: [string, string][] = [
     [t('landing.faq.q1'), t('landing.faq.a1')],
     [t('landing.faq.q2'), t('landing.faq.a2')],
     [t('landing.faq.q3'), t('landing.faq.a3')],
   ]
-  const navLinks = [
-    ['features', t('landing.nav.features')],
-    ['privacy', t('landing.nav.privacy')],
-    ['faq', t('landing.nav.faq')],
-    ['contact', t('landing.nav.contact')],
-    ['help', t('landing.nav.help')],
-  ] as const
-  const marqueeItems = [
-    t('landing.marquee.local'),
-    t('landing.marquee.ai'),
-    t('landing.marquee.free'),
-    t('landing.marquee.data'),
-  ]
+
+  const copyEmail = (email: string) => {
+    void navigator.clipboard?.writeText(email).catch(() => {})
+    setCopiedEmail(email)
+  }
 
   return (
-    <div className="lp-page">
-      <header className="lp-nav">
-        <div className="lp-container lp-nav-row">
-          <button className="lp-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <span className="lp-brand-mark" aria-hidden />
-            {SITE.brand}
+    <div className="pub-stage">
+      <div className="pub-frame">
+        {/* Win11 标题栏：应用标识 + 语言 / 主题 / 登录 / 注册 */}
+        <header className="w-titlebar">
+          <button
+            type="button"
+            className="w-titlebar-brand"
+            onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+            aria-label={t('app.brand')}
+          >
+            <AppIcon size={16} />
+            <span className="w-titlebar-title">{t('app.brand')}</span>
           </button>
-          <nav className="lp-nav-links">
-            {navLinks.map(([id, label]) => (
-              <button
-                key={id}
-                className="lp-nav-link"
-                onClick={() => (id === 'help' ? navigate('/help') : scrollTo(id))}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-          <div className="lp-nav-actions">
-            <button className="lp-lang" onClick={() => setLanguage(lang === 'zh' ? 'en' : 'zh')}>
+          <div className="w-titlebar-drag" />
+          <div className="w-titlebar-tools">
+            <button
+              type="button"
+              className="w-titlebar-tool"
+              aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
+              title={isDark ? t('app.theme.light') : t('app.theme.dark')}
+              onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            >
+              {isDark ? <WeatherSunnyRegular fontSize={15} /> : <WeatherMoonRegular fontSize={15} />}
+            </button>
+            <button
+              type="button"
+              className="w-titlebar-tool w-titlebar-tool--text"
+              aria-label={t('app.language')}
+              title={t('app.language')}
+              onClick={() => setLanguage(lang === 'zh' ? 'en' : 'zh')}
+            >
               {lang === 'zh' ? 'EN' : '中'}
             </button>
-            <button className="lp-btn lp-btn--primary lp-btn--sm" onClick={goRegister}>
+            <span className="w-sep--v" aria-hidden />
+            <button type="button" className="w-btn w-btn--subtle w-btn--sm" onClick={goLogin}>
+              {t('auth.tab.login')}
+            </button>
+            <button type="button" className="w-btn w-btn--accent w-btn--sm" onClick={goRegister}>
               {t('landing.nav.login')}
             </button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* ===== Hero：左 7 栏排版 + 右 5 栏产品截图 ===== */}
-      <div className="lp-container">
-        <section className="lp-hero">
-          <div className="lp-hero-copy">
-            <div className="lp-kicker">{t('landing.kicker')}</div>
-            {/* 固定两层 + lime 短语 nowrap：中文巨字绝不会把高亮断成单字块 */}
-            <h1
-              className="lp-display"
-              style={{
-                fontSize: 'clamp(40px, 5.2vw, 72px)',
-                wordBreak: 'keep-all',
-                overflowWrap: 'normal',
-              }}
-            >
-              <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{t('landing.hero.h1a')}</span>
-              <span style={{ display: 'block' }}>
-                <em style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>{t('landing.hero.h1em')}</em>
-                <span>{t('landing.hero.h1b')}</span>
-              </span>
-            </h1>
-            <p className="lp-lede">{t('landing.hero.sub')}</p>
-            <div className="lp-cta-row">
-              <button className="lp-btn lp-btn--primary" onClick={goRegister}>
-                {t('landing.hero.cta')}
-              </button>
-              <a className="lp-btn" href="/app/infodesk.apk" download="信息管理.apk">
-                {t('landing.hero.downloadApk')}
-              </a>
-            </div>
-            <div className="lp-hero-note">{t('landing.hero.trust')}</div>
-          </div>
-          <div className="lp-hero-visual">
-            <ProductShot />
-          </div>
-        </section>
-      </div>
-
-      {/* ===== lime marquee：两条同内容轨道，平移 -50% 无缝 ===== */}
-      <div className="lp-marquee" aria-hidden="true">
-        <div className="lp-marquee-track">
-          {[...marqueeItems, ...marqueeItems].map((item, i) => (
-            <span key={i}>{item}</span>
-          ))}
-        </div>
-      </div>
-
-      <main>
-        {/* ===== 功能：编号行排版（不用卡片网格） ===== */}
-        <section id="features" className="lp-section">
-          <div className="lp-container">
-            <div className="lp-section-head">
-              <span className="lp-index">01</span>
-              <h2 className="lp-h2">{t('landing.features.title')}</h2>
-              <p className="lp-lede-sm">{t('landing.features.sub')}</p>
-            </div>
-            {features.map((f, i) => (
-              <div key={f.title} className="lp-feature-row">
-                <span className="lp-index">{String(i + 1).padStart(2, '0')}</span>
-                <h3 className="lp-feature-title">{f.title}</h3>
-                <p className="lp-feature-body">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ===== 墨黑数据主权段（全页唯一深色断口） ===== */}
-        <section id="privacy" className="lp-deep">
-          <div className="lp-container">
-            <div className="lp-section-head">
-              <span className="lp-index">02</span>
-              <div>
-                <div className="lp-kicker">{t('landing.pov.eyebrow')}</div>
-                <h2 className="lp-h2">{t('landing.pov.title')}</h2>
-              </div>
-              <p className="lp-lede-sm">{t('landing.pov.body')}</p>
-            </div>
-            {povFacts.map((f, i) => (
-              <div key={f.title} className="lp-deep-row">
-                <span className="lp-deep-index">{String(i + 1).padStart(2, '0')}</span>
-                <span className="lp-deep-title">{f.title}</span>
-                <p className="lp-deep-body">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ===== FAQ ===== */}
-        <section id="faq" className="lp-section">
-          <div className="lp-container">
-            <div className="lp-faq">
-              <div className="lp-section-head">
-                <span className="lp-index">03</span>
-                <h2 className="lp-h2">{t('landing.faq.title')}</h2>
-                <p className="lp-lede-sm">{t('landing.faq.sub')}</p>
-              </div>
-              {faqs.map(([q, a], i) => (
-                <div key={q} className="lp-faq-item">
-                  <span className="lp-index">{String(i + 1).padStart(2, '0')}</span>
-                  <div>
-                    <h3 className="lp-faq-q">{q}</h3>
-                    <p className="lp-faq-a">{a}</p>
+        <div className="pub-frame-body">
+          <div className="pub-scroll" ref={scrollRef}>
+            <div className="w-page pub-landing">
+              {/* Hero：应用标识 + 一句话价值 + 主 CTA + 真实截图 */}
+              <section className="pub-app-hero">
+                <div className="pub-app-hero-copy">
+                  <div className="pub-app-identity">
+                    <AppIcon size={64} />
+                    <div className="pub-app-identity-main">
+                      <h1 className="pub-app-name">{t('app.brand')}</h1>
+                      <div className="pub-app-tags">
+                        <span className="w-tag w-tag--accent">{t('landing.marquee.local')}</span>
+                        <span className="w-tag">{t('landing.marquee.free')}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="pub-app-value">{t('landing.hero.sub')}</p>
+                  <div className="w-actions">
+                    <button type="button" className="w-btn w-btn--accent w-btn--lg" onClick={goRegister}>
+                      {t('landing.dark.cta')}
+                      <ArrowRightRegular fontSize={16} aria-hidden />
+                    </button>
+                    <button type="button" className="w-btn w-btn--lg" onClick={goLogin}>
+                      {t('auth.tab.login')}
+                    </button>
+                  </div>
+                  <div className="pub-app-meta">
+                    <span>{t('landing.hero.trust')}</span>
+                    <a className="pub-link pub-app-apk" href="/app/infodesk.apk" download="信息管理.apk">
+                      <ArrowDownloadRegular fontSize={14} aria-hidden />
+                      {t('landing.hero.downloadApk')}
+                    </a>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
+                <figure className="pub-shot">
+                  <div className="pub-shot-frame">
+                    <img src="/hero-table.png" alt={t('landing.shot.alt')} loading="eager" decoding="async" />
+                  </div>
+                  <figcaption className="pub-shot-cap">{t('landing.shot.caption')}</figcaption>
+                </figure>
+              </section>
 
-        {/* ===== 收尾：大标题 + lime CTA ===== */}
-        <section className="lp-section">
-          <div className="lp-container">
-            <div className="lp-close">
-              <div>
-                <h2 className="lp-close-title">{t('landing.dark.title')}</h2>
-                <p className="lp-close-sub">{t('landing.dark.sub')}</p>
-              </div>
-              <button className="lp-btn lp-btn--primary" onClick={goRegister}>
-                {t('landing.dark.cta')}
-              </button>
-            </div>
-          </div>
-        </section>
+              {/* 功能：3 张 Win11 设置卡 */}
+              <section id="features" className="pub-section" aria-labelledby="pub-features-title">
+                <header className="pub-section-head">
+                  <h2 id="pub-features-title" className="pub-section-title">
+                    {t('landing.features.title')}
+                  </h2>
+                  <p className="pub-section-desc">{t('landing.features.sub')}</p>
+                </header>
+                <div className="pub-feat-grid">
+                  {features.map((f) => {
+                    const Icon = f.icon
+                    return (
+                      <article key={f.title} className="w-card pub-feat">
+                        <span className="w-row-icon" aria-hidden>
+                          <Icon fontSize={18} />
+                        </span>
+                        <h3 className="pub-feat-title">{f.title}</h3>
+                        <p className="pub-feat-desc">{f.desc}</p>
+                      </article>
+                    )
+                  })}
+                </div>
+              </section>
 
-        {/* ===== 联系方式 ===== */}
-        <section id="contact" className="lp-contact">
-          <div className="lp-container">
-            <div className="lp-contact-grid">
-              <div>
-                <h2 className="lp-contact-title">{t('landing.contact.title')}</h2>
-                <p className="lp-lede-sm">{t('landing.contact.note')}</p>
-              </div>
-              <div>
-                <div className="lp-chip-row">
+              {/* 数据归你：设置行式说明 */}
+              <section id="privacy" className="pub-section" aria-labelledby="pub-own-title">
+                <div className="w-card pub-own">
+                  <div className="pub-own-head">
+                    <span className="pub-own-mark" aria-hidden>
+                      <ShieldCheckmarkRegular fontSize={22} />
+                    </span>
+                    <div className="w-head-main">
+                      <h2 id="pub-own-title" className="pub-section-title">
+                        {t('landing.pov.title')}
+                      </h2>
+                      <p className="pub-section-desc">{t('landing.pov.body')}</p>
+                    </div>
+                  </div>
+                  <div className="w-rows">
+                    {ownership.map((row) => {
+                      const Icon = row.icon
+                      return (
+                        <div key={row.title} className="w-row">
+                          <span className="w-row-icon w-row-icon--neutral" aria-hidden>
+                            <Icon fontSize={16} />
+                          </span>
+                          <span className="w-row-main">
+                            <span className="w-row-title">{row.title}</span>
+                            <span className="w-row-desc">{row.desc}</span>
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </section>
+
+              {/* FAQ：Win11 Expander */}
+              <section id="faq" className="pub-section" aria-labelledby="pub-faq-title">
+                <header className="pub-section-head">
+                  <h2 id="pub-faq-title" className="pub-section-title">
+                    {t('landing.faq.title')}
+                  </h2>
+                </header>
+                <div className="w-card pub-faq">
+                  {faqs.map(([q, a]) => (
+                    <details key={q} className="pub-expander">
+                      <summary className="pub-expander-head">
+                        <span className="pub-expander-title">{q}</span>
+                        <ChevronDownRegular fontSize={16} className="pub-expander-chev" aria-hidden />
+                      </summary>
+                      <div className="pub-expander-body">{a}</div>
+                    </details>
+                  ))}
+                </div>
+              </section>
+
+              {/* 收尾 CTA 卡 */}
+              <section className="pub-section">
+                <div className="w-card pub-cta">
+                  <div className="w-head-main">
+                    <h2 className="pub-section-title">{t('landing.dark.title')}</h2>
+                    <p className="pub-section-desc">{t('landing.dark.sub')}</p>
+                  </div>
+                  <button type="button" className="w-btn w-btn--accent w-btn--lg" onClick={goRegister}>
+                    {t('landing.dark.cta')}
+                  </button>
+                </div>
+              </section>
+
+              {/* 联系我们：邮箱复制 / 登录 / 帮助中心 */}
+              <section id="contact" className="pub-section" aria-labelledby="pub-contact-title">
+                <header className="pub-section-head">
+                  <h2 id="pub-contact-title" className="pub-section-title">
+                    {t('landing.contact.title')}
+                  </h2>
+                  <p className="pub-section-desc">{t('landing.contact.note')}</p>
+                </header>
+                <div className="w-card pub-contact">
                   {SITE.contactEmails.map((email) => (
                     <button
                       key={email}
-                      className="lp-chip"
-                      onClick={() => {
-                        navigator.clipboard.writeText(email)
-                        setCopiedEmail(email)
-                      }}
+                      type="button"
+                      className="w-row w-row--button"
+                      onClick={() => copyEmail(email)}
+                      aria-label={`${email} · ${t('landing.contact.copyHint')}`}
                     >
-                      {email}
-                      {copiedEmail === email ? ` · ${t('common.copied')}` : ` · ${t('landing.contact.copyHint')}`}
+                      <span className="w-row-icon w-row-icon--neutral" aria-hidden>
+                        <MailRegular fontSize={16} />
+                      </span>
+                      <span className="w-row-main">
+                        <span className="w-row-title">{email}</span>
+                        <span className="w-row-desc">
+                          {copiedEmail === email ? t('common.copied') : t('landing.contact.copyHint')}
+                        </span>
+                      </span>
+                      <span className="w-row-control" aria-hidden>
+                        {copiedEmail === email ? (
+                          <CheckmarkCircleRegular fontSize={16} />
+                        ) : (
+                          <CopyRegular fontSize={16} />
+                        )}
+                      </span>
                     </button>
                   ))}
-                </div>
-                <p style={{ margin: '12px 0 0' }}>
-                  <button className="lp-link" onClick={goLogin}>
-                    {t('landing.contact.hasAccount')}
+                  <button type="button" className="w-row w-row--button" onClick={goLogin}>
+                    <span className="w-row-icon w-row-icon--neutral" aria-hidden>
+                      <KeyRegular fontSize={16} />
+                    </span>
+                    <span className="w-row-main">
+                      <span className="w-row-title">{t('landing.contact.hasAccount')}</span>
+                    </span>
+                    <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
                   </button>
-                </p>
-              </div>
+                  <button type="button" className="w-row w-row--button" onClick={() => navigate('/help')}>
+                    <span className="w-row-icon w-row-icon--neutral" aria-hidden>
+                      <QuestionCircleRegular fontSize={16} />
+                    </span>
+                    <span className="w-row-main">
+                      <span className="w-row-title">{t('landing.nav.help')}</span>
+                    </span>
+                    <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
+                  </button>
+                </div>
+              </section>
+
+              {/* 低调页脚 */}
+              <footer className="pub-footer">
+                <div className="pub-footer-left">
+                  <AppIcon size={14} aria-hidden />
+                  <span>
+                    © {year} {t('app.brand')}
+                  </span>
+                  <span className="w-sep--v" aria-hidden />
+                  <span>
+                    {t('landing.footer.onePerson')} · {t('landing.footer.free')}
+                  </span>
+                  <span className="w-sep--v" aria-hidden />
+                  <span>aiim.de5.net</span>
+                </div>
+                <div className="pub-footer-right">
+                  <button type="button" className="pub-link" onClick={() => navigate('/help')}>
+                    {t('landing.nav.help')}
+                  </button>
+                  <span className="w-sep--v" aria-hidden />
+                  <SupportLink className="pub-link" />
+                  <span>{t('landing.footer.isolation')}</span>
+                </div>
+              </footer>
             </div>
           </div>
-        </section>
-      </main>
-
-      {/* ===== 墨黑页脚：巨大 lime wordmark + 责任行 ===== */}
-      <footer className="lp-footer">
-        <div className="lp-container">
-          <div className="lp-wordmark">{SITE.brand}</div>
-          <div className="lp-footer-row">
-            <span>
-              {t('landing.footer.onePerson')} · {t('landing.footer.free')} ·{' '}
-              <SupportLink style={{ color: 'inherit' }} />
-            </span>
-            <span>{t('landing.footer.isolation')}</span>
-          </div>
-          <div className="lp-footer-row" style={{ marginTop: 8 }}>
-            <span>
-              © {new Date().getFullYear()} {SITE.brand} · aiim.de5.net
-            </span>
-            <span>{SITE.contactEmails[0]}</span>
-          </div>
         </div>
-      </footer>
+      </div>
     </div>
   )
 }
