@@ -50,7 +50,6 @@ import { gatherInsights, itemDisplayName, type InsightData } from '@/utils/insig
 import { getProvider } from '@/db/providerFactory'
 import type { Library } from '@/types'
 import { useI18n } from '@/i18n'
-import TemplateCenter from './TemplateCenter'
 
 interface RecentEntry {
   key: string
@@ -135,7 +134,6 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
-  const [tplOpen, setTplOpen] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -291,7 +289,6 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
             <Text size={300} className="w-muted">{t('home.start.emptyBody')}</Text>
             <div className="w-actions">
               <Button appearance="primary" onClick={onCreate}>{t('home.createFirst')}</Button>
-              <Button appearance="secondary" onClick={() => setTplOpen(true)}>{t('tpl.center.entry')}</Button>
             </div>
           </Card>
         ) : (
@@ -328,7 +325,7 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
                     </span>
                   }
                   header={<Text weight="semibold" size={300}>{t('home.start.pinAdd')}</Text>}
-                  description={<Text size={200} className="w-faint">{t('tpl.center.entry')}</Text>}
+                  description={<Text size={200} className="w-faint">{t('home.start.blankLibHint')}</Text>}
                 />
               </Card>
             </button>
@@ -486,11 +483,6 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
                 </span>
                 <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
               </button>
-              <button type="button" className="w-row w-row--button" onClick={() => setTplOpen(true)}>
-                <span className="w-row-icon w-row-icon--neutral" aria-hidden><LibraryRegular fontSize={16} /></span>
-                <span className="w-row-main"><Text size={300} className="w-row-title">{t('tpl.center.entry')}</Text></span>
-                <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
-              </button>
               <button type="button" className="w-row w-row--button" onClick={() => navigate('/trash')}>
                 <span className="w-row-icon w-row-icon--neutral" aria-hidden><DeleteRegular fontSize={16} /></span>
                 <span className="w-row-main"><Text size={300} className="w-row-title">{t('app.trash')}</Text></span>
@@ -506,7 +498,6 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
         </div>
       </div>
 
-      <TemplateCenter open={tplOpen} onClose={() => setTplOpen(false)} />
     </div>
   )
 }

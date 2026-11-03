@@ -249,7 +249,7 @@ const LOCAL = {
   'editor.deleteItem': { zh: '删除条目', en: 'Delete item' },
   'editor.updatedAt': { zh: '最后修改', en: 'Last modified' },
 
-  /* 字段模板编辑器 */
+  /* 字段设置编辑器 */
   'tpl.dragHint': { zh: '拖动左侧手柄调整字段顺序', en: 'Drag the handle to reorder fields' },
   'tpl.name': { zh: '字段名', en: 'Field name' },
   'tpl.type': { zh: '类型', en: 'Type' },

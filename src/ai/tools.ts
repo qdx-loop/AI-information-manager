@@ -6,7 +6,7 @@ export const ITEM_ACTION_TOOL = {
   function: {
     name: 'execute_item_action',
     description:
-      '对管理库条目执行新增、修改或删除操作。调用前请确保已了解目标管理库的字段模板。所有操作会经用户确认后执行。',
+      '对管理库条目执行新增、修改或删除操作。调用前请确保已了解目标管理库的字段。所有操作会经用户确认后执行。',
     parameters: {
       type: 'object',
       properties: {
@@ -19,7 +19,7 @@ export const ITEM_ACTION_TOOL = {
         itemId: { type: 'string', description: 'update/delete 时必填，目标条目 ID' },
         fields: {
           type: 'object',
-          description: 'create/update 时必填，字段键值对。必须使用字段模板中的 key（括号中的英文名），不要使用 label（中文显示名）',
+          description: 'create/update 时必填，字段键值对。必须使用字段中的 key（括号中的英文名），不要使用 label（中文显示名）',
           additionalProperties: true,
         },
         reason: { type: 'string', description: '执行该操作的理由（展示给用户）' },
@@ -94,7 +94,7 @@ export const LIST_LIBRARIES_TOOL = {
   function: {
     name: 'list_libraries',
     description:
-      '列出全部管理库的名称、ID、分类、字段模板与条目数。当不确定数据在哪、或需要跨库操作时先调用它。',
+      '列出全部管理库的名称、ID、分类、字段与条目数。当不确定数据在哪、或需要跨库操作时先调用它。',
     parameters: { type: 'object', properties: {} },
   },
 }
@@ -216,13 +216,13 @@ export const LIBRARY_ACTION_TOOL = {
   },
 }
 
-// 字段模板操作工具：新增/修改/删除字段
+// 字段操作工具：新增/修改/删除字段
 export const TEMPLATE_ACTION_TOOL = {
   type: 'function' as const,
   function: {
     name: 'execute_template_action',
     description:
-      '对管理库的字段模板执行新增、修改或删除字段操作。例如添加「性别」下拉字段、修改字段类型等。所有操作会经用户确认后执行。',
+      '对管理库的字段执行新增、修改或删除字段操作。例如添加「性别」下拉字段、修改字段类型等。所有操作会经用户确认后执行。',
     parameters: {
       type: 'object',
       properties: {
@@ -351,7 +351,7 @@ export function parseLibraryAction(args: unknown): LibraryAction | null {
   }
 }
 
-// —————— 字段模板操作 ——————
+// —————— 字段操作 ——————
 
 export interface TemplateAction {
   action: 'addField' | 'updateField' | 'deleteField'

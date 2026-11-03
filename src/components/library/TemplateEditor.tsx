@@ -43,7 +43,7 @@ interface Props {
 }
 
 /**
- * 字段模板编辑器（v10 Fluent Dialog · 设置式列表）。
+ * 字段设置编辑器（v10 Fluent Dialog · 设置式列表）。
  *
  * 一行一个字段（行高 44、仅底边 1px 分割线），拖拽只给行位移 + 2px 强调插入线。
  * 逻辑（校验 label 唯一、key 唯一、sortOrder 重排、保存）与原来完全一致。

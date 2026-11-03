@@ -118,9 +118,6 @@ function useSidebarState(onNavigate?: () => void) {
     onNavigate?.()
   }
 
-  const [creatingChildOf, setCreatingChildOf] = useState<Library | null>(null)
-  const handleNewChild = (parent: Library) => setCreatingChildOf(parent)
-
   const handleRename = (lib: Library) => {
     let name = lib.name
     modal.confirm({
@@ -242,9 +239,6 @@ function useSidebarState(onNavigate?: () => void) {
     const idx = libraries.findIndex((l) => l.id === lib.id)
     return (
       <MenuList>
-        <MenuItem icon={<AddRegular />} onClick={() => handleNewChild(lib)}>
-          {t('app.newChild')}
-        </MenuItem>
         <MenuItem icon={<EditRegular />} onClick={() => handleRename(lib)}>
           {t('common.rename')}
         </MenuItem>
@@ -272,7 +266,7 @@ function useSidebarState(onNavigate?: () => void) {
 
   return {
     account, selectedKey, handleClick, handleLogout, loggingOut,
-    creatingLib, setCreatingLib, creatingChildOf, setCreatingChildOf,
+    creatingLib, setCreatingLib,
     grouped, childrenOf, renderLibActions, libraries, reorderLibraries,
   }
 }
@@ -532,11 +526,6 @@ function SidebarBody({
       </div>
 
       <CreateLibraryDialog open={state.creatingLib} onClose={() => state.setCreatingLib(false)} />
-      <CreateLibraryDialog
-        open={state.creatingChildOf !== null}
-        defaultParentId={state.creatingChildOf?.id ?? null}
-        onClose={() => state.setCreatingChildOf(null)}
-      />
     </>
   )
 }
