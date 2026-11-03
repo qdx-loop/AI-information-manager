@@ -262,14 +262,6 @@ const LOCAL = {
     en: 'No fields yet. Add the columns you want to record, save, then start entering items.',
   },
 
-  /* 模板中心 */
-  'center.choose': { zh: '选择模板', en: 'Choose a template' },
-  'center.preview': { zh: '模板预览', en: 'Template preview' },
-  'center.fieldsCount': { zh: '{n} 个字段', en: '{n} fields' },
-  'center.loading': { zh: '正在创建管理库…', en: 'Creating library…' },
-  'center.create': { zh: '用此模板新建', en: 'Create with this template' },
-  'center.newName': { zh: '管理库名称', en: 'Library name' },
-
   /* 导入 / 导出 */
   'import.step': { zh: '第 {n} 步，共 3 步', en: 'Step {n} of 3' },
   'import.choose': { zh: '选择文件', en: 'Choose file' },
