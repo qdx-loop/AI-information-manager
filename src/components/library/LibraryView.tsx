@@ -17,6 +17,7 @@ import {
   BreadcrumbItem,
   Button,
   Dropdown,
+  Field,
   Input,
   Menu,
   MenuItem,
@@ -35,6 +36,7 @@ import {
 } from '@fluentui/react-components'
 import {
   AddRegular,
+  CopyRegular,
   ArrowClockwiseRegular,
   ArrowExportUpRegular,
   ArrowImportRegular,
@@ -65,7 +67,7 @@ import { track } from '@/utils/track'
 import { useBackButtonLayer } from '@/utils/backButton'
 import { isBlankFieldValue } from '@/utils/fieldValue'
 import EmptyPanel from './EmptyPanel'
-import { LibConfirm, useLibText } from './labels'
+import { LibConfirm, LibDialog, useLibText } from './labels'
 
 /**
  * 库页工作区（v10 · Fluent UI 2 / Windows 11 应用）。
@@ -101,6 +103,7 @@ export default function LibraryView() {
     deleteItem,
     pinItem,
     saveTemplate,
+    cloneTemplate,
   } = useLibraryStore()
   const t = useI18n()
 
@@ -114,6 +117,8 @@ export default function LibraryView() {
   const [editing, setEditing] = useState<Item | null>(null)
   const [templateOpen, setTemplateOpen] = useState(false)
   const [childOpen, setChildOpen] = useState(false)
+  const [cloneOpen, setCloneOpen] = useState(false)
+  const [cloneTargets, setCloneTargets] = useState<string[]>([])
   const [keywordInput, setKeywordInput] = useState('')
   const keyword = useDebounced(keywordInput, 250)
   const [filterField, setFilterField] = useState<string>('')
@@ -348,6 +353,28 @@ export default function LibraryView() {
     if (rows.length > 0) track('items_imported', { count: rows.length })
   }
 
+  // 字段模板复用：把当前库模板复制到其他库
+  const cloneTargetsOptions = libraries.filter((l) => l.id !== id)
+  const handleClone = () => {
+    if (cloneTargetsOptions.length === 0) {
+      message.info(t('lib.clone.none'))
+      return
+    }
+    setCloneTargets([])
+    setCloneOpen(true)
+  }
+  const confirmClone = async () => {
+    if (!cloneTargets.length) {
+      message.warning(t('lib.clone.pickRequired'))
+      return
+    }
+    for (const tid of cloneTargets) {
+      await cloneTemplate(id!, tid)
+    }
+    setCloneOpen(false)
+    message.success(t('lib.clone.done', { n: cloneTargets.length }))
+  }
+
   /* —— 筛选 / 排序下拉 —— */
   const filterFieldLabel =
     visibleFields.find((f) => f.key === filterField)?.label ?? lt('filter.all')
@@ -357,6 +384,7 @@ export default function LibraryView() {
 
   useBackButtonLayer(editorOpen, () => setEditorOpen(false))
   useBackButtonLayer(templateOpen, () => setTemplateOpen(false))
+  useBackButtonLayer(cloneOpen, () => setCloneOpen(false))
 
   /* ────────────── 加载中：Fluent Skeleton，布局贴近最终状态 ────────────── */
   if (loading) {
@@ -462,7 +490,15 @@ export default function LibraryView() {
           icon={<SettingsRegular />}
           onClick={() => setTemplateOpen(true)}
         >
-          {t('lib.fields')}
+          {t('lib.template')}
+        </ToolbarButton>
+        <ToolbarButton
+          className="lib-cmdbar-optional"
+          icon={<CopyRegular />}
+          disabled={fields.length === 0}
+          onClick={handleClone}
+        >
+          {t('lib.clone')}
         </ToolbarButton>
         <ToolbarButton
           className="lib-cmdbar-optional"
@@ -479,7 +515,10 @@ export default function LibraryView() {
           <MenuPopover>
             <MenuList>
               <MenuItem icon={<SettingsRegular />} onClick={() => setTemplateOpen(true)}>
-                {t('lib.menu.fields')}
+                {t('lib.menu.template')}
+              </MenuItem>
+              <MenuItem icon={<CopyRegular />} disabled={fields.length === 0} onClick={handleClone}>
+                {t('lib.menu.clone')}
               </MenuItem>
               <MenuItem icon={<FolderAddRegular />} onClick={() => setChildOpen(true)}>
                 {t('app.newChild')}
@@ -766,7 +805,48 @@ export default function LibraryView() {
 
       <CreateLibraryDialog open={childOpen} defaultParentId={id ?? null} onClose={() => setChildOpen(false)} />
 
-      {/* 未配置字段时的提示（替代旧版 modal.warning） */}
+      {/* 字段模板复用（Fluent Dialog · 多选目标库） */}
+      <LibDialog
+        open={cloneOpen}
+        onClose={() => setCloneOpen(false)}
+        title={t('lib.clone.modalTitle')}
+        width="min(480px, calc(100vw - 32px))"
+        actions={
+          <div className="lib-dialog-footer">
+            <span className="lib-dialog-footer-spacer" />
+            <Button appearance="secondary" onClick={() => setCloneOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button appearance="primary" onClick={confirmClone}>
+              {t('common.confirm')}
+            </Button>
+          </div>
+        }
+      >
+        <Text size={200} className="lib-dialog-sub">
+          {t('lib.clone.pick')}
+        </Text>
+        <Field>
+          <Dropdown
+            multiselect
+            value={cloneTargets
+              .map((tid) => cloneTargetsOptions.find((l) => l.id === tid)?.name ?? '')
+              .filter(Boolean)
+              .join(', ')}
+            selectedOptions={cloneTargets}
+            placeholder={t('lib.clone.placeholder')}
+            onOptionSelect={(_, data) => setCloneTargets(data.selectedOptions)}
+          >
+            {cloneTargetsOptions.map((l) => (
+              <Option key={l.id} value={l.id} text={l.name}>
+                {l.name}
+              </Option>
+            ))}
+          </Dropdown>
+        </Field>
+      </LibDialog>
+
+      {/* 未配置字段模板时的提示（替代旧版 modal.warning） */}
       <LibConfirm
         open={needTemplate}
         title={t('lib.needTemplate.title')}

@@ -172,7 +172,7 @@ const zh: Dict = {
   'home.create.nameLabel': '管理库名称',
   'home.create.placeholder': '管理库名称，如：联系人管理',
   'home.create.ok': '创建',
-  'home.create.done': '已创建「{name}」，下一步请在库页添加字段',
+  'home.create.done': '已创建「{name}」，下一步请配置字段模板',
   'home.create.failed': '创建失败：{msg}',
   'home.lib.untitled': '未命名管理库',
 
@@ -926,7 +926,7 @@ const en: Dict = {
   'home.create.modalTitle': 'New library',
   'home.create.placeholder': 'Library name, e.g. Contacts',
   'home.create.ok': 'Create',
-  'home.create.done': '"{name}" created. Next: add fields in the library page',
+  'home.create.done': '"{name}" created. Next: configure its field template',
   'home.create.failed': 'Creation failed: {msg}',
   'home.lib.untitled': 'Untitled library',
 
@@ -1814,6 +1814,55 @@ Object.assign(en, {
   'lib.fields': 'Fields',
   'lib.menu.fields': 'Field settings',
   'home.start.blankLibHint': 'Blank library · add fields after',
+})
+
+
+// —— v11.1 · 恢复「字段模板」功能（保留普通字段模板/复用），仅移除行业模板数据 ——
+Object.assign(zh, {
+  'lib.template': '模板',
+  'lib.menu.template': '字段模板',
+  'lib.clone': '复用',
+  'lib.menu.clone': '复用到其他库',
+  'lib.clone.modalTitle': '复用字段模板到',
+  'lib.clone.pick': '选择目标管理库（可多选）：',
+  'lib.clone.placeholder': '选择目标管理库',
+  'lib.clone.none': '没有其他管理库可复用',
+  'lib.clone.pickRequired': '请选择目标',
+  'lib.clone.done': '已复用到 {n} 个管理库',
+  'lib.tpl.modalTitle': '字段模板配置',
+  'lib.tpl.saved': '模板已保存',
+  'lib.needTemplate.title': '请先配置字段模板',
+  'lib.needTemplate.content': '当前管理库还没有字段模板，无法新建条目。请先添加至少一个字段（如姓名、编号等）。',
+  'lib.needTemplate.go': '去配置',
+  'lib.editor.noFields': '当前管理库尚未配置字段，请先在「字段模板」中添加字段。',
+  'ai.step.tplAction': '模板 {action}（已确认）',
+  'ai.step.tplCancelled': '字段模板操作 → 用户取消',
+  'settings.storage.done.pull': '合并完成：新增管理库 {libs} 个、字段模板 {fields} 个、条目 {items} 条；更新条目 {updated} 条',
+  'settings.backup.info.body': '导出全部管理库、字段模板、条目为 JSON 文件——不依赖云端数据库，可作为不开云端时的手动「换机同步」方式。恢复时将覆盖本机当前账户数据。',
+  'home.start.blankLibHint': '空白库 · 建好后配置字段模板',
+})
+Object.assign(en, {
+  'lib.template': 'Template',
+  'lib.menu.template': 'Field template',
+  'lib.clone': 'Reuse',
+  'lib.menu.clone': 'Reuse in another library',
+  'lib.clone.modalTitle': 'Reuse template in…',
+  'lib.clone.pick': 'Pick target libraries (multi-select):',
+  'lib.clone.placeholder': 'Select target libraries',
+  'lib.clone.none': 'No other libraries to reuse into',
+  'lib.clone.pickRequired': 'Please pick a target',
+  'lib.clone.done': 'Reused into {n} libraries',
+  'lib.tpl.modalTitle': 'Field template',
+  'lib.tpl.saved': 'Template saved',
+  'lib.needTemplate.title': 'Set up a field template first',
+  'lib.needTemplate.content': 'This library has no fields yet, so items cannot be created. Add at least one field (e.g. Name).',
+  'lib.needTemplate.go': 'Configure',
+  'lib.editor.noFields': 'No fields configured yet. Add fields in the field template first.',
+  'ai.step.tplAction': 'Template {action} (confirmed)',
+  'ai.step.tplCancelled': 'Template action → cancelled',
+  'settings.storage.done.pull': 'Merged: +{libs} libraries, +{fields} templates, +{items} items, {updated} updated',
+  'settings.backup.info.body': 'Exports all libraries, field templates and items as JSON — works without any cloud database, doubling as manual device-to-device transfer. Restore overwrites current local data.',
+  'home.start.blankLibHint': 'Blank library · configure its field template after',
 })
 
 DICTS.en = en
