@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, Fragment } from 'react'
 
 // 输入防抖：大数据量下每键击全量过滤会卡顿
 function useDebounced<T>(value: T, delay = 250): T {
@@ -10,31 +10,50 @@ function useDebounced<T>(value: T, delay = 250): T {
   return debounced
 }
 import { useParams, useNavigate } from 'react-router-dom'
-import { Select, App, Modal, Dropdown } from 'antd'
-import type { MenuProps } from 'antd'
+import {
+  Breadcrumb,
+  BreadcrumbButton,
+  BreadcrumbDivider,
+  BreadcrumbItem,
+  Button,
+  Dropdown,
+  Input,
+  Field,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
+  Option,
+  SearchBox,
+  Skeleton,
+  SkeletonItem,
+  Text,
+  Toolbar,
+  ToolbarButton,
+  ToolbarDivider,
+  Tooltip,
+} from '@fluentui/react-components'
 import {
   AddRegular,
-  ArrowImportRegular,
-  ArrowExportUpRegular,
-  ArrowLeftRegular,
-  ArrowUpRegular,
   ArrowClockwiseRegular,
-  SearchRegular,
-  DismissRegular,
-  FilterRegular,
-  ArrowSortRegular,
-  ArrowSortUpRegular,
+  ArrowExportUpRegular,
+  ArrowImportRegular,
+  ArrowLeftRegular,
   ArrowSortDownRegular,
-  MoreHorizontalRegular,
-  SettingsRegular,
+  ArrowSortUpRegular,
+  ArrowUpRegular,
   CopyRegular,
-  HomeRegular,
-  ChevronRightRegular,
-  ChevronDownRegular,
+  DismissRegular,
   FolderRegular,
+  HomeRegular,
+  MoreHorizontalRegular,
+  SearchRegular,
+  SettingsRegular,
   TableRegular,
   WarningRegular,
 } from '@fluentui/react-icons'
+import { App } from 'antd'
 import { useLibraryStore } from '@/store/libraryStore'
 import LibraryTable from './LibraryTable'
 import ItemEditor from './ItemEditor'
@@ -43,28 +62,27 @@ import ImportExport, { type ImportExportHandle } from './ImportExport'
 import type { Item, FieldValue, Library } from '@/types'
 import { useI18n, tNow } from '@/i18n'
 import { track } from '@/utils/track'
-
 import { useBackButtonLayer } from '@/utils/backButton'
 import { isBlankFieldValue } from '@/utils/fieldValue'
 import EmptyPanel from './EmptyPanel'
-import { useLibText } from './labels'
+import { LibConfirm, LibDialog, useLibText } from './labels'
 
 /**
- * 库页工作区（v9 · Windows 11 文件资源管理器）。
+ * 库页工作区（v10 · Fluent UI 2 / Windows 11 应用）。
  *
- * 结构：
- *   命令栏（44）：新建条目 / 导入 / 导出 / 模板 / 复用 / 更多
- *   地址条（32）：后退 · 上一级 · 刷新 · 首页 > 父库 > 当前库
- *   筛选行：搜索 + 字段筛选 + 排序 + 清除
- *   表格 / 空态：文件资源管理器式详细信息视图（移动端单列卡片）
- *   状态栏：共 N 项 · 已选 N 项 · 每页条数 · 分页
+ * 结构（资源管理器式信息架构，但全部是 Fluent 组件）：
+ *   Toolbar（新建条目/导入/导出/模板/复用/更多）
+ *   Breadcrumb 路径行（后退/上一级/刷新 + 首页 > 父库 > 当前库）
+ *   筛选行（SearchBox + 字段 Dropdown + 排序 Dropdown）
+ *   表格 / 空态（Fluent token 渲染的详细信息视图；移动端 Card 列表）
+ *   状态栏（共 N 项 · 已选 N 项 · 每页条数 · 分页）
  *
  * 业务逻辑与原实现完全一致：搜索/筛选/排序、内联编辑必填校验、导入进度反馈、
- * 模板复用、库不存在时的只读兜底、所有对话框的返回键层级与隐藏 ImportExport 实例。
+ * 模板复用、库不存在时的只读兜底、对话框返回键层级与隐藏 ImportExport 实例。
  */
 export default function LibraryView() {
   const { id } = useParams()
-  const { message, modal } = App.useApp()
+  const { message } = App.useApp()
   const ioRef = useRef<ImportExportHandle>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const lt = useLibText()
@@ -105,18 +123,20 @@ export default function LibraryView() {
   const [sortField, setSortField] = useState<string>('')
   const navigate = useNavigate()
   const [sortDesc, setSortDesc] = useState(false)
+  const [needTemplate, setNeedTemplate] = useState(false)
+  const [deleteTargets, setDeleteTargets] = useState<Item[] | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const lib = libraries.find((l) => l.id === id)
   /**
    * 库不存在 / 已被删除（含 AI 删除当前库后没有导航的情况）。
    *
-   * 必须同时满足「已经加载过库列表」才谈得上不存在，
-   * 否则冷启动第一帧 libraries 还是空的，会闪出假报错。
-   * 这种情况下页面不接受任何写入操作，只给「回到首页 / 去回收站」两个出口。
+   * 必须同时满足「已经加载过库列表」才谈得上不存在，否则冷启动第一帧
+   * libraries 还是空的，会闪出假报错。这种情况下页面不接受任何写入操作。
    */
   const libMissing = libsReady && !loading && !lib
 
-  // 搜索 + 筛选 + 排序（逻辑与原实现一致，只换了排序入口：列头 / 排序菜单共用 handleToggleSort）
+  // 搜索 + 筛选 + 排序（逻辑与原实现一致；列头点击 / 排序菜单共用 handleToggleSort）
   const processed = useMemo(() => {
     let list = [...items]
     if (keyword.trim()) {
@@ -179,7 +199,7 @@ export default function LibraryView() {
     refreshCurrent().catch((e) => message.error(tNow('app.loadLibFailed', { msg: (e as Error).message })))
   }
 
-  /** Ctrl/⌘ + F：聚焦搜索框（文件资源管理器的搜索快捷键） */
+  /** Ctrl/⌘ + F：聚焦搜索框 */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
@@ -192,7 +212,7 @@ export default function LibraryView() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  /** 地址条：父库链路（首页 > … > 当前库） */
+  /** 路径行：父库链路（首页 > … > 当前库） */
   const ancestors = useMemo(() => {
     const out: Library[] = []
     if (!lib) return out
@@ -212,13 +232,7 @@ export default function LibraryView() {
 
   const handleNew = () => {
     if (fields.length === 0) {
-      modal.warning({
-        icon: null,
-        title: t('lib.needTemplate.title'),
-        content: t('lib.needTemplate.content'),
-        okText: t('lib.needTemplate.go'),
-        onOk: () => setTemplateOpen(true),
-      })
+      setNeedTemplate(true)
       return
     }
     setEditing(null)
@@ -245,51 +259,35 @@ export default function LibraryView() {
     setEditing(null)
   }
 
-  const handleDelete = (item: Item) => {
-    modal.confirm({
-      icon: null,
-      title: t('lib.del.title'),
-      content: t('lib.del.content'),
-      okText: t('lib.del.ok'),
-      okButtonProps: { danger: true },
-      cancelText: t('common.cancel'),
-      onOk: async () => {
-        try {
-          await deleteItem(item.id)
-          message.success(t('lib.del.done'))
-        } catch (e) {
-          // 失败时要说清原因，否则用户看到的就是「点了没反应」
-          message.error(t('lib.del.failed', { msg: (e as Error).message }))
-          throw e // 让弹窗保持打开状态
-        }
-      },
-    })
-  }
-
-  /** 批量删除：同样的二次确认与失败处理，只是逐条串行删除（沿用既有 deleteItem） */
+  const handleDelete = (item: Item) => setDeleteTargets([item])
   const handleBatchDelete = (targets: Item[]) => {
     if (targets.length === 0) return
-    modal.confirm({
-      icon: null,
-      title: lt('sel.deleteTitle', { n: targets.length }),
-      content: lt('sel.deleteBody'),
-      okText: t('lib.del.ok'),
-      okButtonProps: { danger: true },
-      cancelText: t('common.cancel'),
-      onOk: async () => {
-        let done = 0
-        try {
-          for (const it of targets) {
-            await deleteItem(it.id)
-            done++
-          }
-          message.success(lt('sel.deleted', { n: done }))
-        } catch (e) {
-          message.error(lt('sel.deletedFailed', { msg: (e as Error).message }))
-          throw e
-        }
-      },
-    })
+    setDeleteTargets(targets)
+  }
+
+  /** 单条 / 批量删除共用同一条确认与失败处理（逐条串行调用既有 deleteItem） */
+  const confirmDelete = async () => {
+    if (!deleteTargets || deleting) return
+    setDeleting(true)
+    let done = 0
+    try {
+      for (const it of deleteTargets) {
+        await deleteItem(it.id)
+        done++
+      }
+      message.success(
+        deleteTargets.length === 1 ? t('lib.del.done') : lt('sel.deleted', { n: done }),
+      )
+      setDeleteTargets(null)
+    } catch (e) {
+      message.error(
+        deleteTargets.length === 1
+          ? t('lib.del.failed', { msg: (e as Error).message })
+          : lt('sel.deletedFailed', { msg: (e as Error).message }),
+      )
+    } finally {
+      setDeleting(false)
+    }
   }
 
   /** 批量置顶 / 取消置顶（沿用既有 pinItem） */
@@ -309,8 +307,7 @@ export default function LibraryView() {
    * 表格内联编辑落库。
    *
    * 刻意不弹成功 toast：连续录入时 toast 会盖住正在编辑的单元格。
-   * 但必填校验不能省：条目弹窗里有 required 规则，而这条内联路径直接落库，
-   * 于是同一份数据有两个入口两套规则 —— 表格里能把必填字段清空并保存。
+   * 但必填校验不能省：弹窗里有 required 规则，而这条内联路径直接落库。
    */
   const handlePatch = async (item: Item, nextFields: Item['fields']) => {
     const missing = fields.filter((f) => f.required && isBlankFieldValue(nextFields[f.key]))
@@ -326,7 +323,6 @@ export default function LibraryView() {
   const handleImport = async (rows: Record<string, FieldValue>[]) => {
     if (rows.length === 0) return
     // 大批量导入是「点了没反应」的重灾区：串行写入且毫无反馈。
-    // 用 message 报进度，中途失败要说清已经导了多少。
     const key = 'lib.import.progress'
     let done = 0
     message.loading({ content: t('lib.import.progress', { n: 0, total: rows.length }), key, duration: 0 })
@@ -376,84 +372,41 @@ export default function LibraryView() {
     message.success(t('lib.clone.done', { n: cloneTargets.length }))
   }
 
-  /* —— 命令栏菜单 —— */
-  const exportMenu: MenuProps = {
-    items: [
-      { key: 'csv', label: t('lib.importExport.exportCsv') },
-      { key: 'excel', label: t('lib.importExport.exportExcel') },
-    ],
-    onClick: ({ key }) => ioRef.current?.exportAs(key as 'csv' | 'excel'),
-  }
-
-  // 更多菜单：窄屏与桌面都可用（桌面命令栏也有对应按钮，二者共用 ioRef）
-  const moreMenu: MenuProps = {
-    items: [
-      { key: 'tpl', icon: <SettingsRegular fontSize={16} />, label: t('lib.menu.template'), onClick: () => setTemplateOpen(true) },
-      { key: 'clone', icon: <CopyRegular fontSize={16} />, label: t('lib.menu.clone'), disabled: fields.length === 0, onClick: handleClone },
-      { type: 'divider' },
-      { key: 'imp', icon: <ArrowImportRegular fontSize={16} />, label: t('lib.menu.import'), onClick: () => ioRef.current?.openImport() },
-      { key: 'csv', label: t('lib.menu.exportCsv'), onClick: () => ioRef.current?.exportAs('csv') },
-      { key: 'xls', label: t('lib.menu.exportExcel'), onClick: () => ioRef.current?.exportAs('excel') },
-    ],
-  }
-
-  /* —— 筛选 / 排序菜单 —— */
-  const filterFieldMenu: MenuProps = {
-    items: [
-      { key: '__all', label: lt('filter.all') },
-      { type: 'divider' },
-      ...visibleFields.map((f) => ({ key: f.key, label: f.label })),
-    ],
-    selectable: true,
-    selectedKeys: [filterField || '__all'],
-    onClick: ({ key }) => {
-      setFilterField(key === '__all' ? '' : key)
-      setFilterValue('')
-    },
-  }
-
-  const sortMenu: MenuProps = {
-    items: [
-      { key: '__none', label: lt('sort.none') },
-      { type: 'divider' },
-      ...visibleFields.map((f) => ({ key: f.key, label: f.label })),
-    ],
-    selectable: true,
-    selectedKeys: [sortField || '__none'],
-    onClick: ({ key }) => {
-      if (key === '__none') {
-        setSortField('')
-        return
-      }
-      setSortField(key)
-      setSortDesc(false)
-    },
-  }
+  /* —— 筛选 / 排序下拉 —— */
+  const filterFieldLabel =
+    visibleFields.find((f) => f.key === filterField)?.label ?? lt('filter.all')
+  const sortLabel = sortField
+    ? visibleFields.find((f) => f.key === sortField)?.label ?? lt('sort.placeholder')
+    : lt('sort.placeholder')
 
   useBackButtonLayer(editorOpen, () => setEditorOpen(false))
   useBackButtonLayer(templateOpen, () => setTemplateOpen(false))
   useBackButtonLayer(cloneOpen, () => setCloneOpen(false))
 
-  /* ────────────── 加载中：贴近最终布局的骨架，加载完成不位移 ────────────── */
+  /* ────────────── 加载中：Fluent Skeleton，布局贴近最终状态 ────────────── */
   if (loading) {
     return (
       <div className="lib-page" aria-busy="true" aria-live="polite">
-        <div className="lib-skeleton">
-          <div className="lib-skeleton-cmd">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <span key={i} className="w-skeleton lib-skeleton-bar" style={{ width: i === 0 ? 120 : 88 }} />
-            ))}
-          </div>
-          <div className="lib-skeleton-rows">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div className="lib-skeleton-row" key={i}>
-                <span className="w-skeleton lib-skeleton-cell lib-skeleton-cell--sm" />
-                <span className="w-skeleton lib-skeleton-cell lib-skeleton-cell--name" />
-                <span className="w-skeleton lib-skeleton-cell lib-skeleton-cell--md" />
-                <span className="w-skeleton lib-skeleton-cell lib-skeleton-cell--grow" />
-                <span className="w-skeleton lib-skeleton-cell lib-skeleton-cell--md" />
+        <div className="lib-toolbar">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonItem key={i} size={16} shape="rectangle" style={{ width: i === 0 ? 96 : 72, height: 24 }} />
+          ))}
+        </div>
+        <div className="lib-content">
+          <div className="lib-card" style={{ padding: 16 }}>
+            <Skeleton>
+              <div className="lib-skeleton">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div className="lib-skeleton-row" key={i}>
+                    <SkeletonItem size={16} shape="square" />
+                    <SkeletonItem size={16} shape="rectangle" style={{ width: 140 }} />
+                    <SkeletonItem size={16} shape="rectangle" style={{ width: 90 }} />
+                    <SkeletonItem size={16} shape="rectangle" style={{ flex: 1 }} />
+                    <SkeletonItem size={16} shape="rectangle" style={{ width: 90 }} />
+                  </div>
+                ))}
               </div>
-            ))}
+            </Skeleton>
           </div>
         </div>
       </div>
@@ -464,29 +417,32 @@ export default function LibraryView() {
   if (libMissing) {
     return (
       <div className="lib-page">
-        <div className="lib-addrbar">
-          <nav className="w-bcrumb" aria-label={t('app.home')}>
-            <button type="button" className="w-bcrumb-item" onClick={() => navigate('/')}>
-              <HomeRegular />
-              {t('app.home')}
-            </button>
-          </nav>
+        <div className="lib-pathrow">
+          <Breadcrumb aria-label={t('app.home')}>
+            <BreadcrumbItem>
+              <BreadcrumbButton icon={<HomeRegular />} onClick={() => navigate('/')}>
+                {t('app.home')}
+              </BreadcrumbButton>
+            </BreadcrumbItem>
+          </Breadcrumb>
         </div>
-        <EmptyPanel
-          icon={<WarningRegular />}
-          title={t('lib.missing.title')}
-          body={t('lib.missing.body')}
-          action={
-            <>
-              <button type="button" className="w-btn w-btn--accent" onClick={() => navigate('/')}>
-                {t('lib.missing.backHome')}
-              </button>
-              <button type="button" className="w-btn" onClick={() => navigate('/trash')}>
-                {t('lib.missing.toTrash')}
-              </button>
-            </>
-          }
-        />
+        <div className="lib-content">
+          <EmptyPanel
+            icon={<WarningRegular fontSize={24} />}
+            title={t('lib.missing.title')}
+            body={t('lib.missing.body')}
+            action={
+              <>
+                <Button appearance="primary" onClick={() => navigate('/')}>
+                  {t('lib.missing.backHome')}
+                </Button>
+                <Button appearance="secondary" onClick={() => navigate('/trash')}>
+                  {t('lib.missing.toTrash')}
+                </Button>
+              </>
+            }
+          />
+        </div>
       </div>
     )
   }
@@ -495,272 +451,310 @@ export default function LibraryView() {
 
   return (
     <div className="lib-page">
-      {/* ══ 命令栏（44）══ */}
-      <div className="lib-cmdbar" role="toolbar" aria-label={`${t('app.brand')} · ${lib?.name ?? t('lib.untitled')}`}>
-        <button type="button" className="w-toolbar-btn w-toolbar-btn--primary" onClick={handleNew}>
-          <AddRegular />
-          <span>{t('lib.empty.cta')}</span>
-        </button>
-        <span className="lib-cmdbar-sep" role="presentation" />
-        <button type="button" className="w-toolbar-btn lib-cmdbar-optional" onClick={() => ioRef.current?.openImport()}>
-          <ArrowImportRegular />
-          <span>{t('lib.importExport.import')}</span>
-        </button>
-        <Dropdown menu={exportMenu} trigger={['click']} placement="bottomLeft">
-          <button type="button" className="w-toolbar-btn lib-cmdbar-optional">
-            <ArrowExportUpRegular />
-            <span>{t('lib.importExport.export')}</span>
-          </button>
-        </Dropdown>
-        <span className="lib-cmdbar-sep lib-cmdbar-optional" role="presentation" />
-        <button type="button" className="w-toolbar-btn lib-cmdbar-optional" onClick={() => setTemplateOpen(true)}>
-          <SettingsRegular />
-          <span>{t('lib.template')}</span>
-        </button>
-        <button
-          type="button"
-          className="w-toolbar-btn lib-cmdbar-optional"
+      {/* ══ 工具栏（Fluent Toolbar）══ */}
+      <Toolbar
+        aria-label={`${t('app.brand')} · ${lib?.name ?? t('lib.untitled')}`}
+        className="lib-toolbar"
+        size="small"
+      >
+        <ToolbarButton appearance="primary" icon={<AddRegular />} onClick={handleNew}>
+          {t('lib.empty.cta')}
+        </ToolbarButton>
+        <ToolbarDivider />
+        <ToolbarButton
+          className="lib-cmdbar-optional"
+          icon={<ArrowImportRegular />}
+          onClick={() => ioRef.current?.openImport()}
+        >
+          {t('lib.importExport.import')}
+        </ToolbarButton>
+        <Menu>
+          <MenuTrigger disableButtonEnhancement>
+            <ToolbarButton className="lib-cmdbar-optional" icon={<ArrowExportUpRegular />}>
+              {t('lib.importExport.export')}
+            </ToolbarButton>
+          </MenuTrigger>
+          <MenuPopover>
+            <MenuList>
+              <MenuItem onClick={() => ioRef.current?.exportAs('csv')}>{t('lib.importExport.exportCsv')}</MenuItem>
+              <MenuItem onClick={() => ioRef.current?.exportAs('excel')}>{t('lib.importExport.exportExcel')}</MenuItem>
+            </MenuList>
+          </MenuPopover>
+        </Menu>
+        <ToolbarDivider className="lib-cmdbar-optional" />
+        <ToolbarButton
+          className="lib-cmdbar-optional"
+          icon={<SettingsRegular />}
+          onClick={() => setTemplateOpen(true)}
+        >
+          {t('lib.template')}
+        </ToolbarButton>
+        <ToolbarButton
+          className="lib-cmdbar-optional"
+          icon={<CopyRegular />}
           disabled={fields.length === 0}
           onClick={handleClone}
         >
-          <CopyRegular />
-          <span>{t('lib.clone')}</span>
-        </button>
-        <span className="lib-cmdbar-spacer" />
-        <Dropdown menu={moreMenu} trigger={['click']} placement="bottomRight">
-          <button
-            type="button"
-            className="w-toolbar-btn lib-cmdbar-icon"
-            aria-label={t('common.more')}
-            title={t('common.more')}
-          >
-            <MoreHorizontalRegular />
-          </button>
-        </Dropdown>
-      </div>
+          {t('lib.clone')}
+        </ToolbarButton>
+        <span className="lib-toolbar-spacer" />
+        <Menu>
+          <MenuTrigger disableButtonEnhancement>
+            <ToolbarButton icon={<MoreHorizontalRegular />} aria-label={t('common.more')} />
+          </MenuTrigger>
+          <MenuPopover>
+            <MenuList>
+              <MenuItem icon={<SettingsRegular />} onClick={() => setTemplateOpen(true)}>
+                {t('lib.menu.template')}
+              </MenuItem>
+              <MenuItem icon={<CopyRegular />} disabled={fields.length === 0} onClick={handleClone}>
+                {t('lib.menu.clone')}
+              </MenuItem>
+              <MenuItem icon={<ArrowImportRegular />} onClick={() => ioRef.current?.openImport()}>
+                {t('lib.menu.import')}
+              </MenuItem>
+              <MenuItem onClick={() => ioRef.current?.exportAs('csv')}>{t('lib.menu.exportCsv')}</MenuItem>
+              <MenuItem onClick={() => ioRef.current?.exportAs('excel')}>{t('lib.menu.exportExcel')}</MenuItem>
+            </MenuList>
+          </MenuPopover>
+        </Menu>
+      </Toolbar>
 
-      {/* ══ 地址条（32）══ */}
-      <div className="lib-addrbar">
-        <div className="lib-addr-nav">
-          <button
-            type="button"
-            className="w-iconbtn"
-            aria-label={lt('nav.back')}
-            title={lt('nav.back')}
-            disabled={!canGoBack}
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeftRegular />
-          </button>
-          <button
-            type="button"
-            className="w-iconbtn"
-            aria-label={lt('nav.up')}
-            title={lt('nav.up')}
-            onClick={() => navigate(lib?.parentId ? `/library/${lib.parentId}` : '/')}
-          >
-            <ArrowUpRegular />
-          </button>
-          <button type="button" className="w-iconbtn" aria-label={lt('nav.refresh')} title={lt('nav.refresh')} onClick={handleRefresh}>
-            <ArrowClockwiseRegular />
-          </button>
+      {/* ══ 路径行（Fluent Breadcrumb）══ */}
+      <div className="lib-pathrow">
+        <div className="lib-pathrow-nav">
+          <Tooltip content={lt('nav.back')} relationship="label">
+            <Button
+              appearance="transparent"
+              size="small"
+              icon={<ArrowLeftRegular />}
+              aria-label={lt('nav.back')}
+              disabled={!canGoBack}
+              onClick={() => navigate(-1)}
+            />
+          </Tooltip>
+          <Tooltip content={lt('nav.up')} relationship="label">
+            <Button
+              appearance="transparent"
+              size="small"
+              icon={<ArrowUpRegular />}
+              aria-label={lt('nav.up')}
+              onClick={() => navigate(lib?.parentId ? `/library/${lib.parentId}` : '/')}
+            />
+          </Tooltip>
+          <Tooltip content={lt('nav.refresh')} relationship="label">
+            <Button
+              appearance="transparent"
+              size="small"
+              icon={<ArrowClockwiseRegular />}
+              aria-label={lt('nav.refresh')}
+              onClick={handleRefresh}
+            />
+          </Tooltip>
         </div>
-        <nav className="w-bcrumb" aria-label={t('app.home')}>
-          <button type="button" className="w-bcrumb-item" onClick={() => navigate('/')}>
-            <HomeRegular />
-            {t('app.home')}
-          </button>
+        <Breadcrumb aria-label={t('app.home')}>
+          <BreadcrumbItem>
+            <BreadcrumbButton icon={<HomeRegular />} onClick={() => navigate('/')}>
+              {t('app.home')}
+            </BreadcrumbButton>
+          </BreadcrumbItem>
           {ancestors.map((a) => (
-            <span key={a.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-              <span className="w-bcrumb-sep" aria-hidden>
-                <ChevronRightRegular />
-              </span>
-              <button type="button" className="w-bcrumb-item" onClick={() => navigate(`/library/${a.id}`)}>
-                {a.name}
-              </button>
-            </span>
+            <Fragment key={a.id}>
+              <BreadcrumbDivider />
+              <BreadcrumbItem>
+                <BreadcrumbButton onClick={() => navigate(`/library/${a.id}`)}>{a.name}</BreadcrumbButton>
+              </BreadcrumbItem>
+            </Fragment>
           ))}
-          <span className="w-bcrumb-sep" aria-hidden>
-            <ChevronRightRegular />
-          </span>
-          <span className="w-bcrumb-current" title={lib?.name ?? t('lib.untitled')}>
-            <FolderRegular style={{ color: 'var(--w-accent)', fontSize: 14 }} />
-            {lib?.name ?? t('lib.untitled')}
-          </span>
-        </nav>
-        {lib?.category ? (
-          <span className="lib-addr-meta" title={lib.category}>
-            {lib.category}
-          </span>
-        ) : null}
+          <BreadcrumbDivider />
+          <BreadcrumbItem>
+            <BreadcrumbButton current icon={<FolderRegular />}>
+              {lib?.name ?? t('lib.untitled')}
+            </BreadcrumbButton>
+          </BreadcrumbItem>
+        </Breadcrumb>
+        {lib?.category ? <span className="lib-path-meta">{lib.category}</span> : null}
       </div>
 
-      {/* ══ 筛选行：搜索 / 字段筛选 / 排序 / 清除 ══ */}
+      {/* ══ 筛选行：SearchBox + 字段 / 排序 Dropdown ══ */}
       <div className="lib-filterbar" role="search">
-        <label className="w-search lib-search">
-          <SearchRegular />
-          <input
-            ref={searchRef}
-            className="w-search-input"
-            type="search"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            placeholder={t('lib.searchPlaceholder')}
-            aria-label={lt('search.hint')}
-          />
-          {keywordInput ? (
-            <button
-              type="button"
-              className="w-iconbtn w-iconbtn--sm"
-              aria-label={lt('search.clear')}
-              title={lt('search.clear')}
-              onClick={() => setKeywordInput('')}
-              style={{ marginRight: -4 }}
-            >
-              <DismissRegular />
-            </button>
-          ) : null}
-        </label>
-
-        <Dropdown menu={filterFieldMenu} trigger={['click']} placement="bottomLeft">
-          <button type="button" className={`w-chip${filterField ? ' is-set' : ''}`} aria-label={t('lib.filterField')}>
-            <FilterRegular />
-            <span className="lib-filter-chip-text">
-              {filterField ? visibleFields.find((f) => f.key === filterField)?.label ?? t('lib.filterField') : t('lib.filterField')}
-            </span>
-            <ChevronDownRegular style={{ fontSize: 11 }} />
-          </button>
+        <SearchBox
+          ref={searchRef}
+          className="lib-filter-search"
+          placeholder={t('lib.searchPlaceholder')}
+          aria-label={lt('search.hint')}
+          value={keywordInput}
+          onChange={(_, data) => setKeywordInput(data.value)}
+        />
+        <Dropdown
+          className="lib-filter-drop"
+          size="small"
+          value={filterFieldLabel}
+          selectedOptions={filterField ? [filterField] : []}
+          aria-label={t('lib.filterField')}
+          onOptionSelect={(_, data) => {
+            setFilterField(data.optionValue === '__all' ? '' : data.optionValue ?? '')
+            setFilterValue('')
+          }}
+        >
+          <Option value="__all" text={lt('filter.all')}>
+            {lt('filter.all')}
+          </Option>
+          {visibleFields.map((f) => (
+            <Option key={f.key} value={f.key} text={f.label}>
+              {f.label}
+            </Option>
+          ))}
         </Dropdown>
         {filterField ? (
-          <input
-            className="lib-filter-value"
+          <Input
+            className="lib-filter-input"
             value={filterValue}
-            onChange={(e) => setFilterValue(e.target.value)}
             placeholder={t('lib.filterValue')}
             aria-label={t('lib.filterValue')}
+            onChange={(_, data) => setFilterValue(data.value)}
           />
         ) : null}
-
-        <Dropdown menu={sortMenu} trigger={['click']} placement="bottomLeft">
-          <button type="button" className={`w-chip${sortField ? ' is-set' : ''}`} aria-label={t('lib.sort')}>
-            <ArrowSortRegular />
-            <span className="lib-filter-chip-text">
-              {sortField ? visibleFields.find((f) => f.key === sortField)?.label ?? t('lib.sort') : t('lib.sort')}
-            </span>
-            <ChevronDownRegular style={{ fontSize: 11 }} />
-          </button>
+        <Dropdown
+          className="lib-filter-drop"
+          size="small"
+          value={sortLabel}
+          selectedOptions={sortField ? [sortField] : []}
+          aria-label={t('lib.sort')}
+          onOptionSelect={(_, data) => {
+            if (!data.optionValue || data.optionValue === '__none') {
+              setSortField('')
+              return
+            }
+            setSortField(data.optionValue)
+            setSortDesc(false)
+          }}
+        >
+          <Option value="__none" text={lt('sort.none')}>
+            {lt('sort.none')}
+          </Option>
+          {visibleFields.map((f) => (
+            <Option key={f.key} value={f.key} text={f.label}>
+              {f.label}
+            </Option>
+          ))}
         </Dropdown>
         {sortField ? (
-          <button
-            type="button"
-            className="w-chip"
-            aria-label={sortDesc ? t('lib.desc') : t('lib.asc')}
-            title={sortDesc ? t('lib.desc') : t('lib.asc')}
-            onClick={() => setSortDesc((v) => !v)}
-          >
-            {sortDesc ? <ArrowSortDownRegular /> : <ArrowSortUpRegular />}
-            <span>{sortDesc ? t('lib.desc') : t('lib.asc')}</span>
-          </button>
+          <Tooltip content={sortDesc ? t('lib.desc') : t('lib.asc')} relationship="label">
+            <Button
+              appearance="subtle"
+              size="small"
+              icon={sortDesc ? <ArrowSortDownRegular /> : <ArrowSortUpRegular />}
+              aria-label={sortDesc ? t('lib.desc') : t('lib.asc')}
+              onClick={() => setSortDesc((v) => !v)}
+            >
+              {sortDesc ? t('lib.desc') : t('lib.asc')}
+            </Button>
+          </Tooltip>
         ) : null}
         {hasFilters ? (
-          <button type="button" className="w-btn w-btn--sm w-btn--subtle" onClick={clearFilters}>
-            <DismissRegular />
+          <Button appearance="subtle" size="small" icon={<DismissRegular />} onClick={clearFilters}>
             {t('lib.clear')}
-          </button>
+          </Button>
         ) : null}
-
         <span className="lib-filter-spacer" />
         {hasFilters ? (
-          <span className="lib-filter-meta lib-filter-meta--desktop">
+          <Text size={200} className="lib-filter-meta lib-filter-meta--desktop">
             {processed.length} / {items.length}
-          </span>
+          </Text>
         ) : null}
-        <span className="lib-filter-meta lib-filter-meta--mobile">{lt('status.total', { n: processed.length })}</span>
+        <Text size={200} className="lib-filter-meta lib-filter-meta--mobile">
+          {lt('status.total', { n: processed.length })}
+        </Text>
       </div>
 
       {/* ══ 主体：表格或空态 ══ */}
-      {isEmpty ? (
-        <div className="lib-body">
-          {items.length === 0 && fields.length === 0 ? (
-            // 一个字段都没有时，「新建条目」是无效动作——先去配模板
-            <EmptyPanel
-              icon={<TableRegular />}
-              title={t('lib.empty.noFields.title')}
-              body={t('lib.empty.noFields.body')}
-              action={
-                <button type="button" className="w-btn w-btn--accent" onClick={() => setTemplateOpen(true)}>
-                  {t('lib.empty.noFields.cta')}
-                </button>
-              }
-            />
-          ) : items.length === 0 ? (
-            // 首次使用：空状态说清「这里将来会放什么」，并给新建 + 导入两个出口
-            <EmptyPanel
-              icon={<FolderRegular />}
-              title={t('lib.empty.none.title')}
-              body={
-                <>
-                  {t('lib.empty.none.body', { name: lib?.name ?? t('lib.untitled') })}
-                  <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: 'var(--w-text-3)' }}>
-                    {t('lib.empty.none.hint')}
-                  </span>
-                </>
-              }
-              action={
-                <>
-                  <button type="button" className="w-btn w-btn--accent" onClick={handleNew}>
-                    {t('lib.empty.cta')}
-                  </button>
-                  <button type="button" className="w-btn" onClick={() => ioRef.current?.openImport()}>
-                    {t('lib.importExport.import')}
-                  </button>
-                </>
-              }
-            />
-          ) : (
-            // 筛选无结果：给出退路，而不是死路
-            <EmptyPanel
-              icon={<SearchRegular />}
-              title={t('lib.empty.noMatch.title')}
-              body={t('lib.empty.noMatch.body')}
-              action={
-                <>
-                  <button type="button" className="w-btn" onClick={clearFilters}>
-                    {t('lib.clear')}
-                  </button>
-                  <span className="lib-filter-meta">{t('lib.total', { n: items.length })}</span>
-                </>
-              }
-            />
-          )}
-          <div className="lib-statusbar">
-            <div className="lib-status-group">
-              <span className="lib-status-strong">{lt('status.total', { n: items.length })}</span>
+      <div className="lib-content">
+        {isEmpty ? (
+          <div className="lib-card lib-card--flush">
+            {items.length === 0 && fields.length === 0 ? (
+              // 一个字段都没有时，「新建条目」是无效动作——先去配模板
+              <EmptyPanel
+                icon={<TableRegular fontSize={24} />}
+                title={t('lib.empty.noFields.title')}
+                body={t('lib.empty.noFields.body')}
+                action={
+                  <Button appearance="primary" onClick={() => setTemplateOpen(true)}>
+                    {t('lib.empty.noFields.cta')}
+                  </Button>
+                }
+              />
+            ) : items.length === 0 ? (
+              // 首次使用：空状态说清「这里将来会放什么」，并给新建 + 导入两个出口
+              <EmptyPanel
+                icon={<FolderRegular fontSize={24} />}
+                title={t('lib.empty.none.title')}
+                body={
+                  <>
+                    {t('lib.empty.none.body', { name: lib?.name ?? t('lib.untitled') })}
+                    <span style={{ display: 'block', marginTop: 6 }}>{t('lib.empty.none.hint')}</span>
+                  </>
+                }
+                action={
+                  <>
+                    <Button appearance="primary" onClick={handleNew}>
+                      {t('lib.empty.cta')}
+                    </Button>
+                    <Button appearance="secondary" icon={<ArrowImportRegular />} onClick={() => ioRef.current?.openImport()}>
+                      {t('lib.importExport.import')}
+                    </Button>
+                  </>
+                }
+              />
+            ) : (
+              // 筛选无结果：给出退路，而不是死路
+              <EmptyPanel
+                icon={<SearchRegular fontSize={24} />}
+                title={t('lib.empty.noMatch.title')}
+                body={t('lib.empty.noMatch.body')}
+                action={
+                  <>
+                    <Button appearance="secondary" onClick={clearFilters}>
+                      {t('lib.clear')}
+                    </Button>
+                    <Text size={200}>{t('lib.total', { n: items.length })}</Text>
+                  </>
+                }
+              />
+            )}
+            <div className="lib-statusbar">
+              <div className="lib-status-group">
+                <span className="lib-status-strong">{lt('status.total', { n: items.length })}</span>
+              </div>
+              <span className="lib-status-spacer" />
+              <Text size={200}>{lt('view.details')}</Text>
             </div>
-            <span className="lib-status-spacer" />
-            <span className="lib-status-group">{lt('view.details')}</span>
           </div>
-        </div>
-      ) : (
-        <LibraryTable
-          fields={fields}
-          items={processed}
-          focusItemId={focusItemId}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onPin={(item, pinned) => {
-            pinItem(item.id, pinned).catch((e) => message.error(tNow('app.loadLibFailed', { msg: (e as Error).message })))
-          }}
-          onPatch={handlePatch}
-          sortField={sortField}
-          sortDesc={sortDesc}
-          onToggleSort={handleToggleSort}
-          onBatchDelete={handleBatchDelete}
-          onBatchPin={handleBatchPin}
-        />
-      )}
+        ) : (
+          <div className="lib-card lib-card--flush">
+            <LibraryTable
+              fields={fields}
+              items={processed}
+              focusItemId={focusItemId}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onPin={(item, pinned) => {
+                pinItem(item.id, pinned).catch((e) =>
+                  message.error(tNow('app.loadLibFailed', { msg: (e as Error).message })),
+                )
+              }}
+              onPatch={handlePatch}
+              sortField={sortField}
+              sortDesc={sortDesc}
+              onToggleSort={handleToggleSort}
+              onBatchDelete={handleBatchDelete}
+              onBatchPin={handleBatchPin}
+            />
+          </div>
+        )}
+      </div>
 
-      {/* ImportExport 必须始终挂载：命令栏按钮与「更多」菜单都通过 ioRef
+      {/* ImportExport 必须始终挂载：工具栏按钮与「更多」菜单都通过 ioRef
           命令式触发该实例的上传框 / Blob 下载；卸载后 ref 为 null，入口会静默失效。 */}
       <div hidden>
         <ImportExport ref={ioRef} fields={fields} items={items} onImport={handleImport} />
@@ -796,29 +790,77 @@ export default function LibraryView() {
         }}
       />
 
-      {/* 字段模板复用（ContentDialog） */}
-      <Modal
-        title={t('lib.clone.modalTitle')}
+      {/* 字段模板复用（Fluent Dialog · 多选目标库） */}
+      <LibDialog
         open={cloneOpen}
-        onCancel={() => setCloneOpen(false)}
-        onOk={confirmClone}
-        okText={t('common.confirm')}
-        cancelText={t('common.cancel')}
-        width={480}
-        centered
-        style={{ maxWidth: 'calc(100vw - 24px)', top: 0 }}
-        destroyOnHidden
+        onClose={() => setCloneOpen(false)}
+        title={t('lib.clone.modalTitle')}
+        width="min(480px, calc(100vw - 32px))"
+        actions={
+          <div className="lib-dialog-footer">
+            <span className="lib-dialog-footer-spacer" />
+            <Button appearance="secondary" onClick={() => setCloneOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button appearance="primary" onClick={confirmClone}>
+              {t('common.confirm')}
+            </Button>
+          </div>
+        }
       >
-        <p className="lib-dialog-sub" style={{ marginTop: 4 }}>{t('lib.clone.pick')}</p>
-        <Select
-          mode="multiple"
-          placeholder={t('lib.clone.placeholder')}
-          style={{ width: '100%' }}
-          value={cloneTargets}
-          onChange={setCloneTargets}
-          options={cloneTargetsOptions.map((l) => ({ label: l.name, value: l.id }))}
-        />
-      </Modal>
+        <Text size={200} className="lib-dialog-sub">
+          {t('lib.clone.pick')}
+        </Text>
+        <Field>
+          <Dropdown
+            multiselect
+            value={cloneTargets
+              .map((tid) => cloneTargetsOptions.find((l) => l.id === tid)?.name ?? '')
+              .filter(Boolean)
+              .join(', ')}
+            selectedOptions={cloneTargets}
+            placeholder={t('lib.clone.placeholder')}
+            onOptionSelect={(_, data) => setCloneTargets(data.selectedOptions)}
+          >
+            {cloneTargetsOptions.map((l) => (
+              <Option key={l.id} value={l.id} text={l.name}>
+                {l.name}
+              </Option>
+            ))}
+          </Dropdown>
+        </Field>
+      </LibDialog>
+
+      {/* 未配置字段模板时的提示（替代旧版 modal.warning） */}
+      <LibConfirm
+        open={needTemplate}
+        title={t('lib.needTemplate.title')}
+        body={t('lib.needTemplate.content')}
+        confirmText={t('lib.needTemplate.go')}
+        onConfirm={() => {
+          setNeedTemplate(false)
+          setTemplateOpen(true)
+        }}
+        onClose={() => setNeedTemplate(false)}
+      />
+
+      {/* 删除确认（单条 / 批量共用） */}
+      <LibConfirm
+        open={deleteTargets !== null}
+        title={
+          deleteTargets && deleteTargets.length > 1
+            ? lt('sel.deleteTitle', { n: deleteTargets.length })
+            : t('lib.del.title')
+        }
+        body={deleteTargets && deleteTargets.length > 1 ? lt('sel.deleteBody') : t('lib.del.content')}
+        confirmText={t('lib.del.ok')}
+        danger
+        confirming={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => {
+          if (!deleting) setDeleteTargets(null)
+        }}
+      />
     </div>
   )
 }

@@ -1,13 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Modal, Button, Progress } from 'antd'
 import { App as AntdApp } from 'antd'
 import {
-  SwapOutlined,
-  ArrowLeftOutlined,
-  CheckCircleOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
-} from '@/components/common/icons'
+  Button,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  MessageBar,
+  MessageBarBody,
+  ProgressBar,
+  Spinner,
+  Text,
+} from '@fluentui/react-components'
+import {
+  ArrowLeftRegular,
+  ArrowSwapRegular,
+  CheckmarkCircleRegular,
+  WarningRegular,
+} from '@fluentui/react-icons'
 import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
@@ -404,31 +415,10 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
   }, [stopPolling, teardownSession, resetState])
   // ———————— 渲染 ————————
 
-  /** Win11 InfoBar：说明与麦克风权限提示（不再用彩色 Alert 大块） */
-  const note = (
-    kind: 'info' | 'warning',
-    title: string,
-    body: string,
-  ) => {
-    const Icon = kind === 'info' ? InfoCircleOutlined : WarningOutlined
-    return (
-      <div className={`w-set-note${kind === 'warning' ? ' w-set-note--warning' : ''}`}>
-        <span className="w-set-note-icon" aria-hidden>
-          <Icon />
-        </span>
-        <div className="w-set-note-main">
-          <div className="w-set-note-title">{title}</div>
-          <div className="w-set-note-body">{body}</div>
-        </div>
-      </div>
-    )
-  }
-
   const backButton = (
-    <button type="button" className="w-btn w-btn--subtle w-btn--sm w-f2f-back" onClick={handleRetry}>
-      <ArrowLeftOutlined />
+    <Button appearance="subtle" size="small" icon={<ArrowLeftRegular />} onClick={handleRetry}>
       {t('settings.f2f.back')}
-    </button>
+    </Button>
   )
 
   const renderBody = () => {
@@ -439,22 +429,37 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
             {/* 提前告知会请求麦克风权限 —— 这是修复「同一 Wi-Fi 却连不上」的关键，
                 浏览器不授权就不会给出真实内网地址。不提前说会显得唐突。 */}
             <div className="w-f2f-notes">
-              {note('info', t('settings.f2f.intro.title'), t('settings.f2f.intro.body'))}
-              {note('warning', t('settings.f2f.mic.title'), t('settings.f2f.mic.body'))}
+              <MessageBar intent="info">
+                <MessageBarBody>
+                  <Text weight="semibold" size={200}>
+                    {t('settings.f2f.intro.title')}
+                  </Text>
+                  <br />
+                  {t('settings.f2f.intro.body')}
+                </MessageBarBody>
+              </MessageBar>
+              <MessageBar intent="warning">
+                <MessageBarBody>
+                  <Text weight="semibold" size={200}>
+                    {t('settings.f2f.mic.title')}
+                  </Text>
+                  <br />
+                  {t('settings.f2f.mic.body')}
+                </MessageBarBody>
+              </MessageBar>
             </div>
             <div className="w-f2f-actions">
               <Button
-                block
+                appearance="primary"
                 size="large"
-                type="primary"
-                icon={<SwapOutlined />}
-                loading={busy}
+                icon={busy ? <Spinner size="tiny" /> : <ArrowSwapRegular />}
+                disabled={busy}
                 onClick={() => void startInitiate()}
               >
                 {t('settings.f2f.choose.initiate')}
               </Button>
               <div className="w-f2f-hint">{t('settings.f2f.choose.initiateDesc')}</div>
-              <Button block size="large" onClick={startJoinScan} disabled={busy}>
+              <Button size="large" disabled={busy} onClick={startJoinScan}>
                 {t('settings.f2f.choose.join')}
               </Button>
               <div className="w-f2f-hint">{t('settings.f2f.choose.joinDesc')}</div>
@@ -467,10 +472,14 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
           <div className="w-f2f">
             {backButton}
             <div className="w-f2f-stage">
-              <div className="w-f2f-stage-title">{t('settings.f2f.waitPeer')}</div>
-              <div className="w-f2f-stage-desc">{t('settings.f2f.waitPeerDesc')}</div>
+              <Text size={300} weight="semibold">
+                {t('settings.f2f.waitPeer')}
+              </Text>
+              <Text size={200} className="w-f2f-hint">
+                {t('settings.f2f.waitPeerDesc')}
+              </Text>
               <div className="w-f2f-progress">
-                <Progress percent={0} size="small" status="active" showInfo={false} />
+                <ProgressBar />
               </div>
             </div>
           </div>
@@ -482,20 +491,34 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
             {backButton}
             {pendingHost ? (
               <div className="w-f2f-stage">
-                <div className="w-f2f-stage-title">{t('settings.f2f.foundPeer')}</div>
-                <div className="w-f2f-stage-desc">{t('settings.f2f.foundPeerDesc')}</div>
-                <div className="w-set-actions w-set-actions--top" style={{ marginTop: 8 }}>
-                  <Button block type="primary" size="large" loading={busy} onClick={() => void confirmJoin()}>
+                <Text size={300} weight="semibold">
+                  {t('settings.f2f.foundPeer')}
+                </Text>
+                <Text size={200} className="w-f2f-hint">
+                  {t('settings.f2f.foundPeerDesc')}
+                </Text>
+                <div className="w-f2f-actions" style={{ marginTop: 8 }}>
+                  <Button
+                    appearance="primary"
+                    size="large"
+                    icon={busy ? <Spinner size="tiny" /> : undefined}
+                    disabled={busy}
+                    onClick={() => void confirmJoin()}
+                  >
                     {t('settings.f2f.confirmJoin')}
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="w-f2f-stage">
-                <div className="w-f2f-stage-title">{t('settings.f2f.scanning')}</div>
-                <div className="w-f2f-stage-desc">{t('settings.f2f.scanningDesc')}</div>
+                <Text size={300} weight="semibold">
+                  {t('settings.f2f.scanning')}
+                </Text>
+                <Text size={200} className="w-f2f-hint">
+                  {t('settings.f2f.scanningDesc')}
+                </Text>
                 <div className="w-f2f-progress">
-                  <Progress percent={0} size="small" status="active" showInfo={false} />
+                  <ProgressBar />
                 </div>
               </div>
             )}
@@ -506,23 +529,29 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
         return (
           <div className="w-f2f">
             <div className="w-f2f-stage">
-              <div className="w-f2f-stage-title">
+              <Text size={300} weight="semibold">
                 {peerUsername ? t('settings.f2f.withPeer', { name: peerUsername }) : t('settings.f2f.transferring')}
-              </div>
-              <div className="w-f2f-stage-desc">{t('settings.f2f.keepOpen')}</div>
+              </Text>
+              <Text size={200} className="w-f2f-hint">
+                {t('settings.f2f.keepOpen')}
+              </Text>
               <div className="w-f2f-progress">
                 <div className="w-f2f-progress-label">
-                  <span>{t('settings.f2f.sendProgress')}</span>
-                  <span className="w-f2f-progress-value">{Math.round(progress.sent * 100)}%</span>
+                  <Text size={200}>{t('settings.f2f.sendProgress')}</Text>
+                  <Text size={100} className="w-f2f-progress-value">
+                    {Math.round(progress.sent * 100)}%
+                  </Text>
                 </div>
-                <Progress percent={Math.round(progress.sent * 100)} size="small" showInfo={false} />
+                <ProgressBar value={progress.sent} />
               </div>
               <div className="w-f2f-progress">
                 <div className="w-f2f-progress-label">
-                  <span>{t('settings.f2f.recvProgress')}</span>
-                  <span className="w-f2f-progress-value">{Math.round(progress.recv * 100)}%</span>
+                  <Text size={200}>{t('settings.f2f.recvProgress')}</Text>
+                  <Text size={100} className="w-f2f-progress-value">
+                    {Math.round(progress.recv * 100)}%
+                  </Text>
                 </div>
-                <Progress percent={Math.round(progress.recv * 100)} size="small" showInfo={false} />
+                <ProgressBar value={progress.recv} />
               </div>
             </div>
           </div>
@@ -531,11 +560,13 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
       case 'done':
         return (
           <div className="w-f2f-result">
-            <span className="w-f2f-result-mark" aria-hidden>
-              <CheckCircleOutlined />
+            <span className="w-f2f-result-icon" aria-hidden>
+              <CheckmarkCircleRegular />
             </span>
-            <div className="w-f2f-result-title">{t('settings.f2f.done.title')}</div>
-            <div className="w-f2f-result-desc">
+            <Text as="h3" size={400} weight="semibold">
+              {t('settings.f2f.done.title')}
+            </Text>
+            <Text size={200} className="w-f2f-hint">
               {mergeResult
                 ? t('settings.f2f.done.summary', {
                     libs: mergeResult.addedLibraries,
@@ -543,10 +574,10 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
                     updated: mergeResult.updatedItems,
                   })
                 : t('settings.f2f.done.title')}
-            </div>
+            </Text>
             <div className="w-f2f-result-actions">
               <Button onClick={handleRetry}>{t('settings.f2f.again')}</Button>
-              <Button type="primary" onClick={handleClose}>
+              <Button appearance="primary" onClick={handleClose}>
                 {t('settings.f2f.close')}
               </Button>
             </div>
@@ -556,13 +587,17 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
       case 'error':
         return (
           <div className="w-f2f-result">
-            <span className="w-f2f-result-mark w-f2f-result-mark--error" aria-hidden>
-              <WarningOutlined />
+            <span className="w-f2f-result-icon w-f2f-result-icon--error" aria-hidden>
+              <WarningRegular />
             </span>
-            <div className="w-f2f-result-title">{t('settings.f2f.err.title')}</div>
-            <div className="w-f2f-result-desc">{t(errorKey(errorCode))}</div>
+            <Text as="h3" size={400} weight="semibold">
+              {t('settings.f2f.err.title')}
+            </Text>
+            <Text size={200} className="w-f2f-hint">
+              {t(errorKey(errorCode))}
+            </Text>
             <div className="w-f2f-result-actions">
-              <Button type="primary" onClick={handleRetry}>
+              <Button appearance="primary" onClick={handleRetry}>
                 {t('settings.f2f.retry')}
               </Button>
               <Button onClick={handleClose}>{t('settings.f2f.close')}</Button>
@@ -575,16 +610,14 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
   useBackButtonLayer(open, handleClose)
 
   return (
-    <Modal
-      title={t('settings.f2f.title')}
-      open={open}
-      footer={null}
-      onCancel={handleClose}
-      width={480}
-      destroyOnHidden
-    >
-      {renderBody()}
-    </Modal>
+    <Dialog open={open} onOpenChange={(_, data) => !data.open && handleClose()}>
+      <DialogSurface className="w-f2f-surface">
+        <DialogBody>
+          <DialogTitle>{t('settings.f2f.title')}</DialogTitle>
+          <DialogContent>{renderBody()}</DialogContent>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   )
 }
 

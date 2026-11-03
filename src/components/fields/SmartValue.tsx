@@ -1,12 +1,13 @@
-import { Tooltip } from 'antd'
+import { Link, Tooltip } from '@fluentui/react-components'
 import {
-  PhoneOutlined,
-  MailOutlined,
-  LinkOutlined,
-  CheckOutlined,
-  CloseOutlined,
-} from '@/components/common/icons'
-import { StarFilled, StarRegular } from '@fluentui/react-icons'
+  CheckmarkRegular,
+  DismissRegular,
+  LinkRegular,
+  MailRegular,
+  PhoneRegular,
+  StarFilled,
+  StarRegular,
+} from '@fluentui/react-icons'
 import type { FieldDef, FieldValue } from '@/types'
 import { isAndroidApp } from '@/utils/platform'
 import { tNow } from '@/i18n'
@@ -31,10 +32,10 @@ export function detectSmartLink(value: string): SmartLink | null {
   return null
 }
 
-// 只保留线性图标：Fluent Regular 图标与 Win11 原生一致
-const ICONS = { phone: <PhoneOutlined />, mail: <MailOutlined />, link: <LinkOutlined /> }
+// 只保留 Fluent Regular 线性图标
+const ICONS = { phone: <PhoneRegular />, mail: <MailRegular />, link: <LinkRegular /> }
 
-const DASH = <span className="w-faint">—</span>
+const DASH = <span style={{ color: 'var(--w-text-3)' }}>—</span>
 
 /** 空值统一占位，避免表格里出现一片空白 */
 function isEmpty(v: FieldValue): boolean {
@@ -42,30 +43,28 @@ function isEmpty(v: FieldValue): boolean {
 }
 
 /**
- * 表格 / 卡片单元格的值渲染（v9 Win11 文件资源管理器）。
+ * 表格 / 卡片单元格的值渲染（v10 Fluent）。
  *
  * - checkbox → 线性对勾/叉 + 是/否；
- * - rating → 实心/线性星（5 颗，中性色，不用彩色大星）；
- * - date → 等宽 + tabular-nums；
- * - 文本 → 电话/邮箱/网址识别为系统链接（强调色由全局 a 样式提供）；
- * - 数字 → tabular-nums，让金额/数量纵向对齐。
- *
- * 渲染口径在桌面表格 / 移动卡片 / 条目标题三处保持一致。
+ * - rating → 实心/线性星（5 颗，强调色只用于已填星级）；
+ * - date → tabular-nums；
+ * - 文本 → 电话/邮箱/网址识别为 Fluent Link（强调色由 Fluent 提供）；
+ * - 数字 → tabular-nums，金额/数量纵向对齐。
  */
 export default function SmartValue({ field, value }: { field: FieldDef; value: FieldValue }) {
   if (field.type === 'checkbox') {
     if (isEmpty(value)) return DASH
     if (value) {
       return (
-        <span className="lib-cell" style={{ color: 'var(--w-success)', gap: 4 }}>
-          <CheckOutlined style={{ fontSize: 14 }} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--w-success)' }}>
+          <CheckmarkRegular />
           {tNow('field.yes')}
         </span>
       )
     }
     return (
-      <span className="lib-cell w-faint" style={{ gap: 4 }}>
-        <CloseOutlined style={{ fontSize: 14 }} />
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--w-text-3)' }}>
+        <DismissRegular />
         {tNow('field.no')}
       </span>
     )
@@ -74,7 +73,7 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
   if (field.type === 'rating') {
     if (isEmpty(value)) return DASH
     const n = Math.max(0, Math.min(5, Number(value) || 0))
-    if (n === 0) return <span className="w-faint">{tNow('field.no')}</span>
+    if (n === 0) return <span style={{ color: 'var(--w-text-3)' }}>{tNow('field.no')}</span>
     return (
       <span
         style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}
@@ -82,9 +81,9 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
       >
         {Array.from({ length: 5 }).map((_, i) =>
           i < n ? (
-            <StarFilled key={i} style={{ fontSize: 13, color: 'var(--w-text-2)' }} aria-hidden />
+            <StarFilled key={i} style={{ fontSize: 13, color: 'var(--w-brand-fg)' }} aria-hidden />
           ) : (
-            <StarRegular key={i} style={{ fontSize: 13, color: 'var(--w-divider-strong)' }} aria-hidden />
+            <StarRegular key={i} style={{ fontSize: 13, color: 'var(--w-text-3)' }} aria-hidden />
           ),
         )}
       </span>
@@ -103,11 +102,12 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
   const link = field.type === 'text' || field.type === 'textarea' ? detectSmartLink(str) : null
   if (link) {
     return (
-      <Tooltip title={str}>
-        <a
+      <Tooltip content={str} relationship="description">
+        <Link
           href={link.href}
           target={link.href.startsWith('http') ? '_blank' : undefined}
           rel="noreferrer"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0 }}
           onClick={(e) => {
             e.stopPropagation()
             // App 壳内（TWA 或纯 WebView，由 UA 标记识别）：
@@ -118,13 +118,12 @@ export default function SmartValue({ field, value }: { field: FieldDef; value: F
               window.open(link.href, '_self')
             }
           }}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0 }}
         >
           <span style={{ display: 'inline-flex', color: 'var(--w-text-3)', flex: '0 0 auto' }}>
             {ICONS[link.icon]}
           </span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{str}</span>
-        </a>
+        </Link>
       </Tooltip>
     )
   }

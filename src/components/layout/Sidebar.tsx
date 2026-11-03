@@ -1,4 +1,5 @@
-import { Button, Input, App, Dropdown, Tooltip } from 'antd'
+import { App as AntdApp, Input } from 'antd'
+import { Button, Menu, MenuDivider, MenuItem, MenuList, MenuPopover, MenuTrigger, Tooltip, Avatar } from '@fluentui/react-components'
 import {
   DeleteRegular,
   SettingsRegular,
@@ -12,7 +13,6 @@ import {
   QuestionCircleRegular,
   SignOutRegular,
   SparkleRegular,
-  ReOrderDotsVerticalRegular,
   FolderRegular,
   PeopleRegular,
   MoneyRegular,
@@ -23,6 +23,7 @@ import {
   WeatherMoonRegular,
   WeatherSunnyRegular,
   GlobeRegular,
+  LibraryRegular,
 } from '@fluentui/react-icons'
 import {
   DndContext,
@@ -39,7 +40,6 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { MenuProps } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
@@ -53,11 +53,12 @@ import CreateLibraryDialog from '@/components/library/CreateLibraryDialog'
 import AppIcon from '@/components/common/AppIcon'
 
 /**
- * v9 · Windows 11 左导航（68px 图标栏）
+ * v10 · Fluent UI 2 左导航（68px 图标栏，Windows 11 NavigationView 模式）
  *
- * 结构：首页 → 分隔线 → 管理库（语义图标）→ 新建库 → 分隔线 → AI / 回收站 / 设置 / 帮助 → 账户
- * 行为与旧版完全一致：建库 / 子库 / 改名 / 分类 / 上下移 / 拖拽排序 / 删除 / 切库 / 退出。
- * 文字只在 hover 时通过 Win11 Tooltip 显示（提示词要求）。
+ * 结构：首页 → 管理库（语义图标 + hover Tooltip）→ 新建库 → AI / 回收站 / 设置 / 帮助 → 账户
+ * 行为与旧版一致：建库 / 子库 / 改名 / 分类 / 上下移 / 拖拽排序 / 删除 / 切库 / 退出。
+ * 控件：Fluent Button / Tooltip / Menu / Avatar；文字只在 hover Tooltip 显示（提示词要求）。
+ * 不是操作系统：没有窗口/任务栏/桌面，只是应用内导航。
  */
 
 function iconForLibrary(lib: Library) {
@@ -73,7 +74,7 @@ function iconForLibrary(lib: Library) {
 }
 
 function useSidebarState(onNavigate?: () => void) {
-  const { message, modal } = App.useApp()
+  const { message, modal } = AntdApp.useApp()
   const navigate = useNavigate()
   const location = useLocation()
   const { account } = useAuthStore()
@@ -89,7 +90,6 @@ function useSidebarState(onNavigate?: () => void) {
   const [loggingOut, setLoggingOut] = useState(false)
   const t = useI18n()
 
-  // 按分类分组（仅顶级库；子库通过 parentId 递归展示）
   const grouped = useMemo(() => {
     const map = new Map<string, Library[]>()
     libraries.forEach((l) => {
@@ -167,7 +167,7 @@ function useSidebarState(onNavigate?: () => void) {
           {existing.length > 0 && (
             <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {existing.map((c) => (
-                <Button key={c} size="small" onClick={() => { value = c }}>
+                <Button key={c} size="small" appearance="secondary" onClick={() => { value = c }}>
                   {c}
                 </Button>
               ))}
@@ -198,36 +198,6 @@ function useSidebarState(onNavigate?: () => void) {
       await reorderLibraries(ids)
     } catch (e) {
       message.error(t('app.lib.reorderFailed', { msg: (e as Error).message }))
-    }
-  }
-
-  const libActions = (lib: Library): MenuProps => {
-    const idx = libraries.findIndex((l) => l.id === lib.id)
-    return {
-      items: [
-        { key: 'child', label: t('app.newChild'), icon: <AddRegular fontSize={16} /> },
-        { key: 'rename', label: t('common.rename'), icon: <EditRegular fontSize={15} /> },
-        { key: 'category', label: t('app.lib.category'), icon: <TagRegular fontSize={15} /> },
-        { type: 'divider' },
-        { key: 'up', label: t('app.lib.moveUp'), icon: <ArrowUpRegular fontSize={15} />, disabled: idx <= 0 },
-        {
-          key: 'down',
-          label: t('app.lib.moveDown'),
-          icon: <ArrowDownRegular fontSize={15} />,
-          disabled: idx < 0 || idx >= libraries.length - 1,
-        },
-        { type: 'divider' },
-        { key: 'delete', label: t('common.delete'), icon: <DeleteRegular fontSize={16} />, danger: true },
-      ],
-      onClick: ({ key, domEvent }) => {
-        domEvent.stopPropagation()
-        if (key === 'child') handleNewChild(lib)
-        else if (key === 'rename') handleRename(lib)
-        else if (key === 'category') handleCategory(lib)
-        else if (key === 'up') void move(lib, -1)
-        else if (key === 'down') void move(lib, 1)
-        else if (key === 'delete') handleDelete(lib)
-      },
     }
   }
 
@@ -268,11 +238,74 @@ function useSidebarState(onNavigate?: () => void) {
     navigate('/login')
   }
 
+  const renderLibActions = (lib: Library) => {
+    const idx = libraries.findIndex((l) => l.id === lib.id)
+    return (
+      <MenuList>
+        <MenuItem icon={<AddRegular />} onClick={() => handleNewChild(lib)}>
+          {t('app.newChild')}
+        </MenuItem>
+        <MenuItem icon={<EditRegular />} onClick={() => handleRename(lib)}>
+          {t('common.rename')}
+        </MenuItem>
+        <MenuItem icon={<TagRegular />} onClick={() => handleCategory(lib)}>
+          {t('app.lib.category')}
+        </MenuItem>
+        <MenuDivider />
+        <MenuItem icon={<ArrowUpRegular />} disabled={idx <= 0} onClick={() => void move(lib, -1)}>
+          {t('app.lib.moveUp')}
+        </MenuItem>
+        <MenuItem
+          icon={<ArrowDownRegular />}
+          disabled={idx < 0 || idx >= libraries.length - 1}
+          onClick={() => void move(lib, 1)}
+        >
+          {t('app.lib.moveDown')}
+        </MenuItem>
+        <MenuDivider />
+        <MenuItem icon={<DeleteRegular />} onClick={() => handleDelete(lib)}>
+          {t('common.delete')}
+        </MenuItem>
+      </MenuList>
+    )
+  }
+
   return {
     account, selectedKey, handleClick, handleLogout, loggingOut,
     creatingLib, setCreatingLib, creatingChildOf, setCreatingChildOf,
-    grouped, childrenOf, libActions, libraries, reorderLibraries,
+    grouped, childrenOf, renderLibActions, libraries, reorderLibraries,
   }
+}
+
+/** 窄栏图标按钮（Fluent Button + Tooltip） */
+function RailButton({
+  icon,
+  label,
+  active,
+  onClick,
+  className,
+  refEl,
+}: {
+  icon: React.ReactElement
+  label: string
+  active?: boolean
+  onClick: () => void
+  className?: string
+  refEl?: React.Ref<HTMLButtonElement>
+}) {
+  return (
+    <Tooltip content={label} relationship="label" positioning="after" withArrow>
+      <Button
+        ref={refEl}
+        appearance="subtle"
+        className={`${className ?? 'w-rail-item'}${active ? ' is-active' : ''}`}
+        icon={icon}
+        aria-label={label}
+        aria-current={active ? 'page' : undefined}
+        onClick={onClick}
+      />
+    </Tooltip>
+  )
 }
 
 function SortableLibIcon({
@@ -288,9 +321,9 @@ function SortableLibIcon({
   lib: Library
   depth: number
   active: boolean
-  actions: React.ComponentProps<typeof Dropdown>['menu']
+  actions: React.ReactElement
   onOpen: () => void
-  tooltip: React.ReactNode
+  tooltip: React.ReactElement
   moreLabel: string
   sheet?: boolean
 }) {
@@ -302,6 +335,22 @@ function SortableLibIcon({
     zIndex: isDragging ? 3 : undefined,
   }
   const Icon = iconForLibrary(lib)
+  const moreMenu = (
+    <Menu>
+      <MenuTrigger disableButtonEnhancement>
+        <button
+          type="button"
+          className={sheet ? 'w-sheet-item-more' : 'w-rail-lib-more'}
+          aria-label={moreLabel}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MoreHorizontalRegular fontSize={sheet ? 16 : 10} />
+        </button>
+      </MenuTrigger>
+      <MenuPopover>{actions}</MenuPopover>
+    </Menu>
+  )
+
   if (sheet) {
     return (
       <div ref={setNodeRef} style={style} className="w-sheet-lib-wrap">
@@ -318,22 +367,13 @@ function SortableLibIcon({
           </span>
           <span className="w-sheet-item-label">{lib.name}</span>
         </button>
-        <Dropdown menu={actions} trigger={['click']}>
-          <button
-            type="button"
-            className="w-sheet-item-more"
-            aria-label={moreLabel}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <MoreHorizontalRegular fontSize={16} />
-          </button>
-        </Dropdown>
+        {moreMenu}
       </div>
     )
   }
   return (
     <div ref={setNodeRef} style={style} className="w-rail-lib-wrap">
-      <Tooltip title={tooltip} placement="right" mouseEnterDelay={0.35}>
+      <Tooltip content={tooltip} relationship="label" positioning="after">
         <button
           type="button"
           className={`w-rail-lib${active ? ' is-active' : ''}`}
@@ -347,19 +387,7 @@ function SortableLibIcon({
           <span className="w-sr-only">{lib.name}</span>
         </button>
       </Tooltip>
-      <Dropdown menu={actions} trigger={['click']}>
-        <button
-          type="button"
-          className="w-rail-lib-more"
-          aria-label={moreLabel}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <MoreHorizontalRegular fontSize={10} />
-        </button>
-      </Dropdown>
-      <span className="w-rail-drag-handle" aria-hidden>
-        <ReOrderDotsVerticalRegular fontSize={10} />
-      </span>
+      {moreMenu}
     </div>
   )
 }
@@ -376,7 +404,7 @@ function SidebarBody({
   const t = useI18n()
   const {
     account, selectedKey, handleClick, handleLogout, loggingOut,
-    grouped, childrenOf, libActions, libraries, reorderLibraries,
+    grouped, childrenOf, renderLibActions, libraries, reorderLibraries,
   } = state
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
@@ -387,8 +415,7 @@ function SidebarBody({
     const oldIndex = libIds.indexOf(String(a.id))
     const newIndex = libIds.indexOf(String(over.id))
     if (oldIndex < 0 || newIndex < 0) return
-    const next = arrayMove(libIds, oldIndex, newIndex)
-    void reorderLibraries(next)
+    void reorderLibraries(arrayMove(libIds, oldIndex, newIndex))
   }
 
   const renderLib = (lib: Library, depth: number): React.ReactNode => {
@@ -400,7 +427,7 @@ function SidebarBody({
           lib={lib}
           depth={depth}
           active={active}
-          actions={libActions(lib)}
+          actions={renderLibActions(lib)}
           onOpen={() => handleClick(`/library/${lib.id}`)}
           tooltip={
             <span style={{ display: 'block' }}>
@@ -420,17 +447,12 @@ function SidebarBody({
   return (
     <>
       <div className="w-rail-top">
-        <Tooltip title={t('app.home')} placement="right" mouseEnterDelay={0.35}>
-          <button
-            type="button"
-            className={`w-rail-item${selectedKey === '/' ? ' is-active' : ''}`}
-            aria-label={t('app.home')}
-            aria-current={selectedKey === '/' ? 'page' : undefined}
-            onClick={() => handleClick('/')}
-          >
-            <HomeRegular fontSize={20} />
-          </button>
-        </Tooltip>
+        <RailButton
+          icon={<HomeRegular />}
+          label={t('app.home')}
+          active={selectedKey === '/'}
+          onClick={() => handleClick('/')}
+        />
         <div className="w-rail-divider" role="presentation" />
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={libIds} strategy={verticalListSortingStrategy}>
@@ -445,90 +467,68 @@ function SidebarBody({
             })}
           </SortableContext>
         </DndContext>
-        <Tooltip title={t('app.newLibrary')} placement="right" mouseEnterDelay={0.35}>
-          <button
-            type="button"
-            className="w-rail-add"
-            aria-label={t('app.newLibrary')}
-            onClick={() => handleClick('new-library')}
-          >
-            <AddRegular fontSize={16} />
-          </button>
-        </Tooltip>
+        <RailButton
+          icon={<AddRegular />}
+          label={t('app.newLibrary')}
+          onClick={() => handleClick('new-library')}
+          className="w-rail-add"
+        />
       </div>
 
       <div className="w-rail-bottom">
-        <Tooltip title={`${t('app.aiAssistant')} · Ctrl J`} placement="right" mouseEnterDelay={0.35}>
-          <button
-            ref={aiRef}
-            type="button"
-            className="w-rail-item"
-            aria-label={t('app.aiAssistant')}
-            onClick={onOpenPanel}
-          >
-            <SparkleRegular fontSize={20} />
-          </button>
-        </Tooltip>
+        <RailButton
+          icon={<SparkleRegular />}
+          label={`${t('app.aiAssistant')} · Ctrl J`}
+          onClick={onOpenPanel}
+          refEl={aiRef}
+        />
         <div className="w-rail-divider" role="presentation" />
-        <Tooltip title={t('app.trash')} placement="right" mouseEnterDelay={0.35}>
-          <button
-            type="button"
-            className={`w-rail-item${selectedKey === '/trash' ? ' is-active' : ''}`}
-            aria-label={t('app.trash')}
-            aria-current={selectedKey === '/trash' ? 'page' : undefined}
-            onClick={() => handleClick('/trash')}
-          >
-            <DeleteRegular fontSize={20} />
-          </button>
-        </Tooltip>
-        <Tooltip title={t('app.settings')} placement="right" mouseEnterDelay={0.35}>
-          <button
-            type="button"
-            className={`w-rail-item${selectedKey === '/settings' ? ' is-active' : ''}`}
-            aria-label={t('app.settings')}
-            aria-current={selectedKey === '/settings' ? 'page' : undefined}
-            onClick={() => handleClick('/settings')}
-          >
-            <SettingsRegular fontSize={20} />
-          </button>
-        </Tooltip>
-        <Tooltip title={t('app.help')} placement="right" mouseEnterDelay={0.35}>
-          <button
-            type="button"
-            className={`w-rail-item${selectedKey === '/help' ? ' is-active' : ''}`}
-            aria-label={t('app.help')}
-            aria-current={selectedKey === '/help' ? 'page' : undefined}
-            onClick={() => handleClick('/help')}
-          >
-            <QuestionCircleRegular fontSize={20} />
-          </button>
-        </Tooltip>
+        <RailButton
+          icon={<DeleteRegular />}
+          label={t('app.trash')}
+          active={selectedKey === '/trash'}
+          onClick={() => handleClick('/trash')}
+        />
+        <RailButton
+          icon={<SettingsRegular />}
+          label={t('app.settings')}
+          active={selectedKey === '/settings'}
+          onClick={() => handleClick('/settings')}
+        />
+        <RailButton
+          icon={<QuestionCircleRegular />}
+          label={t('app.help')}
+          active={selectedKey === '/help'}
+          onClick={() => handleClick('/help')}
+        />
         <div className="w-rail-divider" role="presentation" />
-        <Dropdown
-          trigger={['click']}
-          placement="topRight"
-          menu={{
-            items: [
-              { key: 'who', label: account?.username ?? '', disabled: true },
-              { type: 'divider' },
-              {
-                key: 'logout',
-                icon: <SignOutRegular fontSize={16} />,
-                label: t('app.signOut'),
-                onClick: () => void handleLogout(),
-              },
-            ],
-          }}
-        >
-          <button
-            type="button"
-            className="w-rail-account"
-            aria-label={account?.username ?? t('app.signOut')}
-            disabled={loggingOut}
-          >
-            <span className="w-avatar w-avatar--sm">{(account?.username ?? '?').slice(0, 1)}</span>
-          </button>
-        </Dropdown>
+        <Menu>
+          <MenuTrigger disableButtonEnhancement>
+            <Tooltip content={account?.username ?? ''} relationship="label" positioning="after">
+              <button
+                type="button"
+                className="w-rail-account"
+                aria-label={account?.username ?? t('app.signOut')}
+                disabled={loggingOut}
+              >
+                <Avatar
+                  size={28}
+                  initials={(account?.username ?? '?').slice(0, 1).toUpperCase()}
+                  color="colorful"
+                />
+              </button>
+            </Tooltip>
+          </MenuTrigger>
+          <MenuPopover>
+            <MenuList>
+              <MenuItem disabled>{account?.username ?? ''}</MenuItem>
+              <MenuDivider />
+              <MenuItem icon={<SignOutRegular />} onClick={() => void handleLogout()}>
+                {t('app.signOut')}
+              </MenuItem>
+            </MenuList>
+          </MenuPopover>
+        </Menu>
       </div>
 
       <CreateLibraryDialog open={state.creatingLib} onClose={() => state.setCreatingLib(false)} />
@@ -559,8 +559,8 @@ export default function Sidebar({
 }
 
 /**
- * 移动端导航面板（Drawer 内）：Win11 导航窗格形态——
- * 图标 + 文字整行 48px，库列表可点，底部工具与账户。
+ * 移动端导航面板（Drawer 内）：Fluent NavigationView 形态——
+ * 图标 + 文字整行 44px，库列表可点，底部工具与账户。
  */
 export function SidebarContent({
   onOpenPanel,
@@ -574,7 +574,7 @@ export function SidebarContent({
   const { settings, setTheme, setLanguage } = useAppStore()
   const {
     account, selectedKey, handleClick, handleLogout, loggingOut,
-    grouped, childrenOf, libActions, libraries, reorderLibraries,
+    grouped, childrenOf, renderLibActions, libraries, reorderLibraries,
   } = state
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
   const libIds = libraries.map((l) => l.id)
@@ -596,9 +596,9 @@ export function SidebarContent({
           depth={depth}
           active={active}
           sheet
-          actions={libActions(lib)}
+          actions={renderLibActions(lib)}
           onOpen={() => handleClick(`/library/${lib.id}`)}
-          tooltip={lib.name}
+          tooltip={<span>{lib.name}</span>}
           moreLabel={t('common.more')}
         />
         {children.map((c) => renderLib(c, depth + 1))}
@@ -613,22 +613,22 @@ export function SidebarContent({
           <span className="w-sheet-brand-name">{t('app.brand')}</span>
           <span className="w-sheet-brand-sub">{account?.username ?? ''}</span>
         </div>
-        <button
-          type="button"
-          className="w-iconbtn w-iconbtn--sm"
-          aria-label={settings.theme === 'dark' ? t('app.theme.light') : t('app.theme.dark')}
-          onClick={() => setTheme(settings.theme === 'dark' ? 'light' : 'dark')}
-        >
-          {settings.theme === 'dark' ? <WeatherSunnyRegular fontSize={16} /> : <WeatherMoonRegular fontSize={16} />}
-        </button>
-        <button
-          type="button"
-          className="w-iconbtn w-iconbtn--sm"
-          aria-label={t('app.language')}
-          onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}
-        >
-          <GlobeRegular fontSize={16} />
-        </button>
+        <Tooltip content={settings.theme === 'dark' ? t('app.theme.light') : t('app.theme.dark')} relationship="label">
+          <Button
+            appearance="subtle"
+            icon={settings.theme === 'dark' ? <WeatherSunnyRegular /> : <WeatherMoonRegular />}
+            aria-label={settings.theme === 'dark' ? t('app.theme.light') : t('app.theme.dark')}
+            onClick={() => setTheme(settings.theme === 'dark' ? 'light' : 'dark')}
+          />
+        </Tooltip>
+        <Tooltip content={t('app.language')} relationship="label">
+          <Button
+            appearance="subtle"
+            icon={<GlobeRegular />}
+            aria-label={t('app.language')}
+            onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}
+          />
+        </Tooltip>
       </header>
       <div className="w-sheet-body">
         <button
@@ -654,11 +654,7 @@ export function SidebarContent({
           <span>{t('app.newLibrary')}</span>
         </button>
         <div className="w-sheet-group">{t('app.group.tools')}</div>
-        <button
-          type="button"
-          className="w-sheet-item"
-          onClick={() => { onOpenPanel(); onNavigate?.() }}
-        >
+        <button type="button" className="w-sheet-item" onClick={() => { onOpenPanel(); onNavigate?.() }}>
           <span className="w-sheet-lib-icon" aria-hidden><SparkleRegular fontSize={18} /></span>
           <span className="w-sheet-item-label">{t('app.aiAssistant')}</span>
         </button>
@@ -681,18 +677,21 @@ export function SidebarContent({
         ))}
       </div>
       <footer className="w-sheet-foot">
-        <span className="w-avatar w-avatar--sm">{(account?.username ?? '?').slice(0, 1)}</span>
+        <Avatar size={24} initials={(account?.username ?? '?').slice(0, 1).toUpperCase()} color="colorful" />
         <span className="w-sheet-user">{account?.username ?? ''}</span>
-        <button
-          type="button"
-          className="w-btn w-btn--subtle w-btn--sm"
+        <Button
+          appearance="subtle"
+          size="small"
+          icon={<SignOutRegular />}
           disabled={loggingOut}
           onClick={() => void handleLogout()}
         >
-          <SignOutRegular fontSize={16} />
           {t('app.signOut')}
-        </button>
+        </Button>
       </footer>
     </aside>
   )
 }
+
+/** 兼容导出：v9 页面可能引用 LibraryRegular 图标映射 */
+export const libraryFallbackIcon = LibraryRegular

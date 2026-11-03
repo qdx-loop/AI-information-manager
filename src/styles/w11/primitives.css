@@ -307,7 +307,7 @@
 }
 .w-btn--danger:hover {
   background: var(--w-danger-soft);
-  border-color: rgba(255, 153, 164, 0.3);
+  border-color: var(--w-danger);
   color: var(--w-danger);
 }
 .w-btn--sm {

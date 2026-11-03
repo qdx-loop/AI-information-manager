@@ -1,1015 +1,645 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   v9 · WINDOWS 11 NATIVE — PUBLIC 入口样式（B 号设计师）
+   v10 · FLUENT UI 2 · Windows 11 应用 — PUBLIC 入口样式（B 号设计师）
    ──────────────────────────────────────────────────────────────────────────
-   覆盖：落地页（Landing）/ 登录注册（AuthPage · Win11 锁屏）/
-        帮助（HelpPage · 获取帮助）/ 欢迎与赞赏（WelcomeModal · Reward*）。
-   约定：
-   - 只消费 `tokens.css` 的 var(--w-*)；不在本文件定义新色板。
-   - 组件样式类前缀 `pub-`（页面独有），共享控件一律复用 `.w-*` primitives。
-   - 唯一允许写死的颜色：二维码卡面 pure white（必须浅底深码才扫得出）。
-   - 禁用渐变 / 霓虹 / 大圆角网页卡片；圆角只用 4（控件）/ 8（卡片、对话框）。
-   - 响应式断点：1440 / 1024 / 900（与 shell 移动端断点一致）/ 560。
+   覆盖：落地页（Landing）/ 登录注册（AuthPage）/ 帮助（HelpPage）/
+        欢迎与赞赏（WelcomeModal · RewardCard · RewardQr · SupportLink）。
+
+   规则（redesign-brief/12-v10-fluent-app.md）：
+   - 这是 Windows 11 风格的 Web 应用，**不是操作系统**：无壁纸/任务栏/窗口/锁屏；
+     页面 = 满屏应用（复用 shell.css 的 .w-app / .w-appbar / .w-content 布局类）。
+   - 可见控件一律是 Fluent UI React v9 组件（Button/Card/Field/Input/SearchBox/Accordion/
+     TabList/MessageBar/Dialog/Table/Text/Link…）；本文件只写**布局**（pub-* 前缀），
+     不发明按钮/卡片/输入框皮肤。
+   - 颜色、字体、圆角、阴影只允许 Fluent token：var(--color*) / var(--w-*) 别名。
+   - 唯一例外：二维码卡面必须纯白（扫码对比度的业务要求，见 .pub-qr）。
+   - 响应式断点：1180 / 900（与 shell 移动端一致）/ 560。
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* ══════════ 公开页窗口舞台（落地页 / 帮助页）══════════
-   桌面壁纸由 body 提供；这里只是在壁纸之上放一扇 Win11 无边框窗口。 */
-.pub-stage {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  overflow: hidden;
-}
-.pub-frame {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  margin: 8px;
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--w-radius-window);
-  overflow: hidden;
-  background: var(--w-mica);
-  -webkit-backdrop-filter: blur(60px) saturate(140%);
-  backdrop-filter: blur(60px) saturate(140%);
-  box-shadow: var(--w-shadow-window);
-  color: var(--w-text);
-}
-.pub-frame-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--w-layer);
-}
-.pub-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   一、登录 / 注册 = Windows 11 锁屏
-   ══════════════════════════════════════════════════════════════════════════ */
-.pub-lock {
-  position: fixed;
-  inset: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  color: var(--w-text);
-}
-/* 壁纸压暗：Windows 锁屏的烟幕层 */
-.pub-lock-scrim {
-  position: fixed;
-  inset: 0;
-  background: var(--w-overlay);
-  pointer-events: none;
-}
-/* 浅色壁纸本身很亮：同一烟幕降到低不透明度，避免整体发灰（深色保持满量压暗） */
-:root[data-theme='light'] .pub-lock-scrim {
-  opacity: 0.4;
-}
-.pub-lock-content {
-  position: relative;
-  z-index: 1;
-  min-height: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(380px, 460px);
-  align-items: stretch;
-  gap: clamp(32px, 5vw, 96px);
-  padding: clamp(24px, 4vh, 48px) clamp(24px, 4.5vw, 72px);
-}
-.pub-lock-left {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 32px;
-  padding-top: clamp(16px, 8vh, 96px);
-}
-.pub-lock-time {
-  font-family: var(--w-font-display);
-  font-size: clamp(56px, 6.4vw, 96px);
-  line-height: 1;
-  font-weight: 300;
-  letter-spacing: -0.02em;
-  color: var(--w-text);
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 2px 24px var(--w-smoke);
-}
-.pub-lock-date {
-  margin-top: 10px;
-  font-size: clamp(16px, 1.4vw, 22px);
-  line-height: 1.4;
-  font-weight: 400;
-  color: var(--w-text-2);
-  text-shadow: 0 1px 12px var(--w-smoke);
-}
-.pub-lock-tagline {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-2);
-}
-.pub-lock-tagline-mark {
-  display: inline-flex;
-  align-items: center;
-}
-.pub-lock-right {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-}
-
-/* —— Acrylic 登录面板 —— */
-.pub-auth-panel {
-  width: 100%;
-  max-width: 440px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 32px;
-  background: var(--w-acrylic-strong);
-  -webkit-backdrop-filter: blur(48px) saturate(140%);
-  backdrop-filter: blur(48px) saturate(140%);
-  border: 1px solid var(--w-flyout-border);
-  border-radius: var(--w-radius-card);
-  box-shadow: var(--w-shadow-dialog);
-}
-.pub-auth-brand {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  min-width: 0;
-}
-.pub-auth-icon {
-  flex: 0 0 auto;
-  border-radius: 10px;
-  box-shadow: var(--w-shadow-card);
-}
-.pub-auth-brand-main {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.pub-auth-app {
-  font-family: var(--w-font-display);
-  font-size: 24px;
-  line-height: 30px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--w-text);
-}
-.pub-auth-sub {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
-}
-.pub-auth-tabs {
-  margin-top: 2px;
-}
-
-/* —— Win11 表单：字段更高、标签 13、错误贴近字段 —— */
-.pub-auth-panel .ant-form-item {
-  margin-bottom: 14px;
-}
-.pub-auth-panel .ant-form-item-label {
-  padding-bottom: 4px;
-}
-.pub-auth-panel .ant-form-item-label > label {
-  font-size: 13px;
-  line-height: 18px;
-  color: var(--w-text-2);
-}
-.pub-auth-panel .ant-input,
-.pub-auth-panel .ant-input-affix-wrapper {
-  min-height: 40px;
-}
-.pub-auth-panel .ant-input {
-  padding: 8px 10px;
-  line-height: 22px;
-}
-.pub-auth-panel .ant-input-affix-wrapper {
-  padding: 6px 10px;
-}
-.pub-auth-panel .ant-checkbox-wrapper {
-  font-size: 13px;
-  color: var(--w-text-2);
-}
-.pub-auth-form {
-  display: flex;
-  flex-direction: column;
-}
-.pub-auth-panel .pub-auth-submit {
-  height: var(--w-control-h-lg);
-  font-size: var(--w-fs-body);
-  margin-top: 2px;
-}
-.pub-auth-extra {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
-}
-.pub-auth-privacy {
-  margin: 10px 0 0;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
-}
-
-/* —— 面板内联报错 / InfoBar —— */
-.pub-auth-error {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: var(--w-radius-control);
-  background: var(--w-danger-soft);
-  color: var(--w-danger);
-  font-size: 12px;
-  line-height: 16px;
-}
-.pub-auth-error > svg {
-  flex: 0 0 auto;
-  margin-top: 1px;
-}
-.pub-infobar {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--w-radius-control);
-  background: var(--w-layer-alt);
-  border: 1px solid var(--w-card-border);
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-2);
-}
-.pub-infobar--warning {
-  background: var(--w-warning-soft);
-  border-color: transparent;
-}
-.pub-infobar--warning > svg {
-  flex: 0 0 auto;
-  color: var(--w-warning);
-  margin-top: 0;
-}
-.pub-infobar-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.pub-infobar-title {
-  font-size: 13px;
-  line-height: 18px;
-  font-weight: 600;
-  color: var(--w-text);
-}
-.pub-infobar-desc {
-  color: var(--w-text-2);
-}
-
-/* —— Turnstile 宿主与状态行 —— */
-.pub-auth-ts {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-.pub-auth-ts-hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
-}
-.pub-auth-ts-error {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-danger);
-}
-
-/* —— 面板页脚 —— */
-.pub-auth-foot {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  padding-top: 14px;
-  border-top: 1px solid var(--w-divider);
-}
-.pub-auth-foot .w-btn {
-  margin-left: -8px;
-}
-.pub-auth-hint {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
-}
-
-/* —— 锁屏右下角语言 / 主题 / 托盘 —— */
-.pub-lock-status {
-  position: fixed;
-  right: 20px;
-  bottom: 16px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-.pub-lock-tool {
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--w-radius-control);
-  border: 0;
-  background: transparent;
-  color: var(--w-text-2);
-  cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease;
-}
-.pub-lock-tool:hover {
-  background: var(--w-layer-hover);
-  color: var(--w-text);
-}
-.pub-lock-tool--text {
-  width: auto;
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.pub-lock-tray {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 8px 0 12px;
-  color: var(--w-text-2);
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   二、落地页 = Windows 11 应用「欢迎 / 商店详情」
-   ══════════════════════════════════════════════════════════════════════════ */
-.pub-landing {
-  padding-top: 28px;
-  padding-bottom: 28px;
-}
-
-/* —— Hero：应用标识 + 一句话价值 + 主 CTA + 截图 —— */
-.pub-app-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
-  align-items: start;
-  gap: clamp(24px, 3.5vw, 48px);
-}
-.pub-app-hero-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  min-width: 0;
-}
-.pub-app-identity {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-}
-.pub-app-identity .w-appicon {
-  width: 64px;
-  height: 64px;
-}
-.pub-app-identity-main {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.pub-app-name {
-  font-family: var(--w-font-display);
-  font-size: clamp(32px, 3vw, 40px);
-  line-height: 1.15;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--w-text);
-}
-.pub-app-tags {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.pub-app-value {
-  font-size: var(--w-fs-body-lg);
-  line-height: var(--w-lh-body-lg);
-  color: var(--w-text-2);
-  max-width: 56ch;
-}
-.pub-app-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px 16px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
-}
-.pub-app-apk {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* —— 真实界面截图（商店详情式产品图，不贴图墙）—— */
-.pub-shot {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  margin: 0;
-}
-.pub-shot-frame {
-  border: 1px solid var(--w-card-border);
-  border-radius: var(--w-radius-card);
-  background: var(--w-card);
-  box-shadow: var(--w-shadow-card);
-  overflow: hidden;
-}
-.pub-shot-frame img {
+/* Fluent Text 根样式是 display:inline；用 as="p"/"h*" 的排版元素显式恢复块级 */
+.pub-doc-p.fui-Text,
+.pub-doc-h2.fui-Text,
+.pub-doc-h3.fui-Text,
+.pub-dlg-body.fui-Text,
+.pub-dlg-foot.fui-Text,
+.pub-auth-privacy.fui-Text,
+.pub-reward-body p.fui-Text,
+.pub-hero-sub.fui-Text {
   display: block;
-  width: 100%;
-  height: auto;
-}
-.pub-shot-cap {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
 }
 
-/* —— 区块标题 —— */
+/* ══════════ 共享：应用页内的内容容器 / 区块 ══════════ */
+.pub-container {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
 .pub-section {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-top: 36px;
-  scroll-margin-top: 20px;
+  min-width: 0;
 }
 .pub-section-head {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
-.pub-section-title {
-  font-family: var(--w-font-display);
-  font-size: 20px;
-  line-height: 28px;
+.pub-lang-label {
+  font-size: var(--fontSizeBase200, 12px);
   font-weight: 600;
-  color: var(--w-text);
 }
-.pub-section-desc {
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
-  color: var(--w-text-2);
-  max-width: 78ch;
-}
-
-/* —— 3 张 Win11 设置卡（功能）—— */
-.pub-feat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
-}
-.pub-feat {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 18px;
-}
-.pub-feat .w-row-icon {
-  width: 36px;
-  height: 36px;
-  font-size: 18px;
-}
-.pub-feat-title {
-  font-size: var(--w-fs-body-lg);
-  line-height: var(--w-lh-body-lg);
-  font-weight: 600;
-  color: var(--w-text);
-}
-.pub-feat-desc {
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
-  color: var(--w-text-2);
-}
-
-/* —— 「数据归你」：设置行式说明 —— */
-.pub-own {
-  overflow: hidden;
-}
-.pub-own-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 20px 20px 14px;
-}
-.pub-own-mark {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+/* 图标底：Fluent CardHeader 的 image 槽（32px 圆角小方块，品牌柔色） */
+.pub-icon-badge {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--w-radius-card);
   background: var(--w-accent-soft);
-  color: var(--w-accent);
+  color: var(--w-brand-fg);
 }
-.pub-own-head .w-head-main {
-  gap: 4px;
-}
-.pub-own .w-row {
-  padding: 12px 20px;
-}
-
-/* —— Win11 Expander（FAQ）—— */
-.pub-faq {
-  overflow: hidden;
-}
-.pub-expander + .pub-expander {
-  border-top: 1px solid var(--w-divider);
-}
-.pub-expander-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  padding: 12px 20px;
+/* 交互卡片：用 <button> 包住 Fluent Card（Lead 首页同一模式） */
+.pub-card-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
   cursor: pointer;
-  list-style: none;
-  user-select: none;
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
-  color: var(--w-text);
-  transition: background-color 0.12s ease;
+  border-radius: var(--w-radius-card);
 }
-.pub-expander-head::-webkit-details-marker {
-  display: none;
+.pub-card-btn:focus-visible {
+  outline: 2px solid var(--w-focus);
+  outline-offset: 2px;
 }
-.pub-expander-head:hover {
-  background: var(--w-layer);
+.pub-card-btn .fui-Card {
+  height: 100%;
+  transition: background-color 0.12s ease, box-shadow 0.12s ease;
 }
-.pub-expander[open] .pub-expander-head {
-  background: var(--w-layer);
+.pub-card-btn:hover .fui-Card {
+  background: var(--w-surface-hover);
+  box-shadow: var(--w-shadow-card-hover);
 }
-.pub-expander-title {
-  flex: 1;
-  min-width: 0;
+.pub-card-btn:active .fui-Card {
+  background: var(--w-surface-pressed);
 }
-.pub-expander-chev {
-  flex: 0 0 auto;
-  color: var(--w-text-3);
-  transition: transform 0.15s cubic-bezier(0.1, 0.9, 0.2, 1);
-}
-.pub-expander[open] .pub-expander-chev {
-  transform: rotate(180deg);
-}
-.pub-expander-body {
-  padding: 0 20px 16px;
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
+/* 整行文字按钮（联系入口等）：Fluent Button 拉满行宽、左对齐 */
+.fui-Button.pub-link-row {
+  width: 100%;
+  justify-content: flex-start;
   color: var(--w-text-2);
 }
-
-/* —— 收尾 CTA 卡 —— */
-.pub-cta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 20px;
-}
-.pub-cta .w-head-main {
-  gap: 4px;
-}
-
-/* —— 联系我们：设置行式列表 —— */
-.pub-contact {
-  overflow: hidden;
-}
-.pub-contact .w-row {
-  padding: 10px 20px;
-}
-.pub-contact .w-row-title {
-  font-size: var(--w-fs-body);
-}
-
-/* —— 低调页脚 —— */
+/* 低调页脚 */
 .pub-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px 24px;
   flex-wrap: wrap;
-  margin-top: 36px;
+  margin-top: 8px;
   padding-top: 16px;
   border-top: 1px solid var(--w-divider);
-  font-size: 12px;
-  line-height: 16px;
   color: var(--w-text-3);
 }
-.pub-footer-left,
-.pub-footer-right {
+.pub-footer-brand,
+.pub-footer-links {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   min-width: 0;
 }
-.pub-footer .w-sep--v {
-  margin: 0 2px;
-}
-
-/* —— Win11 超链接（文字链）—— */
-.pub-link {
-  display: inline;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--w-accent);
-  font-size: 12px;
-  line-height: 16px;
-  text-decoration: none;
-  cursor: pointer;
-}
-.pub-link:hover {
-  color: var(--w-accent-hover);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
 
 /* ══════════════════════════════════════════════════════════════════════════
-   三、帮助 = Windows 11「获取帮助」
+   一、落地页 = Fluent 应用介绍页
    ══════════════════════════════════════════════════════════════════════════ */
-.pub-help {
-  padding-top: 28px;
-  padding-bottom: 32px;
-  gap: 20px;
+.pub-landing {
+  gap: 48px;
 }
-
-/* —— 大搜索框 —— */
-.pub-help-search {
+.pub-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+  align-items: start;
+  gap: clamp(24px, 4vw, 48px);
+  min-width: 0;
+}
+.pub-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.pub-hero-badges {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+.pub-hero-title {
+  letter-spacing: -0.015em;
+  line-height: var(--lineHeightBase800, 40px);
+}
+.pub-hero-sub {
+  max-width: 52ch;
+  line-height: var(--lineHeightBase400, 22px);
+}
+.pub-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pub-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px 16px;
+  flex-wrap: wrap;
+}
+.pub-apk-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fontSizeBase200, 12px);
+}
+/* 真实截图 Card：图铺满、说明在底部 */
+.pub-shot-card.fui-Card {
+  padding: 0;
+  overflow: hidden;
   min-width: 0;
 }
-.pub-help-search .w-search {
-  flex: 1;
-  height: var(--w-control-h-lg);
-  padding: 0 12px;
-  min-width: 0;
+.pub-shot-img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
-.pub-help-search .w-search-input {
-  font-size: var(--w-fs-body-lg);
+.pub-shot-cap {
+  padding: 8px 12px;
+  border-top: 1px solid var(--w-divider);
 }
-/* 隐藏 WebKit 原生 search 清除按钮：页面已有自己的 Win11 清除按钮，避免出现两个 × */
-.pub-help-search .w-search-input::-webkit-search-cancel-button,
-.pub-help-search .w-search-input::-webkit-search-decoration {
-  -webkit-appearance: none;
-  appearance: none;
-}
-.pub-search-clear {
-  flex: 0 0 auto;
-}
-
-/* —— 主题卡片（开始使用 / AI / 同步备份 / 账户）—— */
-.pub-topic-grid {
+/* 功能卡网格 */
+.pub-feature-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
 }
-.pub-topic {
+.pub-feature-card {
+  height: 100%;
+}
+/* 「数据归你」Card：CardHeader + 信息行 */
+.pub-own-card.fui-Card {
+  padding: 0;
+  overflow: hidden;
+}
+.pub-own-card > .fui-CardHeader {
+  padding: 18px 20px 14px;
+}
+.pub-own-card > .fui-Divider {
+  margin: 0 20px;
+}
+.pub-own-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 12px 12px;
+}
+.pub-own-row {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px 16px;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 0.12s ease;
+  padding: 10px 8px;
+  border-radius: var(--w-radius-control);
 }
-.pub-topic:hover {
-  background: var(--w-card-hover);
+.pub-own-icon {
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--w-brand-fg);
+  flex: 0 0 auto;
 }
-.pub-topic .w-row-icon {
-  width: 36px;
-  height: 36px;
-  font-size: 18px;
-}
-.pub-topic-main {
+.pub-own-main {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
-.pub-topic-title {
-  font-size: var(--w-fs-body);
-  line-height: 20px;
-  font-weight: 600;
-  color: var(--w-text);
-}
-.pub-topic-desc {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
-}
-
-/* —— 搜索结果 —— */
-.pub-help-results {
+/* FAQ：Fluent Accordion 放进 Card */
+.pub-faq-card.fui-Card {
+  padding: 0;
   overflow: hidden;
 }
-.pub-help-results .w-row {
-  padding: 10px 16px;
+.pub-faq-card .fui-AccordionHeader {
+  padding-inline: 20px;
 }
-.pub-help-empty {
-  min-height: 160px;
-  padding: 32px 16px;
+.pub-faq-card .fui-AccordionPanel {
+  padding-inline: 20px;
+}
+/* 收尾 CTA（Fluent Card 自身是 column flex，这里显式改成行布局） */
+.pub-cta-card.fui-Card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.pub-cta-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+/* 联系方式 Card：CardHeader + 行 */
+.pub-contact-card.fui-Card {
+  padding: 0;
+  overflow: hidden;
+}
+.pub-contact-card > .fui-CardHeader {
+  padding: 18px 20px 14px;
+}
+.pub-contact-card > .fui-Divider {
+  margin: 0 20px;
+}
+.pub-contact-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 12px 12px;
+}
+.pub-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: var(--w-radius-control);
+  min-width: 0;
+}
+.pub-contact-icon {
+  color: var(--w-text-3);
+  flex: 0 0 auto;
+}
+.pub-contact-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
-/* —— 目录 / 正文 —— */
+/* ══════════════════════════════════════════════════════════════════════════
+   二、登录 / 注册 = Fluent 应用登录页
+   ══════════════════════════════════════════════════════════════════════════ */
+.pub-auth-main {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 16px;
+}
+.pub-auth-card.fui-Card {
+  width: min(440px, 100%);
+}
+.pub-auth-tabs {
+  display: flex;
+  width: 100%;
+  margin: 2px 0;
+}
+.pub-auth-tabs .fui-Tab {
+  flex: 1 1 0;
+  justify-content: center;
+}
+.pub-auth-error {
+  margin-bottom: 12px;
+}
+.pub-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pub-auth-remember {
+  margin-top: 2px;
+}
+.pub-auth-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+.pub-auth-ts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pub-auth-ts-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pub-auth-ts-retry {
+  margin-left: 8px;
+}
+.pub-auth-privacy {
+  margin: 0;
+}
+.pub-auth-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--w-divider);
+  width: 100%;
+}
+.pub-auth-foot .fui-Button {
+  margin-left: -10px;
+}
+.pub-auth-pagefoot {
+  margin: 0;
+  text-align: center;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   三、帮助 = Fluent「获取帮助」应用页
+   ══════════════════════════════════════════════════════════════════════════ */
+.pub-help {
+  gap: 24px;
+}
+.pub-help-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pub-help-search {
+  width: min(600px, 100%);
+}
+.pub-appbar-back {
+  font-size: var(--fontSizeBase200, 12px);
+}
+/* 搜索结果 */
+.pub-results-card.fui-Card {
+  padding: 0;
+  overflow: hidden;
+}
+.pub-results-card > .fui-CardHeader {
+  padding: 12px 16px 10px;
+}
+.pub-results-card > .fui-Divider {
+  margin: 0 16px;
+}
+.pub-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px 8px;
+}
+.pub-result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--w-radius-control);
+  background: transparent;
+  text-align: left;
+  color: var(--w-text);
+  cursor: pointer;
+}
+.pub-result-row:hover {
+  background: var(--w-subtle-hover);
+}
+.pub-result-row:focus-visible {
+  outline: 2px solid var(--w-focus);
+  outline-offset: -2px;
+}
+.pub-result-icon {
+  color: var(--w-text-3);
+  flex: 0 0 auto;
+}
+.pub-result-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.pub-help-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--w-text-3);
+}
+/* 主题卡片 */
+.pub-topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.pub-topic-card {
+  height: 100%;
+}
+/* 目录 + 正文 */
 .pub-help-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
+  gap: 16px;
   align-items: start;
 }
-.pub-help-layout--split {
-  grid-template-columns: 236px minmax(0, 1fr);
-}
 .pub-help-aside {
-  position: sticky;
-  top: 16px;
   min-width: 0;
 }
-.pub-toc {
+.pub-help-doc-wrap {
+  min-width: 0;
+}
+.pub-toc-card.fui-Card {
+  padding: 0 0 6px;
   overflow: hidden;
 }
-.pub-toc-head {
-  padding: 12px 14px 6px;
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 600;
-  color: var(--w-text-3);
+.pub-toc-card > .fui-CardHeader {
+  padding: 12px 16px 4px;
 }
 .pub-toc-list {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 0 6px 8px;
+  padding: 4px 8px 2px;
 }
 .pub-toc-row {
   position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 36px;
-  padding: 6px 10px;
+  width: 100%;
+  padding: 7px 10px;
   border: 0;
   border-radius: var(--w-radius-control);
   background: transparent;
   color: var(--w-text-2);
-  font-size: 13px;
-  line-height: 18px;
+  font-family: var(--w-font);
+  font-size: var(--fontSizeBase300, 14px);
+  line-height: var(--lineHeightBase300, 20px);
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease;
 }
 .pub-toc-row:hover {
-  background: var(--w-layer-hover);
+  background: var(--w-subtle-hover);
   color: var(--w-text);
 }
+.pub-toc-row:focus-visible {
+  outline: 2px solid var(--w-focus);
+  outline-offset: -2px;
+}
 .pub-toc-row.is-active {
-  background: var(--w-layer-alt);
+  background: var(--w-subtle-selected);
   color: var(--w-text);
   font-weight: 600;
 }
 .pub-toc-row.is-active::before {
   content: '';
   position: absolute;
-  left: -6px;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
   width: 3px;
   height: 16px;
   border-radius: 2px;
-  background: var(--w-accent);
+  background: var(--w-brand-fg);
 }
 .pub-toc-row-label {
+  flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .pub-toc-count {
-  margin-left: auto;
-  font-size: 11px;
+  flex: 0 0 auto;
+  font-size: var(--fontSizeBase200, 12px);
   color: var(--w-text-3);
   font-variant-numeric: tabular-nums;
 }
-
-/* —— 文档卡 —— */
-.pub-help-doc {
+/* 正文 Card */
+.pub-help-doc.fui-Card {
+  padding: 0;
   overflow: hidden;
-  min-width: 0;
 }
-.pub-help-doc-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.pub-help-doc > .fui-CardHeader {
   padding: 16px 20px 12px;
-  border-bottom: 1px solid var(--w-divider);
 }
-.pub-help-doc-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--w-fs-subtitle);
-  line-height: 24px;
-  font-weight: 600;
-  color: var(--w-text);
+.pub-help-doc > .fui-Divider {
+  margin: 0;
 }
-.pub-help-doc-body {
+.pub-doc-body {
   padding: 20px;
 }
 .pub-doc-chapter {
-  margin-bottom: 36px;
+  margin-bottom: 32px;
   scroll-margin-top: 20px;
 }
-.pub-doc-chapter:last-child {
-  margin-bottom: 12px;
+.pub-doc-chapter:last-of-type {
+  margin-bottom: 8px;
 }
 .pub-doc-h2 {
-  margin-bottom: 14px;
+  display: block;
+  margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--w-divider);
-  font-family: var(--w-font-display);
-  font-size: 20px;
-  line-height: 28px;
-  font-weight: 600;
-  color: var(--w-text);
 }
 .pub-doc-section {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   scroll-margin-top: 20px;
 }
 .pub-doc-section:last-child {
   margin-bottom: 0;
 }
 .pub-doc-h3 {
-  margin-bottom: 8px;
-  font-size: var(--w-fs-body-lg);
-  line-height: var(--w-lh-body-lg);
-  font-weight: 600;
-  color: var(--w-text);
+  display: block;
+  margin-bottom: 6px;
 }
 .pub-doc-p {
-  margin: 0 0 14px;
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
-  color: var(--w-text);
+  margin: 0 0 12px;
+  line-height: var(--lineHeightBase300, 20px);
 }
 .pub-doc-list {
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   padding-left: 22px;
   list-style: disc;
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
+  font-size: var(--fontSizeBase300, 14px);
+  line-height: var(--lineHeightBase300, 20px);
   color: var(--w-text);
 }
 .pub-doc-list--ol {
   list-style: decimal;
 }
 .pub-doc-list li {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 .pub-doc-steps {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin: 0 0 16px;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
 }
 .pub-doc-step {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
 }
 .pub-doc-step-num {
   flex: 0 0 22px;
   width: 22px;
   height: 22px;
-  margin-top: 1px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--w-card-border);
-  border-radius: 50%;
-  background: var(--w-layer-alt);
+  border-radius: var(--borderRadiusCircular, 10000px);
+  background: var(--w-surface-3);
   color: var(--w-text-3);
-  font-size: 11px;
-  line-height: 1;
+  font-size: var(--fontSizeBase100, 10px);
   font-variant-numeric: tabular-nums;
+  margin-top: 1px;
 }
-.pub-doc-step-title {
-  margin-bottom: 2px;
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
-  font-weight: 600;
-  color: var(--w-text);
-}
-.pub-doc-step-text {
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
-  color: var(--w-text-2);
-}
-.pub-doc-table-wrap {
-  margin: 0 0 16px;
-  overflow-x: auto;
-}
-.pub-doc-table {
-  min-width: 480px;
-  font-size: 13px;
-}
-.pub-doc-table tbody td {
-  height: auto;
-  padding: 8px 12px;
-  line-height: 18px;
-  vertical-align: top;
-  color: var(--w-text);
-}
-.pub-doc-note {
+.pub-doc-step-main {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border: 1px solid var(--w-card-border);
-  border-radius: var(--w-radius-control);
-  background: var(--w-layer-alt);
-}
-.pub-doc-note > svg {
-  flex: 0 0 auto;
-  margin-top: 2px;
-  color: var(--w-text-3);
-}
-.pub-doc-note--tip > svg {
-  color: var(--w-accent);
-}
-.pub-doc-note--warn > svg {
-  color: var(--w-warning);
-}
-.pub-doc-note-main {
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
 }
-.pub-doc-note-title {
-  margin-bottom: 2px;
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
-  font-weight: 600;
-  color: var(--w-text);
+.pub-doc-table-wrap {
+  margin: 0 0 14px;
+  overflow-x: auto;
+}
+.pub-doc-note {
+  margin: 0 0 14px;
 }
 .pub-doc-note-text {
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
-  color: var(--w-text-2);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
 }
 .pub-doc-code {
-  margin: 0 0 16px;
+  margin: 0 0 14px;
   padding: 12px 14px;
-  border: 1px solid var(--w-card-border);
+  border: 1px solid var(--w-border);
   border-radius: var(--w-radius-control);
-  background: var(--w-layer-alt);
+  background: var(--w-surface-3);
   color: var(--w-text);
-  font-family: var(--w-font-mono);
-  font-size: 12px;
+  font-family: var(--fontFamilyMonospace, monospace);
+  font-size: var(--fontSizeBase200, 12px);
   line-height: 18px;
   white-space: pre-wrap;
   word-break: break-all;
   overflow-x: auto;
 }
-
-/* —— 文档尾 —— */
 .pub-help-end {
   display: flex;
   flex-direction: column;
@@ -1018,101 +648,54 @@
   padding-top: 16px;
   border-top: 1px solid var(--w-divider);
 }
-.pub-help-end-title {
-  font-size: var(--w-fs-body-lg);
-  line-height: var(--w-lh-body-lg);
-  font-weight: 600;
-  color: var(--w-text);
-}
-.pub-help-end-body {
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
-  color: var(--w-text-2);
-}
 .pub-help-support {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   四、欢迎 / 赞赏 = Windows 11 内容对话框
+   四、欢迎 / 赞赏 = Fluent Dialog
    ══════════════════════════════════════════════════════════════════════════ */
-.pub-dlg-head {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.pub-dialog.fui-DialogSurface {
+  width: min(480px, calc(100vw - 32px));
+  max-width: 480px;
 }
 .pub-dlg-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 400;
+  margin-bottom: 8px;
   color: var(--w-text-3);
 }
-.pub-dlg-title {
-  font-family: var(--w-font-display);
-  font-size: 20px;
-  line-height: 28px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--w-text);
-}
 .pub-dlg-body {
-  margin: 0 0 12px;
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
+  margin: 0 0 10px;
   color: var(--w-text-2);
+  line-height: var(--lineHeightBase300, 20px);
 }
 .pub-dlg-qr {
   display: flex;
   align-items: flex-start;
   gap: 16px;
   flex-wrap: wrap;
-  margin: 16px 0 4px;
+  margin: 14px 0 6px;
 }
 .pub-dlg-notes {
-  flex: 1 1 120px;
-  min-width: 120px;
+  flex: 1 1 140px;
+  min-width: 140px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding-top: 4px;
 }
-.pub-dlg-note-strong {
-  font-size: 13px;
-  line-height: 18px;
-  font-weight: 600;
-  color: var(--w-text);
-}
-.pub-dlg-note {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
-}
-.pub-dlg-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-top: 16px;
-}
-.pub-dlg-actions .w-btn--lg {
-  min-width: 128px;
-}
 .pub-dlg-foot {
-  margin-top: 14px;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
+  margin: 0;
 }
-
-/* —— 二维码卡面：全项目唯一允许写死颜色的地方（必须浅底深码）—— */
+.pub-dlg-start {
+  min-width: 120px;
+}
+/* 二维码卡面：必须纯白（扫码对比度），唯一允许的固定色 */
 .pub-qr {
   flex: 0 0 auto;
   display: inline-flex;
@@ -1120,33 +703,41 @@
   justify-content: center;
   padding: 12px;
   background: #ffffff;
-  border: 1px solid var(--w-card-border);
+  border: 1px solid var(--w-border);
   border-radius: var(--w-radius-control);
   box-shadow: var(--w-shadow-card);
 }
 .pub-qr img {
   display: block;
 }
-.pub-qr--flat {
-  box-shadow: none;
-}
 
-/* —— 设置页「关于与支持」卡 —— */
-.pub-reward {
+/* 设置页「关于与支持」Card */
+.pub-reward-card.fui-Card {
   max-width: 640px;
+  padding: 0;
+  overflow: hidden;
+}
+.pub-reward-card > .fui-CardHeader {
+  padding: 16px 20px 12px;
+}
+.pub-reward-card > .fui-Divider {
+  margin: 0 20px;
 }
 .pub-reward-body {
-  margin: 0 0 12px;
-  font-size: var(--w-fs-body);
-  line-height: var(--w-lh-body);
-  color: var(--w-text-2);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px;
 }
-.pub-reward-qr {
+.pub-reward-body > p {
+  margin: 0;
+}
+.pub-reward-qr-row {
   display: flex;
   align-items: flex-start;
   gap: 20px;
   flex-wrap: wrap;
-  margin: 16px 0 12px;
+  margin-top: 4px;
 }
 .pub-reward-notes {
   flex: 1 1 200px;
@@ -1155,220 +746,110 @@
   flex-direction: column;
   gap: 6px;
 }
-.pub-reward-note-strong {
-  font-size: 13px;
-  line-height: 18px;
-  font-weight: 600;
-  color: var(--w-text);
-}
-.pub-reward-note {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
-}
 .pub-reward-save {
-  margin-top: 8px;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
+  margin-top: 2px;
 }
 .pub-reward-free {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin: 0;
+  padding-top: 10px;
   border-top: 1px solid var(--w-divider);
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--w-text-3);
-}
-.pub-reward-thanks {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 16px 0;
-  padding: 12px 14px;
-  border-radius: var(--w-radius-control);
-  background: var(--w-success-soft);
-  color: var(--w-success);
-  font-size: 13px;
-  line-height: 18px;
 }
 .pub-reward-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 12px;
+}
+.pub-reward-thanks {
+  margin: 4px 0;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   五、响应式
+   五、响应式（1180 / 900 / 560）
    ══════════════════════════════════════════════════════════════════════════ */
-@media (max-width: 1100px) {
-  /* 锁屏：单列，时钟在上、面板居中 */
-  .pub-lock-content {
+@media (min-width: 901px) {
+  /* 桌面：左侧目录 260px（sticky）+ 右侧正文 */
+  .pub-help-layout {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+  .pub-help-aside {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .pub-hero {
     grid-template-columns: minmax(0, 1fr);
-    grid-auto-rows: auto;
-    align-content: start;
-    gap: 20px;
-    align-items: start;
-    padding: 32px 24px 56px;
   }
-  .pub-lock-left {
-    justify-content: flex-start;
-    gap: 0;
-    padding-top: 0;
-  }
-  .pub-lock-time {
-    font-size: clamp(44px, 8vw, 64px);
-  }
-  .pub-lock-tagline {
-    display: none;
-  }
-  .pub-lock-right {
-    justify-content: center;
-  }
-  .pub-auth-panel {
-    max-width: 460px;
-  }
-  .pub-help-layout--split {
-    grid-template-columns: 200px minmax(0, 1fr);
+  .pub-hero-copy {
+    max-width: 720px;
   }
 }
 
 @media (max-width: 900px) {
-  .pub-frame {
-    margin: 0;
-    border-radius: 0;
-    box-shadow: none;
+  .pub-container {
+    padding: 20px 16px;
+    gap: 28px;
   }
-  .pub-landing,
-  .pub-help {
-    padding-top: 20px;
+  .pub-landing {
+    gap: 32px;
   }
-  .pub-app-hero {
+  .pub-help-layout {
     grid-template-columns: minmax(0, 1fr);
-    align-items: start;
   }
-  .pub-app-identity .w-appicon {
-    width: 52px;
-    height: 52px;
-  }
-  .pub-app-name {
-    font-size: 30px;
-    line-height: 36px;
-  }
-  .pub-app-value {
-    font-size: var(--w-fs-body);
-    line-height: var(--w-lh-body);
-  }
-  .pub-feat-grid,
   .pub-topic-grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  }
-  .pub-help-layout,
-  .pub-help-layout--split {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .pub-help-aside {
-    position: static;
-  }
-  .pub-cta {
-    align-items: flex-start;
-    flex-direction: column;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
   .pub-footer {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .w-appbar-tools .pub-appbar-login {
+    display: none;
+  }
+  .pub-auth-main {
+    padding: 24px 16px;
+  }
+  .pub-doc-body {
+    padding: 16px;
+  }
+  .pub-help-doc > .fui-CardHeader {
+    padding: 14px 16px 10px;
   }
 }
 
 @media (max-width: 560px) {
-  .pub-lock-content {
-    padding: 24px 16px 40px;
+  .pub-landing {
+    gap: 24px;
   }
-  .pub-lock-time {
-    font-size: 40px;
+  .pub-hero-actions .fui-Button {
+    flex: 1 1 auto;
   }
-  .pub-lock-date {
-    margin-top: 6px;
-    font-size: 14px;
-  }
-  .pub-auth-panel {
-    gap: 14px;
-    padding: 20px;
-  }
-  .pub-auth-app {
-    font-size: 20px;
-    line-height: 26px;
-  }
-  .pub-lock-status {
-    top: 10px;
-    right: 10px;
-    bottom: auto;
-  }
-  .pub-lock-tray {
-    display: none;
-  }
-  .pub-landing,
-  .pub-help {
-    padding-top: 16px;
-  }
-  .pub-app-hero {
-    gap: 20px;
-  }
-  .pub-app-hero-copy {
-    gap: 14px;
-  }
-  .pub-app-name {
-    font-size: 26px;
-    line-height: 32px;
-  }
-  .pub-section {
-    margin-top: 28px;
-  }
-  .pub-own-head {
-    padding: 16px 16px 12px;
-  }
-  .pub-own .w-row,
-  .pub-contact .w-row {
-    padding: 10px 16px;
-  }
-  .pub-expander-head {
-    padding: 10px 16px;
-  }
-  .pub-expander-body {
-    padding: 0 16px 14px;
-  }
-  .pub-help-doc-head {
-    padding: 14px 16px 10px;
-  }
-  .pub-help-doc-body {
-    padding: 16px;
-  }
-  .pub-footer {
-    margin-top: 28px;
+  .pub-feature-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
   .pub-topic-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
-  .pub-topic {
-    padding: 12px;
-    gap: 10px;
-  }
-  .pub-topic .w-row-icon {
-    width: 30px;
-    height: 30px;
-    font-size: 16px;
+  .pub-cta-card {
+    align-items: stretch;
+    flex-direction: column;
   }
   .pub-dlg-qr {
     gap: 12px;
   }
   .pub-dlg-notes {
+    min-width: 0;
+    flex-basis: 100%;
     padding-top: 0;
   }
-  .pub-reward-qr {
+  .pub-reward-qr-row {
     gap: 14px;
   }
   .pub-reward-notes {
     min-width: 0;
     flex-basis: 100%;
+  }
+  .pub-appbar-back {
+    display: none;
   }
 }

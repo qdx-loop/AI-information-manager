@@ -1,20 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { App, Spin } from 'antd'
+import { App } from 'antd'
 import {
-  SearchOutlined,
-  AppstoreOutlined,
-  HomeOutlined,
-  DeleteOutlined,
-  SettingOutlined,
-  QuestionCircleOutlined,
-  PlusOutlined,
-  RobotOutlined,
-  MoonOutlined,
-  SunOutlined,
-  GlobalOutlined,
-  CloudSyncOutlined,
-  SaveOutlined,
-} from '@/components/common/icons'
+  Dialog,
+  DialogBody,
+  DialogSurface,
+  Input,
+  Spinner,
+  Text,
+} from '@fluentui/react-components'
+import {
+  AddRegular,
+  BotRegular,
+  CloudSyncRegular,
+  DeleteRegular,
+  GlobeRegular,
+  GridRegular,
+  HomeRegular,
+  QuestionCircleRegular,
+  SaveRegular,
+  SearchRegular,
+  SettingsRegular,
+  WeatherMoonRegular,
+  WeatherSunnyRegular,
+} from '@fluentui/react-icons'
 import { useNavigate } from 'react-router-dom'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAppStore } from '@/store/appStore'
@@ -48,20 +56,14 @@ interface Cmd {
 type Row = Cmd | Hit
 
 /**
- * 全局命令面板（Ctrl/Cmd + K）· v9 Windows 11 搜索浮层。
- *
- * 原来是「只能搜条目的搜索框」。但调研里反复出现的一个结论是：
- * 当功能变多，用户找不到功能时不会去翻菜单，而是猜关键词搜索
- * （NN/g 的可发现性研究）。所以把「所有能做的事」都收进同一个入口：
- * 导航、去任意库、跨库搜条目、以及常用操作。
+ * 全局命令面板（Ctrl/Cmd + K）· v10 Fluent UI Dialog。
  *
  * 交互按命令面板的通行约定做全：
- * - ↑↓ 移动选中，Enter 执行，Esc 关闭
+ * - ↑↓ 移动选中，Enter 执行，Esc 关闭（Fluent Dialog 原生支持 Esc）
  * - combobox 语义 + aria-activedescendant，读屏软件能播报当前选中项
  * - 结果分组显示，超过上限时明确告知被截断了多少
  *
- * 视觉：Win11 系统搜索浮层——压暗背景、居中偏上的 Acrylic 面板、
- * 52px 大搜索框、分组结果行、底部键盘提示；检索逻辑与旧版完全一致。
+ * 检索/命令逻辑与旧版完全一致；视觉改为 Fluent Dialog（Input + 分组结果 + 键盘提示）。
  */
 const MAX_ITEM_HITS = 20
 
@@ -95,19 +97,6 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
     const timer = setTimeout(() => inputRef.current?.focus(), 60)
     return () => clearTimeout(timer)
   }, [open])
-
-  // Esc 关闭（本浮层不是 antd Modal，自己接管键盘）
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
 
   // 只认最后一次查询：doSearch 是逐库串行 await 的，慢的那次可能后到。
   // 没有这道闸，⌘K 里先打「北京」再打「上海」，北京的结果会盖掉上海的结果，
@@ -201,16 +190,16 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
   const commands = useMemo<Cmd[]>(() => {
     const isDark = settings.theme === 'dark'
     return [
-      { kind: 'cmd', id: 'go-home', group: t('palette.group.nav'), label: t('app.home'), icon: <HomeOutlined />, run: () => go('/') },
-      { kind: 'cmd', id: 'go-trash', group: t('palette.group.nav'), label: t('app.trash'), icon: <DeleteOutlined />, run: () => go('/trash') },
-      { kind: 'cmd', id: 'go-settings', group: t('palette.group.nav'), label: t('app.settings'), icon: <SettingOutlined />, run: () => go('/settings') },
-      { kind: 'cmd', id: 'go-help', group: t('palette.group.nav'), label: t('app.help'), icon: <QuestionCircleOutlined />, run: () => go('/help') },
+      { kind: 'cmd', id: 'go-home', group: t('palette.group.nav'), label: t('app.home'), icon: <HomeRegular />, run: () => go('/') },
+      { kind: 'cmd', id: 'go-trash', group: t('palette.group.nav'), label: t('app.trash'), icon: <DeleteRegular />, run: () => go('/trash') },
+      { kind: 'cmd', id: 'go-settings', group: t('palette.group.nav'), label: t('app.settings'), icon: <SettingsRegular />, run: () => go('/settings') },
+      { kind: 'cmd', id: 'go-help', group: t('palette.group.nav'), label: t('app.help'), icon: <QuestionCircleRegular />, run: () => go('/help') },
       {
         kind: 'cmd',
         id: 'new-lib',
         group: t('palette.group.act'),
         label: t('app.newLibrary'),
-        icon: <PlusOutlined />,
+        icon: <AddRegular />,
         run: () => {
           onClose()
           void createLibrary(t('app.lib.namePlaceholder'), t('app.group.libraries')).catch((e) =>
@@ -218,18 +207,18 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
           )
         },
       },
-      { kind: 'cmd', id: 'open-ai', group: t('palette.group.act'), label: t('app.aiAssistant'), icon: <RobotOutlined />, run: () => { onClose(); setAiOpen(true) } },
-      { kind: 'cmd', id: 'theme', group: t('palette.group.act'), label: isDark ? t('app.theme.light') : t('app.theme.dark'), icon: isDark ? <SunOutlined /> : <MoonOutlined />, run: () => setTheme(isDark ? 'light' : 'dark') },
+      { kind: 'cmd', id: 'open-ai', group: t('palette.group.act'), label: t('app.aiAssistant'), icon: <BotRegular />, run: () => { onClose(); setAiOpen(true) } },
+      { kind: 'cmd', id: 'theme', group: t('palette.group.act'), label: isDark ? t('app.theme.light') : t('app.theme.dark'), icon: isDark ? <WeatherSunnyRegular /> : <WeatherMoonRegular />, run: () => setTheme(isDark ? 'light' : 'dark') },
       {
         kind: 'cmd',
         id: 'lang',
         group: t('palette.group.act'),
         label: `${t('app.language')}：${settings.language === 'zh' ? 'English' : '中文'}`,
-        icon: <GlobalOutlined />,
+        icon: <GlobeRegular />,
         run: () => setLanguage(settings.language === 'zh' ? 'en' : 'zh'),
       },
-      { kind: 'cmd', id: 'backup', group: t('palette.group.act'), label: t('palette.backup'), icon: <SaveOutlined />, run: () => go('/settings') },
-      { kind: 'cmd', id: 'sync', group: t('palette.group.act'), label: t('palette.sync'), icon: <CloudSyncOutlined />, run: () => go('/settings') },
+      { kind: 'cmd', id: 'backup', group: t('palette.group.act'), label: t('palette.backup'), icon: <SaveRegular />, run: () => go('/settings') },
+      { kind: 'cmd', id: 'sync', group: t('palette.group.act'), label: t('palette.sync'), icon: <CloudSyncRegular />, run: () => go('/settings') },
     ]
   }, [t, go, createLibrary, onClose, setAiOpen, settings.theme, settings.language, setTheme, setLanguage, message])
 
@@ -243,7 +232,7 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
         group: t('palette.group.lib'),
         label: l.name,
         hint: l.category || undefined,
-        icon: <AppstoreOutlined />,
+        icon: <GridRegular />,
         run: () => {
           onClose()
           void selectLibrary(l.id)
@@ -304,103 +293,121 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
 
   useBackButtonLayer(open, onClose)
 
-  if (!open) return null
-
   return (
-    <div
-      className="ai-gs-layer"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div className="ai-gs" role="dialog" aria-modal="true" aria-label={t('app.search')}>
-        <div className="ai-gs-inputrow">
-          <SearchOutlined />
-          <input
-            ref={inputRef}
-            className="ai-gs-input"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value)
-              setActive(0)
-            }}
-            onKeyDown={onKeyDown}
-            placeholder={t('palette.placeholder')}
-            role="combobox"
-            aria-expanded
-            aria-controls="palette-list"
-            aria-activedescendant={rows[clamped] ? `palette-opt-${clamped}` : undefined}
-            aria-autocomplete="list"
-          />
-          <kbd className="w-kbd">Esc</kbd>
-        </div>
+    <Dialog open={open} onOpenChange={(_, data) => !data.open && onClose()}>
+      <DialogSurface className="ai-gs-surface">
+        <DialogBody>
+          <div className="ai-gs">
+            <div className="ai-gs-inputrow">
+              <Input
+                ref={inputRef}
+                className="ai-gs-input"
+                value={q}
+                onChange={(_, data) => {
+                  setQ(data.value)
+                  setActive(0)
+                }}
+                onKeyDown={onKeyDown}
+                placeholder={t('palette.placeholder')}
+                role="combobox"
+                aria-expanded
+                aria-controls="palette-list"
+                aria-activedescendant={rows[clamped] ? `palette-opt-${clamped}` : undefined}
+                aria-autocomplete="list"
+                contentBefore={<SearchRegular />}
+              />
+              <kbd className="ai-p-kbd">Esc</kbd>
+            </div>
 
-        <div className="ai-gs-list" id="palette-list" role="listbox" ref={listRef}>
-          {loading && (
-            <div className="ai-gs-hint">
-              <Spin size="small" />
-              {t('common.loading')}
-            </div>
-          )}
-          {empty && (
-            <div className="ai-gs-empty">
-              <span className="ai-gs-empty-icon" aria-hidden>
-                <SearchOutlined />
-              </span>
-              <span className="ai-gs-empty-title">{t('palette.empty')}</span>
-              <span className="ai-gs-empty-desc">{t('palette.placeholder')}</span>
-            </div>
-          )}
-          {rows.map((r, i) => {
-            const prevGroup = i > 0 ? groupOf(rows[i - 1]) : null
-            const g = groupOf(r)
-            return (
-              <div key={keyOf(r)}>
-                {g !== prevGroup && <div className="ai-gs-group">{g}</div>}
-                <div
-                  id={`palette-opt-${i}`}
-                  role="option"
-                  aria-selected={i === clamped}
-                  data-active={i === clamped}
-                  className={`ai-gs-row${i === clamped ? ' is-active' : ''}`}
-                  onMouseEnter={() => setActive(i)}
-                  onClick={() => runRow(r)}
-                >
-                  <span className="ai-gs-row-icon" aria-hidden>
-                    {r.kind === 'cmd' ? r.icon : <AppstoreOutlined />}
-                  </span>
-                  <span className="ai-gs-row-main">
-                    <span className="ai-gs-row-label">{r.kind === 'cmd' ? r.label : titleOf(r.item)}</span>
-                    {subtitle(r) && <span className="ai-gs-row-sub">{subtitle(r)}</span>}
-                  </span>
-                  <span className="ai-gs-row-enter" aria-hidden>
-                    <kbd className="w-kbd">Enter</kbd>
-                  </span>
+            <div className="ai-gs-list" id="palette-list" role="listbox" ref={listRef}>
+              {loading && (
+                <div className="ai-gs-hint">
+                  <Spinner size="tiny" />
+                  <Text size={200}>{t('common.loading')}</Text>
                 </div>
-              </div>
-            )
-          })}
-          {truncated && <div className="ai-gs-hint">{t('palette.more', { n: MAX_ITEM_HITS })}</div>}
-        </div>
+              )}
+              {empty && (
+                <div className="ai-gs-empty">
+                  <SearchRegular className="ai-gs-empty-icon" />
+                  <Text size={300} weight="semibold">
+                    {t('palette.empty')}
+                  </Text>
+                  <Text size={200} className="ai-gs-empty-desc">
+                    {t('palette.placeholder')}
+                  </Text>
+                </div>
+              )}
+              {rows.map((r, i) => {
+                const prevGroup = i > 0 ? groupOf(rows[i - 1]) : null
+                const g = groupOf(r)
+                return (
+                  <div key={keyOf(r)}>
+                    {g !== prevGroup && (
+                      <div className="ai-gs-group">
+                        <Text size={100} weight="semibold">
+                          {g}
+                        </Text>
+                      </div>
+                    )}
+                    <div
+                      id={`palette-opt-${i}`}
+                      role="option"
+                      aria-selected={i === clamped}
+                      data-active={i === clamped}
+                      className={`ai-gs-row${i === clamped ? ' is-active' : ''}`}
+                      onMouseEnter={() => setActive(i)}
+                      onClick={() => runRow(r)}
+                    >
+                      <span className="ai-gs-row-icon" aria-hidden>
+                        {r.kind === 'cmd' ? r.icon : <GridRegular />}
+                      </span>
+                      <span className="ai-gs-row-main">
+                        <Text size={300} className="ai-gs-row-label">
+                          {r.kind === 'cmd' ? r.label : titleOf(r.item)}
+                        </Text>
+                        {subtitle(r) && (
+                          <Text size={200} className="ai-gs-row-sub">
+                            {subtitle(r)}
+                          </Text>
+                        )}
+                      </span>
+                      <span className="ai-gs-row-enter" aria-hidden>
+                        <kbd className="ai-p-kbd">Enter</kbd>
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+              {truncated && (
+                <div className="ai-gs-hint">
+                  <Text size={200}>{t('palette.more', { n: MAX_ITEM_HITS })}</Text>
+                </div>
+              )}
+            </div>
 
-        <div className="ai-gs-foot">
-          <span>
-            <kbd className="w-kbd">↑</kbd>
-            <kbd className="w-kbd">↓</kbd>
-            {t('palette.foot.move')}
-          </span>
-          <span>
-            <kbd className="w-kbd">Enter</kbd>
-            {t('palette.foot.run')}
-          </span>
-          <span>
-            <kbd className="w-kbd">Esc</kbd>
-            {t('palette.foot.close')}
-          </span>
-          <span className="ai-gs-foot-brand">Ctrl K</span>
-        </div>
-      </div>
-    </div>
+            <div className="ai-gs-foot">
+              <span>
+                <kbd className="ai-p-kbd">↑</kbd>
+                <kbd className="ai-p-kbd">↓</kbd>
+                <Text size={100}>{t('palette.foot.move')}</Text>
+              </span>
+              <span>
+                <kbd className="ai-p-kbd">Enter</kbd>
+                <Text size={100}>{t('palette.foot.run')}</Text>
+              </span>
+              <span>
+                <kbd className="ai-p-kbd">Esc</kbd>
+                <Text size={100}>{t('palette.foot.close')}</Text>
+              </span>
+              <span className="ai-gs-foot-brand">
+                <Text size={100} font="monospace">
+                  Ctrl K
+                </Text>
+              </span>
+            </div>
+          </div>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   )
 }

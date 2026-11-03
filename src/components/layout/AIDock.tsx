@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { Spin, Tooltip } from 'antd'
+import { Button, Spinner, Tooltip } from '@fluentui/react-components'
 import {
   DismissRegular,
   PanelRightContractRegular,
@@ -16,11 +16,11 @@ const AIPanel = lazy(() => import('@/components/ai/AIPanel'))
 const SHEET_RATIO = 0.68 // 手机底部抽屉默认高度（占视口比例）
 
 /**
- * AI 助手的承载外壳 v9（Windows 11 Copilot 式侧栏）。
+ * AI 助手的承载外壳 v10（Fluent UI · Copilot 式侧栏 / 手机底部 Sheet）。
  *
  * 关键约束保持不变：**只渲染一份 DOM** —— 桌面右侧停靠列与手机底部抽屉
  * 共用同一节点，只靠 class 切换外观；跨断点缩放不会中断正在执行的任务。
- * 唯一改动是外观：Acrylic 侧栏 / Win11 头部 / 输入区（输入区由 AIPanel 渲染）。
+ * 控件全部改为 Fluent Button / Tooltip / Spinner；外观 token 来自 Fluent theme。
  */
 export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
   const t = useI18n()
@@ -102,7 +102,7 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
   const hidden = !open
   const isSheet = variant === 'sheet'
 
-  // ── 画中画（收起态）：桌面窄条 / 手机药丸 ──
+  // ── 画中画（收起态）：桌面右下角 / 手机药丸 ──
   if (collapsed) {
     return isSheet ? (
       <button type="button" className="ai-sheet-peek" onClick={() => setCollapsed(false)}>
@@ -112,26 +112,24 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
       </button>
     ) : (
       <aside className="ai-dock-collapsed" aria-label={t('app.aiAssistant')}>
-        <button
-          type="button"
-          className="w-iconbtn"
-          onClick={() => setCollapsed(false)}
-          aria-label={t('ai.open')}
-          title={t('ai.open')}
-        >
-          <SparkleRegular fontSize={18} />
-        </button>
+        <Tooltip content={t('ai.open')} relationship="label">
+          <Button
+            appearance="subtle"
+            icon={<SparkleRegular />}
+            aria-label={t('ai.open')}
+            onClick={() => setCollapsed(false)}
+          />
+        </Tooltip>
         {running && <span className="ai-pulse" title={t('ai.runningInBackground')} />}
         {!running && unseen && <span className="ai-fab-dot" aria-hidden />}
-        <button
-          type="button"
-          className="w-iconbtn"
-          onClick={() => setOpen(false)}
-          aria-label={t('common.close')}
-          title={t('common.close')}
-        >
-          <DismissRegular fontSize={16} />
-        </button>
+        <Tooltip content={t('common.close')} relationship="label">
+          <Button
+            appearance="subtle"
+            icon={<DismissRegular />}
+            aria-label={t('common.close')}
+            onClick={() => setOpen(false)}
+          />
+        </Tooltip>
       </aside>
     )
   }
@@ -190,32 +188,30 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
           <span className="ai-dock-title">{t('app.aiAssistant')}</span>
           <span className={`ai-dock-status${running ? '' : ' is-idle'}`} aria-hidden />
           <span className="ai-dock-head-spacer" />
-          <Tooltip title={t('ai.collapse')}>
-            <button
-              type="button"
-              className="w-iconbtn w-iconbtn--sm"
-              onClick={() => setCollapsed(true)}
+          <Tooltip content={t('ai.collapse')} relationship="label">
+            <Button
+              appearance="subtle"
+              size="small"
+              icon={isSheet ? <ChevronDownRegular /> : <PanelRightContractRegular />}
               aria-label={t('ai.collapse')}
-            >
-              {isSheet ? <ChevronDownRegular fontSize={16} /> : <PanelRightContractRegular fontSize={16} />}
-            </button>
+              onClick={() => setCollapsed(true)}
+            />
           </Tooltip>
-          <Tooltip title={t('common.close')}>
-            <button
-              type="button"
-              className="w-iconbtn w-iconbtn--sm"
-              onClick={() => setOpen(false)}
+          <Tooltip content={t('common.close')} relationship="label">
+            <Button
+              appearance="subtle"
+              size="small"
+              icon={<DismissRegular />}
               aria-label={t('common.close')}
-            >
-              <DismissRegular fontSize={16} />
-            </button>
+              onClick={() => setOpen(false)}
+            />
           </Tooltip>
         </header>
         <div className="ai-dock-body">
           <Suspense
             fallback={
               <div className="ai-panel-loading">
-                <Spin size="small" />
+                <Spinner size="tiny" />
                 <span>{t('ai.loadingPanel')}</span>
               </div>
             }

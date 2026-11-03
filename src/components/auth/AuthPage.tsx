@@ -1,37 +1,59 @@
 /**
- * 登录 / 注册 · v9「WINDOWS 11 LOCK SCREEN」
+ * 登录 / 注册 · v10「FLUENT UI 2 · Windows 11 应用」
  *
- * 视觉合同（`redesign-brief/11-v9-win11-desktop.md` §8 登录/注册）：
- *   整页 Windows 11 壁纸 + 压暗 → 左上大号时间 / 日期（锁屏）；
- *   中央偏右 Acrylic 登录面板：应用图标 AppIcon + 应用名 + Win11 输入框 +
- *   accent 全宽登录按钮 + Pivot 切换注册 + Win11 checkbox「记住登录状态」；
- *   错误提示贴着字段（面板内 InfoBar + 表单项内联报错）；右下角托盘图标/语言/主题。
+ * 用户反馈（2026-11-02）：v9 的「操作系统锁屏」是错的——
+ * 这是 Windows 11 风格的 Web 应用，不是 Windows 桌面模拟器。
  *
- * 行为契约（与视觉无关，逐条保留）：
+ * v10 形态（`redesign-brief/12-v10-fluent-app.md` §4 登录/注册）：
+ *   满屏 Fluent 应用页：48px app bar（AppIcon + 应用名 + 主题/语言）+
+ *   中性画布 colorNeutralBackground2 + 居中 Fluent Card：
+ *     AppIcon / 应用名 / TabList（登录·注册）/ Field + Input / Checkbox /
+ *     Button(primary) / MessageBar（错误就近）。
+ * 删除：壁纸、锁屏大时钟、锁屏托盘图标、桌面/窗口 chrome。
+ *
+ * 行为契约（与 v9 完全一致，逐条保留）：
  * 1) Turnstile 只在注册页签挂载；拿不到 token 时不在表单里预留空洞，
  *    提交时才拦截（回车提交同样拦截）；
- * 2) 注册成功先 `markWelcomePending()` 再 navigate，**不弹注册成功 toast**；
+ * 2) 注册成功先 `markWelcomePending()` 再 navigate，不弹注册成功 toast；
  * 3) 记住登录状态复选框控制 token 落 localStorage / sessionStorage（store 逻辑不变）；
  * 4) ?mode=register 直达注册页签；已登录访问本页自动跳回主页；
- * 5) 移动端单列，面板纵向滚动，不裁切表单。
+ * 5) 移动端单列、卡片纵向滚动，不裁切表单。
+ *
+ * 表单：可见控件全部 Fluent UI React v9（Field/Input/Checkbox/Button/MessageBar/TabList）。
+ * 校验按 UX 规范：错误贴在字段下（Field 自动 aria-describedby）、blur 时校验、
+ * 提交失败把焦点送到第一个错误字段；服务端错误在最靠近表单的位置用 MessageBar 展示。
  */
-import { useState, useEffect, useCallback } from 'react'
-import { Form, Input, Button, Checkbox, App } from 'antd'
-import dayjs from 'dayjs'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type RefObject } from 'react'
+import { App as AntdApp } from 'antd'
 import {
-  Battery10Regular,
-  Speaker2Regular,
-  WarningRegular,
-  Wifi1Regular,
+  Button,
+  Card,
+  CardHeader,
+  Checkbox,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  MessageBarTitle,
+  Spinner,
+  Tab,
+  TabList,
+  Text,
+  Tooltip,
+} from '@fluentui/react-components'
+import {
+  EyeOffRegular,
+  EyeRegular,
+  GlobeRegular,
+  ShieldRegular,
   WeatherMoonRegular,
   WeatherSunnyRegular,
 } from '@fluentui/react-icons'
-import { SafetyOutlined } from '@/components/common/icons'
 import AppIcon from '@/components/common/AppIcon'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { apiRegistrationOpen } from '@/lib/serverApi'
-import { useI18n } from '@/i18n'
+import { useI18n, type TFunc } from '@/i18n'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTurnstile } from './useTurnstile'
 import { isAndroidApp } from '@/utils/platform'
@@ -39,15 +61,57 @@ import { markWelcomePending } from '@/utils/welcome'
 
 type Mode = 'login' | 'register'
 
-interface RegisterValues {
+interface LoginValues {
+  username: string
+  password: string
+}
+
+interface RegValues {
   username: string
   password: string
   confirm: string
-  contact?: string
+  contact: string
+}
+
+type FieldErrors<T> = Partial<Record<keyof T, string>>
+
+/** 登录字段校验（与 antd 时代的规则逐条一致） */
+function validateLogin(v: LoginValues, t: TFunc): FieldErrors<LoginValues> {
+  const errors: FieldErrors<LoginValues> = {}
+  if (!v.username.trim()) errors.username = t('auth.err.username')
+  if (!v.password) errors.password = t('auth.err.password')
+  else if (v.password.length < 6) errors.password = t('auth.err.passwordMin')
+  return errors
+}
+
+/** 注册字段校验（用户名 3~20 字母数字下划线 / 密码 8 位 / 两次一致 / 联系方式 120 上限） */
+function validateRegister(v: RegValues, t: TFunc): FieldErrors<RegValues> {
+  const errors: FieldErrors<RegValues> = {}
+  if (!v.username.trim()) errors.username = t('auth.err.username')
+  else if (!/^[A-Za-z0-9_]{3,20}$/.test(v.username.trim())) errors.username = t('auth.err.usernamePattern')
+  if (!v.password) errors.password = t('auth.err.password')
+  else if (v.password.length < 8) errors.password = t('auth.err.passwordMin8')
+  if (!v.confirm) errors.confirm = t('auth.err.confirm')
+  else if (v.confirm !== v.password) errors.confirm = t('auth.err.confirmMismatch')
+  if (v.contact.length > 120) errors.contact = t('auth.err.contactMax')
+  return errors
+}
+
+/** 提交失败后把焦点送到第一个出错的字段 */
+function focusFirstError<T extends object>(
+  errors: FieldErrors<T>,
+  refs: Partial<Record<keyof T, RefObject<HTMLInputElement | null>>>,
+): void {
+  for (const key of Object.keys(errors) as (keyof T)[]) {
+    if (errors[key]) {
+      refs[key]?.current?.focus()
+      return
+    }
+  }
 }
 
 export default function AuthPage() {
-  const { message } = App.useApp()
+  const { message } = AntdApp.useApp()
   const navigate = useNavigate()
   const [search] = useSearchParams()
   const { login, register, account } = useAuthStore()
@@ -61,11 +125,10 @@ export default function AuthPage() {
   const [mode, setMode] = useState<Mode>(search.get('mode') === 'register' ? 'register' : 'login')
   const [loading, setLoading] = useState(false)
   const [remember, setRemember] = useState(false)
-  const [loginForm] = Form.useForm<{ username: string; password: string }>()
-  const [regForm] = Form.useForm<RegisterValues>()
+  const [revealPassword, setRevealPassword] = useState(false)
   const [regOpen, setRegOpen] = useState<boolean | null>(null)
   const inApp = isAndroidApp()
-  // 内联错误：错误不只在顶部 toast 一闪而过，面板里留一行
+  // 服务端错误（凭据/网络/人机验证）：显示在表单顶部、紧挨着字段
   const [errorText, setErrorText] = useState('')
   // Turnstile token：拿不到时留空，服务端会按故障降级逻辑处理
   const [tsToken, setTsToken] = useState('')
@@ -78,20 +141,23 @@ export default function AuthPage() {
   // 人机验证没过 / 加载失败都由提交时拦截（不占位、不禁用整张表单）
   const tsBlocking = tsStatus !== 'passed'
 
-  // 锁屏时钟：Win11 锁屏左上角大号时间 + 日期（30s 刷新足够，秒不显示）。
-  // 存时间戳而不是 dayjs 对象：dayjs 对象会记住创建时的 locale，切语言后
-  // 星期/月份不会跟着变；每次渲染用当前 locale 重新格式化。
-  const [nowTs, setNowTs] = useState(() => Date.now())
-  useEffect(() => {
-    const id = window.setInterval(() => setNowTs(Date.now()), 30_000)
-    return () => window.clearInterval(id)
-  }, [])
-  // 显式指定 dayjs locale：全局 locale 由 main.tsx 的副作用切换，
-  // 切换语言时本组件可能还没重渲染，不能依赖全局值（否则出现「9:36 晚上」）。
-  const isEn = language === 'en'
-  const now = dayjs(nowTs).locale(isEn ? 'en' : 'zh-cn')
-  const timeText = now.format(isEn ? 'h:mm A' : 'HH:mm')
-  const dateText = now.format(isEn ? 'dddd, MMMM D' : 'YYYY年M月D日 dddd')
+  const [loginValues, setLoginValues] = useState<LoginValues>({ username: '', password: '' })
+  const [loginErrors, setLoginErrors] = useState<FieldErrors<LoginValues>>({})
+  const [regValues, setRegValues] = useState<RegValues>({ username: '', password: '', confirm: '', contact: '' })
+  const [regErrors, setRegErrors] = useState<FieldErrors<RegValues>>({})
+
+  const loginUserRef = useRef<HTMLInputElement>(null)
+  const loginPwdRef = useRef<HTMLInputElement>(null)
+  const regUserRef = useRef<HTMLInputElement>(null)
+  const regPwdRef = useRef<HTMLInputElement>(null)
+  const regConfirmRef = useRef<HTMLInputElement>(null)
+  const regContactRef = useRef<HTMLInputElement>(null)
+  const regRefs = {
+    username: regUserRef,
+    password: regPwdRef,
+    confirm: regConfirmRef,
+    contact: regContactRef,
+  }
 
   // 如果 init() 在跳转到 /login 后才完成恢复，自动跳回主页
   useEffect(() => {
@@ -109,31 +175,45 @@ export default function AuthPage() {
     }
   }, [])
 
-  const switchMode = useCallback(
-    (next: Mode) => {
-      setErrorText('')
-      setMode(next)
-      loginForm.resetFields()
-      regForm.resetFields()
-    },
-    [loginForm, regForm],
-  )
+  const switchMode = useCallback((next: Mode) => {
+    setErrorText('')
+    setLoginErrors({})
+    setRegErrors({})
+    setLoginValues({ username: '', password: '' })
+    setRegValues({ username: '', password: '', confirm: '', contact: '' })
+    setRevealPassword(false)
+    setMode(next)
+  }, [])
 
-  const onLogin = async (values: { username: string; password: string }) => {
+  const onLogin = async (e: FormEvent) => {
+    e.preventDefault()
+    const errors = validateLogin(loginValues, t)
+    setLoginErrors(errors)
+    if (Object.keys(errors).length) {
+      focusFirstError(errors, { username: loginUserRef, password: loginPwdRef })
+      return
+    }
     setErrorText('')
     setLoading(true)
     try {
-      await login(values.username, values.password, remember)
+      await login(loginValues.username, loginValues.password, remember)
       message.success(t('auth.ok.plain'))
       navigate('/')
-    } catch (e) {
-      setErrorText((e as Error).message)
+    } catch (err) {
+      setErrorText((err as Error).message)
     } finally {
       setLoading(false)
     }
   }
 
-  const onRegister = async (values: RegisterValues) => {
+  const onRegister = async (e: FormEvent) => {
+    e.preventDefault()
+    const errors = validateRegister(regValues, t)
+    setRegErrors(errors)
+    if (Object.keys(errors).length) {
+      focusFirstError(errors, regRefs)
+      return
+    }
     // 回车提交同样要过 Turnstile 检查（否则会绕过按钮上的拦截）
     if (tsBlocking) {
       setErrorText(t('auth.ts.notReady'))
@@ -144,9 +224,9 @@ export default function AuthPage() {
     try {
       await register(
         {
-          username: values.username.trim(),
-          password: values.password,
-          contact: values.contact?.trim(),
+          username: regValues.username.trim(),
+          password: regValues.password,
+          contact: regValues.contact.trim() || undefined,
           turnstileToken: tsToken,
         },
         remember,
@@ -154,8 +234,8 @@ export default function AuthPage() {
       // 一次性 pending → AppShell 消费并弹欢迎卡；不打 toast
       markWelcomePending()
       navigate('/')
-    } catch (e) {
-      setErrorText((e as Error).message)
+    } catch (err) {
+      setErrorText((err as Error).message)
       // token 是一次性的，任何失败后都要重置 widget 才能重试
       tsReset()
     } finally {
@@ -163,288 +243,332 @@ export default function AuthPage() {
     }
   }
 
-  const errorLine = errorText ? (
-    <div className="pub-auth-error" role="alert">
-      <WarningRegular fontSize={16} aria-hidden />
-      <span>{errorText}</span>
-    </div>
-  ) : null
+  const isDark = theme === 'dark'
+  const revealLabel =
+    language === 'en'
+      ? revealPassword
+        ? 'Hide password'
+        : 'Show password'
+      : revealPassword
+        ? '隐藏密码'
+        : '显示密码'
 
-  // Win11 Pivot：文字 14，选中项 accent 下划线（`.w-tab` 已由 primitives 提供）
-  const tabs = (
-    <div className="w-tabs pub-auth-tabs" role="tablist" aria-label={t('auth.tab.login')}>
-      {(['login', 'register'] as const).map((k) => {
-        const active = mode === k
-        return (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => switchMode(k)}
-            className={`w-tab${active ? ' is-active' : ''}`}
-          >
-            {t(k === 'login' ? 'auth.tab.login' : 'auth.tab.register')}
-          </button>
-        )
-      })}
-    </div>
+  const passwordReveal = (
+    <Tooltip content={revealLabel} relationship="label">
+      <Button
+        appearance="transparent"
+        size="small"
+        icon={revealPassword ? <EyeOffRegular /> : <EyeRegular />}
+        aria-label={revealLabel}
+        onClick={() => setRevealPassword((v) => !v)}
+      />
+    </Tooltip>
   )
 
+  const errorLine = errorText ? (
+    <MessageBar intent="error" role="alert" className="pub-auth-error">
+      <MessageBarBody>{errorText}</MessageBarBody>
+    </MessageBar>
+  ) : null
+
   const loginPane = (
-    <Form
-      form={loginForm}
-      onFinish={onLogin}
-      layout="vertical"
-      className="pub-auth-form"
-      validateTrigger={['onSubmit', 'onChange']}
-      requiredMark={false}
-    >
-      <Form.Item
-        name="username"
+    <form className="pub-auth-form" onSubmit={onLogin} noValidate>
+      <Field
         label={t('auth.username')}
-        rules={[{ required: true, message: t('auth.err.username') }]}
+        required
+        validationState={loginErrors.username ? 'error' : 'none'}
+        validationMessage={loginErrors.username}
       >
         <Input
+          ref={loginUserRef}
+          size="large"
+          value={loginValues.username}
           placeholder={t('auth.username')}
           autoComplete="username"
-          aria-label={t('auth.username')}
-          autoFocus
+          onChange={(_, data) => {
+            setLoginValues((v) => ({ ...v, username: data.value }))
+            if (loginErrors.username) setLoginErrors((e) => ({ ...e, username: undefined }))
+          }}
+          onBlur={() => setLoginErrors((e) => ({ ...e, username: validateLogin(loginValues, t).username }))}
         />
-      </Form.Item>
-      <Form.Item
-        name="password"
+      </Field>
+      <Field
         label={t('auth.password')}
-        rules={[
-          { required: true, message: t('auth.err.password') },
-          { min: 6, message: t('auth.err.passwordMin') },
-        ]}
+        required
+        validationState={loginErrors.password ? 'error' : 'none'}
+        validationMessage={loginErrors.password}
       >
-        <Input.Password
+        <Input
+          ref={loginPwdRef}
+          size="large"
+          type={revealPassword ? 'text' : 'password'}
+          value={loginValues.password}
           placeholder={t('auth.password')}
           autoComplete="current-password"
-          aria-label={t('auth.password')}
+          contentAfter={passwordReveal}
+          onChange={(_, data) => {
+            setLoginValues((v) => ({ ...v, password: data.value }))
+            if (loginErrors.password) setLoginErrors((e) => ({ ...e, password: undefined }))
+          }}
+          onBlur={() => setLoginErrors((e) => ({ ...e, password: validateLogin(loginValues, t).password }))}
         />
-      </Form.Item>
-      <Form.Item className="pub-auth-remember">
-        <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
-          {t('auth.remember')}
-        </Checkbox>
-      </Form.Item>
-      <Button type="primary" htmlType="submit" block loading={loading} className="pub-auth-submit">
+      </Field>
+      <div className="pub-auth-remember">
+        <Checkbox
+          checked={remember}
+          onChange={(_, data) => setRemember(!!data.checked)}
+          label={t('auth.remember')}
+        />
+      </div>
+      <Button
+        appearance="primary"
+        type="submit"
+        size="large"
+        className="pub-auth-submit"
+        disabled={loading}
+        icon={loading ? <Spinner size="tiny" /> : undefined}
+      >
         {t('auth.login')}
       </Button>
-    </Form>
+    </form>
   )
 
   const registerPane = (
     <>
       {regOpen === false && (
-        <div className="pub-infobar pub-infobar--warning" role="status">
-          <WarningRegular fontSize={18} aria-hidden />
-          <div className="pub-infobar-main">
-            <div className="pub-infobar-title">{t('auth.reg.closedTitle')}</div>
-            <div className="pub-infobar-desc">{t('auth.reg.closedBody')}</div>
-          </div>
-        </div>
+        <MessageBar intent="warning" className="pub-auth-error">
+          <MessageBarBody>
+            <MessageBarTitle>{t('auth.reg.closedTitle')}</MessageBarTitle>
+            {t('auth.reg.closedBody')}
+          </MessageBarBody>
+        </MessageBar>
       )}
-      <Form
-        form={regForm}
-        onFinish={onRegister}
-        layout="vertical"
-        className="pub-auth-form"
-        validateTrigger={['onSubmit', 'onChange']}
-        requiredMark={false}
-        disabled={regOpen === false}
-      >
-        <Form.Item
-          name="username"
+      <form className="pub-auth-form" onSubmit={onRegister} noValidate>
+        <Field
           label={t('auth.reg.usernameLabel')}
-          extra={<span className="pub-auth-extra">{t('auth.err.usernamePattern')}</span>}
-          rules={[
-            { required: true, message: t('auth.err.username') },
-            { pattern: /^[A-Za-z0-9_]{3,20}$/, message: t('auth.err.usernamePattern') },
-          ]}
+          required
+          validationState={regErrors.username ? 'error' : 'none'}
+          validationMessage={regErrors.username}
+          hint={t('auth.err.usernamePattern')}
         >
           <Input
+            ref={regUserRef}
+            size="large"
+            value={regValues.username}
             placeholder={t('auth.reg.username')}
             autoComplete="username"
-            aria-label={t('auth.reg.username')}
+            disabled={regOpen === false}
+            onChange={(_, data) => {
+              setRegValues((v) => ({ ...v, username: data.value }))
+              if (regErrors.username) setRegErrors((e) => ({ ...e, username: undefined }))
+            }}
+            onBlur={() => setRegErrors((e) => ({ ...e, username: validateRegister(regValues, t).username }))}
           />
-        </Form.Item>
-        <Form.Item
-          name="password"
+        </Field>
+        <Field
           label={t('auth.reg.passwordLabel')}
-          extra={<span className="pub-auth-extra">{t('auth.err.passwordMin8')}</span>}
-          rules={[
-            { required: true, message: t('auth.err.password') },
-            { min: 8, message: t('auth.err.passwordMin8') },
-          ]}
-        >
-          <Input.Password
-            placeholder={t('auth.reg.password')}
-            autoComplete="new-password"
-            aria-label={t('auth.reg.password')}
-          />
-        </Form.Item>
-        <Form.Item
-          name="confirm"
-          label={t('auth.reg.confirmLabel')}
-          dependencies={['password']}
-          rules={[
-            { required: true, message: t('auth.err.confirm') },
-            ({ getFieldValue }) => ({
-              validator(_, value) {
-                if (!value || getFieldValue('password') === value) return Promise.resolve()
-                return Promise.reject(new Error(t('auth.err.confirmMismatch')))
-              },
-            }),
-          ]}
-        >
-          <Input.Password
-            placeholder={t('auth.reg.confirm')}
-            autoComplete="new-password"
-            aria-label={t('auth.reg.confirm')}
-          />
-        </Form.Item>
-        <Form.Item
-          name="contact"
-          label={t('auth.reg.contactLabel')}
-          rules={[{ max: 120, message: t('auth.err.contactMax') }]}
-          className="pub-auth-contact"
+          required
+          validationState={regErrors.password ? 'error' : 'none'}
+          validationMessage={regErrors.password}
+          hint={t('auth.err.passwordMin8')}
         >
           <Input
+            ref={regPwdRef}
+            size="large"
+            type={revealPassword ? 'text' : 'password'}
+            value={regValues.password}
+            placeholder={t('auth.reg.password')}
+            autoComplete="new-password"
+            disabled={regOpen === false}
+            contentAfter={passwordReveal}
+            onChange={(_, data) => {
+              setRegValues((v) => ({ ...v, password: data.value }))
+              if (regErrors.password) setRegErrors((e) => ({ ...e, password: undefined }))
+            }}
+            onBlur={() => setRegErrors((e) => ({ ...e, password: validateRegister(regValues, t).password }))}
+          />
+        </Field>
+        <Field
+          label={t('auth.reg.confirmLabel')}
+          required
+          validationState={regErrors.confirm ? 'error' : 'none'}
+          validationMessage={regErrors.confirm}
+        >
+          <Input
+            ref={regConfirmRef}
+            size="large"
+            type={revealPassword ? 'text' : 'password'}
+            value={regValues.confirm}
+            placeholder={t('auth.reg.confirm')}
+            autoComplete="new-password"
+            disabled={regOpen === false}
+            onChange={(_, data) => {
+              setRegValues((v) => ({ ...v, confirm: data.value }))
+              if (regErrors.confirm) setRegErrors((e) => ({ ...e, confirm: undefined }))
+            }}
+            onBlur={() => setRegErrors((e) => ({ ...e, confirm: validateRegister(regValues, t).confirm }))}
+          />
+        </Field>
+        <Field
+          label={t('auth.reg.contactLabel')}
+          validationState={regErrors.contact ? 'error' : 'none'}
+          validationMessage={regErrors.contact}
+        >
+          <Input
+            ref={regContactRef}
+            size="large"
+            value={regValues.contact}
             placeholder={t('auth.reg.contact')}
             autoComplete="email"
-            aria-label={t('auth.reg.contact')}
+            disabled={regOpen === false}
+            onChange={(_, data) => {
+              setRegValues((v) => ({ ...v, contact: data.value }))
+              if (regErrors.contact) setRegErrors((e) => ({ ...e, contact: undefined }))
+            }}
+            onBlur={() => setRegErrors((e) => ({ ...e, contact: validateRegister(regValues, t).contact }))}
           />
-        </Form.Item>
+        </Field>
 
         {/* Turnstile 宿主：脚本未就绪时只有一行状态，不占固定高度 */}
         <div className="pub-auth-ts">
           <div ref={tsHost} />
           {tsStatus === 'loading' && (
-            <div className="pub-auth-ts-hint">{t('auth.reg.ts.loading')}</div>
+            <div className="pub-auth-ts-hint">
+              <Spinner size="tiny" />
+              <Text size={200} className="w-faint">
+                {t('auth.reg.ts.loading')}
+              </Text>
+            </div>
           )}
           {tsStatus === 'failed' && (
-            <div className="pub-auth-ts-error">
-              <SafetyOutlined size={14} />
-              <span>{t('auth.reg.ts.failed')}</span>
-            </div>
+            <MessageBar intent="error">
+              <MessageBarBody>
+                <ShieldRegular /> {t('auth.reg.ts.failed')}
+              </MessageBarBody>
+            </MessageBar>
           )}
           {tsStatus === 'unavailable' && (
-            <div className="pub-auth-ts-hint">
-              <span>{t('auth.reg.ts.unavailable')}</span>
-              <button
-                type="button"
-                className="w-btn w-btn--sm"
-                onClick={() => {
-                  // 当前 URL 可能是 /login（没有 mode 参数），直接 reload 会再次
-                  // 停在登录页签、再次失败。先把 mode=register 补进地址栏。
-                  const u = new URL(window.location.href)
-                  u.searchParams.set('mode', 'register')
-                  window.history.replaceState(null, '', u.toString())
-                  window.location.reload()
-                }}
-              >
-                {t('auth.reg.ts.retry')}
-              </button>
-            </div>
+            <MessageBar intent="warning">
+              <MessageBarBody>
+                {t('auth.reg.ts.unavailable')}
+                <Button
+                  appearance="secondary"
+                  size="small"
+                  className="pub-auth-ts-retry"
+                  onClick={() => {
+                    // 当前 URL 可能是 /login（没有 mode 参数），直接 reload 会再次
+                    // 停在登录页签、再次失败。先把 mode=register 补进地址栏。
+                    const u = new URL(window.location.href)
+                    u.searchParams.set('mode', 'register')
+                    window.history.replaceState(null, '', u.toString())
+                    window.location.reload()
+                  }}
+                >
+                  {t('auth.reg.ts.retry')}
+                </Button>
+              </MessageBarBody>
+            </MessageBar>
           )}
         </div>
 
         <Button
-          type="primary"
-          htmlType="submit"
-          block
-          loading={loading}
-          disabled={regOpen === false}
+          appearance="primary"
+          type="submit"
+          size="large"
           className="pub-auth-submit"
+          disabled={loading || regOpen === false}
+          icon={loading ? <Spinner size="tiny" /> : undefined}
         >
           {t('auth.reg.submit')}
         </Button>
-        <p className="pub-auth-privacy">{t('auth.reg.privacy')}</p>
-      </Form>
+        <Text as="p" size={200} className="w-faint pub-auth-privacy">
+          {t('auth.reg.privacy')}
+        </Text>
+      </form>
     </>
   )
 
-  const isDark = theme === 'dark'
-
   return (
-    <div className="pub-lock">
-      <div className="pub-lock-scrim" aria-hidden />
-      <div className="pub-lock-content">
-        {/* 左：锁屏时间 / 日期 + 本地优先说明（Windows 锁屏） */}
-        <div className="pub-lock-left">
-          <div className="pub-lock-clock" aria-hidden>
-            <div className="pub-lock-time">{timeText}</div>
-            <div className="pub-lock-date">{dateText}</div>
-          </div>
-          <div className="pub-lock-tagline">
-            <span className="pub-lock-tagline-mark" aria-hidden>
-              <AppIcon size={18} />
-            </span>
-            <span>{t('w11.status.local')}</span>
-            <span className="w-sep--v" aria-hidden />
-            <span>aiim.de5.net</span>
-          </div>
+    <div className="w-app">
+      <header className="w-appbar pub-appbar">
+        <div className="w-appbar-brand">
+          <button
+            type="button"
+            className="w-appbar-brand-btn"
+            onClick={() => navigate('/')}
+            aria-label={t('app.brand')}
+          >
+            <AppIcon size={20} />
+            <span className="w-appbar-title">{t('app.brand')}</span>
+          </button>
         </div>
+        <div className="w-appbar-spacer" />
+        <div className="w-appbar-tools">
+          <Tooltip content={isDark ? t('app.theme.light') : t('app.theme.dark')} relationship="label">
+            <Button
+              appearance="subtle"
+              icon={isDark ? <WeatherSunnyRegular /> : <WeatherMoonRegular />}
+              aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
+              onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            />
+          </Tooltip>
+          <Tooltip content={t('app.language')} relationship="label">
+            <Button
+              appearance="subtle"
+              icon={<GlobeRegular />}
+              aria-label={t('app.language')}
+              onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+            >
+              <span className="pub-lang-label">{language === 'zh' ? '中' : 'EN'}</span>
+            </Button>
+          </Tooltip>
+        </div>
+      </header>
 
-        {/* 右：Acrylic 登录面板 */}
-        <div className="pub-lock-right">
-          <section className="pub-auth-panel" aria-labelledby="auth-title">
-            <div className="pub-auth-brand">
-              <AppIcon size={48} className="pub-auth-icon" />
-              <div className="pub-auth-brand-main">
-                <h1 id="auth-title" className="pub-auth-app">
+      <div className="w-content">
+        <main className="pub-auth-main">
+          <Card appearance="filled" className="pub-auth-card">
+            <CardHeader
+              image={<AppIcon size={44} />}
+              header={
+                <Text as="h1" size={600} weight="semibold">
                   {t('app.brand')}
-                </h1>
-                <p className="pub-auth-sub">{t('auth.hero.subtitle')}</p>
-              </div>
-            </div>
+                </Text>
+              }
+              description={
+                <Text size={200} className="w-faint">
+                  {language === 'en' ? 'Local-first · Free forever' : '本地优先 · 永久免费'}
+                </Text>
+              }
+            />
+            <TabList
+              className="pub-auth-tabs"
+              selectedValue={mode}
+              onTabSelect={(_, data) => switchMode(data.value as Mode)}
+            >
+              <Tab value="login">{t('auth.tab.login')}</Tab>
+              <Tab value="register">{t('auth.tab.register')}</Tab>
+            </TabList>
 
-            {tabs}
             {errorLine}
             {mode === 'login' ? loginPane : registerPane}
 
             <div className="pub-auth-foot">
               {!inApp && (
-                <button type="button" className="w-btn w-btn--subtle w-btn--sm" onClick={() => navigate('/')}>
+                <Button appearance="subtle" size="small" onClick={() => navigate('/')}>
                   {t('auth.backHome')}
-                </button>
+                </Button>
               )}
-              <span className="pub-auth-hint">{t('auth.footerNote')}</span>
+              <Text size={200} className="w-faint">
+                {t('auth.cloudHint')}
+              </Text>
             </div>
-          </section>
-        </div>
+          </Card>
 
-        {/* 右下：语言 / 主题 / 托盘图标（锁屏风格，装饰性托盘为 aria-hidden） */}
-        <div className="pub-lock-status">
-          <button
-            type="button"
-            className="pub-lock-tool"
-            aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
-            title={isDark ? t('app.theme.light') : t('app.theme.dark')}
-            onClick={() => setTheme(isDark ? 'light' : 'dark')}
-          >
-            {isDark ? <WeatherSunnyRegular fontSize={15} /> : <WeatherMoonRegular fontSize={15} />}
-          </button>
-          <button
-            type="button"
-            className="pub-lock-tool pub-lock-tool--text"
-            aria-label={t('app.language')}
-            title={t('app.language')}
-            onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
-          >
-            {language === 'zh' ? 'EN' : '中'}
-          </button>
-          <span className="pub-lock-tray" aria-hidden>
-            <Wifi1Regular fontSize={15} />
-            <Speaker2Regular fontSize={15} />
-            <Battery10Regular fontSize={15} />
-          </span>
-        </div>
-
+          <Text as="p" size={200} className="w-faint pub-auth-pagefoot">
+            {t('w11.status.local')} · aiim.de5.net
+          </Text>
+        </main>
       </div>
     </div>
   )

@@ -1,4 +1,15 @@
-import { Modal, App, Checkbox } from 'antd'
+import { App } from 'antd'
+import {
+  Button,
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  Text,
+} from '@fluentui/react-components'
 import { useEffect, useState } from 'react'
 import type { LibraryAction, TemplateAction } from '@/ai/tools'
 import type { Library, FieldDef } from '@/types'
@@ -23,8 +34,7 @@ interface Row {
 }
 
 /**
- * 管理库 / 字段模板操作的确认弹窗（v9 Windows 11 ContentDialog：标题 20/600、
- * 正文 14/20、按钮右下）。
+ * 管理库 / 字段模板操作的确认弹窗（v10 Fluent Dialog）。
  *
  * 与 `ConfirmActionModal` 同语言；「不再询问」按动作粒度授权；
  * **删库 / 删字段永不提供自动放行**（删库会连条目一起进回收站、
@@ -99,7 +109,7 @@ export default function ConfirmLibActionModal({
     }
   }
 
-  // 结构化行：标签 + 值两列文本（无表格边框，Win11 弹窗内不再叠一层表格）
+  // 结构化行：标签 + 值两列文本（无表格边框，Fluent 弹窗内不再叠一层表格）
   const rows: Row[] = []
   if (libAction) {
     rows.push({ label: t('ai.confirm.lib.op'), value: actionLabel })
@@ -144,68 +154,82 @@ export default function ConfirmLibActionModal({
   }
 
   return (
-    <Modal
-      title={<span className="ai-confirm-title">{t('ai.confirm.libTitle')}</span>}
-      open={open}
-      onCancel={onCancel}
-      width={440}
-      footer={
-        <div className="ai-dialog-actions">
-          <button type="button" className="w-btn w-btn--subtle" onClick={onCancel}>
-            {t('common.cancel')}
-          </button>
-          <button
-            type="button"
-            className={`w-btn ${isDelete ? 'w-btn--danger' : 'w-btn--accent'}`}
-            disabled={loading}
-            onClick={() => void handleOk()}
-          >
-            {t('ai.confirm.ok')}
-          </button>
-        </div>
-      }
-    >
-      <div className="ai-confirm">
-        <div className="ai-confirm-head">
-          <span className={`ai-confirm-action${isDelete ? ' ai-confirm-action--danger' : ''}`}>
-            {actionLabel}
-          </span>
-          <span className="ai-confirm-target">
-            {library?.name ?? libAction?.libraryId ?? tplAction?.libraryId ?? ''}
-          </span>
-        </div>
+    <Dialog open={open} onOpenChange={(_, data) => !data.open && onCancel()}>
+      <DialogSurface>
+        <DialogBody>
+          <DialogTitle>
+            <Text size={500} weight="semibold">
+              {t('ai.confirm.libTitle')}
+            </Text>
+          </DialogTitle>
+          <DialogContent>
+            <div className="ai-confirm">
+              <div className="ai-confirm-head">
+                <Text
+                  size={300}
+                  weight="semibold"
+                  className={`ai-confirm-action${isDelete ? ' ai-confirm-action--danger' : ''}`}
+                >
+                  {actionLabel}
+                </Text>
+                <Text size={200} className="ai-confirm-target">
+                  {library?.name ?? libAction?.libraryId ?? tplAction?.libraryId ?? ''}
+                </Text>
+              </div>
 
-        {(libAction || tplAction)!.reason && (
-          <p className="ai-confirm-reason">
-            <span>{t('ai.confirm.reason')}</span>
-            {(libAction || tplAction)!.reason}
-          </p>
-        )}
+              {(libAction || tplAction)!.reason && (
+                <p className="ai-confirm-reason">
+                  <span>{t('ai.confirm.reason')}</span>
+                  {(libAction || tplAction)!.reason}
+                </p>
+              )}
 
-        <div className="ai-confirm-block">
-          {rows.map((r) => (
-            <div key={r.label} className="ai-confirm-row">
-              <span className="ai-confirm-label">{r.label}</span>
-              <span className="ai-confirm-value">{r.value}</span>
+              <div className="ai-confirm-block">
+                {rows.map((r) => (
+                  <div key={r.label} className="ai-confirm-row">
+                    <Text size={200} className="ai-confirm-label">
+                      {r.label}
+                    </Text>
+                    <Text size={200} className="ai-confirm-value">
+                      {r.value}
+                    </Text>
+                  </div>
+                ))}
+              </div>
+
+              {canRemember && (
+                <Checkbox
+                  className="ai-confirm-check"
+                  checked={always}
+                  disabled={alreadyRemembered}
+                  onChange={(_, data) => setAlways(!!data.checked)}
+                  label={t('ai.confirm.always', { action: actionLabel })}
+                />
+              )}
+
+              <Text
+                size={200}
+                className={`ai-confirm-note${isDelete ? ' ai-confirm-note--danger' : ''}`}
+              >
+                {t('ai.confirm.lib.note')}
+              </Text>
             </div>
-          ))}
-        </div>
-
-        {canRemember && (
-          <Checkbox
-            checked={always}
-            disabled={alreadyRemembered}
-            onChange={(e) => setAlways(e.target.checked)}
-            className="ai-confirm-check"
-          >
-            {t('ai.confirm.always', { action: actionLabel })}
-          </Checkbox>
-        )}
-
-        <p className={`ai-confirm-note${isDelete ? ' ai-confirm-note--danger' : ''}`}>
-          {t('ai.confirm.lib.note')}
-        </p>
-      </div>
-    </Modal>
+          </DialogContent>
+          <DialogActions>
+            <Button appearance="secondary" onClick={onCancel}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              appearance="primary"
+              className={isDelete ? 'ai-confirm-delete' : undefined}
+              disabled={loading}
+              onClick={() => void handleOk()}
+            >
+              {t('ai.confirm.ok')}
+            </Button>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   )
 }

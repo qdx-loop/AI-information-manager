@@ -5,7 +5,7 @@ import { useAiUiStore } from '@/store/aiUiStore'
 import { useI18n } from '@/i18n'
 
 /**
- * v9 移动端底部标签栏（Win11 Acrylic 底栏，56px）。
+ * v10 移动端底部标签栏（Fluent token 底栏，56px；不是 OS 任务栏）。
  *
  * 保留原有信息架构：首页 / 管理库 / AI / 设置 四个最高频目的地钉在拇指区；
  * 「管理库」打开库切换面板；回收站、帮助、退出仍在抽屉内。

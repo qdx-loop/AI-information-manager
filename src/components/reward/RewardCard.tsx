@@ -1,11 +1,20 @@
-// 设置页「关于与支持」内容（常驻，全站唯一长期展示二维码的地方）。
+// 设置页「关于与支持」内容（常驻，全站唯一长期展示二维码的地方）· v10 Fluent。
 //
 // 依据：`redesign-brief/02-donation-research.md` §F.4（逐字文案）、§G.5–G.7（可扫性/无障碍）。
-// v9 视觉：Win11 设置卡片（`.w-card` + 卡片组标题 + 14/20 说明 + 白色二维码卡面 + 右下按钮）。
-// - 二维码卡面抽到 `RewardQr`（卡面固定白、不反色），本组件只负责排版与文案。
-// - 已支持（终态）只显示致谢，不再显示码与「我已经支持过了」。
-// - 设置页 support tab 直接渲染本组件（父级不再外包卡片），因此这里提供唯一的卡片面。
+// v10 视觉：真实 Fluent Card（CardHeader + Divider + Text + Button）：
+//   - 二维码卡面抽到 `RewardQr`（卡面固定白、不反色），本组件只负责排版与文案；
+//   - 已支持（终态）只显示致谢，不再显示码与「我已经支持过了」；
+//   - 设置页 support tab 直接渲染本组件（父级不再外包卡片），因此这里提供唯一的卡片面。
 import { useEffect, useState } from 'react'
+import {
+  Button,
+  Card,
+  CardHeader,
+  Divider,
+  MessageBar,
+  MessageBarBody,
+  Text,
+} from '@fluentui/react-components'
 import { CheckmarkCircleRegular, HeartRegular } from '@fluentui/react-icons'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n, type TFunc } from '@/i18n'
@@ -62,44 +71,66 @@ export default function RewardCard({ qrSrc = DEFAULT_QR_SRC }: RewardCardProps) 
   }
 
   return (
-    <section className="w-card pub-reward">
-      <div className="w-card-head">
-        <div className="w-card-title">
-          <HeartRegular fontSize={18} aria-hidden />
-          {copy.title}
-        </div>
-      </div>
-      <div className="w-card-body">
-        <p className="pub-reward-body">{copy.lead}</p>
-        <p className="pub-reward-body">{copy.privacy}</p>
+    <Card appearance="filled" className="pub-reward-card">
+      <CardHeader
+        image={
+          <span className="pub-icon-badge" aria-hidden>
+            <HeartRegular fontSize={20} />
+          </span>
+        }
+        header={
+          <Text as="h2" size={600} weight="semibold">
+            {copy.title}
+          </Text>
+        }
+      />
+      <Divider />
+      <div className="pub-reward-body">
+        <Text as="p" size={300} className="w-muted">
+          {copy.lead}
+        </Text>
+        <Text as="p" size={300} className="w-muted">
+          {copy.privacy}
+        </Text>
 
         {supported ? (
-          <div className="pub-reward-thanks">
-            <CheckmarkCircleRegular fontSize={16} aria-hidden />
-            <span>{copy.supportedThanks}</span>
-          </div>
+          <MessageBar intent="success" className="pub-reward-thanks">
+            <MessageBarBody>
+              <CheckmarkCircleRegular aria-hidden /> {copy.supportedThanks}
+            </MessageBarBody>
+          </MessageBar>
         ) : (
-          <div className="pub-reward-qr">
+          <div className="pub-reward-qr-row">
             <RewardQr src={qrSrc} />
             <div className="pub-reward-notes">
-              <div className="pub-reward-note-strong">{copy.scan}</div>
-              <div className="pub-reward-note">{copy.payBy}</div>
-              <div className="pub-reward-note">{copy.privacyShort}</div>
-              <div className="pub-reward-save">{copy.save}</div>
+              <Text size={300} weight="semibold">
+                {copy.scan}
+              </Text>
+              <Text size={200} className="w-faint">
+                {copy.payBy}
+              </Text>
+              <Text size={200} className="w-faint">
+                {copy.privacyShort}
+              </Text>
+              <Text size={200} className="w-faint pub-reward-save">
+                {copy.save}
+              </Text>
             </div>
           </div>
         )}
 
-        <div className="pub-reward-free">{copy.free}</div>
+        <Text as="p" size={200} className="w-faint pub-reward-free">
+          {copy.free}
+        </Text>
 
         {!supported && (
           <div className="pub-reward-actions">
-            <button type="button" className="w-btn w-btn--accent w-btn--sm" onClick={handleSupported}>
+            <Button appearance="primary" size="small" onClick={handleSupported}>
               {copy.supportedBtn}
-            </button>
+            </Button>
           </div>
         )}
       </div>
-    </section>
+    </Card>
   )
 }

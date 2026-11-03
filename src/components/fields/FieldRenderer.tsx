@@ -1,4 +1,14 @@
-import { Input, InputNumber, DatePicker, Select, Checkbox, Rate } from 'antd'
+import { useEffect, useRef, useState } from 'react'
+import {
+  Button,
+  Checkbox,
+  Dropdown,
+  Input,
+  Option,
+  Textarea,
+} from '@fluentui/react-components'
+import { StarFilled, StarRegular } from '@fluentui/react-icons'
+import { DatePicker } from 'antd'
 import dayjs from 'dayjs'
 import { useI18n, tNow } from '@/i18n'
 import type { FieldDef, FieldValue } from '@/types'
@@ -13,88 +23,171 @@ interface Props {
   compact?: boolean
 }
 
+/** 输入焦点：Fluent 控件把 ref 透传给内部 input，这里在挂载后聚焦。 */
+function useAutoFocus<T extends HTMLElement>(autoFocus: boolean | undefined) {
+  const ref = useRef<T>(null)
+  useEffect(() => {
+    if (autoFocus) ref.current?.focus()
+  }, [autoFocus])
+  return ref
+}
+
+/** 数字输入：保留用户输入的字符串，只在能解析成数字时回写，避免中途变 null。 */
+function NumberInput({
+  value,
+  onChange,
+  autoFocus,
+  placeholder,
+  compact,
+}: {
+  value: FieldValue
+  onChange: (v: FieldValue) => void
+  autoFocus?: boolean
+  placeholder?: string
+  compact?: boolean
+}) {
+  const [text, setText] = useState(value == null ? '' : String(value))
+  const ref = useAutoFocus<HTMLInputElement>(autoFocus)
+  useEffect(() => {
+    setText(value == null ? '' : String(value))
+  }, [value])
+  return (
+    <Input
+      ref={ref}
+      type="number"
+      value={text}
+      placeholder={placeholder}
+      className={compact ? 'lib-inline-control' : undefined}
+      onChange={(_, data) => {
+        setText(data.value)
+        if (data.value.trim() === '') {
+          onChange(null)
+          return
+        }
+        const n = Number(data.value)
+        onChange(Number.isFinite(n) ? n : null)
+      }}
+    />
+  )
+}
+
 /**
- * 字段输入渲染器（v9 Win11）：按 type 渲染对应控件。
- *
- * 控件形态（32 高 / 4px 圆角 / 极淡描边 / 底部强调下划线）由全局 antd 皮肤
- * （src/styles/w11/antd.css）统一负责，这里只管「类型 → 控件」的语义映射；
- * compact 用于表格内联编辑（28px）。
+ * 字段输入渲染器（v10 Fluent）：
+ * 文本 / 多行 / 数字 / 下拉 / 复选 / 评分全部使用 @fluentui/react-components；
+ * 仅日期保留 antd DatePicker（Fluent UI React 没有日期选择器）。
  */
 export default function FieldRenderer({ field, value, onChange, autoFocus, compact }: Props) {
-  const sz = compact ? ('small' as const) : ('middle' as const)
   const t = useI18n()
+  const textRef = useAutoFocus<HTMLInputElement>(autoFocus)
+  const textareaRef = useAutoFocus<HTMLTextAreaElement>(autoFocus)
+  const cls = compact ? 'lib-inline-control' : undefined
 
   switch (field.type) {
     case 'text':
       return (
         <Input
-          size={sz}
-          autoFocus={autoFocus}
+          ref={textRef}
+          className={cls}
           value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(_, data) => onChange(data.value)}
           placeholder={t('field.inputPlaceholder', { name: field.label })}
         />
       )
     case 'textarea':
       return (
-        <Input.TextArea
-          size={sz}
-          autoFocus={autoFocus}
+        <Textarea
+          ref={textareaRef}
+          className={cls}
           value={(value as string) ?? ''}
+          onChange={(_, data) => onChange(data.value)}
+          resize="vertical"
           rows={compact ? 2 : 3}
-          onChange={(e) => onChange(e.target.value)}
           placeholder={t('field.inputPlaceholder', { name: field.label })}
         />
       )
     case 'number':
-      // 数字列右对齐 + tabular：金额/数量纵向比较时不跳位
       return (
-        <InputNumber
-          size={sz}
+        <NumberInput
+          value={value}
+          onChange={onChange}
           autoFocus={autoFocus}
-          value={value as number}
-          onChange={(v) => onChange(v ?? null)}
-          style={{ width: '100%', fontVariantNumeric: 'tabular-nums' }}
+          compact={compact}
           placeholder={t('field.numberPlaceholder')}
         />
       )
     case 'date':
       return (
         <DatePicker
-          size={sz}
+          size={compact ? 'small' : 'middle'}
           value={value ? dayjs(value as string) : null}
           onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : null)}
           style={{ width: '100%', fontVariantNumeric: 'tabular-nums' }}
         />
       )
-    case 'select':
+    case 'select': {
+      const current = value == null ? '' : String(value)
       return (
-        <Select
-          size={sz}
-          autoFocus={autoFocus}
-          style={{ width: '100%' }}
-          value={(value as string) ?? undefined}
-          onChange={(v) => onChange(v ?? null)}
-          options={field.options.map((o) => ({ label: o, value: o }))}
-          allowClear
+        <Dropdown
+          className={cls}
+          value={current}
+          selectedOptions={current ? [current] : []}
           placeholder={t('field.selectPlaceholder')}
-        />
+          clearable
+          onOptionSelect={(_, data) => onChange(data.optionValue ?? null)}
+        >
+          {field.options.map((o) => (
+            <Option key={o} value={o}>
+              {o}
+            </Option>
+          ))}
+        </Dropdown>
       )
+    }
     case 'checkbox':
       return (
-        <Checkbox autoFocus={autoFocus} checked={!!value} onChange={(e) => onChange(e.target.checked)}>
-          {t('field.yes')}
-        </Checkbox>
+        <Checkbox
+          checked={!!value}
+          onChange={(_, data) => onChange(data.checked === true)}
+          label={t('field.yes')}
+        />
       )
-    case 'rating':
-      // 评分在编辑器里是交互控件，仍用 antd Rate；表格里的只读渲染走 SmartValue
-      return <Rate style={{ fontSize: compact ? 14 : 18 }} value={(value as number) ?? 0} onChange={(v) => onChange(v)} />
+    case 'rating': {
+      const n = Math.max(0, Math.min(5, Number(value) || 0))
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }} role="group">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Button
+              key={i}
+              appearance="transparent"
+              size="small"
+              aria-label={tNow('field.stars', { n: String(i + 1) })}
+              aria-pressed={i < n}
+              style={{ minWidth: compact ? 22 : 26, padding: 0 }}
+              icon={
+                i < n ? (
+                  <StarFilled style={{ color: 'var(--w-brand-fg)' }} />
+                ) : (
+                  <StarRegular style={{ color: 'var(--w-text-3)' }} />
+                )
+              }
+              onClick={() => onChange(n === i + 1 ? 0 : i + 1)}
+            />
+          ))}
+        </span>
+      )
+    }
     default:
-      return <Input value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} />
+      return (
+        <Input
+          ref={textRef}
+          value={(value as string) ?? ''}
+          onChange={(_, data) => onChange(data.value)}
+        />
+      )
   }
 }
 
-// 表格单元格值展示
+// 表格单元格值展示（移动端卡片标题 / 纯文本导出共用）
 export function renderCellValue(field: FieldDef, value: FieldValue): string {
   if (value === null || value === undefined || value === '') return '—'
   switch (field.type) {

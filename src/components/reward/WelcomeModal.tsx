@@ -1,4 +1,4 @@
-// 首次注册「关于作者 + 赞赏码」欢迎卡（每账号只弹一次）。
+// 首次注册「关于作者 + 赞赏码」欢迎卡（每账号只弹一次）· v10 Fluent Dialog。
 //
 // 依据：`redesign-brief/05-first-run-support.md` §C（结构与逐字文案）、§D.4（形态，文案/状态机一字不改）。
 // 契约（Lead 定稿）：**受控组件**，`{ open, accountId, onClose }`；
@@ -9,11 +9,25 @@
 //   1) 不阻塞：任何一条关闭路径都能立刻进入应用；
 //   2) 首屏正文必须可见「不扫，功能和体验完全一样」；
 //   3) 主按钮是「开始使用」，二维码只是卡片里的次要内容（不做最大视觉、不在按钮上）。
-// v9 视觉：Windows 11 内容对话框（antd Modal 已被 w11/antd.css 二次主题成 Acrylic + 8px + 20px 标题）；
-//   内部只用 `.pub-*` 排版类：12px 关于作者眉标、20px 标题、14/20 正文、白底二维码、按钮右下。
-import { Modal } from 'antd'
-import { HeartRegular } from '@fluentui/react-icons'
-import { CloseOutlined } from '@/components/common/icons'
+//
+// v10 视觉：真实 Fluent UI React v9 Dialog（DialogSurface / DialogBody / DialogTitle / DialogContent /
+// DialogActions + Button/Card/Text），QR 白底 Card；文案逐字不变。
+// 兼容说明：既有组件契约测试 `WelcomeModal.test.tsx` 以 `.ant-modal-wrap` 定位遮罩，
+//   这里把该 class 挂到 Fluent dialog 的 backdrop slot 上作为**测试钩子**（不影响视觉），
+//   点击/按键仍走同一条 close 路径；close 做了幂等保护，避免 Fluent 内部 close 与
+//   backdrop 回调叠加导致 onClose 被调用两次。
+import { useEffect, useRef } from 'react'
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  Text,
+} from '@fluentui/react-components'
+import { DismissRegular, HeartRegular } from '@fluentui/react-icons'
 import { useI18n, type TFunc } from '@/i18n'
 import { markWelcomeSeen } from '@/utils/welcome'
 import RewardQr from './RewardQr'
@@ -59,6 +73,11 @@ export interface WelcomeModalProps {
 
 export default function WelcomeModal({ open, accountId, onClose }: WelcomeModalProps) {
   const t = useI18n()
+  // close 幂等：Fluent Dialog 的 onOpenChange 与 backdrop 原生回调可能同时触发
+  const closingRef = useRef(false)
+  useEffect(() => {
+    if (open) closingRef.current = false
+  }, [open])
 
   const copy = {
     eyebrow: tx(t, 'welcome.eyebrow', FALLBACK.eyebrow),
@@ -74,49 +93,75 @@ export default function WelcomeModal({ open, accountId, onClose }: WelcomeModalP
 
   // × / Esc / 点遮罩 → onCancel；「开始使用」→ 按钮；android 返回由 AppShell 注册的层触发 onClose
   const close = () => {
+    if (closingRef.current) return
+    closingRef.current = true
     markWelcomeSeen(accountId)
     onClose()
   }
 
   return (
-    <Modal
-      open={open}
-      onCancel={close}
-      centered
-      width="min(480px, calc(100vw - 32px))"
-      title={
-        <div className="pub-dlg-head">
-          <span className="pub-dlg-eyebrow">
-            <HeartRegular fontSize={14} aria-hidden />
-            {copy.eyebrow}
-          </span>
-          <span className="pub-dlg-title">{copy.title}</span>
-        </div>
-      }
-      footer={null}
-      maskClosable
-      keyboard
-      closable={{ closeIcon: <CloseOutlined />, 'aria-label': copy.closeAria }}
-    >
-      <p className="pub-dlg-body">{copy.body1}</p>
-      <p className="pub-dlg-body">{copy.body2}</p>
+    <Dialog open={open} onOpenChange={(_, data) => (!data.open ? close() : undefined)}>
+      <DialogSurface
+        className="pub-dialog"
+        backdrop={{
+          // 测试钩子：既有契约测试用 .ant-modal-wrap 定位遮罩层（视觉由 Fluent 提供）
+          className: 'ant-modal-wrap',
+          'aria-hidden': true,
+          onClick: close,
+          onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+            if (e.key === 'Escape') close()
+          },
+        }}
+      >
+        <DialogBody>
+          <DialogTitle
+            action={
+              <Button
+                appearance="subtle"
+                icon={<DismissRegular />}
+                aria-label={copy.closeAria}
+                onClick={close}
+              />
+            }
+          >
+            {copy.title}
+          </DialogTitle>
+          <DialogContent>
+            <div className="pub-dlg-eyebrow">
+              <HeartRegular fontSize={14} aria-hidden />
+              <Text size={200}>{copy.eyebrow}</Text>
+            </div>
+            <Text as="p" size={300} className="pub-dlg-body">
+              {copy.body1}
+            </Text>
+            <Text as="p" size={300} className="pub-dlg-body">
+              {copy.body2}
+            </Text>
 
-      <div className="pub-dlg-qr">
-        <RewardQr size={QR_SIZE} />
-        <div className="pub-dlg-notes">
-          <div className="pub-dlg-note-strong">{copy.scan}</div>
-          <div className="pub-dlg-note">{copy.privacy}</div>
-        </div>
-      </div>
+            <div className="pub-dlg-qr">
+              <RewardQr size={QR_SIZE} />
+              <div className="pub-dlg-notes">
+                <Text size={300} weight="semibold">
+                  {copy.scan}
+                </Text>
+                <Text size={200} className="w-faint">
+                  {copy.privacy}
+                </Text>
+              </div>
+            </div>
 
-      <div className="pub-dlg-actions">
-        {/* 初始焦点放主按钮，不放码上（05 §D.6） */}
-        <button type="button" className="w-btn w-btn--accent w-btn--lg" autoFocus onClick={close}>
-          {copy.start}
-        </button>
-      </div>
-
-      <div className="pub-dlg-foot">{copy.once}</div>
-    </Modal>
+            <Text as="p" size={200} className="w-faint pub-dlg-foot">
+              {copy.once}
+            </Text>
+          </DialogContent>
+          <DialogActions>
+            {/* 初始焦点放主按钮，不放码上（05 §D.6） */}
+            <Button appearance="primary" size="large" autoFocus onClick={close} className="pub-dlg-start">
+              {copy.start}
+            </Button>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   )
 }

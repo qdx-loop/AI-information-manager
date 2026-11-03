@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Drawer } from 'antd'
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogSurface,
+  DialogTitle,
+  Text,
+  Tooltip,
+} from '@fluentui/react-components'
+import { AddRegular, FolderAddRegular, FolderRegular } from '@fluentui/react-icons'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { FolderRegular, AddRegular, FolderAddRegular } from '@fluentui/react-icons'
 import { useLibraryStore } from '@/store/libraryStore'
 import type { Library } from '@/types'
 import { useI18n } from '@/i18n'
@@ -10,20 +19,10 @@ import CreateLibraryDialog from './CreateLibraryDialog'
 import { useLibText } from './labels'
 
 /**
- * 「管理库」标签的点开目标 —— 手机上的库切换面板（v9 Win11 NavigationView Sheet）。
+ * 「管理库」标签的点开目标 —— 手机上的库切换面板（v10 Fluent Dialog · 底部面板）。
  *
- * 之前这个标签是死按钮：
- *   if (!location.pathname.startsWith('/library/')) navigate('/')
- * 在首页时 pathname 不是 /library/，于是导航到当前页，等于什么都没发生；
- * 而冷启动下唯一能进库页的入口在汉堡抽屉里，所以这个标签从冷启动**永远亮不起来**。
- * 更矛盾的是作者的本意是「已经在库里就别跳走」，但这同时意味着它**永远无法切库** ——
- * 而切库恰恰是它在手机上唯一的职责（侧边栏收进了抽屉）。
- *
- * 现在点开是这个底部抽屉：完整库树 + 当前库高亮 + 就地新建。
- * 「主目的地一个都不许藏」是当初引入底栏的理由，切库就不该再藏回抽屉里。
- *
- * 视觉（v9）：Win11 NavigationView sheet —— 分类组标题 12 + 一行一个库
- * （图标 28 圆角 6 + 名称，当前库 = 中性提亮 + 左侧 3px 强调条），底部虚线新建行。
+ * 完整库树 + 当前库高亮 + 就地新建；选中后等面板关闭再导航（先消费返回栈顶，
+ * 避免 useBackButtonLayer cleanup 里那次异步 history.back() 撤销导航）。
  */
 export default function LibraryPickerSheet({
   open,
@@ -38,8 +37,6 @@ export default function LibraryPickerSheet({
   const location = useLocation()
   const { libraries, currentLibraryId } = useLibraryStore()
   const [creating, setCreating] = useState(false)
-  // 选中的库。等弹层完全关闭之后再跳，并先消费掉栈顶，
-  // 否则 useBackButtonLayer cleanup 里那次异步 history.back() 会把导航撤销掉。
   const [pending, setPending] = useState<string | null>(null)
 
   useBackButtonLayer(open, onClose)
@@ -86,70 +83,68 @@ export default function LibraryPickerSheet({
 
   return (
     <>
-      {/* 自己铺一层可点的遮罩，而不是用 Drawer 自带的 mask。
-          Drawer 的 mask z-index 1000 > 底栏 880，会把底栏盖住 —— 那等于底栏又失效了，
-          而底栏存在的理由就是「主目的地一个都不许藏」。面板本身压到 870，
-          让底栏（880）始终可点。 */}
-      {open && (
-        <div
-          onClick={onClose}
-          aria-hidden
-          style={{ position: 'fixed', inset: 0, zIndex: 869, background: 'var(--w-overlay)' }}
-        />
-      )}
-      <Drawer
-        placement="bottom"
+      <Dialog
         open={open}
-        onClose={onClose}
-        mask={false}
-        zIndex={870}
-        height="72vh"
-        title={t('app.group.libraries')}
-        styles={{ body: { padding: 12 }, wrapper: { zIndex: 870 } }}
+        onOpenChange={(_, data) => {
+          if (!data.open) onClose()
+        }}
       >
-        {libraries.length === 0 ? (
-          <div className="lib-picker-empty">
-            <span className="lib-picker-empty-icon" aria-hidden>
-              <FolderAddRegular />
-            </span>
-            <div className="lib-picker-empty-title">{t('home.empty')}</div>
-            <button type="button" className="w-btn w-btn--accent" onClick={() => setCreating(true)}>
-              {t('home.createFirst')}
-            </button>
-          </div>
-        ) : (
-          <>
-            {groups.map(([cat, rows]) => (
-              <div key={cat} style={{ marginBottom: 8 }}>
-                <div className="w-sheet-group">{cat}</div>
-                {rows.map(({ lib, depth }) => {
-                  const on = currentLibraryId === lib.id || location.pathname === `/library/${lib.id}`
-                  return (
-                    <button
-                      key={lib.id}
-                      type="button"
-                      onClick={() => go(lib.id)}
-                      aria-current={on ? 'page' : undefined}
-                      className={`w-sheet-item${on ? ' is-active' : ''}`}
-                      style={{ paddingInlineStart: 12 + depth * 16 }}
+        <DialogSurface className="lib-picker-surface" aria-label={lt('picker.title')}>
+          <DialogBody>
+            <DialogTitle>{lt('picker.title')}</DialogTitle>
+            <div className="lib-picker-body">
+              {libraries.length === 0 ? (
+                <div className="lib-picker-empty">
+                  <FolderAddRegular fontSize={28} />
+                  <Text size={300}>{lt('picker.empty')}</Text>
+                  <Button appearance="primary" onClick={() => setCreating(true)}>
+                    {t('home.createFirst')}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {groups.map(([cat, rows]) => (
+                    <div key={cat}>
+                      <div className="lib-picker-group">{cat}</div>
+                      {rows.map(({ lib, depth }) => {
+                        const on = currentLibraryId === lib.id || location.pathname === `/library/${lib.id}`
+                        return (
+                          <Button
+                            key={lib.id}
+                            appearance="subtle"
+                            className={`lib-picker-item${on ? ' is-active' : ''}`}
+                            aria-current={on ? 'page' : undefined}
+                            icon={<FolderRegular />}
+                            onClick={() => go(lib.id)}
+                          >
+                            <span style={{ marginLeft: depth * 16 }}>{lib.name}</span>
+                            {on ? <span className="lib-picker-current">{lt('picker.current')}</span> : null}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                  ))}
+                  <Tooltip content={lt('picker.new')} relationship="label">
+                    <Button
+                      appearance="secondary"
+                      className="lib-picker-add"
+                      icon={<AddRegular />}
+                      onClick={() => setCreating(true)}
                     >
-                      <span className="w-sheet-lib-icon" aria-hidden>
-                        <FolderRegular style={{ fontSize: 16 }} />
-                      </span>
-                      <span className="w-sheet-item-label">{lib.name}</span>
-                      {on ? <span className="lib-picker-current">{lt('picker.current')}</span> : null}
-                    </button>
-                  )
-                })}
-              </div>
-            ))}
-            <button type="button" className="w-sheet-add" onClick={() => setCreating(true)}>
-              <AddRegular />
-              <span>{lt('picker.new')}</span>
-            </button>
-          </>
-        )}
-      </Drawer>
+                      {lt('picker.new')}
+                    </Button>
+                  </Tooltip>
+                </>
+              )}
+            </div>
+            <DialogActions>
+              <Button appearance="secondary" onClick={onClose}>
+                {t('common.close')}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
       <CreateLibraryDialog
         open={creating}
         onClose={() => setCreating(false)}

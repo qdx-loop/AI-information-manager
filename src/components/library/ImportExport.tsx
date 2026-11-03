@@ -1,15 +1,14 @@
-import { Modal, Select, App } from 'antd'
 import { Fragment, useImperativeHandle, useRef, useState, forwardRef } from 'react'
-import { InboxOutlined } from '@/components/common/icons'
-import { ArrowImportRegular, ArrowLeftRegular, CheckmarkCircleRegular } from '@fluentui/react-icons'
+import { Button, Dropdown, Option, Text, Tooltip } from '@fluentui/react-components'
+import { App } from 'antd'
+import { ArrowImportRegular, ArrowLeftRegular, CheckmarkCircleRegular, MailInboxRegular } from '@fluentui/react-icons'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import { itemsToCSV, parseCSV, downloadCSV } from '@/utils/csv'
 import { itemsToExcel, parseExcel } from '@/utils/excel'
 import { downloadBlob } from '@/utils/csv'
 import { useI18n } from '@/i18n'
-
 import { useBackButtonLayer } from '@/utils/backButton'
-import { useLibText } from './labels'
+import { LibDialog, useLibText } from './labels'
 
 /** 窄屏时工具栏把这些动作收进「更多」菜单，需要父组件能命令式触发。
  *  导出直接给两种格式，而不是命令式打开一个二级菜单——嵌套菜单在手机上很难点准。 */
@@ -24,11 +23,7 @@ interface Props {
   onImport: (rows: Record<string, FieldValue>[]) => Promise<void>
 }
 
-/**
- * 三步步骤指示（v9 Win11）：20px 圆形序号 + 连接线。
- * 当前步 = 强调填充；已完成 = accent-soft 底 + 对勾语汇；未开始 = 描边中性。
- * 这里的编号是**功能性步骤序号**，不是装饰性 index。
- */
+/** 三步步骤指示（Fluent）：功能性步骤序号 + 连接线。 */
 function StepBar({ current }: { current: 1 | 2 | 3 }) {
   const t = useI18n()
   const steps = [t('lib.importExport.chooseFile'), t('lib.importExport.mapTitle'), t('lib.importExport.import')]
@@ -36,17 +31,14 @@ function StepBar({ current }: { current: 1 | 2 | 3 }) {
     <div className="lib-steps">
       {steps.map((label, i) => {
         const n = (i + 1) as 1 | 2 | 3
-        const state = n < current ? 'done' : n === current ? 'current' : 'todo'
+        const isCurrent = n === current
         return (
           <Fragment key={label}>
             {i > 0 ? <span className="lib-step-line" aria-hidden /> : null}
-            <span className="lib-step" aria-current={state === 'current' ? 'step' : undefined}>
-              <span className={`lib-step-dot${state === 'current' ? ' is-current' : state === 'done' ? ' is-done' : ''}`}>
-                {n}
-              </span>
-              <span className={`lib-step-label${state === 'current' ? ' is-current' : state === 'done' ? ' is-done' : ''}`}>
-                {label}
-              </span>
+            <span className={`lib-step${isCurrent ? ' is-current' : ''}`} aria-current={isCurrent ? 'step' : undefined}>
+              <Text size={200} weight={isCurrent ? 'semibold' : 'regular'}>
+                {n}. {label}
+              </Text>
             </span>
           </Fragment>
         )
@@ -56,11 +48,10 @@ function StepBar({ current }: { current: 1 | 2 | 3 }) {
 }
 
 /**
- * 导入 / 导出（v9 Win11 ContentDialog）。
+ * 导入 / 导出（v10 Fluent Dialog）。
  *
- * 导入三步：1 选择文件（虚线拖放区）→ 2 字段映射（左映射列表 + 右预览表）
- * → 3 完成。映射/类型转换/逐行写入逻辑与原来完全一致（coerceValue 没有改动）。
- * 导出仍是 csv/excel 两个选项。
+ * 导入三步：1 选择文件（拖放区）→ 2 字段映射（左映射列表 + 右预览表）→ 3 完成。
+ * 映射/类型转换/逐行写入逻辑与原来完全一致（coerceValue 没有改动）。
  */
 const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport(
   { fields, items, onImport },
@@ -147,7 +138,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
     } catch (e) {
       message.error(t('lib.importExport.parseFailed', { msg: (e as Error).message }))
     }
-    return false // 阻止 antd 自动上传
+    return false // 阻止浏览器默认行为
   }
 
   const buildRows = (): Record<string, FieldValue>[] =>
@@ -199,36 +190,30 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
   const footer =
     step === 2 ? (
       <div className="lib-dialog-footer">
-        <button type="button" className="w-btn w-btn--subtle" onClick={() => setStep(1)}>
-          <ArrowLeftRegular />
+        <Button appearance="subtle" icon={<ArrowLeftRegular />} onClick={() => setStep(1)}>
           {t('common.back')}
-        </button>
+        </Button>
         <span className="lib-dialog-footer-spacer" />
-        <button type="button" className="w-btn" onClick={closeModal}>
+        <Button appearance="secondary" onClick={closeModal}>
           {t('common.cancel')}
-        </button>
-        <button
-          type="button"
-          className="w-btn w-btn--accent"
-          disabled={!importable || importing}
-          onClick={confirmImport}
-        >
+        </Button>
+        <Button appearance="primary" disabled={!importable || importing} onClick={confirmImport}>
           {importing ? t('common.loading') : t('lib.importExport.confirmN', { n: parsedRows.length })}
-        </button>
+        </Button>
       </div>
     ) : step === 3 ? (
       <div className="lib-dialog-footer">
         <span className="lib-dialog-footer-spacer" />
-        <button type="button" className="w-btn w-btn--accent" onClick={closeModal}>
+        <Button appearance="primary" onClick={closeModal}>
           {t('common.close')}
-        </button>
+        </Button>
       </div>
     ) : (
       <div className="lib-dialog-footer">
         <span className="lib-dialog-footer-spacer" />
-        <button type="button" className="w-btn" onClick={closeModal}>
+        <Button appearance="secondary" onClick={closeModal}>
           {t('common.cancel')}
-        </button>
+        </Button>
       </div>
     )
 
@@ -247,14 +232,12 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
         }}
       />
 
-      <Modal
-        title={t('lib.importExport.import')}
+      <LibDialog
         open={modalOpen}
-        onCancel={closeModal}
-        footer={footer}
-        width={step === 2 ? 880 : 560}
-        style={{ maxWidth: 'calc(100vw - 24px)' }}
-        destroyOnHidden
+        onClose={closeModal}
+        title={t('lib.importExport.import')}
+        width={step === 2 ? 'min(920px, calc(100vw - 32px))' : 'min(560px, calc(100vw - 32px))'}
+        actions={footer}
       >
         <StepBar current={step} />
 
@@ -275,72 +258,88 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
             onClick={() => fileInputRef.current?.click()}
           >
             <span className="lib-dropzone-icon" aria-hidden>
-              <InboxOutlined />
+              <MailInboxRegular fontSize={22} />
             </span>
-            <span className="lib-dropzone-title">{t('lib.importExport.dropHint')}</span>
-            <span className="lib-dropzone-hint">{lt('import.supported')}</span>
-            <button
-              type="button"
-              className="w-btn w-btn--accent"
+            <Text weight="semibold">{t('lib.importExport.dropHint')}</Text>
+            <Text size={200} style={{ color: 'var(--w-text-3)' }}>
+              {lt('import.supported')}
+            </Text>
+            <Button
+              appearance="primary"
+              icon={<ArrowImportRegular />}
               onClick={(e) => {
                 e.stopPropagation()
                 fileInputRef.current?.click()
               }}
             >
-              <ArrowImportRegular />
               {t('lib.importExport.chooseFile')}
-            </button>
+            </Button>
           </div>
         )}
 
         {step === 2 && (
           <>
-            <p className="lib-dialog-sub" style={{ marginBottom: 10 }}>
+            <Text size={200} className="lib-dialog-sub">
               {t('lib.importExport.mapIntro', { n: parsedRows.length })}
-            </p>
+            </Text>
             <div className="lib-import-cols">
-              {/* 左：文件列 → 库字段 的对应列表（行 40 + 1px 分割线） */}
+              {/* 左：文件列 → 库字段 的对应列表 */}
               <div className="lib-map-panel">
                 <div className="lib-map-head">
-                  <span>{t('lib.importExport.mapTitle')}</span>
-                  <span className="lib-status-strong" style={{ fontSize: 12 }}>
-                    {headers.length}
-                  </span>
+                  <Text size={200} weight="semibold">
+                    {t('lib.importExport.mapTitle')}
+                  </Text>
+                  <Text size={200}>{headers.length}</Text>
                 </div>
                 <div className="lib-map-scroll">
-                  {headers.map((h) => (
-                    <div key={h} className="lib-map-row">
-                      <span className="lib-map-src" title={h}>
-                        {h}
-                      </span>
-                      <Select
-                        size="small"
-                        className="lib-map-select"
-                        value={mapping[h]}
-                        onChange={(v) => setMapping({ ...mapping, [h]: v })}
-                        options={[
-                          { label: lt('import.skipCol'), value: '' },
-                          ...fields.map((f) => ({ label: f.label, value: f.key })),
-                        ]}
-                        allowClear
-                      />
-                    </div>
-                  ))}
+                  {headers.map((h) => {
+                    const mappedKey = mapping[h] ?? ''
+                    const mappedLabel =
+                      fields.find((x) => x.key === mappedKey)?.label ?? lt('import.skipCol')
+                    return (
+                      <div key={h} className="lib-map-row">
+                        <span className="lib-map-src" title={h}>
+                          {h}
+                        </span>
+                        <div className="lib-map-select">
+                          <Dropdown
+                            size="small"
+                            value={mappedLabel}
+                            selectedOptions={mappedKey ? [mappedKey] : []}
+                            placeholder={lt('import.skipCol')}
+                            aria-label={`${h} → ${t('lib.importExport.mapTitle')}`}
+                            onOptionSelect={(_, data) =>
+                              setMapping({ ...mapping, [h]: data.optionValue ?? '' })
+                            }
+                          >
+                            <Option value="" text={lt('import.skipCol')}>
+                              {lt('import.skipCol')}
+                            </Option>
+                            {fields.map((f) => (
+                              <Option key={f.key} value={f.key} text={f.label}>
+                                {f.label}
+                              </Option>
+                            ))}
+                          </Dropdown>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
               {/* 右：预览（中性表头 + 30 行高 + 数字右对齐） */}
-              <div className="lib-preview-panel">
+              <div className="lib-map-panel">
                 <div className="lib-map-head">
-                  <span>{lt('import.preview')}</span>
-                  <span className="lib-status-strong" style={{ fontSize: 12 }}>
-                    {lt('import.parseRows', { n: parsedRows.length })}
-                  </span>
+                  <Text size={200} weight="semibold">
+                    {lt('import.preview')}
+                  </Text>
+                  <Text size={200}>{lt('import.parseRows', { n: parsedRows.length })}</Text>
                 </div>
                 {previewCols.length === 0 ? (
-                  <p className="lib-dialog-sub" style={{ padding: '16px 12px', margin: 0 }}>
+                  <Text size={200} className="lib-dialog-sub" style={{ padding: '16px 12px', margin: 0 }}>
                     {t('lib.importExport.skip')}
-                  </p>
+                  </Text>
                 ) : (
                   <div className="lib-preview-scroll">
                     <table className="lib-preview-table">
@@ -375,12 +374,16 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
         {step === 3 && (
           <div className="lib-import-done">
             <span className="lib-import-done-icon" aria-hidden>
-              <CheckmarkCircleRegular />
+              <Tooltip content={t('lib.importExport.imported', { n: importedCount })} relationship="description">
+                <CheckmarkCircleRegular fontSize={40} />
+              </Tooltip>
             </span>
-            <div className="lib-import-done-title">{t('lib.importExport.imported', { n: importedCount })}</div>
+            <Text size={400} weight="semibold">
+              {t('lib.importExport.imported', { n: importedCount })}
+            </Text>
           </div>
         )}
-      </Modal>
+      </LibDialog>
     </>
   )
 })
@@ -410,9 +413,6 @@ function coerceValue(type: FieldDef['type'], raw: unknown): FieldValue {
 
 /**
  * 容忍千分位、空格、货币符号和中文数量单位；无法解析时返回 NaN。
- *
- * 用户自己的表格里出现「约5000」「1,200」「1200元」「1.2万」是很常见的，
- * 原来的 `Number(raw)` 对这些一律返回 NaN。
  */
 function parseLooseNumber(raw: unknown): number {
   if (typeof raw === 'number') return raw
@@ -444,8 +444,7 @@ function parseLooseNumber(raw: unknown): number {
  *
  * 两个必须处理的坑：
  * 1. xlsx 不加 cellDates 时给的是 **Excel 序列号**（45900）。`new Date(45900)`
- *    得到 1970-01-01，整列日期静默变成 1970 年。现在 excel.ts 已开启
- *    cellDates，但用户也可能粘贴纯数字，所以这里仍要兜住序列号。
+ *    得到 1970-01-01，整列日期静默变成 1970 年。
  * 2. 用本地时区格式化。原来用 toISOString()（UTC），东八区 00:00 的日期
  *    会被写成前一天 —— 用户填 2026-10-05 存成 2026-10-04。
  */

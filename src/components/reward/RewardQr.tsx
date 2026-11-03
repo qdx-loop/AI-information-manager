@@ -1,10 +1,11 @@
-// 二维码卡面（纯白，v9 Windows 11 内容对话框）——WelcomeModal 与 RewardCard 共用。
+// 二维码卡面（纯白）· v10 Fluent 应用——WelcomeModal 与 RewardCard 共用。
 //
 // 硬约束（两处都不能破）：
-// - 卡面**固定纯白**：暗色下也不反色，浅色模块变深后扫不出来（全项目唯一允许写死的颜色）。
+// - 卡面**固定纯白**：QR 必须浅底深码才扫得出；暗色主题下也不反色（这是业务资产要求，
+//   全项目唯一允许的固定色；v10 约束「只用 token」在该卡面上以 `.pub-qr` 的注释说明例外）。
 // - 图片不反色、不加滤镜、不加 mix-blend-mode；不放大失真（源图 640×640，显示 240–248）。
 // - 卡面保留内 padding 作 quiet zone（源图自带白边 + 卡内 12px）。
-// v9 视觉：白色卡面 + 4px 圆角 + 1px 中性描边（`.pub-qr`，见 public.css）。
+// v10 视觉：白底 + Fluent 圆角 token（borderRadiusMedium=4）+ 中性描边（`.pub-qr`，见 public.css）。
 import type { CSSProperties } from 'react'
 import { useI18n } from '@/i18n'
 

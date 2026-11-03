@@ -1,10 +1,32 @@
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { App, Upload, Dropdown } from 'antd'
-import { SendOutlined, PaperClipOutlined, CloseOutlined, PictureOutlined, FileTextOutlined, PlusOutlined, DeleteOutlined, MessageOutlined, DownOutlined, UndoOutlined, RightOutlined } from '@/components/common/icons'
+import { App, Upload } from 'antd'
+import {
+  Button,
+  Menu,
+  MenuDivider,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
+  ProgressBar,
+  Tag,
+  Text,
+  Textarea,
+} from '@fluentui/react-components'
 import {
   AddRegular,
+  ArrowUndoRegular,
+  AttachRegular,
   ChartMultipleRegular,
+  ChatRegular,
+  CheckmarkRegular,
+  ChevronDownRegular,
+  ChevronRightRegular,
+  DeleteRegular,
+  DocumentRegular,
+  ImageRegular,
   LibraryRegular,
+  SendRegular,
   SparkleRegular,
   StopRegular,
 } from '@fluentui/react-icons'
@@ -116,7 +138,8 @@ export default function AIPanel() {
     saveSession(account.id, s, [])
     return s.id
   })
-  const [sessionSwitcherOpen, setSessionSwitcherOpen] = useState(false)
+  // Fluent Menu 自己管理展开态；这里保留 setter 以便切换/新建会话时请求收起
+  const [, setSessionSwitcherOpen] = useState(false)
 
   // 当前会话消息（从会话存储加载；撤回器为闭包不序列化，恢复后撤回按钮自然失效）
   const [messages, setMessages] = useState<UIMessage[]>(() => (sessionId ? loadMessages(sessionId) as UIMessage[] : []))
@@ -1396,20 +1419,27 @@ export default function AIPanel() {
   }
 
   // 执行步骤：默认收起（chevron 旋转），展开为编号列表
+  // 执行步骤：Fluent Button 展开器（chevron 旋转），展开为编号列表
   const renderSteps = (m: UIMessage, idx: number) => {
     if (!m.steps || m.steps.length === 0) return null
     const open = openedSteps.has(idx)
     return (
       <div className="ai-p-steps">
-        <button
-          type="button"
+        <Button
+          appearance="transparent"
+          className="ai-p-steps-btn"
           aria-expanded={open}
           onClick={() => toggleSteps(idx)}
-          className="ai-p-steps-toggle"
         >
-          <span>{t('ai.steps.summary', { n: m.steps.length })}</span>
-          <DownOutlined />
-        </button>
+          <Text size={200}>{t('ai.steps.summary', { n: m.steps.length })}</Text>
+          <ChevronDownRegular
+            style={{
+              fontSize: 12,
+              transform: open ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.14s ease',
+            }}
+          />
+        </Button>
         {open && (
           <ol className="ai-p-steps-list">
             {m.steps.map((s, si) => (
@@ -1427,21 +1457,7 @@ export default function AIPanel() {
   // 「去配置」跳转到设置页的 AI 分区（?tab=ai 由 SettingsPage 读取）
   const goConfigure = () => navigate('/settings?tab=ai')
 
-  // 输入框自适应高度（1~5 行）；发送后复位
-  const composerRef = useRef<HTMLTextAreaElement>(null)
-  useEffect(() => {
-    const el = composerRef.current
-    if (!el) return
-    if (!input.trim()) el.style.height = 'auto'
-  }, [input])
-  const resizeComposer = () => {
-    const el = composerRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
-  }
-
-  // 快捷动作：Win11 中性 chip，点击把示例指令填进输入框（不自动发送）
+  // 快捷动作：Fluent Button（subtle），点击把示例指令填进输入框（不自动发送）
   const isEn = settings.language === 'en'
   const quickActions = [
     {
@@ -1464,20 +1480,24 @@ export default function AIPanel() {
   const currentSessionTitle =
     sessions.find((s) => s.id === sessionId)?.title || t('ai.session.untitled')
 
-  // 未配置态：Win11 空状态 + 主按钮「去配置」
+  // 未配置态：Fluent 空状态 + 主按钮「去配置」
   if (!aiConfigured) {
     return (
       <div className="ai-p ai-p-unconfigured">
-        <div className="w-empty">
-          <span className="w-empty-icon" aria-hidden>
+        <div className="ai-p-empty">
+          <span className="ai-p-empty-icon" aria-hidden>
             <SparkleRegular />
           </span>
-          <div className="w-empty-title">{t('ai.notConfigured')}</div>
-          <div className="w-empty-desc">{t('ai.notConfiguredHint')}</div>
-          <div className="w-empty-actions">
-            <button type="button" className="w-btn w-btn--accent" onClick={goConfigure}>
+          <Text as="h2" size={400} weight="semibold" className="ai-p-empty-title">
+            {t('ai.notConfigured')}
+          </Text>
+          <Text size={200} className="ai-p-empty-desc">
+            {t('ai.notConfiguredHint')}
+          </Text>
+          <div className="ai-p-chips">
+            <Button appearance="primary" onClick={goConfigure}>
               {t('ai.goConfigure')}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -1487,71 +1507,57 @@ export default function AIPanel() {
   return (
     <AutoConfirmContext.Provider value={{ alwaysAllowFor: alwaysAllow, setAlwaysAllowFor }}>
       <div className="ai-p">
-        {/* 会话条：当前会话名 + 切换 / 清空（头部 44 由 AIDock 外壳渲染） */}
+        {/* 会话条：当前会话名 + Fluent Menu 切换 / 清空（44px 头部由 AIDock 外壳渲染） */}
         <div className="ai-p-sessionbar">
-          <span className="ai-p-session-title" title={currentSessionTitle}>
+          <Text size={200} weight="semibold" className="ai-p-session-title" title={currentSessionTitle}>
             {currentSessionTitle}
-          </span>
+          </Text>
           <span className="ai-p-session-actions">
-            <Dropdown
-              open={sessionSwitcherOpen}
-              onOpenChange={setSessionSwitcherOpen}
-              trigger={['click']}
-              menu={{
-                items: [
-                  ...sessions.map((s) => ({
-                    key: s.id,
-                    label: (
-                      <div className="ai-p-menu-item">
-                        <span
-                          className="ai-p-menu-title"
-                          style={{ fontWeight: s.id === sessionId ? 600 : 400 }}
-                        >
-                          {s.title || t('ai.session.untitled')}
-                        </span>
-                        <button
-                          type="button"
+            <Menu>
+              <MenuTrigger disableButtonEnhancement>
+                <Button
+                  appearance="subtle"
+                  size="small"
+                  icon={<ChatRegular />}
+                  aria-label={t('ai.session.switch')}
+                  title={t('ai.session.switch')}
+                />
+              </MenuTrigger>
+              <MenuPopover>
+                <MenuList>
+                  {sessions.map((s) => (
+                    <MenuItem
+                      key={s.id}
+                      icon={s.id === sessionId ? <CheckmarkRegular /> : undefined}
+                      onClick={() => switchSession(s.id)}
+                      secondaryContent={
+                        <Button
+                          appearance="subtle"
+                          size="small"
+                          icon={<DeleteRegular />}
                           aria-label={t('common.delete')}
-                          className="ai-p-menu-del"
+                          title={t('common.delete')}
                           onClick={(e) => {
                             e.stopPropagation()
                             removeSession(s.id)
                           }}
-                        >
-                          <DeleteOutlined />
-                        </button>
-                      </div>
-                    ),
-                  })),
-                  { type: 'divider' as const },
-                  {
-                    key: '__new__',
-                    label: (
-                      <span className="ai-p-menu-new">
-                        <PlusOutlined />
-                        {t('ai.session.new')}
-                      </span>
-                    ),
-                  },
-                ],
-                onClick: ({ key }) => {
-                  if (key === '__new__') startNewSession()
-                  else switchSession(key)
-                },
-              }}
-            >
-              <button
-                type="button"
-                className="w-iconbtn w-iconbtn--sm"
-                aria-label={t('ai.session.switch')}
-                title={t('ai.session.switch')}
-              >
-                <MessageOutlined />
-              </button>
-            </Dropdown>
-            <button
-              type="button"
-              className="w-iconbtn w-iconbtn--sm"
+                        />
+                      }
+                    >
+                      {s.title || t('ai.session.untitled')}
+                    </MenuItem>
+                  ))}
+                  <MenuDivider />
+                  <MenuItem icon={<AddRegular />} onClick={startNewSession}>
+                    {t('ai.session.new')}
+                  </MenuItem>
+                </MenuList>
+              </MenuPopover>
+            </Menu>
+            <Button
+              appearance="subtle"
+              size="small"
+              icon={<DeleteRegular />}
               aria-label={t('ai.session.clear')}
               title={t('ai.session.clear')}
               onClick={() =>
@@ -1564,19 +1570,17 @@ export default function AIPanel() {
                   onOk: handleClear,
                 })
               }
-            >
-              <DeleteOutlined />
-            </button>
+            />
           </span>
         </div>
 
-        {/* 运行中：2px Win11 进度线 + 一行状态（不闪不呼吸） */}
+        {/* 运行中：Fluent ProgressBar + 状态行 */}
         {loading && (
           <div className="ai-p-runbar" role="status" aria-live="polite">
-            <div className="ai-p-runline" aria-hidden />
+            <ProgressBar />
             <div className="ai-p-runtext">
-              <SparkleRegular />
-              <span>{t('ai.runningChecking')}</span>
+              <SparkleRegular fontSize={12} />
+              <Text size={200}>{t('ai.runningChecking')}</Text>
             </div>
           </div>
         )}
@@ -1588,22 +1592,23 @@ export default function AIPanel() {
               <span className="ai-p-empty-icon" aria-hidden>
                 <SparkleRegular />
               </span>
-              <div className="ai-p-empty-title">{t('app.aiAssistant')}</div>
-              <div className="ai-p-empty-desc">{t('ai.emptyHint')}</div>
+              <Text as="h2" size={400} weight="semibold" className="ai-p-empty-title">
+                {t('app.aiAssistant')}
+              </Text>
+              <Text size={200} className="ai-p-empty-desc">
+                {t('ai.emptyHint')}
+              </Text>
               <div className="ai-p-chips">
                 {quickActions.map((a) => (
-                  <button
+                  <Button
                     key={a.label}
-                    type="button"
-                    className="w-chip ai-p-chip"
-                    onClick={() => {
-                      setInput(a.prompt)
-                      requestAnimationFrame(resizeComposer)
-                    }}
+                    appearance="subtle"
+                    size="small"
+                    icon={a.icon}
+                    onClick={() => setInput(a.prompt)}
                   >
-                    {a.icon}
                     <span className="ai-p-chip-label">{a.label}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -1626,22 +1631,26 @@ export default function AIPanel() {
                     </span>
                   ) : null}
                   {m.chart && (
-                    <button
-                      type="button"
-                      className="ai-p-chart"
+                    <Button
+                      appearance="secondary"
+                      className="ai-p-chart-btn"
                       onClick={() => setChartPayload(m.chart as ChartPayload)}
                     >
                       <span className="ai-p-chart-icon" aria-hidden>
                         <ChartMultipleRegular />
                       </span>
                       <span className="ai-p-chart-main">
-                        <span className="ai-p-chart-title">{m.chart.title}</span>
-                        <span className="ai-p-chart-hint">{t('ai.chart.thumbHint')}</span>
+                        <Text size={200} weight="semibold" className="ai-p-chart-title">
+                          {m.chart.title}
+                        </Text>
+                        <Text size={200} className="ai-p-chart-hint">
+                          {t('ai.chart.thumbHint')}
+                        </Text>
                       </span>
                       <span className="ai-p-chart-chev" aria-hidden>
-                        <RightOutlined />
+                        <ChevronRightRegular />
                       </span>
-                    </button>
+                    </Button>
                   )}
                 </div>
               ),
@@ -1649,37 +1658,41 @@ export default function AIPanel() {
           )}
         </div>
 
-        {/* Composer：Win11 输入框 + accent 发送按钮 + 快捷键提示 */}
+        {/* Composer：Fluent Textarea + accent 发送按钮 + 快捷键提示 */}
         <div className="ai-p-composer">
           {undoStack.length > 0 && (
             <div className="ai-p-undo">
-              <button
-                type="button"
-                className="w-btn w-btn--subtle w-btn--sm"
+              <Button
+                appearance="subtle"
+                size="small"
+                icon={<ArrowUndoRegular />}
                 disabled={undoBusy}
                 onClick={() => void handleUndoLast()}
               >
-                <UndoOutlined />
                 {t('ai.undo.last')}
-              </button>
+              </Button>
             </div>
           )}
 
           {attachments.length > 0 && (
             <div className="ai-p-attachments">
               {attachments.map((a) => (
-                <span key={a.id} className="ai-p-attach">
-                  {a.kind === 'image' ? <PictureOutlined /> : <FileTextOutlined />}
+                <Tag
+                  key={a.id}
+                  size="small"
+                  dismissible
+                  dismissIcon={{
+                    onClick: (e) => {
+                      e.stopPropagation()
+                      setAttachments((p) => p.filter((x) => x.id !== a.id))
+                    },
+                    'aria-label': t('common.close'),
+                  }}
+                  icon={a.kind === 'image' ? <ImageRegular /> : <DocumentRegular />}
+                  className="ai-p-attach"
+                >
                   <span className="ai-p-attach-name">{a.name}</span>
-                  <button
-                    type="button"
-                    className="ai-p-attach-x"
-                    aria-label={t('common.close')}
-                    onClick={() => setAttachments((p) => p.filter((x) => x.id !== a.id))}
-                  >
-                    <CloseOutlined />
-                  </button>
-                </span>
+                </Tag>
               ))}
             </div>
           )}
@@ -1704,64 +1717,63 @@ export default function AIPanel() {
                 return false
               }}
             >
-              <button
-                type="button"
+              <Button
+                appearance="subtle"
                 className="ai-p-attach-btn"
+                icon={<AttachRegular />}
                 aria-label={t('ai.upload.tooltip')}
                 title={t('ai.upload.tooltip')}
                 aria-busy={parsingFile || undefined}
                 disabled={parsingFile}
-              >
-                <PaperClipOutlined />
-              </button>
+              />
             </Upload>
 
-            <div className="ai-p-input">
-              <textarea
-                ref={composerRef}
-                className="ai-p-textarea"
-                rows={1}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value)
-                  const el = e.currentTarget
-                  el.style.height = 'auto'
-                  el.style.height = `${Math.min(el.scrollHeight, 120)}px`
-                }}
-                onKeyDown={handleComposerKeyDown}
-                placeholder={t('ai.inputPlaceholder')}
-                disabled={loading}
-                aria-label={t('ai.inputPlaceholder')}
-              />
-            </div>
+            <Textarea
+              className="ai-p-textarea"
+              rows={1}
+              resize="none"
+              value={input}
+              onChange={(_, data) => setInput(data.value)}
+              onKeyDown={handleComposerKeyDown}
+              placeholder={t('ai.inputPlaceholder')}
+              disabled={loading}
+              aria-label={t('ai.inputPlaceholder')}
+            />
 
-            <button
-              type="button"
+            <Button
+              appearance="primary"
               className="ai-p-send"
-              onClick={() => void handleSend()}
+              icon={<SendRegular />}
               disabled={!input.trim() || loading}
+              onClick={() => void handleSend()}
               aria-label={t('ai.send')}
               title={t('ai.send')}
-            >
-              <SendOutlined />
-            </button>
+            />
           </div>
 
           <div className="ai-p-foot">
-            <span className="ai-p-foot-hint">
-              <kbd className="w-kbd">Enter</kbd>
+            <Text size={100} className="ai-p-foot-hint">
+              <kbd className="ai-p-kbd">Enter</kbd>
               {isEn ? 'send' : '发送'}
               <span aria-hidden>·</span>
-              <kbd className="w-kbd">Shift</kbd>+<kbd className="w-kbd">Enter</kbd>
+              <kbd className="ai-p-kbd">Shift</kbd>+<kbd className="ai-p-kbd">Enter</kbd>
               {isEn ? 'new line' : '换行'}
-            </span>
+            </Text>
             <span className="ai-p-foot-right">
-              {parsingFile && <span className="ai-p-foot-hint">{t('common.loading')}</span>}
+              {parsingFile && (
+                <Text size={100} className="ai-p-foot-hint">
+                  {t('common.loading')}
+                </Text>
+              )}
               {loading && (
-                <button type="button" className="ai-p-stop" onClick={handleStop}>
-                  <StopRegular />
+                <Button
+                  appearance="subtle"
+                  size="small"
+                  icon={<StopRegular />}
+                  onClick={handleStop}
+                >
                   {t('ai.stop')}
-                </button>
+                </Button>
               )}
             </span>
           </div>

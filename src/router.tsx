@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { App as AntdApp } from 'antd'
+import { Spinner, Text } from '@fluentui/react-components'
 import { useAuthStore } from '@/store/authStore'
 import AppShell from '@/components/layout/AppShell'
 import AuthPage from '@/components/auth/AuthPage'
@@ -20,21 +21,23 @@ const Landing = lazy(() => import('@/components/public/Landing'))
 const HelpPage = lazy(() => import('@/components/public/HelpPage'))
 const AdminPage = lazy(() => import('@/components/admin/AdminPage'))
 
-/** 路由等待：一行等宽小字，不用大号 Spin 占满整屏 */
+/** 路由等待：Fluent Spinner（居中、克制，不占满整屏） */
 function RouteFallback() {
   return (
     <div
       style={{
         height: '100dvh',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--bg)',
+        gap: 10,
+        background: 'var(--w-canvas)',
+        color: 'var(--w-text-2)',
       }}
     >
-      <span className="mono faint" style={{ fontSize: 11, letterSpacing: '0.08em' }}>
-        LOADING…
-      </span>
+      <Spinner size="small" />
+      <Text size={200} className="w-faint">LOADING…</Text>
     </div>
   )
 }

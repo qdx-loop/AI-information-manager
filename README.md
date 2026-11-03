@@ -49,12 +49,12 @@
 - CSV 导出、操作审计日志、用户行为分布
 - 可用 `REGISTRATION_OPEN=0` 紧急关闭注册（被灌水时）
 
-### 🎨 界面体验（v9 · Windows 11 原生）
-- **从零重做的 Windows 11 原生桌面体验**：桌面壁纸 + Windows 任务栏 + 无边框圆角 Mica 窗口（可拖拽标题栏、最小化/最大化/关闭）+ 68px Acrylic 图标导航 + 原生状态栏
-- Win11 设置式页面 / 文件资源管理器式库页（命令栏 + 面包屑 + details 表格）/ Copilot 式 AI 侧栏 / Windows 锁屏式登录
-- 字体 Segoe UI Variable（Selawik 回退）、中性低饱和色板、#4CC2FF 强调、4/8px 圆角、短软阴影；**无渐变、无霓虹、无网页 Dashboard**
-- 深色（默认）/ 浅色双主题；桌面、平板、手机（底部 Acrylic 标签栏）全部适配；`prefers-reduced-motion` 可访问性支持
-- 设计说明：`DESIGN.md`；实现合同：`redesign-brief/11-v9-win11-desktop.md`
+### 🎨 界面体验（v10 · Windows 11 风格 Fluent UI 应用）
+- **基于 microsoft/fluentui（Fluent UI React v9）的 Windows 11 风格 Web 应用**：48px Fluent app bar + 68px 图标导航 + Fluent 内容画布；**不是操作系统模拟**——没有壁纸、任务栏、浮动窗口、窗口按钮、锁屏时钟
+- 页面：Fluent Card 首页 / 文件资源管理器式库页（Toolbar + 面包屑 + 数据表 + 页面内状态栏）/ Fluent 设置页 / Fluent 应用登录页 / 应用介绍落地页 / 获取帮助 / 管理后台 / AI 侧栏 / Fluent Dialog（编辑器、图表、确认、全局搜索 Ctrl+K）
+- 设计系统：Fluent 2 design tokens（颜色/字体/圆角/阴影全部来自 Fluent theme `src/theme/win11.ts`）、Segoe UI Variable（Selawik 回退）、Fluent Button/Input/Dialog/Card/Switch/Accordion…；无渐变、无霓虹、无自定义 blur、无网页 Dashboard
+- 深色（默认）/ 浅色双主题；桌面、平板、手机（底部标签栏）全部适配；`prefers-reduced-motion` 可访问性支持
+- 设计说明：`DESIGN.md`；实现合同：`redesign-brief/12-v10-fluent-app.md`；设计系统：`design-system/win11-native/MASTER.md`
 
 ## 🛠️ 技术栈
 
@@ -62,7 +62,7 @@
 |------|------|
 | 框架 | React 18 + TypeScript |
 | 构建 | Vite 5 |
-| UI | Ant Design v5（全局 Win11 皮肤二次主题）+ Fluent UI v9 图标 |
+| UI | Fluent UI React v9（主设计系统）+ Ant Design v5（DatePicker/Form 等复杂输入件，token 同源） |
 | 状态管理 | Zustand |
 | 路由 | React Router v6 |
 | 本地存储 | Dexie.js (IndexedDB) |

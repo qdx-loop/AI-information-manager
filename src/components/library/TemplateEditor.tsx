@@ -1,6 +1,16 @@
-import { Modal, Input, Select, Switch, App } from 'antd'
-import { DeleteRegular, AddRegular, ReOrderDotsVerticalRegular } from '@fluentui/react-icons'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import {
+  Button,
+  Dropdown,
+  Field,
+  Input,
+  Option,
+  Switch,
+  Text,
+  Tooltip,
+} from '@fluentui/react-components'
+import { AddRegular, DeleteRegular, ReOrderDotsVerticalRegular } from '@fluentui/react-icons'
+import { App } from 'antd'
 import {
   DndContext,
   closestCenter,
@@ -22,9 +32,7 @@ import type { FieldDef, FieldType } from '@/types'
 import { newId } from '@/utils/id'
 import { useI18n } from '@/i18n'
 import EmptyPanel from './EmptyPanel'
-import { useLibText } from './labels'
-
-// 字段类型选项在组件内按当前语言生成（fieldTypes）
+import { LibDialog, useLibText } from './labels'
 
 interface Props {
   open: boolean
@@ -35,10 +43,9 @@ interface Props {
 }
 
 /**
- * 字段模板编辑器（v9 Win11 ContentDialog · 设置式列表）。
+ * 字段模板编辑器（v10 Fluent Dialog · 设置式列表）。
  *
- * 一行一个字段（行高 44、仅底边 1px 分割线），拖拽只给两种反馈：
- * 行位移 + 2px 强调色插入线，不做缩放/阴影/背景高亮。
+ * 一行一个字段（行高 44、仅底边 1px 分割线），拖拽只给行位移 + 2px 强调插入线。
  * 逻辑（校验 label 唯一、key 唯一、sortOrder 重排、保存）与原来完全一致。
  */
 export default function TemplateEditor({ open, libraryId, fields, onCancel, onSave }: Props) {
@@ -50,7 +57,11 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
   const [overId, setOverId] = useState<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-  const handleOpen = () => setList(fields)
+  // 打开时同步一次（与旧版 afterOpenChange 行为等价），之后由本地编辑状态接管
+  useEffect(() => {
+    if (open) setList(fields)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在打开时同步
+  }, [open])
 
   const fieldTypes: { label: string; value: FieldType }[] = [
     { label: t('lib.tpl.type.text'), value: 'text' },
@@ -121,32 +132,29 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
   }
 
   return (
-    <Modal
-      title={t('lib.tpl.modalTitle')}
+    <LibDialog
       open={open}
-      onCancel={onCancel}
-      width={860}
-      style={{ maxWidth: 'calc(100vw - 24px)' }}
-      afterOpenChange={(o) => o && handleOpen()}
-      styles={{ body: { maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' } }}
-      destroyOnHidden
-      footer={
+      onClose={onCancel}
+      title={t('lib.tpl.modalTitle')}
+      width="min(880px, calc(100vw - 32px))"
+      actions={
         <div className="lib-dialog-footer">
-          <button type="button" className="w-btn" onClick={addField}>
-            <AddRegular />
+          <Button appearance="secondary" icon={<AddRegular />} onClick={addField}>
             {t('lib.tpl.addField')}
-          </button>
+          </Button>
           <span className="lib-dialog-footer-spacer" />
-          <button type="button" className="w-btn" onClick={onCancel}>
+          <Button appearance="secondary" onClick={onCancel}>
             {t('common.cancel')}
-          </button>
-          <button type="button" className="w-btn w-btn--accent" onClick={handleSave}>
+          </Button>
+          <Button appearance="primary" onClick={handleSave}>
             {t('common.save')}
-          </button>
+          </Button>
         </div>
       }
     >
-      <p className="lib-dialog-sub">{lt('tpl.dragHint')}</p>
+      <Text size={200} className="lib-dialog-sub">
+        {lt('tpl.dragHint')}
+      </Text>
 
       {list.length === 0 ? (
         <EmptyPanel surface={false} title={t('lib.tpl.empty')} body={lt('tpl.emptyHint')} />
@@ -164,17 +172,17 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
         >
           <SortableContext items={list.map((f) => f.id)} strategy={verticalListSortingStrategy}>
             <div className="lib-fields">
-              {/* 表头：12 semibold 次级色，与数据表表头同一口径 */}
+              {/* 表头：与数据表表头同一口径（12 semibold 次级色） */}
               <div className="lib-field-head" aria-hidden>
-                <span className="lib-field-col-handle" />
-                <span className="lib-field-col-name">{t('lib.tpl.fieldName')}</span>
-                <span className="lib-field-col-type">{lt('tpl.type')}</span>
-                <span className="lib-field-col-switch">{lt('tpl.cols')}</span>
-                <span className="lib-field-col-remove" />
+                <span />
+                <span>{t('lib.tpl.fieldName')}</span>
+                <span>{lt('tpl.type')}</span>
+                <span>{lt('tpl.cols')}</span>
+                <span />
               </div>
               {list.map((f) => (
                 <div key={f.id}>
-                  {/* 插入线：拖拽时只出现这一条 2px 强调线，不做缩放/阴影 */}
+                  {/* 插入线：拖拽时只出现这一条 2px 强调线 */}
                   {activeId && overId === f.id && activeId !== f.id ? (
                     <div className="lib-field-insert" aria-hidden />
                   ) : null}
@@ -191,7 +199,7 @@ export default function TemplateEditor({ open, libraryId, fields, onCancel, onSa
           </SortableContext>
         </DndContext>
       )}
-    </Modal>
+    </LibDialog>
   )
 }
 
@@ -209,65 +217,98 @@ function FieldRow({
   dragging: boolean
 }) {
   const t = useI18n()
-  const { attributes, listeners, setNodeRef, transform } = useSortable({
-    id: field.id,
-  })
+  const lt = useLibText()
+  const { attributes, listeners, setNodeRef, transform } = useSortable({ id: field.id })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     // 拖拽只跟手，不给回弹动画（数据行禁用 overshoot）
     transition: undefined,
   }
+  const typeLabel = fieldTypes.find((x) => x.value === field.type)?.label ?? field.type
+
   return (
     <div ref={setNodeRef} style={style} className={`lib-field-row${dragging ? ' is-dragging' : ''}`}>
-      <span className="lib-field-handle" {...attributes} {...listeners} aria-label={t('lib.tpl.dragHint')}>
+      <span
+        className="lib-field-handle"
+        {...attributes}
+        {...listeners}
+        aria-label={t('lib.tpl.dragHint')}
+        role="button"
+        tabIndex={0}
+      >
         <ReOrderDotsVerticalRegular />
       </span>
-      <Input
-        size="small"
-        className="lib-field-name"
-        value={field.label}
-        onChange={(e) => onChange({ label: e.target.value })}
-        placeholder={t('lib.tpl.fieldName')}
-        autoFocus
-      />
-      <Select
-        size="small"
-        className="lib-field-type"
-        value={field.type}
-        onChange={(v) => onChange({ type: v })}
-        options={fieldTypes}
-        style={{ width: 132 }}
-      />
+      <Field className="lib-field-name">
+        <Input
+          value={field.label}
+          onChange={(_, data) => onChange({ label: data.value })}
+          placeholder={t('lib.tpl.fieldName')}
+          aria-label={t('lib.tpl.fieldName')}
+          autoFocus
+        />
+      </Field>
+      <Field className="lib-field-type">
+        <Dropdown
+          value={typeLabel}
+          selectedOptions={[field.type]}
+          aria-label={lt('tpl.type')}
+          onOptionSelect={(_, data) => {
+            if (data.optionValue) onChange({ type: data.optionValue as FieldType })
+          }}
+        >
+          {fieldTypes.map((o) => (
+            <Option key={o.value} value={o.value} text={o.label}>
+              {o.label}
+            </Option>
+          ))}
+        </Dropdown>
+      </Field>
       <div className="lib-field-switches">
         <span className="lib-field-switch-group">
-          <span className="lib-field-switch-label">{t('common.required')}</span>
-          <Switch size="small" checked={field.required} onChange={(v) => onChange({ required: v })} />
+          <Text size={200} className="lib-field-switch-label">
+            {t('common.required')}
+          </Text>
+          <Switch
+            checked={field.required}
+            onChange={(_, data) => onChange({ required: data.checked })}
+            aria-label={`${t('common.required')} ${field.label}`}
+          />
         </span>
         <span className="lib-field-switch-group">
-          <span className="lib-field-switch-label">{t('common.visible')}</span>
-          <Switch size="small" checked={field.visible} onChange={(v) => onChange({ visible: v })} />
+          <Text size={200} className="lib-field-switch-label">
+            {t('common.visible')}
+          </Text>
+          <Switch
+            checked={field.visible}
+            onChange={(_, data) => onChange({ visible: data.checked })}
+            aria-label={`${t('common.visible')} ${field.label}`}
+          />
         </span>
       </div>
-      <button
-        type="button"
-        className="w-iconbtn w-iconbtn--sm"
-        aria-label={t('tpl.field.remove')}
-        title={t('tpl.field.remove')}
-        onClick={onRemove}
-        style={{ color: 'var(--w-danger)' }}
-      >
-        <DeleteRegular />
-      </button>
-      {field.type === 'select' && (
-        <Select
+      <Tooltip content={lt('tpl.removeField')} relationship="label">
+        <Button
+          appearance="subtle"
           size="small"
-          mode="tags"
-          className="lib-field-options"
-          value={field.options}
-          onChange={(v) => onChange({ options: v })}
-          placeholder={t('lib.tpl.optionsPlaceholder')}
-          style={{ width: '100%' }}
+          icon={<DeleteRegular />}
+          aria-label={lt('tpl.removeField')}
+          style={{ color: 'var(--w-danger)' }}
+          onClick={onRemove}
         />
+      </Tooltip>
+      {field.type === 'select' && (
+        <Field className="lib-field-options" label={lt('tpl.options')}>
+          <Input
+            value={field.options.join('，')}
+            placeholder={lt('tpl.optionsPlaceholder')}
+            onChange={(_, data) => {
+              const options = data.value
+                .split(/[，,]/)
+                .map((s) => s.trim())
+                .filter(Boolean)
+              onChange({ options })
+            }}
+          />
+        </Field>
       )}
     </div>
   )

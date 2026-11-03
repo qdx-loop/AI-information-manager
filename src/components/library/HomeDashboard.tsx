@@ -1,19 +1,27 @@
 /**
- * 首页 · Windows 11 原生 v9
+ * 首页 · Fluent UI 2（Windows 11 应用风格，不是操作系统）
  *
- * 结构参考 Windows 11「设置 · 主页」+「开始 · 已固定」：
- *   - 页头：账户头像 + 问候标题 + 日期/本地优先说明 + 主命令按钮
- *   - 已固定：库磁贴网格（Win11 Start 式）
- *   - 最近修改：Win11 设置行列表
- *   - 今天：临期/逾期提醒（设置行 + 中性状态标签）
- *   - 数据概览：三行事实条（不使用 KPI 大色块 / 彩色渐变）
- *   - 快速操作：AI / 模板中心 / 回收站 / 帮助
- *
- * 数据读取与行为（打开库/条目、AI、模板、设置）与旧版完全一致。
+ * Fluent 组件：Text 字阶 / Card + CardHeader 内容卡 / Button / Badge / MessageBar /
+ * Spinner / Divider；布局用 Fluent token（--w-* 全部别名到 Fluent 变量）。
+ * 结构：页头（问候 + 主命令）→ 已固定库 → 最近修改 / 今天 / 数据概览 / 快速设置。
+ * 数据读取与行为与 v9 完全一致。
  */
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Divider,
+  MessageBar,
+  MessageBarActions,
+  MessageBarBody,
+  Spinner,
+  Text,
+} from '@fluentui/react-components'
 import {
   AddRegular,
   ArrowClockwiseRegular,
@@ -200,133 +208,159 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
   }
   const greeting = t(greetingKey(dayjs().hour()), { name: account?.username ?? '' }).trim()
 
+  const loadingRow = (
+    <div className="w-home-loading">
+      <Spinner size="tiny" />
+      <Text size={300} className="w-faint">
+        {t('lib.view.loading')}
+      </Text>
+    </div>
+  )
+
   return (
     <div className="w-page w-home">
       {notice}
 
       <header className="w-page-head w-home-head">
         <div className="w-home-identity">
-          <span className="w-avatar w-avatar--lg" aria-hidden>
-            {(account?.username ?? '?').slice(0, 1)}
-          </span>
+          <Avatar
+            size={56}
+            name={account?.username ?? '?'}
+            initials={(account?.username ?? '?').slice(0, 1).toUpperCase()}
+            color="colorful"
+            aria-hidden
+          />
           <div className="w-head-main">
-            <div className="w-home-date">{dateLabel()} · {t('landing.marquee.local')}</div>
-            <h1 className="w-title">{greeting || t('dash.titleFallback')}</h1>
-            <div className="w-desc">
+            <Text size={200} className="w-home-date">
+              {dateLabel()} · {t('landing.marquee.local')}
+            </Text>
+            <Text as="h1" size={700} weight="semibold" className="w-home-title">
+              {greeting || t('dash.titleFallback')}
+            </Text>
+            <Text size={300} className="w-muted">
               {t('home.start.summary', { libs: fmt(totalLibs), items: fmt(totalItems) })}
-            </div>
+            </Text>
           </div>
         </div>
         <div className="w-actions">
-          <button type="button" className="w-btn" onClick={openAI}>
-            <SparkleRegular fontSize={16} />
+          <Button appearance="secondary" icon={<SparkleRegular />} onClick={openAI}>
             {t('app.aiAssistant')}
-          </button>
-          <button type="button" className="w-btn w-btn--accent" onClick={onCreate}>
-            <AddRegular fontSize={16} />
+          </Button>
+          <Button appearance="primary" icon={<AddRegular />} onClick={onCreate}>
             {t('app.newLibrary')}
-          </button>
+          </Button>
         </div>
       </header>
 
       {error ? (
-        <div className="w-card w-home-error" role="alert">
-          <div className="w-home-error-main">
-            <strong>{t('dash.loadFailed')}</strong>
-            <span className="w-faint">{error}</span>
-          </div>
-          <button type="button" className="w-btn w-btn--sm" onClick={() => setRetryKey((n) => n + 1)}>
-            <ArrowClockwiseRegular fontSize={16} />
-            {t('dash.retry')}
-          </button>
-        </div>
+        <MessageBar intent="error">
+          <MessageBarBody>
+            <Text weight="semibold">{t('dash.loadFailed')}</Text>
+            <div>
+              <Text size={200} className="w-faint">{error}</Text>
+            </div>
+          </MessageBarBody>
+          <MessageBarActions>
+            <Button
+              appearance="secondary"
+              size="small"
+              icon={<ArrowClockwiseRegular />}
+              onClick={() => setRetryKey((n) => n + 1)}
+            >
+              {t('dash.retry')}
+            </Button>
+          </MessageBarActions>
+        </MessageBar>
       ) : null}
 
       <section className="w-home-section" aria-labelledby="home-pinned">
-        <header className="w-home-section-head">
-          <h2 id="home-pinned" className="w-home-section-title">{t('home.start.pinned')}</h2>
-          {pinned.length > 0 ? <span className="w-count">{fmt(pinned.length)}</span> : null}
-        </header>
+        <div className="w-home-section-head">
+          <Text as="h2" id="home-pinned" size={500} weight="semibold">
+            {t('home.start.pinned')}
+          </Text>
+          {pinned.length > 0 ? <Badge appearance="tint" color="brand">{fmt(pinned.length)}</Badge> : null}
+        </div>
         {noLib ? (
-          <div className="w-card w-home-empty">
+          <Card appearance="filled" className="w-home-empty">
             <span className="w-home-empty-icon" aria-hidden>
               <AddRegular fontSize={24} />
             </span>
-            <div className="w-head-main">
-              <h3 className="w-home-empty-title">{t('home.start.emptyTitle')}</h3>
-              <p className="w-desc">{t('home.start.emptyBody')}</p>
-            </div>
+            <Text as="h3" size={500} weight="semibold">
+              {t('home.start.emptyTitle')}
+            </Text>
+            <Text size={300} className="w-muted">{t('home.start.emptyBody')}</Text>
             <div className="w-actions">
-              <button type="button" className="w-btn w-btn--accent" onClick={onCreate}>
-                {t('home.createFirst')}
-              </button>
-              <button type="button" className="w-btn" onClick={() => setTplOpen(true)}>
-                {t('tpl.center.entry')}
-              </button>
+              <Button appearance="primary" onClick={onCreate}>{t('home.createFirst')}</Button>
+              <Button appearance="secondary" onClick={() => setTplOpen(true)}>{t('tpl.center.entry')}</Button>
             </div>
-          </div>
+          </Card>
         ) : (
           <div className="w-pin-grid">
             {pinned.map((lib) => {
               const Icon = iconForLibrary(lib)
               return (
-                <button key={lib.id} type="button" className="w-pin" onClick={() => openLibrary(lib)} title={lib.name}>
-                  <span className="w-pin-top">
-                    <span className="w-pin-icon" aria-hidden>
-                      <Icon fontSize={20} />
-                    </span>
-                    <ChevronRightRegular fontSize={14} className="w-pin-chev" aria-hidden />
-                  </span>
-                  <span className="w-pin-name">{lib.name}</span>
-                  <span className="w-pin-meta">
-                    {loading
-                      ? '—'
-                      : `${fmt(extras.counts[lib.id] ?? 0)} · ${lib.category || t('app.group.libraries')}`}
-                  </span>
+                <button key={lib.id} type="button" className="w-pin-btn" onClick={() => openLibrary(lib)} title={lib.name}>
+                  <Card appearance="filled" className="w-pin-card">
+                    <CardHeader
+                      image={
+                        <span className="w-pin-icon" aria-hidden>
+                          <Icon fontSize={20} />
+                        </span>
+                      }
+                      header={<Text weight="semibold" size={300}>{lib.name}</Text>}
+                      description={
+                        <Text size={200} className="w-faint">
+                          {loading ? '—' : `${fmt(extras.counts[lib.id] ?? 0)} · ${lib.category || t('app.group.libraries')}`}
+                        </Text>
+                      }
+                      action={<ChevronRightRegular fontSize={14} className="w-pin-chev" aria-hidden />}
+                    />
+                  </Card>
                 </button>
               )
             })}
-            <button type="button" className="w-pin w-pin--add" onClick={onCreate}>
-              <span className="w-pin-top">
-                <span className="w-pin-icon w-pin-icon--add" aria-hidden>
-                  <AddRegular fontSize={20} />
-                </span>
-              </span>
-              <span className="w-pin-name">{t('home.start.pinAdd')}</span>
-              <span className="w-pin-meta">{t('tpl.center.entry')}</span>
+            <button type="button" className="w-pin-btn" onClick={onCreate}>
+              <Card appearance="outline" className="w-pin-card w-pin-card--add">
+                <CardHeader
+                  image={
+                    <span className="w-pin-icon w-pin-icon--add" aria-hidden>
+                      <AddRegular fontSize={20} />
+                    </span>
+                  }
+                  header={<Text weight="semibold" size={300}>{t('home.start.pinAdd')}</Text>}
+                  description={<Text size={200} className="w-faint">{t('tpl.center.entry')}</Text>}
+                />
+              </Card>
             </button>
           </div>
         )}
       </section>
 
       <div className="w-home-grid">
-        <section className="w-card w-home-recent" aria-labelledby="home-recent">
-          <header className="w-card-head">
-            <h2 id="home-recent" className="w-card-title">
-              <HistoryRegular fontSize={18} />
-              {t('home.start.recent')}
-            </h2>
-            {recent.length > 0 ? (
-              <button type="button" className="w-btn w-btn--subtle w-btn--sm" onClick={() => openLibrary(libraries[0])}>
-                {t('home.start.viewAll')}
-              </button>
-            ) : null}
-          </header>
+        <Card appearance="filled" className="w-home-recent">
+          <CardHeader
+            header={
+              <span className="w-card-title-inline">
+                <HistoryRegular fontSize={18} />
+                <Text weight="semibold" size={400}>{t('home.start.recent')}</Text>
+              </span>
+            }
+            action={
+              recent.length > 0 ? (
+                <Button appearance="subtle" size="small" onClick={() => openLibrary(libraries[0])}>
+                  {t('home.start.viewAll')}
+                </Button>
+              ) : undefined
+            }
+          />
+          <Divider />
           <div className="w-rows">
             {loading ? (
-              [0, 1, 2, 3].map((n) => (
-                <div key={n} className="w-row">
-                  <span className="w-skeleton w-skeleton--text" style={{ width: 32, height: 32 }} />
-                  <span className="w-row-main">
-                    <span className="w-skeleton w-skeleton--text" style={{ width: '40%' }} />
-                    <span className="w-skeleton w-skeleton--text" style={{ width: '24%', marginTop: 6 }} />
-                  </span>
-                </div>
-              ))
+              loadingRow
             ) : recent.length === 0 ? (
-              <div className="w-empty" style={{ minHeight: 180, padding: '32px 16px' }}>
-                <span className="w-empty-icon" aria-hidden><HistoryRegular fontSize={24} /></span>
-                <span className="w-empty-desc">{t('home.start.noRecent')}</span>
+              <div className="w-home-empty-row">
+                <HistoryRegular fontSize={20} aria-hidden />
+                <Text size={300} className="w-faint">{t('home.start.noRecent')}</Text>
               </div>
             ) : (
               recent.map((r) => {
@@ -341,8 +375,8 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
                   >
                     <span className="w-row-icon w-row-icon--neutral" aria-hidden><Icon fontSize={16} /></span>
                     <span className="w-row-main">
-                      <span className="w-row-title">{r.title}</span>
-                      <span className="w-row-desc">{r.libName} · {dayjs(r.updatedAt).format('MM-DD HH:mm')}</span>
+                      <Text size={300} className="w-row-title">{r.title}</Text>
+                      <Text size={200} className="w-row-desc">{r.libName} · {dayjs(r.updatedAt).format('MM-DD HH:mm')}</Text>
                     </span>
                     <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
                   </button>
@@ -350,125 +384,125 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
               })
             )}
           </div>
-        </section>
+        </Card>
 
         <div className="w-home-side">
-          <section className="w-card" aria-labelledby="home-today">
-            <header className="w-card-head">
-              <h2 id="home-today" className="w-card-title">
-                <ClipboardTaskRegular fontSize={18} />
-                {t('home.start.today')}
-              </h2>
-              {overdueCount > 0 ? (
-                <span className="w-tag w-tag--danger">{t('home.start.overdue', { n: overdueCount })}</span>
-              ) : null}
-            </header>
+          <Card appearance="filled">
+            <CardHeader
+              header={
+                <span className="w-card-title-inline">
+                  <ClipboardTaskRegular fontSize={18} />
+                  <Text weight="semibold" size={400}>{t('home.start.today')}</Text>
+                </span>
+              }
+              action={
+                overdueCount > 0 ? (
+                  <Badge appearance="tint" color="danger">{t('home.start.overdue', { n: overdueCount })}</Badge>
+                ) : undefined
+              }
+            />
+            <Divider />
             <div className="w-rows">
               {loading ? (
-                [0, 1].map((n) => (
-                  <div key={n} className="w-row">
-                    <span className="w-skeleton w-skeleton--text" style={{ width: 32, height: 32 }} />
-                    <span className="w-row-main">
-                      <span className="w-skeleton w-skeleton--text" style={{ width: '52%' }} />
-                    </span>
-                  </div>
-                ))
+                loadingRow
               ) : tasksPreview.length === 0 ? (
-                <div className="w-empty" style={{ minHeight: 140, padding: '28px 16px' }}>
-                  <span className="w-empty-icon" aria-hidden><CheckmarkCircleRegular fontSize={24} /></span>
-                  <span className="w-empty-desc">{t('home.start.noTasks')}</span>
+                <div className="w-home-empty-row">
+                  <CheckmarkCircleRegular fontSize={20} aria-hidden />
+                  <Text size={300} className="w-faint">{t('home.start.noTasks')}</Text>
                 </div>
               ) : (
                 tasksPreview.map((a) => {
                   const diff = daysLeft(a.at)
-                  const tone = diff < 0 ? 'danger' : diff <= 3 ? 'warning' : 'neutral'
+                  const color = diff < 0 ? 'danger' : diff <= 3 ? 'warning' : 'brand'
                   return (
                     <button key={a.key} type="button" className="w-row w-row--button" onClick={() => openAlert(a)}>
                       <span className="w-row-icon w-row-icon--neutral" aria-hidden><ClipboardTaskRegular fontSize={16} /></span>
                       <span className="w-row-main">
-                        <span className="w-row-title">{a.title}</span>
-                        <span className="w-row-desc">{a.libName} · {dayjs(a.at).format('MM-DD')}</span>
+                        <Text size={300} className="w-row-title">{a.title}</Text>
+                        <Text size={200} className="w-row-desc">{a.libName} · {dayjs(a.at).format('MM-DD')}</Text>
                       </span>
-                      <span className={`w-tag w-tag--${tone}`}>
-                        {diff < 0
-                          ? t('dash.overdue', { n: -diff })
-                          : diff === 0
-                            ? t('dash.today')
-                            : t('dash.inDays', { n: diff })}
-                      </span>
+                      <Badge appearance="tint" color={color}>
+                        {diff < 0 ? t('dash.overdue', { n: -diff }) : diff === 0 ? t('dash.today') : t('dash.inDays', { n: diff })}
+                      </Badge>
                     </button>
                   )
                 })
               )}
             </div>
-          </section>
+          </Card>
 
-          <section className="w-card" aria-labelledby="home-overview">
-            <header className="w-card-head">
-              <h2 id="home-overview" className="w-card-title">
-                <DatabaseRegular fontSize={18} />
-                {t('home.start.overview')}
-              </h2>
-            </header>
+          <Card appearance="filled">
+            <CardHeader
+              header={
+                <span className="w-card-title-inline">
+                  <DatabaseRegular fontSize={18} />
+                  <Text weight="semibold" size={400}>{t('home.start.overview')}</Text>
+                </span>
+              }
+            />
+            <Divider />
             <div className="w-rows">
               <div className="w-row">
-                <span className="w-row-main"><span className="w-row-title">{t('dash.stat.libs')}</span></span>
-                <span className="w-fact-value w-fact-value--sm">{fmt(totalLibs)}</span>
+                <span className="w-row-main"><Text size={300}>{t('dash.stat.libs')}</Text></span>
+                <Text size={400} weight="semibold">{fmt(totalLibs)}</Text>
               </div>
               <div className="w-row">
-                <span className="w-row-main"><span className="w-row-title">{t('dash.stat.items')}</span></span>
-                <span className="w-fact-value w-fact-value--sm">{fmt(totalItems)}</span>
+                <span className="w-row-main"><Text size={300}>{t('dash.stat.items')}</Text></span>
+                <Text size={400} weight="semibold">{fmt(totalItems)}</Text>
               </div>
               <div className="w-row">
-                <span className="w-row-main"><span className="w-row-title">{t('dash.stat.week')}</span></span>
-                <span className="w-fact-value w-fact-value--sm">+{fmt(itemsThisWeek)}</span>
+                <span className="w-row-main"><Text size={300}>{t('dash.stat.week')}</Text></span>
+                <Text size={400} weight="semibold">+{fmt(itemsThisWeek)}</Text>
               </div>
             </div>
-          </section>
+          </Card>
 
-          <section className="w-card" aria-labelledby="home-settings">
-            <header className="w-card-head">
-              <h2 id="home-settings" className="w-card-title">
-                <SettingsRegular fontSize={18} />
-                {t('home.start.quickSettings')}
-              </h2>
-            </header>
+          <Card appearance="filled">
+            <CardHeader
+              header={
+                <span className="w-card-title-inline">
+                  <SettingsRegular fontSize={18} />
+                  <Text weight="semibold" size={400}>{t('home.start.quickSettings')}</Text>
+                </span>
+              }
+            />
+            <Divider />
             <div className="w-rows">
               <button type="button" className="w-row w-row--button" onClick={openAI}>
                 <span className="w-row-icon" aria-hidden><SparkleRegular fontSize={16} /></span>
                 <span className="w-row-main">
-                  <span className="w-row-title">{t('home.start.aiTitle')}</span>
-                  <span className="w-row-desc">{t('home.start.aiBody')}</span>
+                  <Text size={300} className="w-row-title">{t('home.start.aiTitle')}</Text>
+                  <Text size={200} className="w-row-desc">{t('home.start.aiBody')}</Text>
                 </span>
                 <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
               </button>
               <button type="button" className="w-row w-row--button" onClick={() => navigate('/settings')}>
                 <span className="w-row-icon w-row-icon--neutral" aria-hidden><ShieldCheckmarkRegular fontSize={16} /></span>
                 <span className="w-row-main">
-                  <span className="w-row-title">{t('home.start.localTitle')}</span>
-                  <span className="w-row-desc">
+                  <Text size={300} className="w-row-title">{t('home.start.localTitle')}</Text>
+                  <Text size={200} className="w-row-desc">
                     {`${t('home.start.syncLocal')} · ${fmt(totalLibs)} ${t('dash.stat.libs')} · ${fmt(totalItems)} ${t('dash.stat.items')}`}
-                  </span>
+                  </Text>
                 </span>
                 <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
               </button>
               <button type="button" className="w-row w-row--button" onClick={() => setTplOpen(true)}>
                 <span className="w-row-icon w-row-icon--neutral" aria-hidden><LibraryRegular fontSize={16} /></span>
-                <span className="w-row-main"><span className="w-row-title">{t('tpl.center.entry')}</span></span>
+                <span className="w-row-main"><Text size={300} className="w-row-title">{t('tpl.center.entry')}</Text></span>
                 <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
               </button>
               <button type="button" className="w-row w-row--button" onClick={() => navigate('/trash')}>
                 <span className="w-row-icon w-row-icon--neutral" aria-hidden><DeleteRegular fontSize={16} /></span>
-                <span className="w-row-main"><span className="w-row-title">{t('app.trash')}</span></span>
+                <span className="w-row-main"><Text size={300} className="w-row-title">{t('app.trash')}</Text></span>
                 <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
               </button>
               <button type="button" className="w-row w-row--button" onClick={() => navigate('/help')}>
                 <span className="w-row-icon w-row-icon--neutral" aria-hidden><QuestionCircleRegular fontSize={16} /></span>
-                <span className="w-row-main"><span className="w-row-title">{t('app.help')}</span></span>
+                <span className="w-row-main"><Text size={300} className="w-row-title">{t('app.help')}</Text></span>
                 <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
               </button>
             </div>
-          </section>
+          </Card>
         </div>
       </div>
 

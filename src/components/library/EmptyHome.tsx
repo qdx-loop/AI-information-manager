@@ -1,4 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Button,
+  MessageBar,
+  MessageBarActions,
+  MessageBarBody,
+  Text,
+} from '@fluentui/react-components'
 import { DismissRegular } from '@fluentui/react-icons'
 import { useAppStore } from '@/store/appStore'
 import { useI18n } from '@/i18n'
@@ -21,10 +28,9 @@ function isIosSafari(): boolean {
 const RISK_KEY = 'info-mgmt-safari-risk-dismissed'
 
 /**
- * 首页入口 v9。
- *
- * 页面本体（页头 / 已固定 / 最近修改 / 今天 / 数据概览 / 快速操作）由 HomeDashboard
- * 负责；这里只做 iOS 本地存储风险提示（Win11 InfoBar 形态）与建库弹窗。
+ * 首页入口 v10（Fluent UI 应用）。
+ * 页面本体（页头 / 已固定 / 最近修改 / 今天 / 数据概览 / 快速设置）由 HomeDashboard 负责；
+ * 这里只做 iOS 本地存储风险提示（Fluent MessageBar）与建库弹窗。
  */
 export default function EmptyHome() {
   const t = useI18n()
@@ -44,25 +50,28 @@ export default function EmptyHome() {
   const openNaming = () => setNamingOpen(true)
 
   const notice = safariRisk && !riskDismissed ? (
-    <div className="w-card w-home-notice" role="note">
-      <div className="w-row-main">
-        <div className="w-row-title w-row-title--strong">{t('home.safari.title')}</div>
-        <div className="w-row-desc" style={{ whiteSpace: 'normal' }}>
-          {t('home.safari.body')}
+    <MessageBar intent="warning">
+      <MessageBarBody>
+        <Text weight="semibold">{t('home.safari.title')}</Text>
+        <div>
+          <Text size={200}>{t('home.safari.body')}</Text>
         </div>
-      </div>
-      <button
-        type="button"
-        className="w-iconbtn w-iconbtn--sm"
-        aria-label={t('common.close')}
-        onClick={() => {
-          localStorage.setItem(RISK_KEY, '1')
-          setRiskDismissed(true)
-        }}
-      >
-        <DismissRegular fontSize={16} />
-      </button>
-    </div>
+      </MessageBarBody>
+      <MessageBarActions
+        containerAction={
+          <Button
+            appearance="transparent"
+            size="small"
+            icon={<DismissRegular />}
+            aria-label={t('common.close')}
+            onClick={() => {
+              localStorage.setItem(RISK_KEY, '1')
+              setRiskDismissed(true)
+            }}
+          />
+        }
+      />
+    </MessageBar>
   ) : null
 
   return (

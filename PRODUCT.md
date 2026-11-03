@@ -44,18 +44,20 @@ web
 
 ## Brand Commitments
 
-- 产品名：「信息管理」（窗口标题栏 / 登录页 / 导航品牌标识）。
-- 设计语言（v9 · 2026-11）：**严格按《前端提示词》从零重做的 Windows 11 原生桌面应用**——
-  桌面壁纸 + Windows 任务栏 + 无边框圆角 Mica 窗口（拖拽标题栏 + 最小化/最大化/关闭）+ 68px Acrylic 图标导航 +
-  Win11 设置式页面 / 文件资源管理器式库页 / Copilot 式 AI 侧栏；无渐变、无霓虹、无网页 Dashboard。
-  实现合同见 `redesign-brief/11-v9-win11-desktop.md`，设计说明见 `DESIGN.md`。
-- 颜色（v9）：窗口 Mica `rgba(32,32,32,.82)`、Acrylic `rgba(32,32,32,.55)`、Card `rgba(255,255,255,.0512)`、
-  文字 `#FFF/#D6D6D6/#A0A0A0`、强调 `#4CC2FF`；浅色 `#F3F3F3/#FFF/#0067C0`；全部通过 WCAG AA。
-- 字体（v9）：Segoe UI Variable Text/Display（Windows 系统字体），非 Windows 回退 Selawik（OFL，度量兼容，自托管）；
-  中文回退 Microsoft YaHei UI / PingFang SC / Noto Sans CJK SC；mono 只用于 ID/时间/快捷键；禁止网络字体 CDN。
-- 形状（v9）：控件 4px、卡片/浮层/对话框/窗口 8px 圆角 + 极淡 1px 轮廓 + 短软中性阴影；
-  禁止渐变/霓虹/厚投影/网页大圆角卡片墙/emoji 图标。
-- UI 栈（v9）：React 18 + Vite + antd v5（全局 Win11 皮肤二次主题）+ Fluent UI v9 图标 +
+- 产品名：「信息管理」（app bar / 登录页 / 导航品牌标识）。
+- 设计语言（v10 · 2026-11）：**Windows 11 风格的 Fluent UI 应用**，不是操作系统模拟。
+  唯一设计系统 = microsoft/fluentui（Fluent UI React v9）：Fluent app bar + 68px 图标导航 + Fluent Card / 资源管理器式库页 /
+  Fluent Dialog / AI 侧栏；无壁纸、无任务栏、无窗口 chrome、无锁屏；无渐变、无霓虹、无网页 Dashboard。
+  实现合同见 `redesign-brief/12-v10-fluent-app.md`，设计说明见 `DESIGN.md`，设计系统见 `design-system/win11-native/MASTER.md`。
+- 颜色（v10）：全部来自 Fluent 2 design tokens（`src/theme/win11.ts`）——画布 `colorNeutralBackground2`、
+  卡片 `colorNeutralBackground1`、强调 `colorBrandBackground`（深色 #4CC2FF + 黑字 / 浅色 #0067C0 + 白字）；
+  深色 #202020/#2B2B2B、浅色 #F3F3F3/#FFFFFF；状态色用 `colorStatus*`；全部通过 WCAG AA。
+- 字体（v10）：Fluent `fontFamilyBase` = Segoe UI Variable（Windows 系统字体），非 Windows 回退 Selawik
+  （OFL，度量兼容，自托管）；中文回退 Microsoft YaHei UI / PingFang SC / Noto Sans CJK SC；mono 只用于 ID/时间/快捷键；禁止网络字体 CDN。
+- 形状（v10）：Fluent `borderRadiusMedium` 控件 4px、`borderRadiusXLarge` 卡片/浮层/对话框 8px；
+  阴影只用 Fluent shadow4/8/16/64；禁止渐变/霓虹/厚投影/自定义 blur/网页大圆角卡片墙/emoji 图标。
+- UI 栈（v10）：React 18 + Vite + **Fluent UI React v9（@fluentui/react-components 9.75 + @fluentui/react-icons）** +
+  antd v5（仅保留 DatePicker/Form 校验/Upload 等 Fluent 覆盖不到的复杂输入件，token 由同一 Fluent theme 派生）+
   Motion + react-resizable-panels + @dnd-kit；图标只用 `@fluentui/react-icons`。
 
 ## Evidence on Hand

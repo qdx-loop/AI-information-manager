@@ -1,54 +1,65 @@
-# Design System · 信息管理 · Windows 11 Native (v9)
+# Design System · 信息管理 · Windows 11 Fluent App (v10)
 
-> 单一事实来源：`redesign-brief/11-v9-win11-desktop.md`（实现合同）、`DESIGN.md`（设计说明）、
-> `src/styles/w11/tokens.css`（唯一 token 定义）。本文件是给后续迭代/新页面的检索入口。
+> 单一事实来源：`redesign-brief/12-v10-fluent-app.md`（实现合同，纠正 v9 的「操作系统模拟」）、
+> `DESIGN.md`（设计说明）、`src/theme/win11.ts`（唯一 Fluent Theme 定义）、
+> `src/styles/w11/tokens.css`（--w-* 全部是 Fluent token 别名）。
+> 设计参考：microsoft/fluentui · Fluent UI React v9（`@fluentui/react-components@9.75.0`）。
 
 ## 核心
 
-- 目标：**Windows 11 原生桌面应用**，不是网页。桌面壁纸 + 任务栏 + 无边框圆角 Mica 窗口 +
-  40px 拖拽标题栏（最小化/最大化/关闭）+ 68px Acrylic 图标导航 + 28px 原生状态栏。
-- 一句话验收：普通用户第一眼认为「这像 Windows 自带的软件」。
-- 禁止：渐变、霓虹、科技 HUD、网页 Dashboard、Gemini 风、emoji 图标、>12px 网页大圆角、彩色光晕。
+- 目标：**Windows 11 风格的 Web 应用界面**，不是 Windows 操作系统模拟。
+- 形态：48px Fluent app bar（应用标识 / 当前库 / 搜索 / 主题 / 语言 / 账户）
+  + 68px 图标导航（Fluent Button + Tooltip）+ Fluent 内容画布 + 右侧 AI 面板；移动端 48px app bar + 56px 底部标签栏。
+- **没有**：壁纸、任务栏、浮动窗口、最小化/最大化/关闭按钮、桌面图标、锁屏大时钟。
+- 唯一设计系统：Fluent UI React v9 组件 + Fluent 2 design tokens（`FluentProvider` 主题）。
+- 一句话验收：普通用户第一眼认为「这是一个做得很 Windows 11 的网页应用」，而不是「一张 Windows 桌面截图」。
 
-## Token（详见 tokens.css）
+## Token（唯一来源：src/theme/win11.ts）
 
-| 组 | 深色（默认） | 浅色 |
-|---|---|---|
-| 窗口 Mica | `rgba(32,32,32,.82)` | `rgba(243,243,243,.86)` |
-| Acrylic | `rgba(32,32,32,.55)` | `rgba(249,249,249,.62)` |
-| 卡片 | `rgba(255,255,255,.0512)` | `#FFFFFF` |
-| 卡片描边 | `rgba(255,255,255,.0698)` | `rgba(0,0,0,.0578)` |
-| 分割线 | `rgba(255,255,255,.0837)` | `rgba(0,0,0,.0803)` |
-| 文字 | `#FFF / #D6D6D6 / #A0A0A0` | `#1B1B1B / #5C5C5C / #8A8A8A` |
-| 强调 | `#4CC2FF` | `#0067C0` |
-| 圆角 | 控件 4 / 卡片·浮层·对话框·窗口 8 / 胶囊 999 | 同 |
-| 字体 | Segoe UI Variable（Selawik 回退）、Cascadia Mono | 同 |
-| 尺寸 | 标题栏 40 / 导航 68 / 状态栏 28 / 任务栏 48 / 控件 32 / 设置行 48–56 | 同 |
+| 组 | Fluent token | 深色（默认） | 浅色 |
+|---|---|---|---|
+| 画布 | `colorNeutralBackground2` | #202020 | #F3F3F3 |
+| 卡片/表面 | `colorNeutralBackground1` | #2B2B2B | #FFFFFF |
+| hover/pressed/selected | `colorNeutralBackground1Hover/Pressed/Selected`、`colorSubtleBackground*` | Fluent 默认 | Fluent 默认 |
+| 描边/分割线 | `colorNeutralStroke1/2/3` | Fluent 默认 | Fluent 默认 |
+| 文字 | `colorNeutralForeground1/2/3` | #FFFFFF/#D6D6D6/#A0A0A0 | #1B1B1B/#5C5C5C/#6E6E6E |
+| 强调 | `colorBrandBackground*` | #4CC2FF（黑字） | #0067C0（白字） |
+| 状态 | `colorStatusDanger/Success/Warning*` | Fluent 默认 | Fluent 默认 |
+| 圆角 | `borderRadiusMedium / XLarge` | 4px / 8px | 同 |
+| 阴影 | `shadow4 / 8 / 16 / 64` | Fluent 默认 | 同 |
+| 字体 | `fontFamilyBase / Monospace` | Segoe UI Variable（Selawik 回退）/ Cascadia Mono | 同 |
 
-## 组件
+## 组件（Fluent UI React v9 优先）
 
-共享类见 `src/styles/w11/primitives.css`：`.w-page .w-page-head .w-title .w-desc .w-actions .w-card
-.w-row .w-row-icon .w-row-main .w-row-title .w-row-desc .w-row-control .w-btn(.--accent/--subtle/--icon/--sm/--danger)
-.w-search .w-toolbar .w-toolbar-btn .w-bcrumb .w-table .w-tag(.--success/--warning/--danger/--accent)
-.w-switch .w-field .w-label .w-hint .w-flyout .w-menu .w-dialog .w-empty .w-avatar .w-sep .w-kbd .w-mono
-.w-muted .w-faint .w-skeleton .w-iconbtn .w-facts .w-fact-value`。
+`Button`、`Input`/`Textarea`/`SearchBox`、`Dropdown`/`Option`、`Dialog` 系列、`Menu` 系列、`Tooltip`、
+`Switch`、`Checkbox`、`RadioGroup`、`TabList`/`Tab`、`Card`/`CardHeader`、`Badge`/`Tag`、`Text`、
+`MessageBar`、`Divider`、`Spinner`/`Skeleton`、`Accordion`、`Field`/`Label`、`ProgressBar`、
+`Avatar`/`Persona`、`Link`、`Toolbar`/`ToolbarButton`。
 
-antd 由 `ConfigProvider` + `src/styles/w11/antd.css` 二次主题成 Win11 控件（Button 32/4px、输入框底部强调下划线、
-Table 40 行高、Modal Acrylic、Switch 40×20、Focus 白/黑环…）。
+antd v5 仅保留 Fluent 覆盖不到处：DatePicker、Form 校验内核、Upload、部分表格内核；其 token 在
+`src/theme/index.ts` 由**同一份 Fluent theme** 派生，不得出现第二套色板。
+
+布局辅助类：`src/styles/w11/primitives.css`（.w-page/.w-card/.w-row/.w-btn 等仅用于布局与原型兜底）；
+页面样式各自文件：`home / library / public / settings / ai.css`（只消费 `var(--color*)` / `var(--w-*)`）。
 
 ## 页面配方
 
-- 桌面外壳：`AppShell.tsx`（w-stage → w-window → w-titlebar / w-window-body（w-rail + w-main）/ w-statusbar + w-taskbar）。
-- 首页：`HomeDashboard.tsx` + `styles/w11/home.css`（设置主页 + 已固定）。
-- 库页：`LibraryView/LibraryTable` + `styles/w11/library.css`（文件资源管理器）。
-- 设置/后台：`SettingsPage/AdminPage` + `styles/w11/settings.css`。
-- 公开页：`Landing/AuthPage/HelpPage` + `styles/w11/public.css`（Win11 锁屏 / 欢迎页 / 获取帮助）。
-- AI/搜索/弹窗：`AIPanel/GlobalSearch/...` + `styles/w11/ai.css`。
+- 外壳：`AppShell.tsx` + `Sidebar.tsx` + `MobileTabBar.tsx` + `styles/w11/shell.css`
+  （w-app / w-appbar / w-rail / w-content / w-panels / w-mobile-tabbar；无 OS chrome）。
+- 首页：`HomeDashboard.tsx` + `home.css`（Fluent Text/Card/Button/Badge/MessageBar/Spinner/Divider）。
+- 库页：`LibraryView/LibraryTable` + `library.css`（Fluent Toolbar/SearchBox/Dropdown/Dialog/Field/Checkbox/Badge + 资源管理器式表格）。
+- 设置/后台：`SettingsPage/AdminPage` + `settings.css`（Fluent TabList/Card/设置行/Switch/Dialog）。
+- 公开页：`AuthPage/Landing/HelpPage` + `public.css`（Fluent Card/TabList/Field/Button/Accordion/SearchBox）。
+- AI/搜索/弹窗：`AIPanel/GlobalSearch/ChartModal/Confirm*` + `ai.css`（Fluent Dialog/Textarea/Button/Menu）。
 
 ## 规则
 
-1. 颜色/尺寸/圆角/阴影只允许 `var(--w-*)`；不得在页面 CSS 写新 hex（状态色除外，须复用 token）。
-2. 新页面只使用 primitives 类 + 自己的页面 CSS；不得复制粘贴按钮/卡片/输入框样式。
-3. 图标只用 `@fluentui/react-icons`；禁止 emoji 与混用其他图标库。
-4. 每个页面同时支持 `[data-theme='dark']`（默认）与 light、1440/1024/768/390。
-5. 保留业务逻辑 / props / exports / i18n key / 快捷键；UI 重做不等于重写行为。
+1. 颜色/圆角/阴影/字体只允许 Fluent token（`var(--color*)` / `var(--w-*)` / `var(--borderRadius*)` / `var(--shadow*)`）。
+2. 新页面优先使用 Fluent 组件；antd 仅限 Fluent 覆盖不到处，且 token 必须同源。
+3. 图标只用 `@fluentui/react-icons`；图标按钮必须有 `aria-label` / Tooltip；禁止 emoji 图标。
+4. 每页同时支持 `[data-theme='dark']`（默认）与 light、1440/1024/768/390；
+   支持 `prefers-reduced-motion`、可见焦点、键盘可达（Ctrl K / Ctrl J / Esc / ↑↓）。
+5. **禁止操作系统模拟**：无壁纸/任务栏/窗口/窗口按钮/桌面图标/锁屏。
+6. 保留业务逻辑 / props / exports / i18n key / 快捷键 / 测试契约；不新增依赖。
+7. 验收：`tsc --noEmit`、`eslint src functions`、`vitest run`、`vite build` 全绿；
+   1440×900 明暗 + 390×844 截图；线上部署 200。

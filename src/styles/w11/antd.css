@@ -124,7 +124,7 @@ body .ant-btn-dangerous:not(:disabled):hover {
 }
 body .ant-btn-primary.ant-btn-dangerous {
   background: var(--w-danger) !important;
-  color: #000 !important;
+  color: var(--w-on-accent) !important;
 }
 body .ant-btn-icon-only {
   width: var(--w-control-h);
@@ -873,7 +873,7 @@ body .ant-alert .ant-alert-description {
   line-height: 18px;
 }
 body .ant-alert-error {
-  border-color: rgba(196, 43, 28, 0.4);
+  border-color: var(--w-danger);
   background: var(--w-danger-soft);
 }
 body .ant-alert-error .ant-alert-icon {
@@ -1097,7 +1097,7 @@ body .ant-segmented .ant-segmented-item {
 body .ant-segmented .ant-segmented-item-selected {
   background: var(--w-card);
   color: var(--w-text);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--w-shadow-card);
 }
 body .ant-segmented .ant-segmented-thumb {
   background: var(--w-card);

@@ -1,5 +1,8 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   v9 · WINDOWS 11 NATIVE — Base / Reset / Desktop stage
+   v10 · FLUENT UI 2 · Windows 11 应用 — Base
+   ──────────────────────────────────────────────────────────────────────────
+   满屏 Web 应用（不是操作系统）：无壁纸、无桌面舞台、无窗口模拟。
+   颜色/字体/阴影全部来自 Fluent theme 变量（见 tokens.css 的别名）。
    ══════════════════════════════════════════════════════════════════════════ */
 
 *,
@@ -16,10 +19,10 @@ body,
 
 html {
   font-family: var(--w-font);
-  font-size: 14px;
+  font-size: var(--w-fs-body);
   line-height: var(--w-lh-body);
   color: var(--w-text);
-  background: var(--w-stage);
+  background: var(--w-canvas);
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -33,30 +36,12 @@ body {
   font-size: var(--w-fs-body);
   line-height: var(--w-lh-body);
   color: var(--w-text);
-  /* Windows 11 桌面舞台：壁纸只做窗口背后的桌面，不参与 UI 材质 */
-  background-color: var(--w-stage);
-  background-image: var(--w-wallpaper);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-}
-
-/* Acrylic 噪点：只作为浮层纹理，不参与布局 */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: var(--w-noise-opacity);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* Fluent 应用画布：colorNeutralBackground2（Win11 应用内容区底色） */
+  background: var(--w-canvas);
 }
 
 #root {
-  position: relative;
-  z-index: 1;
-  isolation: isolate;
+  height: 100%;
 }
 
 h1,
@@ -82,11 +67,11 @@ h6 {
 }
 
 a {
-  color: var(--w-accent);
+  color: var(--w-brand-fg);
   text-decoration: none;
 }
 a:hover {
-  color: var(--w-accent-hover);
+  color: var(--colorBrandForegroundLinkHover, var(--w-accent-hover));
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -132,24 +117,21 @@ samp {
 }
 
 ::selection {
-  background: var(--w-accent-soft-hover);
+  background: var(--w-accent-soft);
   color: var(--w-text);
 }
 
-/* Win11 焦点环：白/黑描边（深/浅） */
+/* Win11/Fluent 焦点环：Fluent 用 colorStrokeFocus2 作为 2px 描边 */
 :focus-visible {
   outline: 2px solid var(--w-focus);
   outline-offset: 2px;
   border-radius: var(--w-radius-control);
 }
 
-/* 细滚动条 */
+/* 细滚动条（Fluent neutral 配色） */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
-}
-:root[data-theme='light'] * {
-  scrollbar-color: rgba(0, 0, 0, 0.22) transparent;
+  scrollbar-color: var(--colorNeutralStroke1, #5c5c5c) transparent;
 }
 ::-webkit-scrollbar {
   width: 12px;
@@ -159,37 +141,20 @@ samp {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--colorNeutralStroke1, #5c5c5c);
   border: 3px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--w-radius-pill);
   background-clip: content-box;
   min-height: 40px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.34);
-}
-:root[data-theme='light'] ::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
-}
-:root[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.32);
+  background-color: var(--colorNeutralStroke1Hover, #6e6e6e);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* ── 桌面舞台（AppShell / 公开页共用）───────────────────────────────── */
-.w-stage {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: stretch;
-  justify-content: stretch;
-  overflow: hidden;
-  user-select: none;
-}
-
-/* ── 动效默认：短、克制、无弹跳 ──────────────────────────────────── */
+/* Fluent 动效节奏：150–200ms，不弹跳 */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -202,8 +167,8 @@ samp {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   过渡期兜底：旧页面尚未重写完成时的最小可读样式。
-   页面重写完成后这些类不再使用；新代码一律用 .w-* 类。
+   过渡期兜底：旧页面尚未完成 Fluent 组件改造时的最小可读样式。
+   新代码禁止使用这些旧类；页面改造完成后删除。
    ══════════════════════════════════════════════════════════════════════════ */
 .workbench {
   width: 100%;
@@ -247,8 +212,8 @@ samp {
   color: var(--w-text-2);
 }
 .panel {
-  background: var(--w-card);
-  border: 1px solid var(--w-card-border);
+  background: var(--w-surface);
+  border: 1px solid var(--w-border);
   border-radius: var(--w-radius-card);
   box-shadow: var(--w-shadow-card);
 }
@@ -263,7 +228,7 @@ samp {
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 .icon-btn:hover {
-  background: var(--w-layer-hover);
+  background: var(--w-subtle-hover);
   color: var(--w-text);
 }
 .empty-state {

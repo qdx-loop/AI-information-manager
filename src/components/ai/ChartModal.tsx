@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { Modal, App } from 'antd'
-import { DownloadOutlined } from '@/components/common/icons'
+import { App } from 'antd'
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  Text,
+} from '@fluentui/react-components'
+import { ArrowDownloadRegular } from '@fluentui/react-icons'
 import { useI18n } from '@/i18n'
 import { styleChart } from '@/ai/chartStyle'
 import { useAppStore } from '@/store/appStore'
@@ -37,7 +47,7 @@ export interface ChartPayload {
   option: Record<string, unknown>
 }
 
-/** canvas 不解析 CSS 变量，画之前把 v9 token 读成具体值 */
+/** canvas 不解析 CSS 变量，画之前把 Fluent token 读成具体值 */
 function readTokens() {
   const cs = typeof document !== 'undefined' ? getComputedStyle(document.documentElement) : null
   const v = (name: string) => (cs?.getPropertyValue(name) ?? '').trim()
@@ -47,8 +57,8 @@ function readTokens() {
     inkSoft: v('--w-text-3'),
     lineSoft: v('--w-divider'),
     line: v('--w-divider-strong'),
-    surface: v('--w-card'),
-    raised: v('--w-flyout'),
+    surface: v('--w-surface'),
+    raised: v('--w-surface-3'),
   }
 }
 
@@ -59,7 +69,7 @@ type AxisLike = Record<string, unknown> & {
   nameTextStyle?: Record<string, unknown>
 }
 
-/** 把 axis 上的线/字颜色强制成 v9 token（不改结构，只覆盖颜色） */
+/** 把 axis 上的线/字颜色强制成 Fluent token（不改结构，只覆盖颜色） */
 function paintAxis(axis: unknown, tk: ReturnType<typeof readTokens>): unknown {
   if (!axis || typeof axis !== 'object' || Array.isArray(axis)) return axis
   const a = axis as AxisLike
@@ -73,10 +83,9 @@ function paintAxis(axis: unknown, tk: ReturnType<typeof readTokens>): unknown {
 }
 
 /**
- * house style + Win11 视觉约束：
- * - 关闭入场动画（v9 动效：只允许交互过渡）
- * - 网格线 `--w-divider`、坐标/图例文字 `--w-text-3`、图例无底色
- * - 字体统一 v9 系统字链
+ * house style + Fluent 视觉约束：
+ * - 关闭入场动画（Fluent motion：只保留交互过渡）
+ * - 网格线/坐标/图例用中性 token；字体统一 Fluent 字体
  */
 function paperOption(option: Record<string, unknown>, dark: boolean): Record<string, unknown> {
   const styled = styleChart(option, dark) as Record<string, unknown>
@@ -112,9 +121,9 @@ function paperOption(option: Record<string, unknown>, dark: boolean): Record<str
 }
 
 /**
- * 图表弹窗（v9 Windows 11 ContentDialog）：
- * 标题 20 semibold + 12 次级说明、图表容器卡片底、坐标/网格走 v9 token、
- * 无入场动画、底部 mono 11「数据来源 · 生成时间」、右下按钮。
+ * 图表弹窗（v10 Fluent Dialog）：
+ * Title2 标题 + 图表容器 Card 底、坐标/网格走 Fluent token、
+ * 无入场动画、底部 mono 12「数据来源 · 生成时间」、右下 Fluent Button。
  */
 export default function ChartModal({
   payload,
@@ -133,11 +142,20 @@ export default function ChartModal({
   const [ready, setReady] = useState(false)
   const [openedAt, setOpenedAt] = useState('')
 
-  // Modal 展开动画结束后才标记 ready——此时容器才具有真实宽高。
-  // ECharts 若在动画中 init 会拿到 0/极小尺寸，图表缩在左上角且不再自愈（bug 表现：
-  // 开关别的窗口触发 window resize 才恢复）。afterOpenChange 从根本上消除该时机问题。
+  // 弹窗展开后容器才具有真实宽高：等两帧再初始化 ECharts，避免 0 尺寸初始化后不自愈。
   useEffect(() => {
-    if (!payload) setReady(false)
+    if (!payload) {
+      setReady(false)
+      return
+    }
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setReady(true))
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      if (raf2) cancelAnimationFrame(raf2)
+    }
   }, [payload])
 
   // 弹窗打开时记一次生成时间，用于页脚标注（不随重绘变化）
@@ -218,36 +236,40 @@ export default function ChartModal({
   useBackButtonLayer(!!payload, onClose)
 
   return (
-    <Modal
-      open={!!payload}
-      // 标题在弹窗头部，ECharts 里不再重复画一遍
-      title={
-        <div>
-          <div className="ai-chart-title">{payload?.title ?? ''}</div>
-          <div className="ai-chart-kicker">{t('ai.chart.defaultName')}</div>
-        </div>
-      }
-      width={840}
-      onCancel={onClose}
-      afterOpenChange={(open) => open && setReady(true)}
-      footer={
-        <div className="ai-chart-actions">
-          <button type="button" className="w-btn w-btn--subtle" onClick={onClose}>
-            {t('common.close')}
-          </button>
-          <button type="button" className="w-btn w-btn--accent" onClick={handleDownload}>
-            <DownloadOutlined />
-            {t('ai.chart.download')}
-          </button>
-        </div>
-      }
-    >
-      <div className="ai-chart-body">
-        {/* 图表容器：卡片底 + 1px 描边；网格线/文字色在 paperOption 里强制成 v9 token */}
-        <div ref={chartDivRef} className="ai-chart-canvas" />
-        {loading && <div className="ai-chart-loading">{t('ai.chart.loading')}</div>}
-      </div>
-      <div className="ai-chart-foot">{t('ai.chart.foot', { time: openedAt })}</div>
-    </Modal>
+    <Dialog open={!!payload} onOpenChange={(_, data) => !data.open && onClose()}>
+      <DialogSurface className="ai-chart-surface">
+        <DialogBody>
+          <DialogTitle>
+            <Text as="h2" size={500} weight="semibold" className="ai-chart-title">
+              {payload?.title ?? ''}
+            </Text>
+          </DialogTitle>
+          <DialogContent>
+            <div className="ai-chart-body">
+              {/* 图表容器：Fluent 卡片底 + 1px 描边；网格线/文字色在 paperOption 里强制成 token */}
+              <div ref={chartDivRef} className="ai-chart-canvas" />
+              {loading && (
+                <div className="ai-chart-loading">
+                  <Text size={200}>{t('ai.chart.loading')}</Text>
+                </div>
+              )}
+            </div>
+            <div className="ai-chart-foot">
+              <Text size={100} font="monospace">
+                {t('ai.chart.foot', { time: openedAt })}
+              </Text>
+            </div>
+          </DialogContent>
+          <DialogActions>
+            <Button appearance="secondary" onClick={onClose}>
+              {t('common.close')}
+            </Button>
+            <Button appearance="primary" icon={<ArrowDownloadRegular />} onClick={handleDownload}>
+              {t('ai.chart.download')}
+            </Button>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   )
 }

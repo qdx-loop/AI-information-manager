@@ -1,16 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Table, Popconfirm, App, Pagination } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
 import {
-  InfoRegular,
-  HomeRegular,
-  ChevronRightRegular,
+  Badge,
+  Breadcrumb,
+  BreadcrumbButton,
+  BreadcrumbDivider,
+  BreadcrumbItem,
+  Button,
+  Card,
+  MessageBar,
+  MessageBarBody,
+  Text,
+  Tooltip,
+} from '@fluentui/react-components'
+import {
   ArrowClockwiseRegular,
   ArrowUndoRegular,
   DeleteRegular,
-  FolderRegular,
   DocumentRegular,
+  FolderRegular,
+  HomeRegular,
+  InfoRegular,
 } from '@fluentui/react-icons'
+import { App } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
 import { useLibraryStore } from '@/store/libraryStore'
@@ -18,14 +29,13 @@ import type { TrashEntry } from '@/types'
 import { useI18n, tNow } from '@/i18n'
 import { TRASH_RETENTION_DAYS } from '@/utils/retentionDays'
 import EmptyPanel from './EmptyPanel'
-import { useLibText } from './labels'
+import { LibConfirm, LibPager, useLibText } from './labels'
 
 /**
- * 回收站（v9 · Windows 11 文件资源管理器）。
+ * 回收站（v10 Fluent UI · 资源管理器式）。
  *
- * 地址条（首页 > 回收站）+ InfoBar 说明 + 文件资源管理器式表格 + 底部状态栏；
- * 剩余天数用中性标签（≤3 天改警告语义），恢复 / 永久删除逻辑与原来完全一致。
- * 移动端退化为单列卡片。
+ * 面包屑（首页 > 回收站）+ Fluent MessageBar 说明 + 原生表格（Fluent token 渲染）+
+ * 底部状态栏；恢复 / 永久删除逻辑与原来完全一致。移动端退化为 Fluent Card 列表。
  */
 export default function TrashBin() {
   const { message } = App.useApp()
@@ -36,6 +46,8 @@ export default function TrashBin() {
   const lt = useLibText()
   const [page, setPage] = useState(1)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768)
+  const [purgeTarget, setPurgeTarget] = useState<TrashEntry | null>(null)
+  const [purging, setPurging] = useState(false)
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth <= 768)
@@ -68,13 +80,19 @@ export default function TrashBin() {
     }
   }
 
-  const handlePurge = async (entry: TrashEntry) => {
+  const handlePurge = async () => {
+    const entry = purgeTarget
+    if (!entry || purging) return
+    setPurging(true)
     try {
       if (entry.kind === 'library') await purgeLibrary(entry.record.id)
       else await purgeItem(entry.record.id)
       message.success(t('lib.trash.purged'))
+      setPurgeTarget(null)
     } catch (e) {
       message.error(t('lib.trash.purgeFailed', { msg: (e as Error).message }))
+    } finally {
+      setPurging(false)
     }
   }
 
@@ -86,19 +104,21 @@ export default function TrashBin() {
   const remainingDays = (deletedAt: number): number =>
     Math.max(0, TRASH_RETENTION_DAYS - dayjs().startOf('day').diff(dayjs(deletedAt).startOf('day'), 'day'))
 
-  const kindTag = (kind: 'library' | 'item') => (
-    <span className="w-tag lib-trash-kind">
-      {kind === 'library' ? <FolderRegular style={{ fontSize: 13 }} /> : <DocumentRegular style={{ fontSize: 13 }} />}
-      {kind === 'library' ? t('lib.trash.kind.library') : t('lib.trash.kind.item')}
-    </span>
+  const kindBadge = (kind: 'library' | 'item') => (
+    <Badge appearance="outline" color="subtle" size="small">
+      <span className="lib-trash-kind">
+        {kind === 'library' ? <FolderRegular /> : <DocumentRegular />}
+        {kind === 'library' ? t('lib.trash.kind.library') : t('lib.trash.kind.item')}
+      </span>
+    </Badge>
   )
 
-  const daysTag = (deletedAt: number) => {
+  const daysBadge = (deletedAt: number) => {
     const days = remainingDays(deletedAt)
     return (
-      <span className={`w-tag lib-trash-days${days <= 3 ? ' w-tag--warning' : ''}`}>
+      <Badge appearance={days <= 3 ? 'tint' : 'outline'} color={days <= 3 ? 'warning' : 'subtle'} size="small">
         {lt('trash.remaining', { n: days })}
-      </span>
+      </Badge>
     )
   }
 
@@ -109,202 +129,178 @@ export default function TrashBin() {
   }
 
   const rowActions = (entry: TrashEntry) => (
-    <div className="lib-trash-actions">
-      <button type="button" className="w-btn w-btn--sm w-btn--subtle" onClick={() => void handleRestore(entry)}>
-        <ArrowUndoRegular />
-        {lt('trash.restore')}
-      </button>
-      <Popconfirm
-        icon={null}
-        title={t('lib.trash.purgeConfirm')}
-        okText={t('lib.trash.purgeOk')}
-        okButtonProps={{ danger: true }}
-        cancelText={t('common.cancel')}
-        onConfirm={() => void handlePurge(entry)}
-      >
-        <button type="button" className="w-btn w-btn--sm w-btn--danger">
-          <DeleteRegular />
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end', width: '100%' }}>
+      <Tooltip content={lt('trash.restore')} relationship="label">
+        <Button
+          appearance="subtle"
+          size="small"
+          icon={<ArrowUndoRegular />}
+          aria-label={lt('trash.restore')}
+          onClick={() => void handleRestore(entry)}
+        >
+          {lt('trash.restore')}
+        </Button>
+      </Tooltip>
+      <Tooltip content={lt('trash.purge')} relationship="label">
+        <Button
+          appearance="subtle"
+          size="small"
+          icon={<DeleteRegular />}
+          aria-label={lt('trash.purge')}
+          style={{ color: 'var(--w-danger)' }}
+          onClick={() => setPurgeTarget(entry)}
+        >
           {lt('trash.purge')}
-        </button>
-      </Popconfirm>
+        </Button>
+      </Tooltip>
     </div>
   )
 
-  const columns: ColumnsType<TrashEntry> = [
-    {
-      title: t('lib.trash.col.type'),
-      dataIndex: 'kind',
-      width: 120,
-      render: (_: unknown, entry) => kindTag(entry.kind),
-    },
-    {
-      title: t('lib.trash.col.name'),
-      key: 'name',
-      render: (_, entry) => (
-        <span className="lib-trash-name" title={entryText(entry)}>
-          {entryText(entry)}
-        </span>
-      ),
-    },
-    {
-      title: t('lib.trash.col.library'),
-      key: 'lib',
-      width: 160,
-      render: (_, entry) => (
-        <span className="lib-trash-lib">
-          {entry.kind === 'item' ? entry.libraryName || t('lib.trash.orphanLib') : '—'}
-        </span>
-      ),
-    },
-    {
-      title: t('lib.trash.col.time'),
-      dataIndex: 'deletedAt',
-      width: 168,
-      render: (v: number) => <span className="lib-trash-time">{dayjs(v).format('YYYY-MM-DD HH:mm')}</span>,
-    },
-    {
-      title: t('lib.trash.col.remaining'),
-      key: 'remaining',
-      width: 132,
-      render: (_, entry) => daysTag(entry.deletedAt),
-    },
-    {
-      title: '',
-      key: 'action',
-      width: 200,
-      render: (_, entry) => rowActions(entry),
-    },
-  ]
-
   return (
     <div className="lib-page">
-      {/* 地址条（32）：首页 > 回收站 */}
-      <div className="lib-addrbar">
-        <div className="lib-addr-nav">
-          <button
-            type="button"
-            className="w-iconbtn"
-            aria-label={t('app.home')}
-            title={t('app.home')}
-            onClick={() => navigate('/')}
-          >
-            <HomeRegular />
-          </button>
-          <button
-            type="button"
-            className="w-iconbtn"
-            aria-label={t('common.refresh')}
-            title={t('common.refresh')}
-            onClick={handleRefresh}
-          >
-            <ArrowClockwiseRegular />
-          </button>
+      {/* 工具栏：刷新 + 数量 */}
+      <div className="lib-toolbar">
+        <Button appearance="subtle" icon={<ArrowClockwiseRegular />} onClick={handleRefresh}>
+          {t('common.refresh')}
+        </Button>
+        <span className="lib-toolbar-spacer" />
+      </div>
+
+      {/* 面包屑：首页 > 回收站 */}
+      <div className="lib-pathrow">
+        <Breadcrumb aria-label={t('app.home')}>
+          <BreadcrumbItem>
+            <BreadcrumbButton icon={<HomeRegular />} onClick={() => navigate('/')}>
+              {t('app.home')}
+            </BreadcrumbButton>
+          </BreadcrumbItem>
+          <BreadcrumbDivider />
+          <BreadcrumbItem>
+            <BreadcrumbButton current icon={<DeleteRegular />}>
+              {t('lib.trash.title')}
+            </BreadcrumbButton>
+          </BreadcrumbItem>
+        </Breadcrumb>
+      </div>
+
+      <div className="lib-content">
+        <div style={{ marginBottom: 10 }}>
+          <MessageBar intent="info">
+            <MessageBarBody>
+              <InfoRegular /> {t('lib.trash.notice')}
+            </MessageBarBody>
+          </MessageBar>
         </div>
-        <nav className="w-bcrumb" aria-label={t('app.home')}>
-          <button type="button" className="w-bcrumb-item" onClick={() => navigate('/')}>
-            <HomeRegular />
-            {t('app.home')}
-          </button>
-          <span className="w-bcrumb-sep" aria-hidden>
-            <ChevronRightRegular />
-          </span>
-          <span className="w-bcrumb-current">
-            <DeleteRegular style={{ color: 'var(--w-accent)', fontSize: 14 }} />
-            {t('lib.trash.title')}
-          </span>
-        </nav>
-        <span className="lib-addr-meta">{lt('status.total', { n: trash.length })}</span>
-      </div>
 
-      {/* 移动端页头（桌面端地址条已说明当前位置） */}
-      <div className="lib-mobile-head">
-        <h1 className="lib-mobile-title">{t('lib.trash.title')}</h1>
-        <span className="lib-mobile-meta">{lt('status.total', { n: trash.length })}</span>
-        <button
-          type="button"
-          className="w-iconbtn w-iconbtn--sm"
-          aria-label={t('common.refresh')}
-          title={t('common.refresh')}
-          onClick={handleRefresh}
-        >
-          <ArrowClockwiseRegular />
-        </button>
-      </div>
-
-      {/* 说明：Win11 InfoBar（中性底 + 线性图标），不是柔和 Alert */}
-      <div className="lib-notice-wrap">
-        <div className="lib-infobar">
-          <InfoRegular />
-          <span className="lib-infobar-body">{t('lib.trash.notice')}</span>
-        </div>
-      </div>
-
-      {trash.length === 0 ? (
-        <EmptyPanel icon={<DeleteRegular />} title={t('lib.trash.empty')} />
-      ) : (
-        <div className="lib-list" style={{ marginTop: 8 }}>
-          {isMobile ? (
-            <div className="lib-cards">
-              {paged.map((entry) => (
-                <div key={`${entry.kind}-${entry.record.id}`} className="lib-card">
-                  <div className="lib-card-head">
-                    {kindTag(entry.kind)}
-                    <span className="lib-card-name" title={entryText(entry)}>
-                      {entryText(entry)}
-                    </span>
-                    {daysTag(entry.deletedAt)}
-                  </div>
-                  <div className="lib-card-fields">
-                    <div className="lib-card-field">
-                      <span className="lib-card-label">{t('lib.trash.col.library')}</span>
-                      <span className="lib-card-value">
-                        {entry.kind === 'item' ? entry.libraryName || t('lib.trash.orphanLib') : '—'}
-                      </span>
+        {trash.length === 0 ? (
+          <EmptyPanel icon={<DeleteRegular />} title={t('lib.trash.empty')} />
+        ) : (
+          <div className="lib-list">
+            {isMobile ? (
+              <div className="lib-cards">
+                {paged.map((entry) => (
+                  <Card key={`${entry.kind}-${entry.record.id}`} appearance="filled" size="small" className="lib-item-card">
+                    <div className="lib-item-head">
+                      {kindBadge(entry.kind)}
+                      <Text weight="semibold" className="lib-item-name" title={entryText(entry)}>
+                        {entryText(entry)}
+                      </Text>
+                      {daysBadge(entry.deletedAt)}
                     </div>
-                    <div className="lib-card-field">
-                      <span className="lib-card-label">{t('lib.trash.col.time')}</span>
-                      <span className="lib-card-value lib-trash-time">{dayjs(entry.deletedAt).format('YYYY-MM-DD HH:mm')}</span>
+                    <div className="lib-item-fields">
+                      <div className="lib-item-field">
+                        <span className="lib-item-field-label">{t('lib.trash.col.library')}</span>
+                        <span className="lib-item-field-value">
+                          {entry.kind === 'item' ? entry.libraryName || t('lib.trash.orphanLib') : '—'}
+                        </span>
+                      </div>
+                      <div className="lib-item-field">
+                        <span className="lib-item-field-label">{t('lib.trash.col.time')}</span>
+                        <span className="lib-item-field-value lib-trash-time">
+                          {dayjs(entry.deletedAt).format('YYYY-MM-DD HH:mm')}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  {rowActions(entry)}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="lib-table-scroll w-scroll">
-              <div className="lib-table">
-                <Table<TrashEntry>
-                  rowKey={(r) => `${r.kind}-${r.record.id}`}
-                  columns={columns}
-                  dataSource={paged}
-                  scroll={{ x: 'max-content' }}
-                  tableLayout="fixed"
-                  pagination={false}
-                  onRow={() => ({ style: { height: 40 } })}
-                />
+                    {rowActions(entry)}
+                  </Card>
+                ))}
               </div>
-            </div>
-          )}
-          <div className="lib-statusbar">
-            <div className="lib-status-group">
-              <span className="lib-status-strong">{lt('status.total', { n: trash.length })}</span>
-            </div>
-            <span className="lib-status-spacer" />
-            {pageCount > 1 && (
-              <Pagination
-                simple
-                size="small"
-                current={clampedPage}
-                pageSize={PAGE_SIZE}
-                total={trash.length}
-                showSizeChanger={false}
-                onChange={(p) => setPage(p)}
-                aria-label={lt('status.page', { p: clampedPage, total: pageCount })}
-              />
+            ) : (
+              <div className="lib-card">
+                <div className="lib-table-scroll">
+                  <table className="lib-table" role="grid" aria-label={t('lib.trash.title')}>
+                    <colgroup>
+                      <col style={{ width: 120 }} />
+                      <col style={{ width: 'auto' }} />
+                      <col style={{ width: 160 }} />
+                      <col style={{ width: 168 }} />
+                      <col style={{ width: 132 }} />
+                      <col style={{ width: 200 }} />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th scope="col">{t('lib.trash.col.type')}</th>
+                        <th scope="col">{t('lib.trash.col.name')}</th>
+                        <th scope="col">{t('lib.trash.col.library')}</th>
+                        <th scope="col">{t('lib.trash.col.time')}</th>
+                        <th scope="col">{t('lib.trash.col.remaining')}</th>
+                        <th scope="col" aria-hidden />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paged.map((entry) => (
+                        <tr key={`${entry.kind}-${entry.record.id}`} className="lib-row">
+                          <td className="lib-td">{kindBadge(entry.kind)}</td>
+                          <td className="lib-td">
+                            <Text weight="semibold" className="lib-trash-name" title={entryText(entry)}>
+                              {entryText(entry)}
+                            </Text>
+                          </td>
+                          <td className="lib-td">
+                            <Text size={200}>
+                              {entry.kind === 'item' ? entry.libraryName || t('lib.trash.orphanLib') : '—'}
+                            </Text>
+                          </td>
+                          <td className="lib-td">
+                            <span className="lib-trash-time">{dayjs(entry.deletedAt).format('YYYY-MM-DD HH:mm')}</span>
+                          </td>
+                          <td className="lib-td">{daysBadge(entry.deletedAt)}</td>
+                          <td className="lib-td">{rowActions(entry)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="lib-statusbar">
+                  <div className="lib-status-group">
+                    <span className="lib-status-strong">{lt('status.total', { n: trash.length })}</span>
+                  </div>
+                  <span className="lib-status-spacer" />
+                  <LibPager page={clampedPage} pageCount={pageCount} onChange={setPage} />
+                </div>
+              </div>
+            )}
+            {isMobile && pageCount > 1 && (
+              <div className="lib-cards-pager">
+                <LibPager page={clampedPage} pageCount={pageCount} onChange={setPage} compact />
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      <LibConfirm
+        open={purgeTarget !== null}
+        title={lt('trash.purgeTitle')}
+        body={lt('trash.purgeBody')}
+        confirmText={lt('trash.purge')}
+        danger
+        confirming={purging}
+        onConfirm={handlePurge}
+        onClose={() => {
+          if (!purging) setPurgeTarget(null)
+        }}
+      />
     </div>
   )
 }

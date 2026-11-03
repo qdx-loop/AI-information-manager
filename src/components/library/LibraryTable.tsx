@@ -1,28 +1,31 @@
-import { Table, Tooltip, Checkbox, Dropdown } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
-import type { MenuProps } from 'antd'
 import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Dropdown,
+  Option,
+  Text,
+  Tooltip,
+} from '@fluentui/react-components'
+import {
+  ArrowSortDownRegular,
+  ArrowSortUpRegular,
+  DeleteRegular,
+  EditRegular,
+  PinOffRegular,
+  PinRegular,
   StarFilled,
   StarRegular,
-  EditRegular,
-  DeleteRegular,
-  PinRegular,
-  PinOffRegular,
-  ChevronLeftRegular,
-  ChevronRightRegular,
-  ChevronDownRegular,
-  ArrowSortUpRegular,
-  ArrowSortDownRegular,
-  CheckmarkRegular,
 } from '@fluentui/react-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FieldDef, FieldValue, Item } from '@/types'
-import FieldRenderer, { renderCellValue } from '@/components/fields/FieldRenderer'
 import type { FieldType } from '@/types'
-import { useI18n } from '@/i18n'
+import FieldRenderer, { renderCellValue } from '@/components/fields/FieldRenderer'
 import SmartValue from '@/components/fields/SmartValue'
+import { useI18n } from '@/i18n'
 import { useLibraryStore } from '@/store/libraryStore'
-import { useLibText } from './labels'
+import { LibPager, useLibText } from './labels'
 
 interface Props {
   fields: FieldDef[]
@@ -33,7 +36,6 @@ interface Props {
   onPin: (item: Item, pinned: boolean) => void
   /** 内联编辑：只传变化后的整份 fields（已合并），由父组件落库 */
   onPatch: (item: Item, fields: Item['fields']) => Promise<void> | void
-  /* —— v9 新增（库页内部组件，父组件 LibraryView 同一轮重写）—— */
   /** 当前排序列（空 = 默认顺序：置顶优先 + sortOrder） */
   sortField: string
   sortDesc: boolean
@@ -55,41 +57,39 @@ function useIsMobile(): boolean {
   return isMobile
 }
 
-/** 数字列：右对齐 + tabular（文件资源管理器的日期列保持左对齐） */
+/** 数字列：右对齐 + tabular（日期列在资源管理器里保持左对齐） */
 const isNumericField = (type: FieldType): boolean => type === 'number'
 
 /**
  * 哪些 select 字段是「状态列」。
  *
  * 城市、单位这类 select 只是普通文本列，不能全都当状态；
- * 只有列名带状态语义（状态/阶段/结果/等级…）时才给语义圆点。
+ * 只有列名带状态语义（状态/阶段/结果/等级…）时才给语义色。
  */
 function isStatusField(f: FieldDef): boolean {
   return f.type === 'select' && /状态|阶段|结果|等级|级别|进度|类型/.test(f.label)
 }
 
-/**
- * 状态列语义 → 中性标签里那颗小圆点的颜色。
- *
- * 只按文案做视觉归类，不改任何数据：认不出来的值退回中性灰点，
- * 不会误报成成功/失败。
- */
-function statusVariant(text: string): 'success' | 'warning' | 'danger' | 'neutral' {
+/** 状态文案 → Fluent Badge 语义色（只做视觉归类，不改数据） */
+function statusColor(text: string): 'success' | 'warning' | 'danger' | 'subtle' {
   if (/成交|成功|完成|已付|正常|通过|已签|收入|有效/.test(text)) return 'success'
   if (/流失|失败|拒绝|取消|停用|逾期|支出|无效|关闭/.test(text)) return 'danger'
   if (/跟进|待|进行|中|暂停|意向|处理|新/.test(text)) return 'warning'
-  return 'neutral'
+  return 'subtle'
 }
 
+const PAGE_SIZES = [10, 20, 50, 100]
+
 /**
- * 库表（v9 Win11 文件资源管理器 · 详细信息视图）。
+ * 库表（v10 Fluent UI · 资源管理器式详细信息视图）。
  *
- * 桌面 = 原生表格形态（吸附表头 32 / 行 40 / 仅横分割线 / hover 中性提亮 /
- *        选中 accent-soft + 左 3px / 数字 tabular-nums），底部状态栏承载
- *        项数、已选项、每页条数与分页；
- * 移动 = 单列卡片（保留同一套字段渲染与内联编辑入口）。
+ * 桌面 = 原生 <table> + Fluent token 渲染（吸附表头 34 / 行 40 / 仅横分割线 /
+ *        hover 用 colorSubtleBackgroundHover / 选中用 colorSubtleBackgroundSelected +
+ *        3px 品牌色指示条），单元格内的复选框、置顶按钮、状态 Badge、行内操作按钮
+ *        全部是 Fluent 组件；
+ * 移动 = Fluent Card 单列卡片（同一套字段渲染与操作）。
  *
- * 业务逻辑（内联编辑 / 键盘导航 / 分页边界 / 收藏 / 批量置顶与删除）与旧版一致，
+ * 业务逻辑（内联编辑 / 键盘导航 / 分页边界 / 收藏 / 多选批量操作）与旧版一致，
  * 数据身份始终以 item.id 为准（不以页内下标为准）。
  */
 export default function LibraryTable({
@@ -114,20 +114,13 @@ export default function LibraryTable({
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(() => (typeof window !== 'undefined' && window.innerWidth <= 768 ? 10 : 20))
 
-  // row 是**当前页内**的下标（只用于 DOM 定位），id 才是数据身份。
-  // 原来只用 row，而 antd 的 render(_, record, index) 传的是分页后的页内下标，
-  // beginEdit/commitEdit 却拿它去索引完整的 items —— 于是在第 2 页点任意单元格，
-  // 编辑器里显示第 1 条的内容，回车就把改动写进了整个库的第 1 条。
-  // 这类静默写错行比报错更难挽回，所以身份一律以 id 为准。
+  // 身份一律以 id 为准：page 只用于切片，row 只用于 DOM 定位
   const [editCell, setEditCell] = useState<{ id: string; row: number; key: string } | null>(null)
   const [draft, setDraft] = useState<FieldValue>(null)
   const [savingCell, setSavingCell] = useState(false)
-  // 内联编辑失败时在单元格里留一行错误文字（只弹 toast 的话行内没有痕迹）
   const [cellError, setCellError] = useState<string | null>(null)
-  // 多选（Win11 选择模式）：state 只存在表格内部，不改变任何落库逻辑
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  // 这几个 Hook 必须无条件调用（窗口宽度跨过 768px 时 Hook 数量不能变）
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize))
   const clampedPage = Math.min(page, pageCount)
 
@@ -162,7 +155,6 @@ export default function LibraryTable({
       tableRef.current?.querySelector(`tr[data-row-key="${focusItemId}"]`) ??
       tableRef.current?.querySelector(`[data-item-id="${focusItemId}"]`)
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    // 5 秒后自动清除高亮
     const timer = setTimeout(() => focusItem(null), 5000)
     return () => clearTimeout(timer)
   }, [focusItemId, items, focusItem, clampedPage])
@@ -215,200 +207,152 @@ export default function LibraryTable({
   }
   const clearSelection = () => setSelectedIds(new Set())
 
-  /** 状态列：中性 Win11 标签 + 语义小圆点（不用彩色大色片） */
-  const renderStatusTag = (value: FieldValue) => {
-    if (value == null || String(value).trim() === '') return <span className="w-faint">—</span>
+  /** select 字段 / 状态列：Fluent Badge（中性 outline / 语义 tint） */
+  const renderChip = (f: FieldDef, value: FieldValue) => {
+    if (value == null || String(value).trim() === '') {
+      return <span style={{ color: 'var(--w-text-3)' }}>—</span>
+    }
     const text = String(value)
-    const variant = statusVariant(text)
+    const status = isStatusField(f)
     return (
-      <span className="w-tag lib-tag">
-        <span className={`w-dot${variant === 'neutral' ? '' : ` w-dot--${variant}`}`} aria-hidden />
-        <span className="lib-tag-text">{text}</span>
-      </span>
+      <Badge
+        appearance={status ? 'tint' : 'outline'}
+        color={status ? statusColor(text) : 'subtle'}
+        size="small"
+        className="lib-select-tag"
+      >
+        <span className="lib-select-tag--value">{text}</span>
+      </Badge>
     )
   }
 
-  /** 收藏（置顶）：星形按钮（线性 / 实心切换，不用彩色底） */
+  /** 收藏（置顶）：Fluent 图标按钮（星形线性 / 实心切换） */
   const starButton = (it: Item) => (
-    <Tooltip title={it.pinned ? t('common.unpinned') : t('common.pinned')}>
-      <button
-        type="button"
-        className={`lib-star${it.pinned ? ' is-pinned' : ''}`}
+    <Tooltip content={it.pinned ? t('common.unpinned') : t('common.pinned')} relationship="label">
+      <Button
+        appearance="transparent"
+        size="small"
         aria-label={it.pinned ? t('common.unpinned') : t('common.pinned')}
         aria-pressed={it.pinned}
+        icon={
+          it.pinned ? (
+            <StarFilled style={{ color: 'var(--w-brand-fg)' }} />
+          ) : (
+            <StarRegular style={{ color: 'var(--w-text-3)' }} />
+          )
+        }
         onClick={(e) => {
           e.stopPropagation()
           onPin(it, !it.pinned)
         }}
-      >
-        {it.pinned ? <StarFilled /> : <StarRegular />}
-      </button>
+      />
     </Tooltip>
   )
 
-  const canPrev = clampedPage > 1
-  const canNext = clampedPage < pageCount
-
-  const sizeMenu: MenuProps = {
-    items: [10, 20, 50, 100].map((n) => ({ key: String(n), label: lt('status.perPage', { n }) })),
-    selectable: true,
-    selectedKeys: [String(pageSize)],
-    onClick: ({ key }) => {
-      setPageSize(Number(key))
-      setPage(1)
-    },
-  }
-
-  /** 页码序列（最多 7 个按钮，中间用省略号收拢） */
-  const pageItems = useMemo(() => {
-    const out: (number | 'gap')[] = []
-    if (pageCount <= 7) {
-      for (let p = 1; p <= pageCount; p++) out.push(p)
-      return out
-    }
-    out.push(1)
-    const start = Math.max(2, clampedPage - 1)
-    const end = Math.min(pageCount - 1, clampedPage + 1)
-    if (start > 2) out.push('gap')
-    for (let p = start; p <= end; p++) out.push(p)
-    if (end < pageCount - 1) out.push('gap')
-    out.push(pageCount)
-    return out
-  }, [pageCount, clampedPage])
-
-  const pager = (compact = false) => (
-    <div className="lib-pager" role="navigation" aria-label={t('lib.total', { n: String(items.length) })}>
-      <button
-        type="button"
-        className="lib-pager-btn"
-        disabled={!canPrev}
-        aria-label={lt('pager.prev')}
-        onClick={() => setPage((p) => Math.max(1, p - 1))}
-      >
-        <ChevronLeftRegular />
-      </button>
-      {compact || pageCount <= 1 ? (
-        <span className="lib-pager-num is-active">{lt('status.page', { p: clampedPage, total: pageCount })}</span>
-      ) : (
-        pageItems.map((p, i) =>
-          p === 'gap' ? (
-            <span className="lib-pager-gap" key={`gap-${i}`} aria-hidden>
-              …
-            </span>
-          ) : (
-            <button
-              type="button"
-              key={p}
-              className={`lib-pager-num${p === clampedPage ? ' is-active' : ''}`}
-              aria-current={p === clampedPage ? 'page' : undefined}
-              onClick={() => setPage(p)}
-            >
-              {p}
-            </button>
-          ),
-        )
-      )}
-      <button
-        type="button"
-        className="lib-pager-btn"
-        disabled={!canNext}
-        aria-label={lt('pager.next')}
-        onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-      >
-        <ChevronRightRegular />
-      </button>
-    </div>
-  )
-
-  // —— 选择模式动作条：只在有选中项时出现（Win11 选择模式）——
+  /** 选择模式动作条（只在有选中项时出现） */
   const selectionBar = selectedItems.length > 0 && (
     <div className="lib-selbar" role="status">
-      <CheckmarkRegular style={{ fontSize: 15 }} aria-hidden />
-      <span className="lib-selbar-count">{lt('status.selected', { n: selectedItems.length })}</span>
-      <button type="button" className="w-btn w-btn--sm w-btn--subtle" onClick={toggleAll}>
+      <Text size={200} weight="semibold" className="lib-selbar-text">
+        {lt('status.selected', { n: selectedItems.length })}
+      </Text>
+      <Button appearance="subtle" size="small" onClick={toggleAll}>
         {lt('sel.all')}
-      </button>
-      <button type="button" className="w-btn w-btn--sm w-btn--subtle" onClick={clearSelection}>
+      </Button>
+      <Button appearance="subtle" size="small" onClick={clearSelection}>
         {lt('sel.clear')}
-      </button>
-      <span className="lib-selbar-sep" role="presentation" />
-      <button type="button" className="w-btn w-btn--sm w-btn--subtle" onClick={() => onBatchPin(selectedItems, true)}>
-        <PinRegular />
+      </Button>
+      <Button
+        appearance="subtle"
+        size="small"
+        icon={<PinRegular />}
+        onClick={() => onBatchPin(selectedItems, true)}
+      >
         {lt('sel.pin')}
-      </button>
-      <button type="button" className="w-btn w-btn--sm w-btn--subtle" onClick={() => onBatchPin(selectedItems, false)}>
-        <PinOffRegular />
+      </Button>
+      <Button
+        appearance="subtle"
+        size="small"
+        icon={<PinOffRegular />}
+        onClick={() => onBatchPin(selectedItems, false)}
+      >
         {lt('sel.unpin')}
-      </button>
+      </Button>
       <span className="lib-selbar-spacer" />
-      <button
-        type="button"
-        className="w-btn w-btn--sm w-btn--danger"
+      <Button
+        appearance="subtle"
+        size="small"
+        icon={<DeleteRegular />}
+        style={{ color: 'var(--w-danger)' }}
         onClick={() => onBatchDelete(selectedItems)}
       >
-        <DeleteRegular />
         {lt('sel.delete')}
-      </button>
+      </Button>
     </div>
   )
 
-  // ———— 移动端：单列卡片（保留字段渲染逻辑 / 置顶 / 编辑 / 删除 / 多选） ————
+  const pager = (compact = false) => (
+    <LibPager page={clampedPage} pageCount={pageCount} onChange={setPage} compact={compact} />
+  )
+
+  // ———— 移动端：Fluent Card 单列卡片 ————
   if (isMobile) {
     return (
       <div className="lib-list" ref={tableRef}>
         {selectionBar}
         <div className="lib-cards">
           {paged.map((it) => (
-            <div
+            <Card
               key={it.id}
               data-item-id={it.id}
-              className={`lib-card${it.id === focusItemId ? ' is-focused' : ''}`}
+              appearance="filled"
+              size="small"
+              className={`lib-item-card${it.id === focusItemId ? ' is-focused' : ''}`}
             >
-              <div className="lib-card-head">
-                <span className="lib-card-check">
-                  <Checkbox
-                    checked={selectedIds.has(it.id)}
-                    onChange={() => toggleOne(it.id)}
-                    aria-label={primaryOf(it)}
-                  />
-                </span>
+              <div className="lib-item-head">
+                <Checkbox
+                  checked={selectedIds.has(it.id)}
+                  onChange={() => toggleOne(it.id)}
+                  aria-label={primaryOf(it)}
+                />
                 {starButton(it)}
-                <button type="button" className="lib-card-name" onClick={() => onEdit(it)} title={primaryOf(it)}>
+                <button type="button" className="lib-item-name" onClick={() => onEdit(it)} title={primaryOf(it)}>
                   {primaryOf(it)}
                 </button>
-                <div className="lib-card-actions">
-                  <button
-                    type="button"
-                    className="w-iconbtn w-iconbtn--sm"
-                    aria-label={t('common.edit')}
-                    onClick={() => onEdit(it)}
-                  >
-                    <EditRegular />
-                  </button>
-                  <button
-                    type="button"
-                    className="w-iconbtn w-iconbtn--sm"
-                    aria-label={t('common.delete')}
-                    onClick={() => onDelete(it)}
-                  >
-                    <DeleteRegular />
-                  </button>
+                <div className="lib-item-actions">
+                  <Tooltip content={t('common.edit')} relationship="label">
+                    <Button
+                      appearance="transparent"
+                      size="small"
+                      icon={<EditRegular />}
+                      aria-label={t('common.edit')}
+                      onClick={() => onEdit(it)}
+                    />
+                  </Tooltip>
+                  <Tooltip content={t('common.delete')} relationship="label">
+                    <Button
+                      appearance="transparent"
+                      size="small"
+                      icon={<DeleteRegular />}
+                      aria-label={t('common.delete')}
+                      onClick={() => onDelete(it)}
+                    />
+                  </Tooltip>
                 </div>
               </div>
-              <div className="lib-card-fields">
+              <div className="lib-item-fields">
                 {restFields(it).map((f) => (
-                  <div key={f.key} className="lib-card-field">
-                    <span className="lib-card-label" title={f.label}>
+                  <div key={f.key} className="lib-item-field">
+                    <span className="lib-item-field-label" title={f.label}>
                       {f.label}
                     </span>
-                    <span className="lib-card-value">
-                      {isStatusField(f) ? renderStatusTag(it.fields[f.key]) : <SmartValue field={f} value={it.fields[f.key]} />}
+                    <span className="lib-item-field-value">
+                      {isStatusField(f) ? renderChip(f, it.fields[f.key]) : <SmartValue field={f} value={it.fields[f.key]} />}
                     </span>
                   </div>
                 ))}
               </div>
-              {restFields(it).length === 0 && <div className="lib-card-only">{t('lib.card.onlyTitle')}</div>}
-            </div>
+              {restFields(it).length === 0 && <span className="lib-item-empty-hint">{t('lib.card.onlyTitle')}</span>}
+            </Card>
           ))}
         </div>
         {pageCount > 1 && <div className="lib-cards-pager">{pager(true)}</div>}
@@ -417,10 +361,8 @@ export default function LibraryTable({
   }
 
   // ── 单元格内联编辑 ────────────────────────────────────────────
-  // 键盘约定采用全行业一致的一套（ArcGIS Pro / JMP / GraphPad / Budibase / Esko 相同）：
-  //   Enter 或 F2  进入编辑      Enter  保存并下移      Tab  保存并右移
-  //   Esc          取消并还原    方向键  在单元格间移动（编辑中不劫持）
-  /** 当前页实际渲染的行数（只数带 data-row-key 的数据行，不数 antd 的测量行） */
+  //   Enter / F2 进入编辑   Enter 保存并下移   Tab 保存并右移   Esc 取消
+  /** 当前页实际渲染的行数（只数带 data-row-key 的数据行） */
   const renderedRowCount = (): number =>
     tableRef.current?.querySelectorAll('tbody tr[data-row-key]').length ?? 0
 
@@ -455,8 +397,7 @@ export default function LibraryTable({
       cancelEdit()
       if (move !== 'none') focusNeighbour(move)
     } catch (e) {
-      // 留在编辑态，让用户看到失败并重试，不要静默吞掉改动；
-      // 同时把原因留在这一格里（父组件也会 toast，但行内要有痕迹）。
+      // 留在编辑态，让用户看到失败并重试，不要静默吞掉改动
       setCellError(e instanceof Error ? e.message : String(e))
     } finally {
       setSavingCell(false)
@@ -481,7 +422,6 @@ export default function LibraryTable({
     if (editCell) return
     let r = row
     let c = col
-    // 边界按当前页渲染行数算，不能拿 items.length（那是全库条数）
     const lastRow = Math.max(0, renderedRowCount() - 1)
     if (e.key === 'ArrowDown') r = Math.min(row + 1, lastRow)
     else if (e.key === 'ArrowUp') r = Math.max(row - 1, 0)
@@ -493,8 +433,8 @@ export default function LibraryTable({
     el?.focus()
   }
 
-  // ———— 桌面端：文件资源管理器式表格 ————
-  /** 列宽（文件资源管理器：列宽稳定，少列时不把列拉宽成大片空白） */
+  // ———— 桌面端：资源管理器式表格 ————
+  /** 列宽：列宽稳定，少列时由末尾填充列吸收剩余宽度（不把数据列拉得过大） */
   const fieldWidth = (f: FieldDef, i: number): number =>
     i === 0
       ? 168
@@ -511,191 +451,208 @@ export default function LibraryTable({
                   ? 132
                   : 108
                 : 100
-  /** 38(选择) + 40(置顶) + 各字段 + 76(操作) */
-  const tableWidth =
-    38 + 40 + 76 + visibleFields.reduce((sum, f, i) => sum + fieldWidth(f, i), 0)
 
-  const columns: ColumnsType<Item> = [
-    {
-      title: '',
-      dataIndex: 'pinned',
-      key: '__pin',
-      width: 40,
-      render: (_, record) => starButton(record),
-    },
-    // 第一个可见字段当作「标识列」：给足宽度 + 600 字重，让每行第一眼就能认出是哪条。
-    ...visibleFields.map((f, i) => ({
-      title: (
-        <span className={`lib-th-inner${isNumericField(f.type) ? ' is-num' : ''}`}>
-          <span className="lib-th-label">{f.label}</span>
-          {sortField === f.key ? sortDesc ? <ArrowSortDownRegular /> : <ArrowSortUpRegular /> : null}
-        </span>
-      ),
-      dataIndex: ['fields', f.key],
-      key: f.key,
-      onHeaderCell: () => ({
-        style: { textAlign: isNumericField(f.type) ? 'right' : 'left' },
-        className: 'lib-th-sortable',
-        role: 'columnheader',
-        'aria-sort': sortField === f.key ? (sortDesc ? 'descending' : 'ascending') : 'none',
-        title: t('lib.sort'),
-        onClick: () => onToggleSort(f.key),
-      }),
-      onCell: () => ({
-        style: { textAlign: isNumericField(f.type) ? 'right' : 'left' },
-      }),
-      width: fieldWidth(f, i),
-      render: (_: unknown, record: Item, rowIndex: number) => {
-        const value = record.fields[f.key]
-        const isEditing = editCell?.id === record.id && editCell.key === f.key
-        if (isEditing) {
-          return (
-            <div
-              className={`lib-cell-editing${savingCell ? ' is-saving' : ''}`}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  e.stopPropagation()
-                  cancelEdit()
-                } else if (e.key === 'Enter' && !e.shiftKey && f.type !== 'textarea') {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  void commitEdit('down')
-                } else if (e.key === 'Tab') {
-                  e.preventDefault()
-                  void commitEdit('right')
-                }
-              }}
-            >
-              <FieldRenderer field={f} value={draft} onChange={setDraft} autoFocus compact />
-              {cellError ? <div className="lib-cell-error">{cellError}</div> : null}
-            </div>
-          )
-        }
-        const title = value == null || value === '' ? undefined : String(value)
-        return (
-          <div
-            tabIndex={0}
-            role="button"
-            data-cell={`${rowIndex}-${i}`}
-            aria-label={`${record.fields[visibleFields[0]?.key ?? ''] ?? ''} · ${f.label} · ${t('lib.cell.editHint')}`}
-            title={title}
-            className={`lib-cell-btn${isNumericField(f.type) ? ' is-num' : ''}`}
-            onClick={() => beginEdit(record, rowIndex, f)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === 'F2') {
-                e.preventDefault()
-                beginEdit(record, rowIndex, f)
-              } else {
-                onGridKeyDown(e, rowIndex, i)
-              }
-            }}
-          >
-            <div className={`lib-cell${isNumericField(f.type) ? ' is-num' : ''}`}>
-              {isStatusField(f) ? (
-                renderStatusTag(value)
-              ) : (
-                <span className={`lib-cell-text${i === 0 ? ' lib-cell-primary' : ''}`}>
-                  <SmartValue field={f} value={value} />
-                </span>
-              )}
-            </div>
-          </div>
-        )
-      },
-    })) as ColumnsType<Item>,
-    {
-      title: '',
-      key: '__actions',
-      width: 76,
-      render: (_, record) => (
-        <div className="lib-row-actions">
-          <button
-            type="button"
-            className="w-iconbtn w-iconbtn--sm"
-            aria-label={t('common.edit')}
-            title={t('common.edit')}
-            onClick={(e) => {
-              e.stopPropagation()
-              onEdit(record)
-            }}
-          >
-            <EditRegular />
-          </button>
-          <button
-            type="button"
-            className="w-iconbtn w-iconbtn--sm"
-            aria-label={t('common.delete')}
-            title={t('common.delete')}
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete(record)
-            }}
-          >
-            <DeleteRegular />
-          </button>
-        </div>
-      ),
-    },
-  ]
-
-  const headerCheckbox = (
-    <Checkbox
-      checked={paged.length > 0 && paged.every((it) => selectedIds.has(it.id))}
-      indeterminate={paged.some((it) => selectedIds.has(it.id)) && !paged.every((it) => selectedIds.has(it.id))}
-      onChange={(e) => togglePage(e.target.checked)}
-      aria-label={lt('sel.all')}
-    />
-  )
+  const allPageSelected = paged.length > 0 && paged.every((it) => selectedIds.has(it.id))
+  const somePageSelected = paged.some((it) => selectedIds.has(it.id))
+  const headerChecked: boolean | 'mixed' = allPageSelected ? true : somePageSelected ? 'mixed' : false
 
   return (
     <div className="lib-list" ref={tableRef}>
       {selectionBar}
-      <div className="lib-table-scroll w-scroll">
-        <div className="lib-table">
-          <Table<Item>
-            tableLayout="fixed"
-            rowKey="id"
-            columns={columns}
-            dataSource={paged}
-            scroll={{ x: tableWidth }}
-            onRow={() => ({
-              style: { height: 40 },
-              onClick: () => {
-                if (focusItemId) focusItem(null)
-              },
+      <div className="lib-table-scroll">
+        <table className="lib-table" role="grid" aria-label={t('lib.items')}>
+          <colgroup>
+            <col style={{ width: 38 }} />
+            <col style={{ width: 40 }} />
+            {visibleFields.map((f, i) => (
+              <col key={f.key} style={{ width: fieldWidth(f, i) }} />
+            ))}
+            <col style={{ width: 'auto' }} />
+            <col style={{ width: 76 }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th className="lib-th-check" scope="col">
+                <Checkbox
+                  checked={headerChecked}
+                  onChange={(_, data) => togglePage(data.checked === true || data.checked === 'mixed')}
+                  aria-label={lt('sel.all')}
+                />
+              </th>
+              <th className="lib-th-pin" scope="col">
+                <span className="lib-sr-only">{lt('table.col.pin')}</span>
+              </th>
+              {visibleFields.map((f) => (
+                <th
+                  key={f.key}
+                  scope="col"
+                  className={`lib-th${isNumericField(f.type) ? ' is-num' : ''}`}
+                  aria-sort={sortField === f.key ? (sortDesc ? 'descending' : 'ascending') : 'none'}
+                >
+                  <button
+                    type="button"
+                    className={`lib-th-sort${isNumericField(f.type) ? ' is-num' : ''}`}
+                    title={t('lib.sort')}
+                    onClick={() => onToggleSort(f.key)}
+                  >
+                    <span className="lib-th-label">{f.label}</span>
+                    {sortField === f.key ? sortDesc ? <ArrowSortDownRegular /> : <ArrowSortUpRegular /> : null}
+                  </button>
+                </th>
+              ))}
+              <th className="lib-th-fill" scope="col" aria-hidden />
+              <th className="lib-th-actions" scope="col">
+                <span className="lib-sr-only">{lt('table.actions')}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {paged.map((record, rowIndex) => {
+              const selected = selectedIds.has(record.id)
+              const rowClass = [
+                'lib-row',
+                selected ? 'is-selected' : '',
+                record.id === focusItemId ? 'is-focused' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')
+              return (
+                <tr
+                  key={record.id}
+                  data-row-key={record.id}
+                  className={rowClass}
+                  onClick={() => {
+                    if (focusItemId) focusItem(null)
+                  }}
+                >
+                  <td className="lib-td-check">
+                    <Checkbox
+                      checked={selected}
+                      onChange={() => toggleOne(record.id)}
+                      aria-label={primaryOf(record)}
+                    />
+                  </td>
+                  <td className="lib-td-pin">{starButton(record)}</td>
+                  {visibleFields.map((f, i) => {
+                    const value = record.fields[f.key]
+                    const isEditing = editCell?.id === record.id && editCell.key === f.key
+                    const isNum = isNumericField(f.type)
+                    return (
+                      <td key={f.key} className={`lib-td${isNum ? ' is-num' : ''}`}>
+                        {isEditing ? (
+                          <div
+                            className={`lib-cell-editing${savingCell ? ' is-saving' : ''}`}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                e.stopPropagation()
+                                cancelEdit()
+                              } else if (e.key === 'Enter' && !e.shiftKey && f.type !== 'textarea') {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                void commitEdit('down')
+                              } else if (e.key === 'Tab') {
+                                e.preventDefault()
+                                void commitEdit('right')
+                              }
+                            }}
+                          >
+                            <FieldRenderer field={f} value={draft} onChange={setDraft} autoFocus compact />
+                            {cellError ? <div className="lib-cell-error">{cellError}</div> : null}
+                          </div>
+                        ) : (
+                          <div
+                            tabIndex={0}
+                            role="button"
+                            data-cell={`${rowIndex}-${i}`}
+                            aria-label={`${record.fields[visibleFields[0]?.key ?? ''] ?? ''} · ${f.label} · ${t('lib.cell.editHint')}`}
+                            title={value == null || value === '' ? undefined : String(value)}
+                            className={`lib-cell-btn${isNum ? ' is-num' : ''}`}
+                            onClick={() => beginEdit(record, rowIndex, f)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === 'F2') {
+                                e.preventDefault()
+                                beginEdit(record, rowIndex, f)
+                              } else {
+                                onGridKeyDown(e, rowIndex, i)
+                              }
+                            }}
+                          >
+                            <div className={`lib-cell-inner${isNum ? ' is-num' : ''}`}>
+                              {isStatusField(f) ? (
+                                renderChip(f, value)
+                              ) : (
+                                <span className={`lib-cell-text${i === 0 ? ' lib-cell-primary' : ''}`}>
+                                  <SmartValue field={f} value={value} />
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    )
+                  })}
+                  <td className="lib-td-fill" aria-hidden />
+                  <td className="lib-td-actions">
+                    <div className="lib-row-actions">
+                      <Tooltip content={t('common.edit')} relationship="label">
+                        <Button
+                          appearance="transparent"
+                          size="small"
+                          icon={<EditRegular />}
+                          aria-label={t('common.edit')}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onEdit(record)
+                          }}
+                        />
+                      </Tooltip>
+                      <Tooltip content={t('common.delete')} relationship="label">
+                        <Button
+                          appearance="transparent"
+                          size="small"
+                          icon={<DeleteRegular />}
+                          aria-label={t('common.delete')}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDelete(record)
+                          }}
+                        />
+                      </Tooltip>
+                    </div>
+                  </td>
+                </tr>
+              )
             })}
-            pagination={false}
-            locale={{ emptyText: <div /> }}
-            rowClassName={(record) => (record.id === focusItemId ? 'lib-row-focus' : '')}
-            rowSelection={{
-              selectedRowKeys: [...selectedIds],
-              onChange: (keys) => setSelectedIds(new Set(keys.map(String))),
-              columnWidth: 38,
-              columnTitle: headerCheckbox,
-            }}
-          />
-        </div>
+          </tbody>
+        </table>
       </div>
+
       <div className="lib-statusbar">
         <div className="lib-status-group">
           <span className="lib-status-strong">{lt('status.total', { n: items.length })}</span>
           {selectedItems.length > 0 && (
-            <>
-              <span className="lib-status-sep" role="presentation" />
-              <span>{lt('status.selected', { n: selectedItems.length })}</span>
-            </>
+            <span className="lib-status-group">{lt('status.selected', { n: selectedItems.length })}</span>
           )}
         </div>
         <span className="lib-status-spacer" />
-        <div className="lib-pager-size">
-          <Dropdown menu={sizeMenu} trigger={['click']} placement="topRight">
-            <button type="button" className="w-chip">
-              {lt('status.perPage', { n: pageSize })}
-              <ChevronDownRegular style={{ fontSize: 12 }} />
-            </button>
-          </Dropdown>
-        </div>
-        {items.length === 0 ? null : pager()}
+        <Dropdown
+          size="small"
+          value={lt('status.perPage', { n: pageSize })}
+          selectedOptions={[String(pageSize)]}
+          onOptionSelect={(_, data) => {
+            if (!data.optionValue) return
+            setPageSize(Number(data.optionValue))
+            setPage(1)
+          }}
+          aria-label={lt('status.perPage', { n: pageSize })}
+        >
+          {PAGE_SIZES.map((n) => (
+            <Option key={n} value={String(n)} text={lt('status.perPage', { n })}>
+              {lt('status.perPage', { n })}
+            </Option>
+          ))}
+        </Dropdown>
+        {pager()}
       </div>
     </div>
   )

@@ -1,31 +1,50 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
-import { App, Button, Switch, Upload } from 'antd'
+import { App, Upload } from 'antd'
 import {
-  CloudOutlined,
-  DatabaseOutlined,
-  DeleteOutlined,
-  DownOutlined,
-  DownloadOutlined,
-  FileTextOutlined,
-  HistoryOutlined,
-  IdcardOutlined,
-  InfoCircleOutlined,
-  KeyOutlined,
-  PlusOutlined,
-  RobotOutlined,
-  RollbackOutlined,
-  SwapOutlined,
-  SyncOutlined,
-  UploadOutlined,
-  WarningOutlined,
-} from '@/components/common/icons'
+  Accordion,
+  AccordionHeader,
+  AccordionItem,
+  AccordionPanel,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Divider,
+  Dropdown,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Option,
+  Spinner,
+  Switch,
+  Tab,
+  TabList,
+  Text,
+  Textarea,
+} from '@fluentui/react-components'
 import {
+  AddRegular,
+  ArrowCounterclockwiseRegular,
+  ArrowDownloadRegular,
+  ArrowUploadRegular,
+  BotRegular,
+  CloudRegular,
+  DatabaseRegular,
+  DeleteRegular,
+  DocumentTextRegular,
+  GlobeRegular,
   HardDriveRegular,
+  HistoryRegular,
+  InfoRegular,
+  KeyRegular,
   LockClosedRegular,
   PersonRegular,
   PhoneDesktopRegular,
   SignOutRegular,
   SparkleRegular,
+  WarningRegular,
+  type FluentIcon,
 } from '@fluentui/react-icons'
 import dayjs from 'dayjs'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -56,11 +75,12 @@ import { useI18n } from '@/i18n'
 import { downloadBlob } from '@/utils/csv'
 
 /**
- * 设置页 · v9 Windows 11「设置」原生应用
+ * 设置页 · v10 Fluent UI 2（Windows 11 应用，不是操作系统）
  *
- * 结构：页头「设置」+ 左侧 208px 设置式分类列表（卡片容器，选中项左侧 3px 强调条）
- *       + 右侧 Win11 设置卡片（组标题 + 设置行：图标 / 标题 14 / 说明 12 / 右侧控件）。
- * 旧的编号索引（INDEX / 01 / ACCOUNT）与英文 kicker 已全部删除。
+ * 唯一设计系统 = @fluentui/react-components：
+ *   TabList(vertical) 分类导航 + Card/CardHeader 设置卡 + Divider + 设置行
+ *   （图标 + Text + 右侧 Switch/Dropdown/Button/Input/Accordion）+ MessageBar 说明。
+ * 页面不含自绘按钮/卡片/输入框；颜色/圆角/阴影全部来自 Fluent token。
  *
  * 数据与行为完全保留：改密、存储模式切换与双向/拉取同步、局域网互传、
  * AI 平台/自定义接入与记忆、备份导入导出、快照存取删、退出登录。
@@ -79,18 +99,31 @@ const TAB_LABEL: Record<TabKey, string> = {
 
 const TAB_ORDER: TabKey[] = ['account', 'ai', 'backup', 'configsync', 'storage', 'support']
 
-/** 分类图标（Win11 Settings NavigationView 风格） */
-const TAB_ICON: Record<TabKey, React.ComponentType> = {
+const TAB_ICON: Record<TabKey, FluentIcon> = {
   account: PersonRegular,
   ai: SparkleRegular,
-  backup: HistoryOutlined,
+  backup: HistoryRegular,
   configsync: PhoneDesktopRegular,
-  storage: CloudOutlined,
-  support: InfoCircleOutlined,
+  storage: CloudRegular,
+  support: InfoRegular,
 }
 
-/** 设置卡片：组标题（14 semibold）+ 可选说明 + 内容 */
-function SetCard({
+/** 窄屏（≤900px）时导航由左侧竖排切为顶部横排；用 matchMedia 替代 antd Grid */
+function useNarrowLayout() {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)')
+    const onChange = () => setNarrow(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return narrow
+}
+
+/** Fluent 设置卡：Card + CardHeader + Divider + 内容 */
+function SettingCard({
   title,
   desc,
   icon,
@@ -101,54 +134,92 @@ function SetCard({
   title?: React.ReactNode
   desc?: React.ReactNode
   icon?: React.ReactNode
-  action?: React.ReactNode
+  action?: React.ReactElement
   tone?: 'danger'
   children: React.ReactNode
 }) {
   return (
-    <div className={`w-card${tone === 'danger' ? ' w-set-danger' : ''}`}>
+    <Card appearance="filled" className={`w-set-card${tone === 'danger' ? ' w-set-card--danger' : ''}`}>
       {(title || desc) && (
-        <div className="w-set-group">
-          <div className="w-set-group-row">
-            {title ? (
-              <h3 className="w-set-group-title">
-                {icon}
-                {title}
-              </h3>
-            ) : (
-              <span />
-            )}
-            {action}
-          </div>
-          {desc && <p className="w-set-group-desc">{desc}</p>}
-        </div>
+        <>
+          <CardHeader
+            image={
+              icon ? (
+                <span className="w-set-card-icon" aria-hidden>
+                  {icon}
+                </span>
+              ) : undefined
+            }
+            header={
+              title ? (
+                <Text size={300} weight="semibold" className={tone === 'danger' ? 'w-danger-text' : 'w-card-heading'}>
+                  {title}
+                </Text>
+              ) : undefined
+            }
+            description={
+              desc ? (
+                <Text size={200} className="w-muted">
+                  {desc}
+                </Text>
+              ) : undefined
+            }
+            action={action}
+          />
+          <Divider />
+        </>
       )}
       {children}
+    </Card>
+  )
+}
+
+/** 设置行（静态）：图标 + 标题/说明 + 右侧 Fluent 控件 */
+function SettingRow({
+  icon,
+  title,
+  desc,
+  control,
+}: {
+  icon?: React.ReactNode
+  title: React.ReactNode
+  desc?: React.ReactNode
+  control?: React.ReactNode
+}) {
+  return (
+    <div className="w-set-row">
+      {icon && (
+        <span className="w-set-row-icon" aria-hidden>
+          {icon}
+        </span>
+      )}
+      <span className="w-set-row-main">
+        <Text size={300} className="w-set-row-title">
+          {title}
+        </Text>
+        {desc && (
+          <Text size={200} className="w-set-row-desc">
+            {desc}
+          </Text>
+        )}
+      </span>
+      {control && <span className="w-set-row-control">{control}</span>}
     </div>
   )
 }
 
-/** Win11 InfoBar：说明类信息不再用彩色大 Alert 块 */
+/** Win11 InfoBar → Fluent MessageBar（说明/警告） */
 function Notice({
   kind = 'info',
-  title,
   children,
 }: {
   kind?: 'info' | 'warning' | 'danger'
-  title?: string
   children: React.ReactNode
 }) {
-  const Icon = kind === 'info' ? InfoCircleOutlined : WarningOutlined
   return (
-    <div className={`w-set-note${kind === 'info' ? '' : ` w-set-note--${kind}`}`}>
-      <span className="w-set-note-icon" aria-hidden>
-        <Icon />
-      </span>
-      <div className="w-set-note-main">
-        {title && <div className="w-set-note-title">{title}</div>}
-        <div className="w-set-note-body">{children}</div>
-      </div>
-    </div>
+    <MessageBar intent={kind === 'info' ? 'info' : kind === 'warning' ? 'warning' : 'error'}>
+      <MessageBarBody>{children}</MessageBarBody>
+    </MessageBar>
   )
 }
 
@@ -169,46 +240,52 @@ function SyncStatusBanner() {
   const when = st.at ? new Date(st.at).toLocaleString() : ''
   if (st.phase === 'off') {
     return (
-      <div className="w-set-sync">
-        <CloudOutlined />
-        <span>
-          <strong>{t('settings.sync.off')}</strong>
+      <div className="w-set-status">
+        <CloudRegular />
+        <Text size={200} className="w-muted">
+          <Text weight="semibold" size={200}>
+            {t('settings.sync.off')}
+          </Text>
           {' · '}
           {t('settings.sync.offDesc')}
-        </span>
+        </Text>
       </div>
     )
   }
   if (st.phase === 'error') {
     return (
-      <div className="w-set-sync w-set-sync--error">
-        <WarningOutlined />
-        <span>
-          <strong className="w-set-sync-tone">{t('settings.sync.error')}</strong>
+      <div className="w-set-status w-set-status--danger">
+        <WarningRegular />
+        <Text size={200} className="w-muted">
+          <Text weight="semibold" size={200} className="w-danger-text">
+            {t('settings.sync.error')}
+          </Text>
           {' · '}
           {t('settings.sync.lastOk')}: {when || '—'}
           {st.message ? ` · ${st.message}` : ''}
-        </span>
+        </Text>
       </div>
     )
   }
   if (st.phase === 'syncing') {
     return (
-      <div className="w-set-sync">
-        <SyncOutlined />
-        <span>
+      <div className="w-set-status">
+        <Spinner size="tiny" />
+        <Text size={200} className="w-muted">
           {t('settings.sync.syncing')} · {t('settings.sync.syncingDesc')}
-        </span>
+        </Text>
       </div>
     )
   }
   return (
-    <div className="w-set-sync w-set-sync--ok">
-      <CloudOutlined />
-      <span>
-        <span className="w-set-sync-tone">{t('settings.sync.ok')}</span> · {t('settings.sync.lastOk')}:{' '}
-        {when || t('settings.sync.never')}
-      </span>
+    <div className="w-set-status">
+      <CloudRegular />
+      <Text size={200} className="w-muted">
+        <Text weight="semibold" size={200}>
+          {t('settings.sync.ok')}
+        </Text>{' '}
+        · {t('settings.sync.lastOk')}: {when || t('settings.sync.never')}
+      </Text>
     </div>
   )
 }
@@ -216,6 +293,7 @@ function SyncStatusBanner() {
 export default function SettingsPage() {
   const t = useI18n()
   const [search] = useSearchParams()
+  const narrow = useNarrowLayout()
 
   const fromUrl = search.get('tab') as TabKey | null
   const [tab, setTab] = useState<TabKey>(
@@ -229,8 +307,6 @@ export default function SettingsPage() {
     u.searchParams.set('tab', k)
     window.history.replaceState(null, '', u.toString())
   }
-
-  const items = TAB_ORDER.map((k) => ({ key: k, label: t(TAB_LABEL[k]) }))
 
   const panels: Record<TabKey, React.ReactNode> = {
     account: <AccountTab />,
@@ -247,45 +323,43 @@ export default function SettingsPage() {
     <div className="w-page w-set">
       <header className="w-page-head">
         <div className="w-head-main">
-          <h1 className="w-title">{t('settings.pageTitle')}</h1>
-          <p className="w-desc">{t('settings.pageLede')}</p>
+          <Text as="h1" size={700} weight="semibold" className="w-set-page-title">
+            {t('settings.pageTitle')}
+          </Text>
+          <Text size={300} className="w-muted">
+            {t('settings.pageLede')}
+          </Text>
         </div>
       </header>
 
       <div className="w-set-layout">
-        {/* 左：设置分类列表（卡片容器 + 选中项左侧 3px 强调条） */}
-        <nav className="w-card w-set-nav" aria-label={t('settings.pageTitle')}>
-          <div className="w-rows">
-            {items.map((it) => {
-              const active = it.key === tab
-              const Icon = TAB_ICON[it.key as TabKey]
-              return (
-                <button
-                  key={it.key}
-                  type="button"
-                  aria-current={active ? 'page' : undefined}
-                  className={`w-set-nav-item${active ? ' is-active' : ''}`}
-                  onClick={() => select(it.key as TabKey)}
-                >
-                  <span className="w-set-nav-icon" aria-hidden>
-                    <Icon />
-                  </span>
-                  <span className="w-set-nav-label">{it.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
+        {/* 左：Fluent TabList 分类导航（窄屏横向） */}
+        <TabList
+          vertical={!narrow}
+          selectedValue={tab}
+          onTabSelect={(_, data) => select(data.value as TabKey)}
+          className="w-set-nav"
+          aria-label={t('settings.pageTitle')}
+        >
+          {TAB_ORDER.map((k) => {
+            const Icon = TAB_ICON[k]
+            return (
+              <Tab key={k} value={k} icon={<Icon />}>
+                {t(TAB_LABEL[k])}
+              </Tab>
+            )
+          })}
+        </TabList>
 
-        {/* 右：Win11 设置卡片 */}
+        {/* 右：Fluent Card 设置卡 */}
         <section className="w-set-content" aria-label={t(TAB_LABEL[tab])}>
           <div className="w-set-pane-head">
-            <span className="w-set-pane-mark" aria-hidden>
+            <span className="w-set-pane-icon" aria-hidden>
               <PaneIcon />
             </span>
-            <div className="w-set-pane-main">
-              <h2 className="w-set-pane-title">{t(TAB_LABEL[tab])}</h2>
-            </div>
+            <Text as="h2" size={500} weight="semibold" className="w-set-pane-title">
+              {t(TAB_LABEL[tab])}
+            </Text>
           </div>
           {tab === 'support' ? <div className="w-set-stack">{panels[tab]}</div> : panels[tab]}
         </section>
@@ -334,114 +408,100 @@ function AccountTab() {
 
   return (
     <div className="w-set-stack">
-      <SetCard
+      <SettingCard
         title={t('settings.account.current').replace(/[:：]\s*$/, '')}
+        icon={<PersonRegular />}
         desc={t('settings.account.freeForeverHint')}
       >
-        <div className="w-rows">
-          <div className="w-row">
-            <span className="w-row-icon" aria-hidden>
-              <PersonRegular />
-            </span>
-            <div className="w-row-main">
-              <span className="w-row-title">{account?.username ?? '—'}</span>
-              <span className="w-row-desc">
-                {t('settings.account.current').replace(/[:：]\s*$/, '')}
-              </span>
-            </div>
-          </div>
-          <div className="w-row">
-            <span className="w-row-icon w-row-icon--neutral" aria-hidden>
-              <IdcardOutlined />
-            </span>
-            <div className="w-row-main">
-              <span className="w-row-title">{account?.contact || '—'}</span>
-              <span className="w-row-desc">
-                {t('settings.account.contact').replace(/[:：]\s*$/, '')}
-              </span>
-            </div>
-          </div>
+        <div className="w-set-rows">
+          <SettingRow
+            icon={<PersonRegular />}
+            title={account?.username ?? '—'}
+            desc={t('settings.account.current').replace(/[:：]\s*$/, '')}
+          />
+          <SettingRow
+            icon={<PersonRegular />}
+            title={account?.contact || '—'}
+            desc={t('settings.account.contact').replace(/[:：]\s*$/, '')}
+          />
         </div>
-      </SetCard>
+      </SettingCard>
 
-      <SetCard
+      <SettingCard
         title={t('settings.account.pwdInfo.title')}
         icon={<LockClosedRegular />}
-        desc={t('settings.account.pwdInfo.body')}
+        desc={t('settings.account.pwdOnlyYou')}
       >
-        <div className="w-rows">
-          <button
-            type="button"
-            className="w-row w-row--button"
-            aria-expanded={pwdOpen}
-            onClick={() => setPwdOpen((v) => !v)}
-          >
-            <span className="w-row-icon" aria-hidden>
-              <KeyOutlined />
-            </span>
-            <div className="w-row-main">
-              <span className="w-row-title">{t('settings.account.changePwd')}</span>
-              <span className="w-row-desc">{t('settings.account.pwdOnlyYou')}</span>
-            </div>
-            <span className="w-row-control">
-              <span className={`w-set-row-chev${pwdOpen ? ' is-open' : ''}`}>
-                <DownOutlined />
+        <Accordion
+          collapsible
+          openItems={pwdOpen ? ['password'] : []}
+          onToggle={(_, data) => setPwdOpen(data.openItems.length > 0)}
+        >
+          <AccordionItem value="password">
+            <AccordionHeader>
+              <span className="w-set-row-main">
+                <Text size={300} className="w-set-row-title">
+                  {t('settings.account.pwdCard')}
+                </Text>
+                <Text size={200} className="w-set-row-desc">
+                  {t('settings.account.newPwdPlaceholder')}
+                </Text>
               </span>
-            </span>
-          </button>
-        </div>
-        {pwdOpen && (
-          <div className="w-set-expander">
-            <div className="w-set-expander-grid">
-              <label className="w-field">
-                <span className="w-label">{t('settings.account.oldPwd')}</span>
-                <input
-                  type="password"
-                  className="w-input"
-                  value={oldPwd}
-                  onChange={(e) => setOldPwd(e.target.value)}
-                  autoComplete="current-password"
-                />
-              </label>
-              <label className="w-field">
-                <span className="w-label">{t('settings.account.newPwdPlaceholder')}</span>
-                <input
-                  type="password"
-                  className="w-input"
-                  value={newPwd}
-                  onChange={(e) => setNewPwd(e.target.value)}
-                  autoComplete="new-password"
-                />
-              </label>
-            </div>
-            <div className="w-set-actions w-set-actions--top">
-              <Button type="primary" loading={pwdLoading} onClick={() => void handleChangePwd()}>
-                {t('settings.account.pwdConfirm')}
-              </Button>
-              <Button
-                onClick={() => {
-                  setPwdOpen(false)
-                  setOldPwd('')
-                  setNewPwd('')
-                }}
-              >
-                {t('common.cancel')}
-              </Button>
-            </div>
-          </div>
-        )}
-      </SetCard>
+            </AccordionHeader>
+            <AccordionPanel>
+              <div className="w-set-expander">
+                <div className="w-set-expander-grid">
+                  <Field label={t('settings.account.oldPwd')}>
+                    <Input
+                      type="password"
+                      value={oldPwd}
+                      onChange={(_, data) => setOldPwd(data.value)}
+                      autoComplete="current-password"
+                    />
+                  </Field>
+                  <Field label={t('settings.account.newPwdPlaceholder')}>
+                    <Input
+                      type="password"
+                      value={newPwd}
+                      onChange={(_, data) => setNewPwd(data.value)}
+                      autoComplete="new-password"
+                    />
+                  </Field>
+                </div>
+                <div className="w-set-actions">
+                  <Button
+                    appearance="primary"
+                    disabled={pwdLoading}
+                    icon={pwdLoading ? <Spinner size="tiny" /> : undefined}
+                    onClick={() => void handleChangePwd()}
+                  >
+                    {t('settings.account.pwdConfirm')}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setPwdOpen(false)
+                      setOldPwd('')
+                      setNewPwd('')
+                    }}
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                </div>
+              </div>
+            </AccordionPanel>
+          </AccordionItem>
+        </Accordion>
+      </SettingCard>
 
-      <SetCard
-        tone="danger"
+      <SettingCard
         title={t('app.signOut')}
         icon={<SignOutRegular />}
         desc={t('settings.account.logoutHint')}
+        tone="danger"
       >
         <div className="w-set-actions">
-          <button
-            type="button"
-            className="w-btn w-btn--danger"
+          <Button
+            className="w-danger-action"
             onClick={async () => {
               // 走统一收口：退出前同步 + 清空库数据（之前这里只清了 token）
               await resetSession()
@@ -449,9 +509,9 @@ function AccountTab() {
             }}
           >
             {t('settings.account.logout')}
-          </button>
+          </Button>
         </div>
-      </SetCard>
+      </SettingCard>
     </div>
   )
 }
@@ -600,74 +660,84 @@ function StorageTab() {
 
   return (
     <div className="w-set-stack">
-      <Notice kind="warning" title={t('settings.storage.advanced')}>
+      <Notice kind="warning">
+        <Text weight="semibold" size={200}>
+          {t('settings.storage.advanced')}
+        </Text>{' '}
         {t('settings.storage.info.body')}
       </Notice>
 
-      <SetCard>
-        <div className="w-rows">
-          <div className="w-row">
-            <span className="w-row-icon" aria-hidden>
-              <HardDriveRegular />
+      <SettingCard>
+        <div className="w-set-rows">
+          <SettingRow
+            icon={<HardDriveRegular />}
+            title={cloud ? t('settings.storage.mode.cloudOn') : t('settings.storage.mode.localOn')}
+            desc={t('settings.storage.info.title')}
+            control={
+              <Switch
+                checked={cloud}
+                onChange={(_, data) => handleToggle(data.checked)}
+                aria-label={t('settings.tab.storage')}
+              />
+            }
+          />
+          <div className="w-set-row w-set-row--field">
+            <span className="w-set-row-icon" aria-hidden>
+              <DatabaseRegular />
             </span>
-            <div className="w-row-main">
-              <span className="w-row-title">
-                {cloud ? t('settings.storage.mode.cloudOn') : t('settings.storage.mode.localOn')}
-              </span>
-              <span className="w-row-desc">{t('settings.storage.info.title')}</span>
-            </div>
-            <div className="w-row-control">
-              <Switch checked={cloud} onChange={handleToggle} />
-            </div>
-          </div>
-
-          <div className="w-row w-set-row--field">
-            <span className="w-row-icon w-row-icon--neutral" aria-hidden>
-              <DatabaseOutlined />
+            <span className="w-set-row-main">
+              <Text size={300} className="w-set-row-title">
+                {t('settings.storage.url')}
+              </Text>
+              <Text size={200} className="w-set-row-desc">
+                Supabase
+              </Text>
             </span>
-            <div className="w-row-main">
-              <span className="w-row-title">{t('settings.storage.url')}</span>
-              <span className="w-row-desc">Supabase</span>
-            </div>
-            <div className="w-row-control">
-              <input
-                className="w-input"
+            <span className="w-set-row-control">
+              <Input
+                className="w-set-input"
                 placeholder="https://xxxx.supabase.co"
                 value={settings.cloud.url}
-                onChange={(e) => setCloud({ url: e.target.value })}
                 disabled={cloud}
+                onChange={(_, data) => setCloud({ url: data.value })}
               />
-            </div>
-          </div>
-
-          <div className="w-row w-set-row--field">
-            <span className="w-row-icon w-row-icon--neutral" aria-hidden>
-              <KeyOutlined />
             </span>
-            <div className="w-row-main">
-              <span className="w-row-title">{t('settings.storage.key')}</span>
-              <span className="w-row-desc">anon public key</span>
-            </div>
-            <div className="w-row-control">
-              <input
-                className="w-input"
+          </div>
+          <div className="w-set-row w-set-row--field">
+            <span className="w-set-row-icon" aria-hidden>
+              <KeyRegular />
+            </span>
+            <span className="w-set-row-main">
+              <Text size={300} className="w-set-row-title">
+                {t('settings.storage.key')}
+              </Text>
+              <Text size={200} className="w-set-row-desc">
+                anon public key
+              </Text>
+            </span>
+            <span className="w-set-row-control">
+              <Input
+                className="w-set-input"
                 type="password"
                 placeholder="eyJhbGci..."
                 value={settings.cloud.anonKey}
-                onChange={(e) => setCloud({ anonKey: e.target.value })}
                 disabled={cloud}
+                onChange={(_, data) => setCloud({ anonKey: data.value })}
               />
-            </div>
+            </span>
           </div>
         </div>
 
         {/* 建表 SQL 属于一次性技术步骤：默认折叠，避免把设置页撑成文档页 */}
-        <details className="w-set-details">
-          <summary>
-            <FileTextOutlined />
-            {t('settings.storage.sqlTitle')}
-          </summary>
-          <pre className="w-set-code">
+        <Accordion collapsible className="w-set-accordion">
+          <AccordionItem value="sql">
+            <AccordionHeader>
+              <Text size={200} className="w-muted">
+                {t('settings.storage.sqlTitle')}
+              </Text>
+            </AccordionHeader>
+            <AccordionPanel>
+              <pre className="w-set-code">
 {`-- 已经建过表的话，在 Supabase SQL Editor 里再跑一次这三句补列
 alter table libraries add column if not exists updated_at bigint default 0;
 alter table fields   add column if not exists updated_at bigint default 0;
@@ -717,49 +787,50 @@ alter table accounts disable row level security;
 alter table libraries disable row level security;
 alter table fields disable row level security;
 alter table items disable row level security;`}
-          </pre>
-        </details>
-      </SetCard>
+              </pre>
+            </AccordionPanel>
+          </AccordionItem>
+        </Accordion>
+      </SettingCard>
 
       {settings.cloud.url && settings.cloud.anonKey ? (
-        <SetCard title={t('settings.storage.syncTitle')} icon={<SyncOutlined />} desc={t('settings.storage.hint.sync')}>
-          <div className="w-rows">
-            <div className="w-row">
-              <span className="w-row-icon w-row-icon--neutral" aria-hidden>
-                <CloudOutlined />
-              </span>
-              <div className="w-row-main">
-                <span className="w-row-title">
-                  {t('settings.storage.currentMode')}
-                  {cloud ? t('settings.storage.mode.cloud') : t('settings.storage.mode.local')}
-                </span>
-                <span className="w-row-desc">
-                  {account ? t('settings.storage.accountLabel') + account.username : t('settings.storage.warn.login')}
-                </span>
-              </div>
-            </div>
+        <SettingCard title={t('settings.storage.syncTitle')} icon={<CloudRegular />} desc={t('settings.storage.hint.sync')}>
+          <div className="w-set-rows">
+            <SettingRow
+              icon={<CloudRegular />}
+              title={`${t('settings.storage.currentMode')}${
+                cloud ? t('settings.storage.mode.cloud') : t('settings.storage.mode.local')
+              }`}
+              desc={
+                account
+                  ? t('settings.storage.accountLabel') + account.username
+                  : t('settings.storage.warn.login')
+              }
+            />
           </div>
           <div className="w-set-actions">
             <Button
-              type="primary"
-              loading={syncing}
+              appearance="primary"
+              disabled={!account || syncing}
+              icon={syncing ? <Spinner size="tiny" /> : undefined}
               onClick={() => handleSync('push')}
-              disabled={!account}
-              icon={<SwapOutlined />}
             >
               {t('settings.storage.btn.bidirectional')}
             </Button>
             <Button
-              icon={<DownloadOutlined />}
-              loading={syncing}
+              icon={syncing ? <Spinner size="tiny" /> : <ArrowDownloadRegular />}
+              disabled={!account || syncing}
               onClick={() => handleSync('pull')}
-              disabled={!account}
             >
               {t('settings.storage.btn.pull')}
             </Button>
           </div>
-          <p className="w-set-hint w-set-prose">{t('settings.storage.hint.qr')}</p>
-        </SetCard>
+          <div className="w-set-pad">
+            <Text size={200} className="w-muted">
+              {t('settings.storage.hint.qr')}
+            </Text>
+          </div>
+        </SettingCard>
       ) : null}
     </div>
   )
@@ -773,17 +844,13 @@ function ConfigSyncTab() {
 
   return (
     <div className="w-set-stack">
-      <SetCard
-        title={t('settings.f2f.card.title')}
-        icon={<PhoneDesktopRegular />}
-        desc={t('settings.f2f.card.body')}
-      >
+      <SettingCard title={t('settings.f2f.card.title')} icon={<PhoneDesktopRegular />} desc={t('settings.f2f.card.body')}>
         <div className="w-set-actions">
-          <Button type="primary" icon={<SwapOutlined />} onClick={() => setF2fOpen(true)}>
+          <Button appearance="primary" icon={<PhoneDesktopRegular />} onClick={() => setF2fOpen(true)}>
             {t('settings.f2f.card.btn')}
           </Button>
         </div>
-      </SetCard>
+      </SettingCard>
       <FaceToFaceSyncModal open={f2fOpen} onClose={() => setF2fOpen(false)} />
     </div>
   )
@@ -860,125 +927,142 @@ function AITab() {
 
   return (
     <div className="w-set-stack">
-      <Notice kind="info" title={t('settings.ai.info.title')}>
+      <Notice kind="info">
+        <Text weight="semibold" size={200}>
+          {t('settings.ai.info.title')}
+        </Text>{' '}
         {usingPlatform ? t('settings.ai.info.platform') : t('settings.ai.info.custom')}
       </Notice>
       {usingPlatform && (
-        <Notice kind="warning" title={t('settings.ai.platform.warn')}>
-          {t('settings.ai.radio.platform')}
+        <Notice kind="warning">
+          <Text weight="semibold" size={200}>
+            {t('settings.ai.platform.warn')}
+          </Text>
         </Notice>
       )}
 
-      <SetCard title={t('settings.ai.radio.label')} icon={<SparkleRegular />} desc={t('settings.ai.autosave')}>
-        <div className="w-set-form">
-          <div className="w-set-seg" role="radiogroup" aria-label={t('settings.ai.radio.label')}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={usingPlatform}
-              disabled={platformEnabled !== true}
-              className={`w-set-seg-item${usingPlatform ? ' is-active' : ''}`}
-              onClick={() => setAI({ usePlatformAI: true })}
-            >
-              {platformEnabled === true
-                ? t('settings.ai.radio.platform')
-                : t('settings.ai.radio.platformOff')}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!usingPlatform}
-              className={`w-set-seg-item${!usingPlatform ? ' is-active' : ''}`}
-              onClick={() => setAI({ usePlatformAI: false })}
-            >
-              {t('settings.ai.radio.custom')}
-            </button>
-          </div>
+      <SettingCard title={t('settings.ai.radio.label')} icon={<SparkleRegular />} desc={t('settings.ai.autosave')}>
+        <div className="w-set-rows">
+          <SettingRow
+            icon={<BotRegular />}
+            title={usingPlatform ? t('settings.ai.radio.platform') : t('settings.ai.radio.custom')}
+            desc={t('settings.ai.autosave')}
+            control={
+              <Dropdown
+                className="w-set-dropdown"
+                value={usingPlatform ? t('settings.ai.radio.platform') : t('settings.ai.radio.custom')}
+                selectedOptions={[usingPlatform ? 'platform' : 'custom']}
+                onOptionSelect={(_, data) => {
+                  if (data.optionValue) setAI({ usePlatformAI: data.optionValue === 'platform' })
+                }}
+                aria-label={t('settings.ai.radio.label')}
+              >
+                <Option value="platform" disabled={platformEnabled !== true}>
+                  {platformEnabled === true
+                    ? t('settings.ai.radio.platform')
+                    : t('settings.ai.radio.platformOff')}
+                </Option>
+                <Option value="custom">{t('settings.ai.radio.custom')}</Option>
+              </Dropdown>
+            }
+          />
         </div>
-      </SetCard>
+      </SettingCard>
 
       {!usingPlatform && (
-        <SetCard title={t('settings.ai.radio.custom')} icon={<RobotOutlined />}>
-          <div className="w-rows">
-            <div className="w-row w-set-row--field">
-              <span className="w-row-icon w-row-icon--neutral" aria-hidden>
-                <CloudOutlined />
+        <SettingCard title={t('settings.ai.radio.custom')} icon={<BotRegular />}>
+          <div className="w-set-rows">
+            <div className="w-set-row w-set-row--field">
+              <span className="w-set-row-icon" aria-hidden>
+                <GlobeRegular />
               </span>
-              <div className="w-row-main">
-                <span className="w-row-title">{t('settings.ai.baseUrl')}</span>
-                <span className="w-row-desc">https://api.example.com/v1</span>
-              </div>
-              <div className="w-row-control">
-                <input
-                  className="w-input"
+              <span className="w-set-row-main">
+                <Text size={300} className="w-set-row-title">
+                  {t('settings.ai.baseUrl')}
+                </Text>
+                <Text size={200} className="w-set-row-desc">
+                  https://api.example.com/v1
+                </Text>
+              </span>
+              <span className="w-set-row-control">
+                <Input
+                  className="w-set-input"
                   placeholder="https://api.你的服务商.com/v1"
                   value={settings.ai.baseUrl}
-                  onChange={(e) => setAI({ baseUrl: e.target.value })}
+                  onChange={(_, data) => setAI({ baseUrl: data.value })}
                 />
-              </div>
-            </div>
-            <div className="w-row w-set-row--field">
-              <span className="w-row-icon w-row-icon--neutral" aria-hidden>
-                <KeyOutlined />
               </span>
-              <div className="w-row-main">
-                <span className="w-row-title">{t('settings.ai.apiKey')}</span>
-                <span className="w-row-desc">sk-...</span>
-              </div>
-              <div className="w-row-control">
-                <input
-                  className="w-input"
+            </div>
+            <div className="w-set-row w-set-row--field">
+              <span className="w-set-row-icon" aria-hidden>
+                <KeyRegular />
+              </span>
+              <span className="w-set-row-main">
+                <Text size={300} className="w-set-row-title">
+                  {t('settings.ai.apiKey')}
+                </Text>
+                <Text size={200} className="w-set-row-desc">
+                  sk-...
+                </Text>
+              </span>
+              <span className="w-set-row-control">
+                <Input
+                  className="w-set-input"
                   type="password"
                   placeholder="sk-..."
                   value={settings.ai.apiKey}
-                  onChange={(e) => setAI({ apiKey: e.target.value })}
+                  onChange={(_, data) => setAI({ apiKey: data.value })}
                 />
-              </div>
-            </div>
-            <div className="w-row w-set-row--field">
-              <span className="w-row-icon w-row-icon--neutral" aria-hidden>
-                <FileTextOutlined />
               </span>
-              <div className="w-row-main">
-                <span className="w-row-title">{t('settings.ai.model')}</span>
-                <span className="w-row-desc">{t('settings.ai.autosave')}</span>
-              </div>
-              <div className="w-row-control">
-                <input
-                  className="w-input"
+            </div>
+            <div className="w-set-row w-set-row--field">
+              <span className="w-set-row-icon" aria-hidden>
+                <DocumentTextRegular />
+              </span>
+              <span className="w-set-row-main">
+                <Text size={300} className="w-set-row-title">
+                  {t('settings.ai.model')}
+                </Text>
+                <Text size={200} className="w-set-row-desc">
+                  {t('settings.ai.autosave')}
+                </Text>
+              </span>
+              <span className="w-set-row-control">
+                <Input
+                  className="w-set-input"
                   placeholder="填写服务商文档中的模型名称"
                   value={settings.ai.model}
-                  onChange={(e) => setAI({ model: e.target.value })}
+                  onChange={(_, data) => setAI({ model: data.value })}
                 />
-              </div>
+              </span>
             </div>
           </div>
           <div className="w-set-actions">
-            <Button type="primary" icon={<RobotOutlined />} onClick={() => void handleTest()}>
+            <Button appearance="primary" icon={<BotRegular />} onClick={() => void handleTest()}>
               {t('settings.ai.test')}
             </Button>
           </div>
-        </SetCard>
+        </SettingCard>
       )}
 
-      <SetCard
+      <SettingCard
         title={t('settings.ai.prompt.label')}
-        icon={<FileTextOutlined />}
+        icon={<DocumentTextRegular />}
         desc={t('settings.ai.prompt.help')}
         action={
-          <span className="w-set-mono">
+          <Badge appearance="tint" color="informative" size="medium">
             {settings.ai.customPrompt ? t('settings.ai.prompt.custom') : t('settings.ai.prompt.default')}
-          </span>
+          </Badge>
         }
       >
         <div className="w-set-form">
-          <textarea
-            className="w-input w-textarea"
+          <Textarea
+            className="w-set-textarea"
             rows={6}
+            resize="vertical"
             placeholder={SYSTEM_PROMPT}
             value={settings.ai.customPrompt}
-            onChange={(e) => setAI({ customPrompt: e.target.value })}
-            style={{ fontFamily: 'var(--w-font-mono)', fontSize: 12 }}
+            onChange={(_, data) => setAI({ customPrompt: data.value })}
           />
         </div>
         <div className="w-set-actions">
@@ -1001,28 +1085,34 @@ function AITab() {
             {t('settings.ai.prompt.loadDefault')}
           </Button>
         </div>
-      </SetCard>
+      </SettingCard>
 
-      <SetCard
+      <SettingCard
         title={t('settings.ai.memory.label')}
-        icon={<DatabaseOutlined />}
+        icon={<DatabaseRegular />}
         desc={t('settings.ai.memory.help')}
-        action={memoryCount > 0 ? <span className="w-set-mono">{t('settings.ai.memory.count', { n: memoryCount })}</span> : null}
+        action={
+          memoryCount > 0 ? (
+            <Badge appearance="tint" color="informative" size="medium">
+              {t('settings.ai.memory.count', { n: memoryCount })}
+            </Badge>
+          ) : undefined
+        }
       >
         <div className="w-set-form">
-          <textarea
-            className="w-input w-textarea"
+          <Textarea
+            className="w-set-textarea"
             rows={6}
+            resize="vertical"
             placeholder={t('settings.ai.memory.placeholder')}
             value={memoryLines}
-            onChange={(e) => handleMemoryChange(e.target.value)}
-            style={{ fontFamily: 'var(--w-font-mono)', fontSize: 12 }}
+            onChange={(_, data) => handleMemoryChange(data.value)}
           />
         </div>
         <div className="w-set-actions">
           <Button
             size="small"
-            danger
+            className="w-danger-action"
             disabled={!memoryLines}
             onClick={() => {
               if (account) clearMemory(account.id)
@@ -1032,9 +1122,11 @@ function AITab() {
           >
             {t('settings.ai.memory.clear')}
           </Button>
-          <span className="w-set-hint">{t('settings.ai.memory.localNote')}</span>
+          <Text size={200} className="w-muted">
+            {t('settings.ai.memory.localNote')}
+          </Text>
         </div>
-      </SetCard>
+      </SettingCard>
     </div>
   )
 }
@@ -1177,90 +1269,91 @@ function BackupTab() {
 
   return (
     <div className="w-set-stack">
-      <SetCard
-        title={t('settings.backup.info.title')}
-        icon={<HistoryOutlined />}
-        desc={t('settings.backup.info.body')}
-      >
-        <div className="w-rows">
+      <SettingCard title={t('settings.backup.info.title')} icon={<HistoryRegular />} desc={t('settings.backup.info.body')}>
+        <div className="w-set-rows">
           <SyncStatusBanner />
-          <div className="w-row">
-            <span className="w-row-icon" aria-hidden>
-              <DownloadOutlined />
-            </span>
-            <div className="w-row-main">
-              <span className="w-row-title">{t('settings.backup.export')}</span>
-              <span className="w-row-desc">{t('settings.backup.exported')}</span>
-            </div>
-            <div className="w-row-control">
-              <button type="button" className="w-btn" onClick={() => void handleExport()}>
+          <SettingRow
+            icon={<ArrowDownloadRegular />}
+            title={t('settings.backup.export')}
+            desc={t('settings.backup.exported')}
+            control={
+              <Button appearance="secondary" icon={<ArrowDownloadRegular />} onClick={() => void handleExport()}>
                 {t('settings.backup.export')}
-              </button>
-            </div>
-          </div>
-          <div className="w-row">
-            <span className="w-row-icon w-row-icon--neutral" aria-hidden>
-              <UploadOutlined />
-            </span>
-            <div className="w-row-main">
-              <span className="w-row-title">{t('settings.backup.import')}</span>
-              <span className="w-row-desc">{t('settings.backup.cloudNote')}</span>
-            </div>
-            <div className="w-row-control">
+              </Button>
+            }
+          />
+          <SettingRow
+            icon={<ArrowUploadRegular />}
+            title={t('settings.backup.import')}
+            desc={t('settings.backup.cloudNote')}
+            control={
               <Upload beforeUpload={handleImport} showUploadList={false} accept=".json">
-                <button type="button" className="w-btn">
+                <Button appearance="secondary" icon={<ArrowUploadRegular />}>
                   {t('settings.backup.import')}
-                </button>
+                </Button>
               </Upload>
-            </div>
-          </div>
+            }
+          />
         </div>
-      </SetCard>
+      </SettingCard>
 
-      <SetCard
+      <SettingCard
         title={t('settings.snap.title')}
-        icon={<HistoryOutlined />}
+        icon={<HistoryRegular />}
         desc={t('settings.snap.hint', { max: MAX_SNAPSHOTS })}
         action={
-          <Button size="small" icon={<PlusOutlined />} loading={snapLoading} onClick={() => void handleManualSnapshot()}>
+          <Button
+            size="small"
+            icon={snapLoading ? <Spinner size="tiny" /> : <AddRegular />}
+            disabled={snapLoading}
+            onClick={() => void handleManualSnapshot()}
+          >
             {t('settings.snap.create')}
           </Button>
         }
       >
         {snapshots.length === 0 ? (
-          <p className="w-set-empty">{t('settings.snap.empty')}</p>
+          <div className="w-set-pad">
+            <Text size={200} className="w-muted">
+              {t('settings.snap.empty')}
+            </Text>
+          </div>
         ) : (
-          <div className="w-set-list">
+          <div className="w-set-rows">
             {snapshots.map((s) => (
-              <div key={s.id} className="w-set-list-row">
-                <div className="w-set-list-main">
-                  <span className="w-set-list-title">
-                    {dayjs(s.createdAt).format('YYYY-MM-DD HH:mm')}
-                  </span>
-                  <span className="w-set-list-desc">
-                    {triggerLabel(s.trigger)} ·{' '}
-                    {t('settings.snap.counts', { libs: s.libraries, items: s.items })}
-                  </span>
-                </div>
-                <div className="w-set-list-control">
-                  <Button size="small" icon={<RollbackOutlined />} onClick={() => handleRestoreSnapshot(s)}>
-                    {t('settings.snap.restore.btn')}
-                  </Button>
-                  <button
-                    type="button"
-                    className="w-iconbtn w-iconbtn--sm w-set-icon-danger"
-                    aria-label={t('common.delete')}
-                    title={t('common.delete')}
-                    onClick={() => handleDeleteSnapshot(s)}
-                  >
-                    <DeleteOutlined />
-                  </button>
-                </div>
-              </div>
+              <SettingRow
+                key={s.id}
+                icon={<HistoryRegular />}
+                title={dayjs(s.createdAt).format('YYYY-MM-DD HH:mm')}
+                desc={`${triggerLabel(s.trigger)} · ${t('settings.snap.counts', {
+                  libs: s.libraries,
+                  items: s.items,
+                })}`}
+                control={
+                  <>
+                    <Button
+                      size="small"
+                      icon={<ArrowCounterclockwiseRegular />}
+                      onClick={() => handleRestoreSnapshot(s)}
+                    >
+                      {t('settings.snap.restore.btn')}
+                    </Button>
+                    <Button
+                      size="small"
+                      appearance="subtle"
+                      className="w-danger-action"
+                      icon={<DeleteRegular />}
+                      aria-label={t('common.delete')}
+                      title={t('common.delete')}
+                      onClick={() => handleDeleteSnapshot(s)}
+                    />
+                  </>
+                }
+              />
             ))}
           </div>
         )}
-      </SetCard>
+      </SettingCard>
     </div>
   )
 }

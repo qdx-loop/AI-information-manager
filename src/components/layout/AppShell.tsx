@@ -1,26 +1,29 @@
-import { Drawer, Tooltip, Dropdown, App as AntApp } from 'antd'
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
+import {
+  Avatar,
+  Button,
+  Menu,
+  MenuDivider,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
+  MessageBar,
+  MessageBarBody,
+  Tooltip,
+} from '@fluentui/react-components'
 import {
   WeatherMoonRegular,
   WeatherSunnyRegular,
   NavigationRegular,
   SearchRegular,
   SignOutRegular,
-  Wifi1Regular,
   WifiOffRegular,
-  Speaker2Regular,
-  Battery10Regular,
-  ChevronUpRegular,
-  SubtractRegular,
-  SquareRegular,
   DismissRegular,
-  ArrowMinimizeRegular,
-  FolderRegular,
   GlobeRegular,
   SettingsRegular,
-  WindowMultipleRegular,
-  DatabaseRegular,
+  QuestionCircleRegular,
 } from '@fluentui/react-icons'
 import dayjs from 'dayjs'
 import Sidebar, { SidebarContent } from './Sidebar'
@@ -42,34 +45,19 @@ import WelcomeModal, { FIRST_RUN_SUPPORT_ENABLED } from '@/components/reward/Wel
 import { consumeWelcomePending, isWelcomeSeen, markWelcomeSeen } from '@/utils/welcome'
 import { startReminderWatcher } from '@/utils/reminderNotify'
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
-
-type WindowState = 'normal' | 'maximized' | 'minimized' | 'closed'
-
-/** Windows 11 任务栏 Start 标记（四格） */
-function WinLogo({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <rect x="1" y="1" width="8" height="8" rx="1.2" fill="var(--w-accent)" />
-      <rect x="11" y="1" width="8" height="8" rx="1.2" fill="var(--w-accent)" opacity="0.9" />
-      <rect x="1" y="11" width="8" height="8" rx="1.2" fill="var(--w-accent)" opacity="0.9" />
-      <rect x="11" y="11" width="8" height="8" rx="1.2" fill="var(--w-accent)" opacity="0.8" />
-    </svg>
-  )
-}
+import { App as AntdApp, Drawer } from 'antd'
 
 /**
- * v9 · Windows 11 原生窗口外壳
+ * v10 · FLUENT UI 2 应用外壳（Windows 11 风格，不是操作系统）
  *
- * 屏幕 = Windows 11 桌面：壁纸 + 任务栏 + 无边框圆角 Mica 窗口。
- * 窗口 = 40px 标题栏（应用标识 / 拖拽区 / 搜索 / 主题 / 语言 / 账户 / 窗口按钮）
- *        + 68px Acrylic 图标导航 + Mica 内容区 + 28px 原生状态栏。
+ * 满屏应用：48px Fluent app bar + 68px 图标导航 + Fluent 内容画布 + 右侧 AI 面板。
+ * 没有壁纸、任务栏、窗口、最小化/最大化/关闭、桌面图标、锁屏时钟。
  * 保留：Ctrl+K 搜索、Ctrl+J AI、离线提示、AI 完成通知、欢迎弹窗、回收站清理、
- * 服务端校验、移动端抽屉与底栏。移动端退化为全屏 App。
+ * 服务端校验、移动端抽屉与底部标签栏。
  */
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [libPickerOpen, setLibPickerOpen] = useState(false)
-  const [windowState, setWindowState] = useState<WindowState>('normal')
   const { settings, setTheme, setLanguage } = useAppStore()
   const t = useI18n()
   const isDark = settings.theme === 'dark'
@@ -80,13 +68,6 @@ export default function AppShell() {
     const handler = () => setIsMobile(window.innerWidth <= 900)
     window.addEventListener('resize', handler)
     return () => window.removeEventListener('resize', handler)
-  }, [])
-
-  // 任务栏时钟
-  const [now, setNow] = useState(() => dayjs())
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(dayjs()), 30_000)
-    return () => window.clearInterval(id)
   }, [])
 
   // 回收站自动清理：每天首次进入主界面时扫除一次（软删超 30 天彻底删除）
@@ -157,8 +138,8 @@ export default function AppShell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // —— 后台任务完成提示 ——
-  const { notification } = AntApp.useApp()
+  // —— 后台任务完成提示（antd notification，主题由同一 Fluent token 派生）——
+  const { notification } = AntdApp.useApp()
   const lastDoneAt = useAiUiStore((s) => s.lastDone?.at ?? 0)
   const setDockOpen = useAiUiStore((s) => s.setOpen)
   useEffect(() => {
@@ -218,326 +199,203 @@ export default function AppShell() {
   useBackButtonLayer(sidebarOpen, () => setSidebarOpen(false))
 
   const showDock = !isMobile && aiOpen && !aiCollapsed
-  const hiddenWindow = windowState === 'minimized' || windowState === 'closed'
-  const restored = () => setWindowState('normal')
 
-  const clockTime = now.format(settings.language === 'en' ? 'h:mm A' : 'HH:mm')
-  const clockDate = now.format(settings.language === 'en' ? 'M/D/YYYY' : 'YYYY/M/D')
+  const handleLogout = async () => {
+    await resetSession()
+    navigate('/login')
+  }
 
-  const windowCls = [
-    'w-window',
-    isMobile ? 'w-window--mobile' : '',
-    windowState === 'maximized' ? 'w-window--maximized' : '',
-    hiddenWindow ? 'w-window--hidden' : '',
-  ]
-    .filter(Boolean)
-    .join(' ')
-
-  const titlebar = !isMobile && (
-    <header
-      className="w-titlebar"
-      data-tauri-drag-region
-      onDoubleClick={(e) => {
-        if ((e.target as HTMLElement).closest('button, input, [role="button"]')) return
-        setWindowState((s) => (s === 'maximized' ? 'normal' : 'maximized'))
-      }}
-    >
-      <button
-        type="button"
-        className="w-titlebar-brand"
-        data-tauri-drag-region
-        onClick={() => navigate('/')}
-        aria-label={t('app.home')}
-      >
-        <AppIcon size={16} />
-        <span className="w-titlebar-title">
-          {t('app.brand')}
-          {currentLib ? ` — ${currentLib.name}` : ''}
-        </span>
-      </button>
-      <div className="w-titlebar-drag" data-tauri-drag-region />
-      <button
-        type="button"
-        className="w-titlebar-search"
-        onClick={() => setSearchOpen(true)}
-        aria-label={t('app.search')}
-      >
-        <SearchRegular fontSize={14} />
-        <span className="w-titlebar-search-label">{t('app.search')}</span>
-        <kbd className="w-kbd">Ctrl K</kbd>
-      </button>
-      <div className="w-titlebar-tools">
-        <Tooltip title={isDark ? t('app.theme.light') : t('app.theme.dark')}>
-          <button
-            type="button"
-            className="w-titlebar-tool"
-            aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
-            onClick={() => setTheme(isDark ? 'light' : 'dark')}
-          >
-            {isDark ? <WeatherSunnyRegular fontSize={15} /> : <WeatherMoonRegular fontSize={15} />}
-          </button>
-        </Tooltip>
-        <Tooltip title={settings.language === 'zh' ? 'English' : '中文'}>
-          <button
-            type="button"
-            className="w-titlebar-tool w-titlebar-tool--text"
-            aria-label={t('app.language')}
-            onClick={() => setLanguage(settings.language === 'zh' ? 'en' : 'zh')}
-          >
-            {settings.language === 'zh' ? 'EN' : '中'}
-          </button>
-        </Tooltip>
-        <Dropdown
-          trigger={['click']}
-          placement="bottomRight"
-          menu={{
-            items: [
-              { key: 'who', label: account?.username ?? '', disabled: true },
-              { type: 'divider' },
-              {
-                key: 'logout',
-                icon: <SignOutRegular fontSize={16} />,
-                label: t('app.signOut'),
-                onClick: async () => {
-                  await resetSession()
-                  navigate('/login')
-                },
-              },
-            ],
-          }}
-        >
-          <button type="button" className="w-titlebar-tool" aria-label={t('app.signOut')}>
-            <span className="w-avatar w-avatar--sm">{(account?.username ?? '?').slice(0, 1)}</span>
-          </button>
-        </Dropdown>
-      </div>
-      <div className="w-caption">
-        <button
-          type="button"
-          className="w-caption-btn"
-          aria-label={t('w11.caption.min')}
-          title={t('w11.caption.min')}
-          onClick={() => setWindowState('minimized')}
-        >
-          <SubtractRegular fontSize={12} />
-        </button>
-        <button
-          type="button"
-          className="w-caption-btn"
-          aria-label={windowState === 'maximized' ? t('w11.caption.restore') : t('w11.caption.max')}
-          title={windowState === 'maximized' ? t('w11.caption.restore') : t('w11.caption.max')}
-          onClick={() => setWindowState((s) => (s === 'maximized' ? 'normal' : 'maximized'))}
-        >
-          {windowState === 'maximized' ? <ArrowMinimizeRegular fontSize={12} /> : <SquareRegular fontSize={11} />}
-        </button>
-        <button
-          type="button"
-          className="w-caption-btn w-caption-btn--close"
-          aria-label={t('w11.caption.close')}
-          title={t('w11.caption.close')}
-          onClick={() => setWindowState('closed')}
-        >
-          <DismissRegular fontSize={13} />
-        </button>
-      </div>
-    </header>
+  const themeToggle = (
+    <Tooltip content={isDark ? t('app.theme.light') : t('app.theme.dark')} relationship="label">
+      <Button
+        appearance="subtle"
+        icon={isDark ? <WeatherSunnyRegular /> : <WeatherMoonRegular />}
+        aria-label={isDark ? t('app.theme.light') : t('app.theme.dark')}
+        onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      />
+    </Tooltip>
   )
 
-  const mobileTitlebar = isMobile && (
-    <header className="w-mobile-titlebar">
-      <button
-        type="button"
-        className="w-iconbtn w-iconbtn--sm"
+  const languageMenu = (
+    <Menu>
+      <MenuTrigger disableButtonEnhancement>
+        <Tooltip content={t('app.language')} relationship="label">
+          <Button appearance="subtle" icon={<GlobeRegular />} aria-label={t('app.language')}>
+            <span style={{ fontSize: 'var(--fontSizeBase200)', fontWeight: 600 }}>
+              {settings.language === 'zh' ? '中' : 'EN'}
+            </span>
+          </Button>
+        </Tooltip>
+      </MenuTrigger>
+      <MenuPopover>
+        <MenuList>
+          <MenuItem onClick={() => setLanguage('zh')} disabled={settings.language === 'zh'}>
+            中文
+          </MenuItem>
+          <MenuItem onClick={() => setLanguage('en')} disabled={settings.language !== 'zh'}>
+            English
+          </MenuItem>
+        </MenuList>
+      </MenuPopover>
+    </Menu>
+  )
+
+  const accountMenu = (
+    <Menu>
+      <MenuTrigger disableButtonEnhancement>
+        <Tooltip content={account?.username ?? ''} relationship="label">
+          <button type="button" className="w-appbar-account" aria-label={account?.username ?? t('app.signOut')}>
+            <Avatar
+              size={28}
+              initials={(account?.username ?? '?').slice(0, 1).toUpperCase()}
+              color="colorful"
+              aria-hidden
+            />
+          </button>
+        </Tooltip>
+      </MenuTrigger>
+      <MenuPopover>
+        <MenuList>
+          <MenuItem disabled>{account?.username ?? ''}</MenuItem>
+          <MenuDivider />
+          <MenuItem icon={<SettingsRegular />} onClick={() => navigate('/settings')}>
+            {t('app.settings')}
+          </MenuItem>
+          <MenuItem icon={<QuestionCircleRegular />} onClick={() => navigate('/help')}>
+            {t('app.help')}
+          </MenuItem>
+          <MenuDivider />
+          <MenuItem icon={<SignOutRegular />} onClick={() => void handleLogout()}>
+            {t('app.signOut')}
+          </MenuItem>
+        </MenuList>
+      </MenuPopover>
+    </Menu>
+  )
+
+  const appbar = isMobile ? (
+    <header className="w-mobile-appbar">
+      <Button
+        appearance="subtle"
+        icon={<NavigationRegular />}
         aria-label={t('nav.menu')}
         onClick={() => setSidebarOpen(true)}
-      >
-        <NavigationRegular fontSize={18} />
-      </button>
-      <span className="w-mobile-titlebar-title">
+      />
+      <span className="w-mobile-title">
         <AppIcon size={18} />
         {currentLib ? currentLib.name : t('app.brand')}
       </span>
-      <button
-        type="button"
-        className="w-iconbtn w-iconbtn--sm"
+      <Button
+        appearance="subtle"
+        icon={<SearchRegular />}
         aria-label={t('app.search')}
         onClick={() => setSearchOpen(true)}
-      >
-        <SearchRegular fontSize={18} />
-      </button>
+      />
+    </header>
+  ) : (
+    <header className="w-appbar">
+      <div className="w-appbar-brand">
+        <button type="button" className="w-appbar-brand-btn" onClick={() => navigate('/')} aria-label={t('app.brand')}>
+          <AppIcon size={20} />
+          <span className="w-appbar-title">{t('app.brand')}</span>
+        </button>
+        {currentLib ? (
+          <>
+            <span className="w-appbar-sep" role="presentation" />
+            <span className="w-appbar-context">{currentLib.name}</span>
+          </>
+        ) : null}
+      </div>
+      <div className="w-appbar-spacer" />
+      <div className="w-appbar-tools">
+        <button
+          type="button"
+          className="w-appbar-search"
+          onClick={() => setSearchOpen(true)}
+          aria-label={t('app.search')}
+        >
+          <SearchRegular fontSize={16} />
+          <span className="w-appbar-search-label">{t('app.search')}</span>
+          <kbd className="w-kbd w-appbar-kbd">Ctrl K</kbd>
+        </button>
+        {themeToggle}
+        {languageMenu}
+        {accountMenu}
+      </div>
     </header>
   )
 
   return (
-    <div className="w-stage">
-      {!isMobile && (
-        <div className="w-taskbar" role="toolbar" aria-label={t('w11.taskbar')}>
-          <div className="w-taskbar-center">
-            <span className="w-tb-btn w-tb-start" aria-hidden="true">
-              <WinLogo size={20} />
-            </span>
-            <button
-              type="button"
-              className="w-tb-btn"
-              aria-label={t('app.search')}
-              title={t('app.search')}
-              onClick={() => setSearchOpen(true)}
-            >
-              <SearchRegular fontSize={18} />
-            </button>
-            <span className="w-tb-btn" aria-hidden="true">
-              <WindowMultipleRegular fontSize={18} />
-            </span>
-            <span className="w-tb-sep" role="presentation" />
-            <button
-              type="button"
-              className={`w-tb-btn${!hiddenWindow ? ' is-active' : ''}`}
-              aria-label={t('app.brand')}
-              title={t('app.brand')}
-              onClick={() => {
-                if (!hiddenWindow) navigate('/')
-                else restored()
-              }}
-            >
-              <AppIcon size={22} className="w-tb-appicon" />
-            </button>
-            <button
-              type="button"
-              className="w-tb-btn"
-              aria-label={t('app.home')}
-              title={t('app.home')}
-              onClick={() => navigate('/')}
-            >
-              <FolderRegular fontSize={18} />
-            </button>
-            <button
-              type="button"
-              className="w-tb-btn"
-              aria-label={t('app.help')}
-              title={t('app.help')}
-              onClick={() => navigate('/help')}
-            >
-              <GlobeRegular fontSize={18} />
-            </button>
-            <button
-              type="button"
-              className="w-tb-btn"
-              aria-label={t('app.settings')}
-              title={t('app.settings')}
-              onClick={() => navigate('/settings')}
-            >
-              <SettingsRegular fontSize={18} />
-            </button>
-          </div>
-          <div className="w-taskbar-tray">
-            <span className="w-tb-tray-btn" aria-hidden="true">
-              <ChevronUpRegular fontSize={13} />
-            </span>
-            <span className="w-tb-tray-btn" aria-hidden="true">
-              {online ? <Wifi1Regular fontSize={15} /> : <WifiOffRegular fontSize={15} />}
-            </span>
-            <span className="w-tb-tray-btn" aria-hidden="true">
-              <Speaker2Regular fontSize={15} />
-            </span>
-            <span className="w-tb-tray-btn" aria-hidden="true">
-              <Battery10Regular fontSize={15} />
-            </span>
-            <div className="w-tb-clock" aria-hidden="true">
-              <span>{clockTime}</span>
-              <span className="w-tb-clock-date">{clockDate}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {hiddenWindow && (
-        <div className="w-desktop-icons">
-          <button type="button" className="w-desktop-app" onClick={restored} aria-label={`${t('w11.desktop.reopen')}${t('app.brand')}`}>
-            <AppIcon size={48} className="w-desktop-icon-img" />
-            <span className="w-desktop-app-label">{t('app.brand')}</span>
-          </button>
-        </div>
-      )}
-
-      <div className={windowCls} aria-hidden={hiddenWindow || undefined}>
-        {isMobile ? mobileTitlebar : titlebar}
-        <div className="w-window-body">
-          {isMobile ? (
-            <Drawer
-              placement="left"
-              open={sidebarOpen}
-              onClose={() => setSidebarOpen(false)}
-              width={300}
-              closable={false}
-              styles={{ body: { padding: 0, background: 'transparent' } }}
-            >
-              <SidebarContent
-                onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }}
-                onNavigate={() => setSidebarOpen(false)}
-              />
-            </Drawer>
-          ) : (
-            <Sidebar onOpenPanel={() => setAiOpen(true)} siderRef={siderRef} />
-          )}
-          <Group orientation="horizontal" id="v9-ai-dock" className="w-panels">
-            <Panel id="main" minSize="54%" className="w-panel-main">
-              <div className="w-main">
-                {!online && (
-                  <div className="w-banner w-banner--warning" role="status">
-                    <WifiOffRegular fontSize={16} />
-                    <span>{t('app.offline')}</span>
-                  </div>
-                )}
-                <div className="w-content">
-                  <PageTransition>
-                    <Outlet />
-                  </PageTransition>
-                </div>
-              </div>
-            </Panel>
-            {showDock && (
-              <>
-                <Separator id="ai-sep" className="w-resize-handle" aria-label={t('ai.resize')} />
-                <Panel id="ai" defaultSize="30%" minSize="20%" maxSize="46%" className="w-panel-ai">
-                  <AIDock variant="dock" />
-                </Panel>
-              </>
-            )}
-          </Group>
-        </div>
-        {!isMobile && (
-          <footer className="w-statusbar">
-            <div className="w-statusbar-group">
-              <span className={`w-statusbar-dot${online ? '' : ' is-offline'}`} aria-hidden="true" />
-              <DatabaseRegular fontSize={13} />
-              <span>{t('w11.status.local')}</span>
-              <span className="w-statusbar-sep" role="presentation" />
-              <span>{t('w11.status.libraries', { n: String(libraries.length) })}</span>
-            </div>
-            <div className="w-statusbar-group">
-              {currentLib ? <span>{currentLib.name}</span> : null}
-              <span className="w-statusbar-sep" role="presentation" />
-              <span>{online ? t('w11.status.online') : t('w11.status.offline')}</span>
-            </div>
-          </footer>
-        )}
-        {isMobile && (
-          <>
-            <MobileTabBar
-              onOpenLibraries={() => setLibPickerOpen(true)}
-              onDismiss={() => {
-                if (libPickerOpen) consumeTopOverlay()
-                setLibPickerOpen(false)
-              }}
+    <div className="w-app">
+      {appbar}
+      <div className="w-app-body">
+        {isMobile ? (
+          <Drawer
+            placement="left"
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            width={300}
+            closable={false}
+            styles={{ body: { padding: 0, background: 'transparent' } }}
+          >
+            <SidebarContent
+              onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }}
+              onNavigate={() => setSidebarOpen(false)}
             />
-            <LibraryPickerSheet open={libPickerOpen} onClose={() => setLibPickerOpen(false)} />
-          </>
+          </Drawer>
+        ) : (
+          <Sidebar onOpenPanel={() => setAiOpen(true)} siderRef={siderRef} />
         )}
+        <Group orientation="horizontal" id="v10-ai-dock" className="w-panels">
+          <Panel id="main" minSize="54%" className="w-panel-main">
+            <div className={isMobile ? 'w-main w-mobile-content' : 'w-main'}>
+              {!online && (
+                <MessageBar intent="warning" className="w-offline-bar">
+                  <MessageBarBody>{t('app.offline')}</MessageBarBody>
+                </MessageBar>
+              )}
+              <div className="w-content">
+                <PageTransition>
+                  <Outlet />
+                </PageTransition>
+              </div>
+            </div>
+          </Panel>
+          {showDock && (
+            <>
+              <Separator id="ai-sep" className="w-resize-handle" aria-label={t('ai.resize')} />
+              <Panel id="ai" defaultSize="30%" minSize="20%" maxSize="46%" className="w-panel-ai">
+                <AIDock variant="dock" />
+              </Panel>
+            </>
+          )}
+        </Group>
       </div>
-
       {!showDock && <AIDock variant={isMobile ? 'sheet' : 'dock'} />}
+      {isMobile && (
+        <>
+          <MobileTabBar
+            onOpenLibraries={() => setLibPickerOpen(true)}
+            onDismiss={() => {
+              if (libPickerOpen) consumeTopOverlay()
+              setLibPickerOpen(false)
+            }}
+          />
+          <LibraryPickerSheet open={libPickerOpen} onClose={() => setLibPickerOpen(false)} />
+        </>
+      )}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       {account && <WelcomeModal open={welcomeOpen} accountId={account.id} onClose={closeWelcome} />}
     </div>
   )
 }
+
+/** 当前日期标签（保留兼容导出，供旧页面使用） */
+export function todayLabel(): string {
+  const lang = document.documentElement.lang || 'zh-CN'
+  return dayjs().format(lang.startsWith('en') ? 'MMM D' : 'M月D日')
+}
+
+/** 图标兼容导出 */
+export const CloseIcon = DismissRegular
+export const OfflineIcon = WifiOffRegular
