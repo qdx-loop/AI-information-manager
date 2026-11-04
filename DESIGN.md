@@ -1,6 +1,6 @@
 ---
 name: 信息管理 · Windows 11 Fluent 应用
-version: v10 · 2026-11
+version: v10.2 · 2026-11
 description: 以 microsoft/fluentui（Fluent UI React v9）为唯一设计系统的 Windows 11 风格 Web 应用——Fluent app bar + 68px 图标导航 + Fluent Card/列表/对话框；不是操作系统模拟（无壁纸/任务栏/窗口/锁屏）
 colors:
   source: "全部来自 src/theme/win11.ts 的 Fluent Theme（light/dark），页面只消费 token"
@@ -100,6 +100,24 @@ v9 的 OS 模拟组件/样式/资源已删除（`w-window*` / `w-taskbar*` / `w-
 - 帮助：SearchBox + Card + Accordion + 目录/正文。
 - 后台：Fluent Card 登录 + 事实 Card + 表格 + Dialog 危险操作。
 - AI/图表/确认/全局搜索：Fluent Dialog + Fluent 控件。
+
+## Components
+
+组件全部直接使用 Fluent UI React v9（`@fluentui/react-components`），不另造一套视觉件；
+页面 CSS 只允许调 Fluent token 与布局，不允许重画按钮/输入框/卡片。以下为跨页面的一致约定：
+
+| 组件 | 用法与不变量 | 来源 |
+| --- | --- | --- |
+| Button | `appearance="primary"` 只给页面唯一主操作；`secondary` 用于次级动作；`subtle` 用于工具栏/图标按钮。图标按钮必须带 `aria-label` 或 Tooltip；加载态用 `Spinner size="tiny"` 替换 icon 并 `disabled`。 | Fluent `Button` |
+| Input / SearchBox / Dropdown | 表单一律 `Field + label`，错误用 `validationState="error"` + `validationMessage`；占位符颜色提升到 `colorNeutralForeground3`（≥4.5:1）；聚焦下划线使用 `colorCompoundBrandStroke`（深色 #4CC2FF / 浅色 #0067C0）。 | Fluent `Input`/`SearchBox`/`Dropdown` |
+| Card | 只做一层容器：`colorNeutralBackground1` + `borderRadiusXLarge` + 1px `colorNeutralStroke2`；卡片内不再套卡片；页面分组用 Card，列表行不用 Card。 | Fluent `Card` |
+| Dialog | 统一 `DialogSurface` + `DialogBody`，标题左对齐、危险动作红色；关闭/Esc 由 Fluent 焦点陷阱处理，关闭后焦点回到触发元素。宽度遵循 `min(px, calc(100vw - 32px))`。 | Fluent `Dialog*` |
+| Toolbar + Table | 库页用 `Toolbar`；表格使用原生 `<table role="grid">` + Fluent token 渲染，行高 40、表头 34，仅横向分割线；行选中态用 `colorSubtleBackgroundSelected` + 左侧 3px 品牌色条（Win11 资源管理器惯例），键盘焦点用 2px `colorStrokeFocus2` 焦点环（两者可区分）。 | Fluent `Toolbar` + 自定义表格 |
+| NavigationView（rail） | 68px 图标导航：Fluent Button + Tooltip，当前项 `aria-current="page"` + 选中底色；移动端改为 48px app bar + 底部标签栏 + Drawer。 | Fluent `Button`/`Tooltip` |
+| MessageBar / Toast | 离线、错误、提示用 `MessageBar`（页面内）或 antd `message`（瞬时反馈，token 与 Fluent 同源）；危险/错误消息必须说明恢复动作。 | Fluent `MessageBar` + antd message |
+
+状态约定：每个可交互组件必须有 hover / pressed / focus-visible / disabled 四态；异步操作必须有加载态与失败文案；
+空列表用 `EmptyPanel`，错误用 `MessageBar intent="error"`，不能只 toast 后留空屏。
 
 ## 工程与验收
 

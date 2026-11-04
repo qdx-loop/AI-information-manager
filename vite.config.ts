@@ -25,13 +25,13 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           // 第三方依赖拆 vendor 分包：浏览器长期缓存，业务更新时用户不必重下不变依赖。
-          // antd 内部依赖 react（否则产生 circular chunk），故合并为单一 vendor。
+          // 注意：react 与 antd/rc-* 必须同 chunk —— 拆开会出现 Rollup 循环依赖，
+          // 运行时报 `Cannot access ... before initialization`（已实测踩过）。
+          // 只有「只在特定交互才用到」的大包才单独拆。
           if (!id.includes('node_modules')) return
           if (id.includes('@supabase')) return 'vendor-supabase'
-          // echarts 约 1MB，只有真正画图时才用到。必须单独成 chunk，
-          // 否则 Rollup 会把它并进入口 chunk，白白拖慢首屏
-          // （之前是靠 CDN 懒加载才没这个问题，换成打包后必须显式拆）。
           if (id.includes('echarts') || id.includes('zrender')) return 'vendor-echarts'
+          if (id.includes('xlsx')) return 'vendor-xlsx'
           if (
             id.includes('react') || id.includes('scheduler') ||
             id.includes('antd') || id.includes('@ant-design') ||

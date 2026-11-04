@@ -174,6 +174,10 @@ describe('insights 规则引擎', () => {
     // 不再是「现在的时刻 + 1 天」那个任意瞬间。
     expect(data.reminders[0].at).toBe(isoToLocalTs(todayLocalISO(now + DAY)))
     expect(itemDisplayName(items[0])).toBe('张三')
+    // 首页磁贴与「最近修改」复用同一次遍历，不允许再全量扫第二遍
+    expect(data.counts).toEqual({ l1: 2 })
+    expect(data.recent.map((r) => r.item.id)).toEqual(['i1', 'i2'])
+    expect(data.recent[0].libraryName).toBe('客户')
   })
 
   it('超出 7 天窗口的日期不进入提醒', async () => {

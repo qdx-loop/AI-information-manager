@@ -13,12 +13,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="信息管理" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
-    <!-- Win11 字体：Segoe UI Variable（系统）→ Selawik（OFL，度量兼容，自托管，禁止网络字体 CDN） -->
-    <link rel="preload" href="/fonts/selawik-regular.woff" as="font" type="font/woff" crossorigin />
-    <link rel="preload" href="/fonts/selawik-bold.woff" as="font" type="font/woff" crossorigin />
+    <!-- Win11 字体：Segoe UI Variable（系统）→ Selawik（OFL，度量兼容，自托管，禁止网络字体 CDN）。
+         Selawik 只作为非 Windows 的兜底，不再 preload：Windows 用户永远不会用到它，
+         预加载 59KB 反而拖慢首屏；CSS @font-face 会在真正 fallback 时才请求。 -->
     <meta
       name="description"
-      content="AI 智能信息管理助手——Windows 11 原生桌面体验：用自然语言管理你的数据，建库、录入、检索、统计、图表。"
+      content="AI 智能信息管理助手——Windows 11 风格 Fluent 应用：用自然语言管理你的数据，建库、录入、检索、统计、图表。"
     />
     <title>信息管理 · AI 智能信息管理助手</title>
   </head>

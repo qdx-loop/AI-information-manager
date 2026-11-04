@@ -21,6 +21,12 @@ export interface DateAlert {
   at: number
 }
 
+export interface RecentItemEntry {
+  item: Item
+  libraryId: string
+  libraryName: string
+}
+
 export interface InsightData {
   totalLibs: number
   totalItems: number
@@ -29,6 +35,10 @@ export interface InsightData {
   reminders: ReminderEntry[]
   /** 未来 daysAhead 天内到期的日期字段（含已逾期），按时间升序 */
   dateAlerts: DateAlert[]
+  /** 每个库的条目数（同一次遍历顺手统计，首页磁贴直接用，避免再全量扫一遍） */
+  counts: Record<string, number>
+  /** 最近修改的条目（最多 6 条），同样来自同一次遍历 */
+  recent: RecentItemEntry[]
 }
 
 // 日期字段值可能是时间戳或 'YYYY-MM-DD' 字符串，统一解析为毫秒时间戳
@@ -109,6 +119,8 @@ async function computeInsights(
   let itemsThisWeek = 0
   const reminders: ReminderEntry[] = []
   const dateAlerts: DateAlert[] = []
+  const counts: Record<string, number> = {}
+  const recentAll: RecentItemEntry[] = []
 
   for (const lib of libraries) {
     let items: Item[] = []
@@ -121,7 +133,9 @@ async function computeInsights(
       continue // 单个库读取失败不影响整体概览
     }
     totalItems += items.length
+    counts[lib.id] = items.length
     for (const it of items) {
+      recentAll.push({ item: it, libraryId: lib.id, libraryName: lib.name })
       if (it.createdAt >= weekAgo) itemsThisWeek++
       const r = getReminderAt(it)
       if (r != null) {
@@ -145,6 +159,7 @@ async function computeInsights(
 
   reminders.sort((a, b) => a.at - b.at)
   dateAlerts.sort((a, b) => a.at - b.at)
+  recentAll.sort((a, b) => b.item.updatedAt - a.item.updatedAt)
 
   return {
     totalLibs: libraries.length,
@@ -152,6 +167,8 @@ async function computeInsights(
     itemsThisWeek,
     reminders: reminders.slice(0, maxEntries),
     dateAlerts: dateAlerts.slice(0, maxEntries),
+    counts,
+    recent: recentAll.slice(0, 6),
   }
 }
 

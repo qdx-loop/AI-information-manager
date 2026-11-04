@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
     "composite": true,
+    // tsc -b 会给被引用的 composite 工程 emit；默认输出会把编译后的 vite.config.js
+    // 写到仓库根目录，Vite 会优先加载它、让后续对 vite.config.ts 的修改失效。
+    // 指到 node_modules 下的临时目录，既满足 composite 约束，又不污染仓库。
+    "outDir": "node_modules/.tsbuild-node",
+    "tsBuildInfoFile": "node_modules/.tsbuild-node/tsconfig.node.tsbuildinfo",
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",

@@ -193,13 +193,23 @@ export default function Landing() {
             </div>
 
             <Card appearance="filled" className="pub-shot-card">
-              <img
-                className="pub-shot-img"
-                src="/hero-table.png"
-                alt={t('landing.shot.alt')}
-                loading="eager"
-                decoding="async"
-              />
+              <picture>
+                <source
+                  type="image/webp"
+                  srcSet="/hero-table-800.webp 800w, /hero-table.webp 1600w"
+                  sizes="(max-width: 900px) 100vw, 560px"
+                />
+                <img
+                  className="pub-shot-img"
+                  src="/hero-table.png"
+                  alt={t('landing.shot.alt')}
+                  width={1600}
+                  height={1000}
+                  loading="eager"
+                  decoding="async"
+                  {...{ fetchpriority: 'high' }}
+                />
+              </picture>
               <div className="pub-shot-cap">
                 <Text size={200} className="w-faint">
                   {t('landing.shot.caption')}

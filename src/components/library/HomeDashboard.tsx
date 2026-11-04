@@ -47,53 +47,8 @@ import {
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAuthStore } from '@/store/authStore'
 import { gatherInsights, itemDisplayName, type InsightData } from '@/utils/insights'
-import { getProvider } from '@/db/providerFactory'
 import type { Library } from '@/types'
 import { useI18n } from '@/i18n'
-
-interface RecentEntry {
-  key: string
-  itemId: string
-  libId: string
-  libName: string
-  title: string
-  updatedAt: number
-}
-
-interface HomeExtras {
-  recent: RecentEntry[]
-  counts: Record<string, number>
-}
-
-async function loadHomeExtras(libraries: Library[]): Promise<HomeExtras> {
-  const provider = getProvider()
-  const rows = await Promise.all(
-    libraries.map(async (lib) => {
-      try {
-        return { lib, items: await provider.listItems(lib.id) }
-      } catch {
-        return { lib, items: [] as Awaited<ReturnType<typeof provider.listItems>> }
-      }
-    }),
-  )
-  const counts: Record<string, number> = {}
-  const recent: RecentEntry[] = []
-  for (const { lib, items } of rows) {
-    counts[lib.id] = items.length
-    for (const it of items) {
-      recent.push({
-        key: `${lib.id}:${it.id}`,
-        itemId: it.id,
-        libId: lib.id,
-        libName: lib.name,
-        title: itemDisplayName(it),
-        updatedAt: it.updatedAt,
-      })
-    }
-  }
-  recent.sort((a, b) => b.updatedAt - a.updatedAt)
-  return { recent: recent.slice(0, 6), counts }
-}
 
 const fmt = (n: number) => n.toLocaleString('en-US')
 
@@ -130,7 +85,6 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
   const account = useAuthStore((s) => s.account)
   const accountId = account?.id ?? ''
   const [data, setData] = useState<InsightData | null>(null)
-  const [extras, setExtras] = useState<HomeExtras>({ recent: [], counts: {} })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
@@ -139,11 +93,10 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
     let alive = true
     setLoading(true)
     setError(null)
-    Promise.all([gatherInsights(libraries, { accountId, dataVersion }), loadHomeExtras(libraries)])
-      .then(([insight, home]) => {
+    gatherInsights(libraries, { accountId, dataVersion })
+      .then((insight) => {
         if (!alive) return
         setData(insight)
-        setExtras(home)
       })
       .catch((e: unknown) => {
         if (!alive) return
@@ -196,7 +149,7 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
     [libraries],
   )
   const tasksPreview = alerts.slice(0, 3)
-  const recent = extras.recent
+  const recent = data?.recent ?? []
 
   const openAI = () => window.dispatchEvent(new Event('open-ai-panel'))
   const openLibrary = (lib?: Library) => { if (lib) navigate(`/library/${lib.id}`) }
@@ -305,7 +258,7 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
                       header={<Text weight="semibold" size={300}>{lib.name}</Text>}
                       description={
                         <Text size={200} className="w-faint">
-                          {loading ? '—' : `${fmt(extras.counts[lib.id] ?? 0)} · ${lib.category || t('app.group.libraries')}`}
+                          {loading ? '—' : `${fmt(data?.counts?.[lib.id] ?? 0)} · ${lib.category || t('app.group.libraries')}`}
                         </Text>
                       }
                       action={<ChevronRightRegular fontSize={14} className="w-pin-chev" aria-hidden />}
@@ -359,19 +312,19 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
               </div>
             ) : (
               recent.map((r) => {
-                const lib = libraries.find((l) => l.id === r.libId)
+                const lib = libraries.find((l) => l.id === r.libraryId)
                 const Icon = lib ? iconForLibrary(lib) : DocumentRegular
                 return (
                   <button
-                    key={r.key}
+                    key={`${r.libraryId}:${r.item.id}`}
                     type="button"
                     className="w-row w-row--button"
-                    onClick={() => { focusItem(r.itemId); navigate(`/library/${r.libId}`) }}
+                    onClick={() => { focusItem(r.item.id); navigate(`/library/${r.libraryId}`) }}
                   >
                     <span className="w-row-icon w-row-icon--neutral" aria-hidden><Icon fontSize={16} /></span>
                     <span className="w-row-main">
-                      <Text size={300} className="w-row-title">{r.title}</Text>
-                      <Text size={200} className="w-row-desc">{r.libName} · {dayjs(r.updatedAt).format('MM-DD HH:mm')}</Text>
+                      <Text size={300} className="w-row-title">{itemDisplayName(r.item)}</Text>
+                      <Text size={200} className="w-row-desc">{r.libraryName} · {dayjs(r.item.updatedAt).format('MM-DD HH:mm')}</Text>
                     </span>
                     <ChevronRightRegular fontSize={14} className="w-row-chevron" aria-hidden />
                   </button>

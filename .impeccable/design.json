@@ -1,41 +1,158 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-24T00:00:00+08:00",
-  "title": "Design System: 信息管理（info-manager）",
+  "generatedAt": "2026-11-04T22:42:35+08:00",
+  "title": "Design System: 信息管理（Windows 11 Fluent 应用）",
   "extensions": {
     "colorMeta": {
-      "primary": { "role": "primary", "displayName": "青瓷釉 Celadon Glaze", "canonical": "#0D9488", "tonalRamp": ["#134E4A", "#115E59", "#0F766E", "#0D9488", "#14B8A6", "#5EEAD4", "#99F6E4", "#CCFBF1"] },
-      "primary-deep": { "role": "primary", "displayName": "深窑青 Deep Kiln Teal", "canonical": "#134E4A" },
-      "primary-wash": { "role": "neutral", "displayName": "青瓷粉底 Celadon Wash", "canonical": "#F0FDFA" },
-      "primary-edge": { "role": "neutral", "displayName": "釉边 Glaze Edge", "canonical": "#99F6E4" },
-      "primary-edge-soft": { "role": "neutral", "displayName": "釉边·柔 Soft Edge", "canonical": "#CCEBE6" },
-      "accent-amber": { "role": "secondary", "displayName": "窑火琥珀 Kiln Amber", "canonical": "#FA8C16" },
-      "accent-amber-wash": { "role": "secondary", "displayName": "琥珀底 Amber Wash", "canonical": "#FFF7E6" },
-      "status-active": { "role": "secondary", "displayName": "常青绿 Evergreen", "canonical": "#3F8600" },
-      "surface": { "role": "neutral", "displayName": "白瓷 Porcelain White", "canonical": "#FFFFFF" },
-      "canvas": { "role": "neutral", "displayName": "素坯 Blank Bisque", "canonical": "#F5F5F5" },
-      "night-kiln": { "role": "neutral", "displayName": "夜窑 Night Kiln", "canonical": "#141414" },
-      "night-edge": { "role": "neutral", "displayName": "夜釉边 Night Edge", "canonical": "#303030" },
-      "ink-strong": { "role": "neutral", "displayName": "墨·浓 Ink Strong", "canonical": "#333333" },
-      "ink-body": { "role": "neutral", "displayName": "墨·正文 Ink Body", "canonical": "#475569" },
-      "ink-muted": { "role": "neutral", "displayName": "墨·淡 Ink Muted", "canonical": "#94A3B8" },
-      "ink-faint": { "role": "neutral", "displayName": "墨·注脚 Ink Faint", "canonical": "#999999" }
+      "accent": {
+        "role": "primary",
+        "displayName": "Windows 强调蓝 Accent Blue",
+        "canonical": "#0067C0",
+        "tonalRamp": [
+          "#001322",
+          "#003661",
+          "#005ca6",
+          "#0067C0",
+          "#2582ce",
+          "#4cc2ff",
+          "#8ec6ee",
+          "#a3d3f4"
+        ]
+      },
+      "accent-dark": {
+        "role": "primary",
+        "displayName": "强调蓝·深色 Accent Blue (dark)",
+        "canonical": "#4CC2FF"
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "应用画布 Canvas",
+        "canonical": "#F3F3F3"
+      },
+      "canvas-dark": {
+        "role": "neutral",
+        "displayName": "画布·深色 Canvas (dark)",
+        "canonical": "#202020"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "卡片/表面 Surface",
+        "canonical": "#FFFFFF"
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "表面·深色 Surface (dark)",
+        "canonical": "#2B2B2B"
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "主文字 Primary Ink",
+        "canonical": "#1B1B1B"
+      },
+      "text-dark": {
+        "role": "neutral",
+        "displayName": "主文字·深色 Primary Ink (dark)",
+        "canonical": "#FFFFFF"
+      },
+      "text-2": {
+        "role": "neutral",
+        "displayName": "次级文字 Secondary Ink",
+        "canonical": "#5C5C5C"
+      },
+      "text-3": {
+        "role": "neutral",
+        "displayName": "三级文字 Tertiary Ink",
+        "canonical": "#6E6E6E"
+      },
+      "stroke": {
+        "role": "neutral",
+        "displayName": "分割线 Stroke",
+        "canonical": "#D1D1D1"
+      },
+      "stroke-dark": {
+        "role": "neutral",
+        "displayName": "分割线·深色 Stroke (dark)",
+        "canonical": "#5C5C5C"
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "危险 Danger",
+        "canonical": "#B10E1C"
+      },
+      "danger-dark": {
+        "role": "secondary",
+        "displayName": "危险·深色 Danger (dark)",
+        "canonical": "#FF99A4"
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "成功 Success",
+        "canonical": "#0E700E"
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "警告 Warning",
+        "canonical": "#BC4B09"
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "仅登录页左栏主标语。" },
-      "title": { "displayName": "Title", "purpose": "页面级与卡片标题。" },
-      "body": { "displayName": "Body", "purpose": "默认正文与表格。" },
-      "label": { "displayName": "Label", "purpose": "辅助说明、时间戳、元信息。" }
+      "display": {
+        "displayName": "Display",
+        "purpose": "首页问候 / 公开页 Hero（Fluent size700–800）。"
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "页面标题与 Card 标题（size500–600）。"
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "正文、表格、表单（14/20）。"
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "辅助说明、时间戳、元信息（12/16）。"
+      }
     },
     "shadows": [
-      { "name": "focus-bar", "value": "inset 3px 0 0 #FA8C16", "purpose": "表格焦点行的结构标记，非光影。" }
+      {
+        "name": "shadow4",
+        "value": "var(--shadow4)",
+        "purpose": "卡片悬浮 / 工具提示等轻浮层。"
+      },
+      {
+        "name": "shadow16",
+        "value": "var(--shadow16)",
+        "purpose": "菜单、弹出层、对话框。"
+      },
+      {
+        "name": "shadow64",
+        "value": "var(--shadow64)",
+        "purpose": "最高层级浮层（全屏搜索、确认框）。"
+      }
     ],
     "motion": [
-      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "状态过渡默认缓动（Antd 默认族）。" }
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.33, 0, 0.67, 1)",
+        "purpose": "Fluent 状态过渡缓动；只动颜色/透明度/阴影，不做位移夸张。"
+      },
+      {
+        "name": "duration-fast",
+        "value": "120ms",
+        "purpose": "hover/focus 反馈；prefers-reduced-motion 下保留颜色反馈、去掉位移动效。"
+      }
     ],
     "breakpoints": [
-      { "name": "mobile", "value": "768px", "purpose": "≤此宽度侧栏转 Drawer、AI 面板全屏。" },
-      { "name": "login-split", "value": "900px", "purpose": "≥此宽度登录页左右分栏。" }
+      {
+        "name": "mobile",
+        "value": "768px",
+        "purpose": "≤此宽度侧栏转 Drawer、AI 面板转底部 Sheet、表格转 Card 列表。"
+      },
+      {
+        "name": "wide",
+        "value": "1024px",
+        "purpose": "≥此宽度启用双栏内容与右侧 AI dock。"
+      }
     ]
   },
   "components": [
@@ -43,78 +160,108 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "主操作：新建/保存/确认执行。",
+      "description": "页面唯一主操作：新建/保存/确认。",
       "html": "<button class=\"ds-btn-primary\">保存</button>",
-      "css": ".ds-btn-primary{background:#0D9488;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-family:inherit;cursor:pointer;transition:background .2s cubic-bezier(.4,0,.2,1)}.ds-btn-primary:hover{background:#0F766E}.ds-btn-primary:focus-visible{outline:2px solid #14B8A6;outline-offset:2px}"
+      "css": ".ds-btn-primary{background:var(--colorBrandBackground);color:var(--colorNeutralForegroundOnBrand);border:1px solid transparent;border-radius:var(--borderRadiusMedium);height:32px;padding:0 12px;font-family:var(--fontFamilyBase);font-size:14px;font-weight:600;cursor:pointer}.ds-btn-primary:hover{background:var(--colorBrandBackgroundHover)}.ds-btn-primary:active{background:var(--colorBrandBackgroundPressed)}.ds-btn-primary:focus-visible{outline:2px solid var(--colorStrokeFocus2);outline-offset:2px}.ds-btn-primary:disabled{background:var(--colorNeutralBackgroundDisabled);color:var(--colorNeutralForegroundDisabled);cursor:not-allowed}"
     },
     {
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "次级操作：模板、导入导出等。",
+      "description": "次级动作：模板、导入导出、取消。",
       "html": "<button class=\"ds-btn-secondary\">模板</button>",
-      "css": ".ds-btn-secondary{background:#fff;color:#333;border:1px solid #d9d9d9;border-radius:8px;padding:8px 16px;font-size:14px;font-family:inherit;cursor:pointer;transition:border-color .2s,color .2s}.ds-btn-secondary:hover{border-color:#0D9488;color:#0D9488}"
+      "css": ".ds-btn-secondary{background:var(--colorNeutralBackground1);color:var(--colorNeutralForeground1);border:1px solid var(--colorNeutralStroke1);border-radius:var(--borderRadiusMedium);height:32px;padding:0 12px;font-family:var(--fontFamilyBase);font-size:14px;cursor:pointer}.ds-btn-secondary:hover{background:var(--colorNeutralBackground1Hover);border-color:var(--colorNeutralStroke1Hover)}.ds-btn-secondary:focus-visible{outline:2px solid var(--colorStrokeFocus2);outline-offset:2px}"
+    },
+    {
+      "name": "Subtle Icon Button",
+      "kind": "button",
+      "refersTo": "button-subtle",
+      "description": "工具栏/导航图标按钮，必须有 aria-label 或 Tooltip。",
+      "html": "<button class=\"ds-btn-subtle\" aria-label=\"刷新\">↻</button>",
+      "css": ".ds-btn-subtle{background:transparent;color:var(--colorNeutralForeground2);border:0;border-radius:var(--borderRadiusMedium);width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}.ds-btn-subtle:hover{background:var(--colorSubtleBackgroundHover);color:var(--colorNeutralForeground1)}.ds-btn-subtle:focus-visible{outline:2px solid var(--colorStrokeFocus2);outline-offset:2px}"
     },
     {
       "name": "Text Input",
       "kind": "input",
       "refersTo": null,
-      "description": "表单输入，白底发丝线。",
-      "html": "<input class=\"ds-input\" placeholder=\"请输入\">",
-      "css": ".ds-input{width:100%;box-sizing:border-box;background:#fff;border:1px solid #d9d9d9;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;color:#333;transition:border-color .2s,box-shadow .2s}.ds-input::placeholder{color:#94a3b8}.ds-input:hover{border-color:#0D9488}.ds-input:focus{outline:none;border-color:#0D9488;box-shadow:0 0 0 2px rgba(13,148,136,.1)}"
+      "description": "表单输入：Field+label，错误内联提示，占位符 ≥4.5:1。",
+      "html": "<input class=\"ds-input\" placeholder=\"姓名\">",
+      "css": ".ds-input{width:100%;box-sizing:border-box;background:var(--colorNeutralBackground1);color:var(--colorNeutralForeground1);border:1px solid var(--colorNeutralStroke1);border-bottom-color:var(--colorNeutralStrokeAccessible);border-radius:var(--borderRadiusMedium);height:32px;padding:0 10px;font-family:var(--fontFamilyBase);font-size:14px}.ds-input::placeholder{color:var(--colorNeutralForeground3);opacity:1}.ds-input:focus-visible{outline:2px solid var(--colorStrokeFocus2);outline-offset:-1px;border-bottom:2px solid var(--colorCompoundBrandStroke)}"
     },
     {
-      "name": "Card",
+      "name": "Card Surface",
       "kind": "card",
       "refersTo": "card-surface",
-      "description": "白瓷表面容器，发丝线描边。",
-      "html": "<div class=\"ds-card\"><h3>管理库</h3><p>卡片内容</p></div>",
-      "css": ".ds-card{background:#fff;border:1px solid #f0f0f0;border-radius:8px;padding:16px;font-family:inherit}.ds-card h3{margin:0 0 8px;font-size:20px;font-weight:700;color:#134e4a}.ds-card p{margin:0;font-size:14px;line-height:1.6;color:#475569}"
+      "description": "页面分组容器：一层卡片，不再套卡片。",
+      "html": "<section class=\"ds-card\"><h3>数据概览</h3><p>内容</p></section>",
+      "css": ".ds-card{background:var(--colorNeutralBackground1);border:1px solid var(--colorNeutralStroke2);border-radius:var(--borderRadiusXLarge);padding:16px;box-shadow:none}.ds-card h3{margin:0 0 8px;font:600 14px/20px var(--fontFamilyBase);color:var(--colorNeutralForeground1)}.ds-card p{margin:0;font:400 14px/20px var(--fontFamilyBase);color:var(--colorNeutralForeground2)}"
     },
     {
-      "name": "Status Tag",
-      "kind": "chip",
+      "name": "Dialog Surface",
+      "kind": "dialog",
       "refersTo": null,
-      "description": "有效期/类型标签：绿正常、橙临期、红到期。",
-      "html": "<span class=\"ds-tag ds-tag--ok\">剩 28 天</span> <span class=\"ds-tag ds-tag--warn\">剩 2 天</span> <span class=\"ds-tag ds-tag--expired\">已到期</span>",
-      "css": ".ds-tag{display:inline-block;border-radius:4px;padding:1px 8px;font-size:12px;line-height:20px}.ds-tag--ok{background:#f6ffed;color:#389e0d;border:1px solid #b7eb8f}.ds-tag--warn{background:#fff7e6;color:#d46b08;border:1px solid #ffd591}.ds-tag--expired{background:#fff1f0;color:#cf1322;border:1px solid #ffa39e}"
+      "description": "Fluent Dialog：焦点陷阱、Esc 关闭、关闭后焦点回触发元素。",
+      "html": "<div class=\"ds-dialog\" role=\"dialog\" aria-modal=\"true\"><h2>新建管理库</h2><input class=\"ds-input\"></div>",
+      "css": ".ds-dialog{background:var(--colorNeutralBackground1);color:var(--colorNeutralForeground1);border:1px solid var(--colorNeutralStroke2);border-radius:var(--borderRadiusXLarge);box-shadow:var(--shadow64);padding:24px;max-width:min(480px,calc(100vw - 32px));font-family:var(--fontFamilyBase)}"
     },
     {
-      "name": "Chat Bubble · User",
-      "kind": "custom",
+      "name": "Nav Item",
+      "kind": "nav",
       "refersTo": null,
-      "description": "AI 助手签名组件：用户消息实心青瓷釉。",
-      "html": "<div style=\"display:flex;flex-direction:row-reverse;gap:8px\"><div class=\"ds-avatar ds-avatar--user\">我</div><div class=\"ds-bubble ds-bubble--user\">帮我统计每个分类的条目数</div></div>",
-      "css": ".ds-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}.ds-avatar--user{background:#0D9488;color:#fff}.ds-bubble{max-width:80%;padding:8px 12px;border-radius:8px;font-size:14px;line-height:1.6;font-family:inherit}.ds-bubble--user{background:#0D9488;color:#fff;white-space:pre-wrap}"
+      "description": "68px 图标导航项：当前项 aria-current=page + 选中底色。",
+      "html": "<button class=\"ds-nav-item is-active\" aria-current=\"page\" aria-label=\"首页\">⌂</button>",
+      "css": ".ds-nav-item{width:56px;height:56px;display:flex;align-items:center;justify-content:center;background:transparent;color:var(--colorNeutralForeground2);border:0;border-radius:var(--borderRadiusMedium);cursor:pointer}.ds-nav-item:hover{background:var(--colorSubtleBackgroundHover)}.ds-nav-item.is-active{background:var(--colorSubtleBackgroundSelected);color:var(--colorNeutralForeground1)}.ds-nav-item:focus-visible{outline:2px solid var(--colorStrokeFocus2);outline-offset:2px}"
     },
     {
-      "name": "Chat Bubble · Assistant",
-      "kind": "custom",
+      "name": "Table Row",
+      "kind": "row",
       "refersTo": null,
-      "description": "助手回复素坯底，可内嵌折叠过程。",
-      "html": "<div style=\"display:flex;gap:8px\"><div class=\"ds-avatar ds-avatar--ai\">AI</div><div class=\"ds-bubble ds-bubble--ai\">共 42 条：联系人 20、库存 22。</div></div>",
-      "css": ".ds-avatar--ai{background:#f0f0f0;color:#666}.ds-bubble--ai{background:#f5f5f5;color:#333;white-space:pre-wrap;word-break:break-word}"
-    },
-    {
-      "name": "Focus Row Marker",
-      "kind": "custom",
-      "refersTo": null,
-      "description": "表格定位高亮：琥珀底 + 左侧 3px 内嵌条。",
-      "html": "<table class=\"ds-focus-demo\"><tr class=\"ds-focus-row\"><td>张三</td><td id=\"demo-cell\">13800000000</td></tr></table>",
-      "css": ".ds-focus-demo{border-collapse:collapse;width:100%;font-family:inherit}.ds-focus-row td{background:#fff7e6 !important;box-shadow:inset 3px 0 0 #FA8C16;padding:8px 12px;font-size:14px}"
+      "description": "资源管理器式行：40px 高，仅横分割线；选中态左 2px 品牌色条，键盘焦点用焦点环。",
+      "html": "<table class=\"ds-table\" role=\"grid\" aria-label=\"条目\"><tbody><tr aria-selected=\"false\"><td>王小明</td></tr></tbody></table>",
+      "css": ".ds-table{width:100%;border-collapse:collapse;font:400 14px/20px var(--fontFamilyBase);color:var(--colorNeutralForeground1)}.ds-table th{height:34px;text-align:left;font-weight:600;color:var(--colorNeutralForeground2);border-bottom:1px solid var(--colorNeutralStroke2)}.ds-table td{height:40px;border-bottom:1px solid var(--colorNeutralStroke3)}.ds-table tr:hover td{background:var(--colorSubtleBackgroundHover)}.ds-table tr[aria-selected=\"true\"] td{background:var(--colorSubtleBackgroundSelected)}.ds-table tr[aria-selected=\"true\"] td:first-child{box-shadow:inset 3px 0 0 var(--colorBrandBackground)}.ds-table tr:focus-visible{outline:2px solid var(--colorStrokeFocus2);outline-offset:-2px}"
     }
   ],
   "narrative": {
-    "northStar": "青瓷工作台 · The Celadon Desk",
-    "overview": "整个系统像一件青瓷器：釉色是唯一的装饰，器形靠比例与留白立住。蓝绿主色是那层「釉」，界面其余部分是素坯般的白与浅灰，靠发丝线和色调分层区分层次；橙色是「窑火」，只在需要注意力的地方短暂出现。Operate 型产品：扫读效率与状态可预期高于一切表达欲。",
-    "keyCharacteristics": ["单一强调色体系", "扁平优先，发丝线分层", "中文优先排版，系统字体回退", "深浅双主题同一套语义"],
-    "rules": [
-      { "name": "The One Glaze Rule", "body": "蓝绿是唯一的品牌色，负责一切「可点击/已选中」语义。", "section": "colors" },
-      { "name": "The Amber Discipline Rule", "body": "琥珀橙只表达行级焦点、内容被修改、临期提醒三件事。", "section": "colors" },
-      { "name": "The System-CJK Rule", "body": "任何 font-family 必须携带完整中文回退链；禁止为中文引入网络字体。", "section": "typography" },
-      { "name": "The Hairline Rule", "body": "分隔先用 1px 线，再色调差，最后才阴影；禁止自创 box-shadow。", "section": "elevation" }
+    "northStar": "Fluent Desk · Windows 11 应用工作台",
+    "overview": "界面是 Windows 11 风格的应用本身，而不是操作系统模拟：48px Fluent app bar、68px 图标导航、Fluent 2 分层中性面、4/8px 圆角、Segoe 字体。颜色只来自 Fluent 语义 token；品牌蓝色只表达可交互/选中；危险红、警告黄、成功绿只在状态语义中出现。Operate 型产品：扫读效率、状态可预期、键盘可达高于表达欲。",
+    "keyCharacteristics": [
+      "唯一设计系统 microsoft/fluentui（Fluent UI React v9）",
+      "Fluent 2 token 驱动的深浅双主题",
+      "应用而非桌面：无壁纸/任务栏/窗口 chrome/锁屏",
+      "4px 控件 / 8px 卡片与浮层，克制动效"
     ],
-    "dos": ["用 #0D9488 表达一切可交互与已选中语义", "时间戳统一 YYYY-MM-DD HH:mm", "复用现有 token", "保持既定断点行为"],
-    "donts": ["为中文引入网络字体", "自创 box-shadow、渐变或新的强调色相", "让琥珀橙出现在按钮或大面积背景上", "写死破坏暗色主题的颜色"]
+    "rules": [
+      {
+        "name": "The Fluent Token Rule",
+        "body": "所有颜色、圆角、阴影、字体必须来自 Fluent theme token；页面 CSS 不出现独立色值。",
+        "section": "colors"
+      },
+      {
+        "name": "The No OS Chrome Rule",
+        "body": "不做桌面模拟：无壁纸、任务栏、窗口按钮、桌面图标、锁屏时钟。",
+        "section": "layout"
+      },
+      {
+        "name": "The 4/8 Radius Rule",
+        "body": "控件 4px（borderRadiusMedium），卡片/浮层/对话框 8px（borderRadiusXLarge），不超过 12px。",
+        "section": "shapes"
+      },
+      {
+        "name": "The Two-Theme Rule",
+        "body": "深浅主题必须同时成立：正文与占位符 ≥4.5:1，焦点可见，图表/状态色同源。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "用 Fluent 组件表达控件，用 Fluent token 表达颜色",
+      "保持键盘可达（Ctrl K / Ctrl J / Esc / Tab）与可见焦点",
+      "每个可交互组件覆盖 hover/pressed/focus/disabled 四态"
+    ],
+    "donts": [
+      "做操作系统模拟或窗口 chrome",
+      "渐变、霓虹、厚投影、自定义 blur、大圆角卡片墙",
+      "自创色板或硬编码颜色",
+      "为视觉改业务逻辑、字段顺序、快捷键、校验"
+    ]
   }
 }
