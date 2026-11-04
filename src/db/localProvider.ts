@@ -312,18 +312,18 @@ export class LocalDataProvider implements DataProvider {
 
   // —————— 回收站 ——————
   async listTrash(accountId: string): Promise<TrashEntry[]> {
-    const libs = await db.libraries
-      .where('accountId')
-      .equals(accountId)
-      .and((l) => l.deletedAt !== null)
-      .toArray()
+    // BUGFIX: 名称映射必须用「账户下全部库」（含未删除的）。
+    // 之前只取 deletedAt !== null 的库，导致删掉一条条目后，回收站里
+    // 明明父库还在，却被标成「（已删除的库）」——误导用户。
+    const allLibs = await db.libraries.where('accountId').equals(accountId).toArray()
+    const libs = allLibs.filter((l) => l.deletedAt !== null)
     const items = await db.items
       .where('accountId')
       .equals(accountId)
       .and((i) => i.deletedAt !== null)
       .toArray()
 
-    const libMap = new Map(libs.map((l) => [l.id, l.name]))
+    const libMap = new Map(allLibs.map((l) => [l.id, l.name]))
 
     const libEntries: TrashEntry[] = libs.map((l) => ({
       kind: 'library' as const,
@@ -333,7 +333,8 @@ export class LocalDataProvider implements DataProvider {
     const itemEntries: TrashEntry[] = items.map((i) => ({
       kind: 'item' as const,
       record: i,
-      libraryName: libMap.get(i.libraryId) ?? '（已删除的库）',
+      // 找不到名字（父库已被永久清除）时留空，由 UI 用 i18n 文案兜底，provider 不写死中文
+      libraryName: libMap.get(i.libraryId) ?? '',
       deletedAt: i.deletedAt as number,
     }))
 

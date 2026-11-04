@@ -521,6 +521,7 @@ export default function LibraryTable({
                   key={record.id}
                   data-row-key={record.id}
                   className={rowClass}
+                  aria-selected={selected}
                   onClick={() => {
                     if (focusItemId) focusItem(null)
                   }}

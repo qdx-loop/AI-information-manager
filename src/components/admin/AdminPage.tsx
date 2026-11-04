@@ -206,7 +206,7 @@ export default function AdminPage() {
     return (
       <div className="w-admin-app">
         {appbar}
-        <div className="w-admin-scroll">
+        <main className="w-admin-scroll">
           <div className="w-admin-login-wrap">
             <Card appearance="filled" className="w-admin-card">
               <span className="w-admin-card-icon" aria-hidden>
@@ -242,7 +242,7 @@ export default function AdminPage() {
               </Text>
             </Card>
           </div>
-        </div>
+        </main>
       </div>
     )
   }
@@ -468,7 +468,7 @@ export default function AdminPage() {
   return (
     <div className="w-admin-app">
       {appbar}
-      <div className="w-admin-scroll">
+      <main className="w-admin-scroll">
         <div className="w-page w-admin-page">
           <header className="w-page-head">
             <div className="w-head-main">
@@ -622,7 +622,7 @@ export default function AdminPage() {
             {t('admin.tips.body')}
           </p>
         </div>
-      </div>
+      </main>
 
       {/* 重置密码（Fluent Dialog） */}
       <Dialog open={!!resetFor} onOpenChange={(_, data) => !data.open && setResetFor(null)}>

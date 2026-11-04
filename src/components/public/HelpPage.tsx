@@ -358,7 +358,7 @@ export default function HelpPage() {
         </div>
       </header>
 
-      <div className="w-content" ref={contentRef}>
+      <main className="w-content" ref={contentRef}>
         <div className="pub-container pub-help">
           <header className="pub-help-head">
             <Text as="h1" size={800} weight="semibold">
@@ -530,7 +530,7 @@ export default function HelpPage() {
               </Card>
             </aside>
 
-            <main className="pub-help-doc-wrap" aria-labelledby="pub-help-doc-title">
+            <div className="pub-help-doc-wrap" aria-labelledby="pub-help-doc-title">
               <Card appearance="filled" className="pub-help-doc">
                 <CardHeader
                   image={
@@ -583,10 +583,10 @@ export default function HelpPage() {
                   </div>
                 </div>
               </Card>
-            </main>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

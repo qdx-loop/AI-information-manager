@@ -158,6 +158,9 @@ export default function TrashBin() {
 
   return (
     <div className="lib-page">
+      {/* 视觉标题由面包屑承担；给读屏与标题大纲一个真实 h1 */}
+      <h1 className="w-sr-only">{t('lib.trash.title')}</h1>
+
       {/* 工具栏：刷新 + 数量 */}
       <div className="lib-toolbar">
         <Button appearance="subtle" icon={<ArrowClockwiseRegular />} onClick={handleRefresh}>

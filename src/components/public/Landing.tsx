@@ -149,7 +149,7 @@ export default function Landing() {
         </div>
       </header>
 
-      <div className="w-content" ref={contentRef}>
+      <main className="w-content" ref={contentRef}>
         <div className="pub-container pub-landing">
           {/* Hero：应用标识 + 一句话价值 + 主 CTA + 真实截图 */}
           <section className="pub-hero">
@@ -407,7 +407,7 @@ export default function Landing() {
             </div>
           </footer>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

@@ -348,7 +348,7 @@ export default function AppShell() {
         )}
         <Group orientation="horizontal" id="v10-ai-dock" className="w-panels">
           <Panel id="main" minSize="54%" className="w-panel-main">
-            <div className={isMobile ? 'w-main w-mobile-content' : 'w-main'}>
+            <main className={isMobile ? 'w-main w-mobile-content' : 'w-main'}>
               {!online && (
                 <MessageBar intent="warning" className="w-offline-bar">
                   <MessageBarBody>{t('app.offline')}</MessageBarBody>
@@ -359,7 +359,7 @@ export default function AppShell() {
                   <Outlet />
                 </PageTransition>
               </div>
-            </div>
+            </main>
           </Panel>
           {showDock && (
             <>

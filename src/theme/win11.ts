@@ -121,6 +121,12 @@ export const win11FluentDark: Theme = withCommonOverrides({
   colorNeutralForegroundOnBrand: '#000000',
   colorStrokeFocus1: '#000000',
   colorStrokeFocus2: '#ffffff',
+  // 危险文本在 #2b2b2b 卡片面上需 ≥4.5:1；Fluent 默认 #dc626d 只有 4.05
+  colorStatusDangerForeground1: '#ff99a4',
+  // 输入框聚焦下划线：默认 #2582ce 在深色画布上过暗，改用品牌前景色
+  colorCompoundBrandStroke: '#4cc2ff',
+  colorCompoundBrandStrokeHover: '#6dd0ff',
+  colorCompoundBrandStrokePressed: '#38a9df',
 })
 
 /** 浅色：Win11 浅色应用（#F3F3F3 画布 / #FFFFFF 卡片 / #0067C0 强调 + 白字） */
@@ -175,6 +181,9 @@ export const win11FluentLight: Theme = withCommonOverrides({
   colorNeutralForegroundOnBrand: '#ffffff',
   colorStrokeFocus1: '#ffffff',
   colorStrokeFocus2: '#000000',
+  colorCompoundBrandStroke: '#0067c0',
+  colorCompoundBrandStrokeHover: '#0078d4',
+  colorCompoundBrandStrokePressed: '#005a9e',
 })
 
 /**

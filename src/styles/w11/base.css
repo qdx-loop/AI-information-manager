@@ -154,16 +154,32 @@ samp {
   background: transparent;
 }
 
-/* Fluent 动效节奏：150–200ms，不弹跳 */
+/* Fluent 动效节奏：150–200ms，不弹跳。
+   减少动态偏好下不用「全局 0.01ms」一刀切：那样连按下/错误/选中反馈都会消失。
+   做法：装饰性位移/缩放动画立即结束，保留颜色/透明度过渡作为状态反馈，滚动直接跳转。 */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     scroll-behavior: auto !important;
+    transition-property: color, background-color, border-color, box-shadow, fill, stroke, opacity !important;
+    transition-duration: 120ms !important;
+    transition-timing-function: linear !important;
   }
+}
+
+/* 占位文字：Fluent 默认用 Foreground4（深色 #8a8a8a / 浅色 #7a7a7a），
+   在卡片面上低于 4.5:1。占位符也是文本，统一提升到 Foreground3。 */
+input::placeholder,
+textarea::placeholder,
+.fui-Input__input::placeholder,
+.fui-Textarea__textarea::placeholder,
+.fui-SearchBox__input::placeholder {
+  color: var(--colorNeutralForeground3) !important;
+  opacity: 1 !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

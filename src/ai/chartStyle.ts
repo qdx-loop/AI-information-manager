@@ -67,18 +67,22 @@ export function readChartTokens(dark: boolean): ChartTokens {
   const series: string[] = []
   for (let i = 0; i < 5; i++) series.push(v(`--chart-${i + 1}`, '#009E73'))
   return {
-    ink: v('--ink', '#141412'),
-    inkSoft: v('--ink-soft', '#57544B'),
-    inkFaint: v('--ink-faint', dark ? '#938F83' : '#676358'),
-    border: v('--line-soft', dark ? '#3A3A33' : '#C9C4B5'),
-    borderSoft: v('--line-soft', dark ? '#3A3A33' : '#C9C4B5'),
-    surface: v('--sheet', '#FFFEF9'),
-    canvas: v('--paper', '#ECE9E0'),
-    danger: v('--danger', dark ? '#FF6B5A' : '#C22A1C'),
+    // v10 Fluent UI：图表只用 Fluent 语义 token（--w-* 之前的旧 v9 变量已随主题迁移删除，
+    // 这里若继续读 --ink/--paper 会永远拿到旧青瓷色，图表与全站脱节）。
+    ink: v('--colorNeutralForeground1', dark ? '#ffffff' : '#1b1b1b'),
+    inkSoft: v('--colorNeutralForeground2', dark ? '#d6d6d6' : '#5c5c5c'),
+    inkFaint: v('--colorNeutralForeground3', dark ? '#a0a0a0' : '#6e6e6e'),
+    border: v('--colorNeutralStroke2', dark ? '#464646' : '#e5e5e5'),
+    borderSoft: v('--colorNeutralStroke3', dark ? '#3a3a3a' : '#f0f0f0'),
+    surface: v('--colorNeutralBackground1', dark ? '#2b2b2b' : '#ffffff'),
+    canvas: v('--colorNeutralBackground2', dark ? '#202020' : '#f3f3f3'),
+    danger: v('--colorStatusDangerForeground1', dark ? '#ff99a4' : '#b10e1c'),
     series,
-    // 图表文字跟随 Nova Editorial 的字阶：Inter 正文 + 系统中文回退；数字 tabular。
-    font:
-      "Inter, 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
+    // 图表文字跟随 Fluent 的 Segoe 字阶（与全站同一字体栈）
+    font: v(
+      '--fontFamilyBase',
+      "'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', Selawik, -apple-system, 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei UI', sans-serif",
+    ),
   }
 }
 

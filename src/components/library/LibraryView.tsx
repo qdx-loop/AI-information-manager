@@ -454,6 +454,9 @@ export default function LibraryView() {
 
   return (
     <div className="lib-page">
+      {/* 视觉标题在 app bar / 面包屑；给读屏与标题大纲一个真实 h1 */}
+      <h1 className="w-sr-only">{lib?.name ?? t('lib.untitled')}</h1>
+
       {/* ══ 工具栏（Fluent Toolbar）══ */}
       <Toolbar
         aria-label={`${t('app.brand')} · ${lib?.name ?? t('lib.untitled')}`}

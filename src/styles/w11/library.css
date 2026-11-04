@@ -260,8 +260,10 @@
 .lib-row.is-focused > .lib-td {
   background: var(--w-subtle-selected);
 }
-.lib-row.is-focused > .lib-td:first-child {
-  box-shadow: inset 3px 0 0 var(--w-accent);
+/* 键盘焦点用 Fluent 焦点环（与选中态的左侧色条区分），不再用左侧色条 */
+.lib-row.is-focused {
+  outline: 2px solid var(--w-focus);
+  outline-offset: -2px;
 }
 .lib-cell-btn {
   display: block;
@@ -506,7 +508,9 @@
   padding: 12px;
 }
 .lib-item-card.is-focused {
-  box-shadow: inset 3px 0 0 var(--w-accent), var(--shadow4);
+  outline: 2px solid var(--w-focus);
+  outline-offset: -2px;
+  box-shadow: var(--shadow4);
 }
 .lib-item-head {
   display: flex;

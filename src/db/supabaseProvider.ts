@@ -517,21 +517,25 @@ export class SupabaseDataProvider implements DataProvider {
 
   // —————— 回收站 ——————
   async listTrash(accountId: string): Promise<TrashEntry[]> {
+    // BUGFIX: 名称映射用账户下全部库（含未删除的）；条目所在库仍可用时
+    // 不能显示成「已删除的库」。
     const [libsRes, itemsRes] = await Promise.all([
-      this.client.from('libraries').select('*').eq('account_id', accountId).not('deleted_at', 'is', null),
+      this.client.from('libraries').select('*').eq('account_id', accountId),
       this.client.from('items').select('*').eq('account_id', accountId).not('deleted_at', 'is', null),
     ])
     if (libsRes.error) throw new Error(libsRes.error.message)
     if (itemsRes.error) throw new Error(itemsRes.error.message)
-    const libs = (libsRes.data as LibraryRow[]).map(libFromRow)
+    const allLibs = (libsRes.data as LibraryRow[]).map(libFromRow)
+    const libs = allLibs.filter((l) => l.deletedAt !== null)
     const items = (itemsRes.data as ItemRow[]).map(itemFromRow)
-    const libMap = new Map(libs.map((l) => [l.id, l.name]))
+    const libMap = new Map(allLibs.map((l) => [l.id, l.name]))
     const entries: TrashEntry[] = [
       ...libs.map((l) => ({ kind: 'library' as const, record: l, deletedAt: l.deletedAt as number })),
       ...items.map((i) => ({
         kind: 'item' as const,
         record: i,
-        libraryName: libMap.get(i.libraryId) ?? '（已删除的库）',
+        // 父库已被永久清除时留空，由 UI 的 i18n 文案兜底（provider 不写死中文）
+        libraryName: libMap.get(i.libraryId) ?? '',
         deletedAt: i.deletedAt as number,
       })),
     ]

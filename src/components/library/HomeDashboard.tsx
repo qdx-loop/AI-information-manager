@@ -229,13 +229,11 @@ export default function HomeDashboard({ onCreate, notice }: { onCreate: () => vo
             aria-hidden
           />
           <div className="w-head-main">
-            <Text size={200} className="w-home-date">
-              {dateLabel()} · {t('landing.marquee.local')}
-            </Text>
             <Text as="h1" size={700} weight="semibold" className="w-home-title">
               {greeting || t('dash.titleFallback')}
             </Text>
             <Text size={300} className="w-muted">
+              {dateLabel()} · {t('landing.marquee.local')} ·{' '}
               {t('home.start.summary', { libs: fmt(totalLibs), items: fmt(totalItems) })}
             </Text>
           </div>
