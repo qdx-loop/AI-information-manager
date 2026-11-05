@@ -9,7 +9,7 @@
 
 - 目标：**Windows 11 风格的 Web 应用界面**，不是 Windows 操作系统模拟。
 - 形态：48px Fluent app bar（应用标识 / 当前库 / 搜索 / 主题 / 语言 / 账户）
-  + 68px 图标导航（Fluent Button + Tooltip）+ Fluent 内容画布 + 右侧 AI 面板；移动端 48px app bar + 56px 底部标签栏。
+  + 默认 232px 展开式导航（库名 + 分类可见，可收起为 68px 图标栏）+ Fluent 内容画布 + 右侧 AI 面板；移动端 48px app bar + 56px 底部标签栏。
 - **没有**：壁纸、任务栏、浮动窗口、最小化/最大化/关闭按钮、桌面图标、锁屏大时钟。
 - 唯一设计系统：Fluent UI React v9 组件 + Fluent 2 design tokens（`FluentProvider` 主题）。
 - 一句话验收：普通用户第一眼认为「这是一个做得很 Windows 11 的网页应用」，而不是「一张 Windows 桌面截图」。

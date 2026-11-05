@@ -46,7 +46,7 @@ web
 
 - 产品名：「信息管理」（app bar / 登录页 / 导航品牌标识）。
 - 设计语言（v10 · 2026-11）：**Windows 11 风格的 Fluent UI 应用**，不是操作系统模拟。
-  唯一设计系统 = microsoft/fluentui（Fluent UI React v9）：Fluent app bar + 68px 图标导航 + Fluent Card / 资源管理器式库页 /
+  唯一设计系统 = microsoft/fluentui（Fluent UI React v9）：Fluent app bar + 232px 展开式导航（可收起为 68px 图标栏）/ Fluent Card / 资源管理器式库页 /
   Fluent Dialog / AI 侧栏；无壁纸、无任务栏、无窗口 chrome、无锁屏；无渐变、无霓虹、无网页 Dashboard。
   实现合同见 `redesign-brief/12-v10-fluent-app.md`，设计说明见 `DESIGN.md`，设计系统见 `design-system/win11-native/MASTER.md`。
 - 颜色（v10）：全部来自 Fluent 2 design tokens（`src/theme/win11.ts`）——画布 `colorNeutralBackground2`、

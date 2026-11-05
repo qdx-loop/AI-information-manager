@@ -1865,6 +1865,15 @@ Object.assign(en, {
   'home.start.blankLibHint': 'Blank library · configure its field template after',
 })
 
+Object.assign(zh, {
+  'nav.expand': '展开导航',
+  'nav.collapse': '收起导航',
+})
+Object.assign(en, {
+  'nav.expand': 'Expand navigation',
+  'nav.collapse': 'Collapse navigation',
+})
+
 DICTS.en = en
 
 // —— v9 · Windows 11 原生外壳文案 ——

@@ -88,7 +88,8 @@
   color: var(--w-text-2);
 }
 .w-pin-card--add.fui-Card {
-  border-style: dashed;
+  /* 用户反馈：粗虚线框太抢眼；改成与普通卡片一致的细实线，只在 hover 时用强调色 */
+  border: 1px solid var(--w-divider);
   background: transparent;
   box-shadow: none;
 }

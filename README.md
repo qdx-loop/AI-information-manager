@@ -50,7 +50,7 @@
 - 可用 `REGISTRATION_OPEN=0` 紧急关闭注册（被灌水时）
 
 ### 🎨 界面体验（v10 · Windows 11 风格 Fluent UI 应用）
-- **基于 microsoft/fluentui（Fluent UI React v9）的 Windows 11 风格 Web 应用**：48px Fluent app bar + 68px 图标导航 + Fluent 内容画布；**不是操作系统模拟**——没有壁纸、任务栏、浮动窗口、窗口按钮、锁屏时钟
+- **基于 microsoft/fluentui（Fluent UI React v9）的 Windows 11 风格 Web 应用**：48px Fluent app bar + 232px 展开式导航（可收起为 68px 图标栏）+ Fluent 内容画布；**不是操作系统模拟**——没有壁纸、任务栏、浮动窗口、窗口按钮、锁屏时钟
 - 页面：Fluent Card 首页 / 文件资源管理器式库页（Toolbar + 面包屑 + 数据表 + 页面内状态栏）/ Fluent 设置页 / Fluent 应用登录页 / 应用介绍落地页 / 获取帮助 / 管理后台 / AI 侧栏 / Fluent Dialog（编辑器、图表、确认、全局搜索 Ctrl+K）
 - 设计系统：Fluent 2 design tokens（颜色/字体/圆角/阴影全部来自 Fluent theme `src/theme/win11.ts`）、Segoe UI Variable（Selawik 回退）、Fluent Button/Input/Dialog/Card/Switch/Accordion…；无渐变、无霓虹、无自定义 blur、无网页 Dashboard
 - 深色（默认）/ 浅色双主题；桌面、平板、手机（底部标签栏）全部适配；`prefers-reduced-motion` 可访问性支持

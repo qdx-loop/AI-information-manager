@@ -24,6 +24,8 @@ import {
   WeatherSunnyRegular,
   GlobeRegular,
   LibraryRegular,
+  PanelLeftExpandRegular,
+  PanelLeftContractRegular,
 } from '@fluentui/react-icons'
 import {
   DndContext,
@@ -53,11 +55,12 @@ import CreateLibraryDialog from '@/components/library/CreateLibraryDialog'
 import AppIcon from '@/components/common/AppIcon'
 
 /**
- * v10 · Fluent UI 2 左导航（68px 图标栏，Windows 11 NavigationView 模式）
+ * v10 · Fluent UI 2 左导航（Windows 11 NavigationView：展开 / 收起两种形态）
  *
- * 结构：首页 → 管理库（语义图标 + hover Tooltip）→ 新建库 → AI / 回收站 / 设置 / 帮助 → 账户
+ * 结构：首页 → 管理库（名称 + 分类 / 子库缩进）→ 新建库 → AI / 回收站 / 设置 / 帮助 → 账户
+ * 默认展开（232px）：库名与分类直接可见，避免「一排一样的文件夹」无法辨认；
+ * 可点底部「收起导航」回到 68px 图标栏，选择写入 localStorage。
  * 行为与旧版一致：建库 / 子库 / 改名 / 分类 / 上下移 / 拖拽排序 / 删除 / 切库 / 退出。
- * 控件：Fluent Button / Tooltip / Menu / Avatar；文字只在 hover Tooltip 显示（提示词要求）。
  * 不是操作系统：没有窗口/任务栏/桌面，只是应用内导航。
  */
 
@@ -279,6 +282,7 @@ function RailButton({
   onClick,
   className,
   refEl,
+  expanded = false,
 }: {
   icon: React.ReactElement
   label: string
@@ -286,18 +290,25 @@ function RailButton({
   onClick: () => void
   className?: string
   refEl?: React.Ref<HTMLButtonElement>
+  expanded?: boolean
 }) {
+  const button = (
+    <Button
+      ref={refEl}
+      appearance="subtle"
+      className={`${className ?? 'w-rail-item'}${active ? ' is-active' : ''}`}
+      icon={icon}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
+      onClick={onClick}
+    >
+      {expanded ? <span className="w-rail-label">{label}</span> : null}
+    </Button>
+  )
+  if (expanded) return button
   return (
     <Tooltip content={label} relationship="label" positioning="after" withArrow>
-      <Button
-        ref={refEl}
-        appearance="subtle"
-        className={`${className ?? 'w-rail-item'}${active ? ' is-active' : ''}`}
-        icon={icon}
-        aria-label={label}
-        aria-current={active ? 'page' : undefined}
-        onClick={onClick}
-      />
+      {button}
     </Tooltip>
   )
 }
@@ -311,6 +322,7 @@ function SortableLibIcon({
   tooltip,
   moreLabel,
   sheet,
+  expanded,
 }: {
   lib: Library
   depth: number
@@ -320,6 +332,7 @@ function SortableLibIcon({
   tooltip: React.ReactElement
   moreLabel: string
   sheet?: boolean
+  expanded?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lib.id })
   const style: React.CSSProperties = {
@@ -365,6 +378,30 @@ function SortableLibIcon({
       </div>
     )
   }
+  if (expanded) {
+    return (
+      <div ref={setNodeRef} style={style} className="w-rail-lib-wrap is-expanded">
+        <button
+          type="button"
+          className={`w-rail-lib is-expanded${active ? ' is-active' : ''}`}
+          style={{ paddingLeft: 8 + depth * 14 }}
+          aria-label={lib.category ? `${lib.name} · ${lib.category}` : lib.name}
+          onClick={onOpen}
+          {...attributes}
+          {...listeners}
+        >
+          <span className="w-rail-lib-icon" aria-hidden>
+            <Icon fontSize={16} />
+          </span>
+          <span className="w-rail-lib-text">
+            <span className="w-rail-lib-name">{lib.name}</span>
+            {lib.category ? <span className="w-rail-lib-cat">{lib.category}</span> : null}
+          </span>
+        </button>
+        {moreMenu}
+      </div>
+    )
+  }
   return (
     <div ref={setNodeRef} style={style} className="w-rail-lib-wrap">
       <Tooltip content={tooltip} relationship="label" positioning="after">
@@ -390,10 +427,14 @@ function SidebarBody({
   state,
   onOpenPanel,
   aiRef,
+  expanded,
+  onToggleExpand,
 }: {
   state: ReturnType<typeof useSidebarState>
   onOpenPanel: () => void
   aiRef?: React.Ref<HTMLButtonElement>
+  expanded: boolean
+  onToggleExpand: () => void
 }) {
   const t = useI18n()
   const {
@@ -432,6 +473,7 @@ function SidebarBody({
             </span>
           }
           moreLabel={t('common.more')}
+          expanded={expanded}
         />
         {children.map((c) => renderLib(c, depth + 1))}
       </div>
@@ -446,6 +488,7 @@ function SidebarBody({
           label={t('app.home')}
           active={selectedKey === '/'}
           onClick={() => handleClick('/')}
+          expanded={expanded}
         />
         <div className="w-rail-divider" role="presentation" />
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -466,6 +509,7 @@ function SidebarBody({
           label={t('app.newLibrary')}
           onClick={() => handleClick('new-library')}
           className="w-rail-add"
+          expanded={expanded}
         />
       </div>
 
@@ -475,6 +519,7 @@ function SidebarBody({
           label={`${t('app.aiAssistant')} · Ctrl J`}
           onClick={onOpenPanel}
           refEl={aiRef}
+          expanded={expanded}
         />
         <div className="w-rail-divider" role="presentation" />
         <RailButton
@@ -482,26 +527,36 @@ function SidebarBody({
           label={t('app.trash')}
           active={selectedKey === '/trash'}
           onClick={() => handleClick('/trash')}
+          expanded={expanded}
         />
         <RailButton
           icon={<SettingsRegular />}
           label={t('app.settings')}
           active={selectedKey === '/settings'}
           onClick={() => handleClick('/settings')}
+          expanded={expanded}
         />
         <RailButton
           icon={<QuestionCircleRegular />}
           label={t('app.help')}
           active={selectedKey === '/help'}
           onClick={() => handleClick('/help')}
+          expanded={expanded}
         />
         <div className="w-rail-divider" role="presentation" />
+        <RailButton
+          icon={expanded ? <PanelLeftContractRegular /> : <PanelLeftExpandRegular />}
+          label={expanded ? t('nav.collapse') : t('nav.expand')}
+          onClick={onToggleExpand}
+          className="w-rail-item w-rail-toggle"
+          expanded={expanded}
+        />
         <Menu>
           <MenuTrigger disableButtonEnhancement>
             <Tooltip content={account?.username ?? ''} relationship="label" positioning="after">
               <button
                 type="button"
-                className="w-rail-account"
+                className={`w-rail-account${expanded ? ' is-expanded' : ''}`}
                 aria-label={account?.username ?? t('app.signOut')}
                 disabled={loggingOut}
               >
@@ -510,6 +565,7 @@ function SidebarBody({
                   initials={(account?.username ?? '?').slice(0, 1).toUpperCase()}
                   color="colorful"
                 />
+                {expanded ? <span className="w-rail-account-name">{account?.username ?? ''}</span> : null}
               </button>
             </Tooltip>
           </MenuTrigger>
@@ -540,9 +596,34 @@ export default function Sidebar({
   aiRef?: React.Ref<HTMLButtonElement>
 }) {
   const state = useSidebarState()
+  const [expanded, setExpanded] = useState(() => {
+    if (typeof window === 'undefined') return true
+    try {
+      return window.localStorage.getItem('info-mgmt-nav-expanded') !== '0'
+    } catch {
+      return true
+    }
+  })
+  const toggleExpanded = () => {
+    setExpanded((v) => {
+      const next = !v
+      try {
+        window.localStorage.setItem('info-mgmt-nav-expanded', next ? '1' : '0')
+      } catch {
+        /* 隐私模式下 localStorage 可能不可写：忽略，本次会话仍可切换 */
+      }
+      return next
+    })
+  }
   return (
-    <aside ref={siderRef as React.RefObject<HTMLElement>} className="w-rail">
-      <SidebarBody state={state} onOpenPanel={onOpenPanel} aiRef={aiRef} />
+    <aside ref={siderRef as React.RefObject<HTMLElement>} className={`w-rail${expanded ? ' is-expanded' : ''}`}>
+      <SidebarBody
+        state={state}
+        onOpenPanel={onOpenPanel}
+        aiRef={aiRef}
+        expanded={expanded}
+        onToggleExpand={toggleExpanded}
+      />
     </aside>
   )
 }

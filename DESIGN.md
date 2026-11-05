@@ -1,7 +1,7 @@
 ---
 name: 信息管理 · Windows 11 Fluent 应用
-version: v10.2 · 2026-11
-description: 以 microsoft/fluentui（Fluent UI React v9）为唯一设计系统的 Windows 11 风格 Web 应用——Fluent app bar + 68px 图标导航 + Fluent Card/列表/对话框；不是操作系统模拟（无壁纸/任务栏/窗口/锁屏）
+version: v10.3 · 2026-11
+description: 以 microsoft/fluentui（Fluent UI React v9）为唯一设计系统的 Windows 11 风格 Web 应用——Fluent app bar + 232px 展开式导航（可收起为 68px 图标栏）+ Fluent Card/列表/对话框；不是操作系统模拟（无壁纸/任务栏/窗口/锁屏）
 colors:
   source: "全部来自 src/theme/win11.ts 的 Fluent Theme（light/dark），页面只消费 token"
   canvas: "colorNeutralBackground2（深色 #202020 / 浅色 #F3F3F3）"
@@ -32,7 +32,7 @@ materials:
   shadow-64: "var(--shadow64)"
 layout:
   appbar: "48px Fluent app bar（应用标识 / 当前库 / 搜索 / 主题 / 语言 / 账户）"
-  rail: "68px 图标导航（Fluent Button + Tooltip；文字仅 hover 显示）"
+  rail: "232px 展开式 NavigationView（库名 + 分类可见；可收起为 68px 图标栏，选择持久化）"
   content: "Fluent 内容画布 + 页面级 Card/Toolbar/Table；右栏 AI 面板 320-400px"
   mobile: "48px app bar + 内容 + 56px 底部标签栏 + 抽屉导航"
 ---
@@ -49,7 +49,7 @@ layout:
 
 | | v9（被否） | v10（当前） |
 |---|---|---|
-| 形态 | 桌面壁纸 + 任务栏 + 浮在桌面上的窗口 | 满屏 Web 应用：app bar + 图标导航 + 内容 |
+| 形态 | 桌面壁纸 + 任务栏 + 浮在桌面上的窗口 | 满屏 Web 应用：app bar + 展开式导航 + 内容 |
 | 窗口 | 标题栏 + 最小化/最大化/关闭 + 桌面图标 | 无窗口 chrome |
 | 登录 | Win11 锁屏（壁纸 + 大时钟） | Fluent 应用登录页（中性画布 + Fluent Card） |
 | 落地页 | 含桌面截图/窗口感 | Fluent 应用介绍页 |
@@ -85,7 +85,7 @@ v9 的 OS 模拟组件/样式/资源已删除（`w-window*` / `w-taskbar*` / `w-
 ## 布局（Fluent 应用）
 
 - **app bar 48px**：左 AppIcon +「信息管理」+ 当前库；右 Fluent 搜索触发（Ctrl K）、主题、语言、账户 Menu。
-- **左导航 68px**：Fluent Button + Tooltip；首页 / 库列表 / 新建 / AI / 回收站 / 设置 / 帮助 / 账户。
+- **左导航**：默认 232px 展开（Windows 11 NavigationView 展开态）——库名 + 分类直接可见、子库缩进；底部「收起导航」可回到 68px 图标栏，选择写入 localStorage。首页 / 库列表 / 新建 / AI / 回收站 / 设置 / 帮助 / 账户。
 - **内容**：`w-page` 最大宽 1280、32px 边距、卡片化分组；库页是资源管理器式 Toolbar + 面包屑 + 数据表 + 页面内状态栏。
 - **AI**：右侧 Fluent 面板（桌面）/底部 Sheet（手机）。
 - **移动端**：48px app bar + 内容 + 56px 底部标签栏 + 抽屉导航。
@@ -113,7 +113,7 @@ v9 的 OS 模拟组件/样式/资源已删除（`w-window*` / `w-taskbar*` / `w-
 | Card | 只做一层容器：`colorNeutralBackground1` + `borderRadiusXLarge` + 1px `colorNeutralStroke2`；卡片内不再套卡片；页面分组用 Card，列表行不用 Card。 | Fluent `Card` |
 | Dialog | 统一 `DialogSurface` + `DialogBody`，标题左对齐、危险动作红色；关闭/Esc 由 Fluent 焦点陷阱处理，关闭后焦点回到触发元素。宽度遵循 `min(px, calc(100vw - 32px))`。 | Fluent `Dialog*` |
 | Toolbar + Table | 库页用 `Toolbar`；表格使用原生 `<table role="grid">` + Fluent token 渲染，行高 40、表头 34，仅横向分割线；行选中态用 `colorSubtleBackgroundSelected` + 左侧 3px 品牌色条（Win11 资源管理器惯例），键盘焦点用 2px `colorStrokeFocus2` 焦点环（两者可区分）。 | Fluent `Toolbar` + 自定义表格 |
-| NavigationView（rail） | 68px 图标导航：Fluent Button + Tooltip，当前项 `aria-current="page"` + 选中底色；移动端改为 48px app bar + 底部标签栏 + Drawer。 | Fluent `Button`/`Tooltip` |
+| NavigationView（rail） | 默认 232px 展开：库名 13px + 分类 11px，子库按层级缩进；收起后为 68px 图标栏（Fluent Button + Tooltip）。当前项 `aria-current="page"` + 选中底色；移动端改为 48px app bar + 底部标签栏 + Drawer。 | Fluent `Button`/`Tooltip`/`Menu` |
 | MessageBar / Toast | 离线、错误、提示用 `MessageBar`（页面内）或 antd `message`（瞬时反馈，token 与 Fluent 同源）；危险/错误消息必须说明恢复动作。 | Fluent `MessageBar` + antd message |
 
 状态约定：每个可交互组件必须有 hover / pressed / focus-visible / disabled 四态；异步操作必须有加载态与失败文案；
