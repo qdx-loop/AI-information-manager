@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://aiim.de5.net"><img src="https://img.shields.io/badge/🚀%20在线免费使用-aiim.de5.net-4CC2FF?style=for-the-badge" alt="在线免费使用"></a>
-  <a href="https://aiim.de5.net/intro.html"><img src="https://img.shields.io/badge/📖%20产品介绍与使用场景-查看-0067C0?style=for-the-badge" alt="产品介绍"></a>
+  <a href="https://aiim.de5.net/intro"><img src="https://img.shields.io/badge/📖%20产品介绍与使用场景-查看-0067C0?style=for-the-badge" alt="产品介绍"></a>
 </p>
 
 <p align="center">
@@ -175,7 +175,7 @@ MIT
 ## 📣 分享 / 宣传素材
 
 - 在线体验：<https://aiim.de5.net>
-- 产品介绍长页：<https://aiim.de5.net/intro.html>
+- 产品介绍长页：<https://aiim.de5.net/intro>
 - 方版海报（扫码直达）：`docs/poster.png`
 - 产品截图：`docs/screenshot.png`
 
