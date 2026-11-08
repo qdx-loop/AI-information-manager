@@ -72,6 +72,11 @@ describe('导入：布尔与文本', () => {
     expect(coerceValue('checkbox', '1')).toBe(true)
     expect(coerceValue('checkbox', '否')).toBe(false)
     expect(coerceValue('checkbox', false)).toBe(false)
+    // Excel raw:false 曾把布尔单元格变成 "TRUE"/"FALSE"；必须大小写无关地识别
+    expect(coerceValue('checkbox', 'TRUE')).toBe(true)
+    expect(coerceValue('checkbox', 'FALSE')).toBe(false)
+    expect(coerceValue('checkbox', 'yes')).toBe(true)
+    expect(coerceValue('checkbox', 'no')).toBe(false)
   })
 
   it('文本保持字符串，且 0/false 不会被 String() 弄丢', () => {

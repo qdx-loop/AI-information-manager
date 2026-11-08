@@ -70,11 +70,16 @@ export async function onRequestPost({ request, env }) {
       return errorJson('请求格式错误', 400, 'BAD_BODY')
     }
 
-    // 逐档尝试：失败原因可切换的（连接/429/5xx）换下一档；不可切换的（4xx 参数错）直接返回
+    // 逐档尝试：失败原因可切换的（连接/超时/429/5xx）换下一档；不可切换的（4xx 参数错）直接返回
+    // 首字节（响应头）等待上限：主供应商慢挂时不能把用户卡死，超时后立即切备用；
+    // 只限制「建立连接/拿到响应头」，不限制流式正文总时长（长回答可以持续输出）。
+    const headerTimeoutMs = Number(env.PLATFORM_AI_TIMEOUT_MS) > 0 ? Number(env.PLATFORM_AI_TIMEOUT_MS) : 25_000
     let lastFail = { status: 502, brief: '无可用上游' }
     for (const p of chain) {
       let upstream
       let fetchErr = null
+      const abortCtrl = new AbortController()
+      const headerTimer = setTimeout(() => abortCtrl.abort(), headerTimeoutMs)
       try {
         upstream = await fetch(`${p.base}/chat/completions`, {
           method: 'POST',
@@ -87,14 +92,21 @@ export async function onRequestPost({ request, env }) {
           },
           body: JSON.stringify({ ...body, model: p.model }), // 模型由服务端按档位锁定
           cf: { cacheTtl: 0, cacheEverything: false },
+          signal: abortCtrl.signal,
         })
       } catch (e) {
         fetchErr = e
+      } finally {
+        clearTimeout(headerTimer)
       }
 
       if (fetchErr) {
-        console.error(`[ai-proxy] ${p.base} 连接失败:`, String(fetchErr?.message ?? fetchErr))
-        lastFail = { status: 502, brief: '上游连接失败' }
+        const timedOut = abortCtrl.signal.aborted
+        console.error(
+          `[ai-proxy] ${p.base} ${timedOut ? `首字节超时（${headerTimeoutMs}ms）` : '连接失败'}:`,
+          String(fetchErr?.message ?? fetchErr),
+        )
+        lastFail = { status: 504, brief: timedOut ? '上游响应超时' : '上游连接失败' }
         continue // 切下一档
       }
 
@@ -130,7 +142,9 @@ export async function onRequestPost({ request, env }) {
     const friendly =
       lastFail.status === 429
         ? 'AI 服务当前繁忙，请稍等 1-2 分钟再试'
-        : 'AI 服务暂时不可用，请稍后重试'
+        : lastFail.status === 504
+          ? 'AI 服务响应超时，请稍后重试'
+          : 'AI 服务暂时不可用，请稍后重试'
     return errorJson(friendly, 502, lastFail.status === 429 ? 'UPSTREAM_RATE_LIMITED' : 'UPSTREAM_ERROR')
   } catch (e) {
     // 兜底：任何未捕获异常（D1 偶发错误等）都返回 JSON，避免 CF 边缘渲染出 HTML 502 页

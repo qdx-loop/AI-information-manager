@@ -125,11 +125,16 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
         return false
       }
       const hs = Object.keys(rows[0])
+      if (hs.length === 0) {
+        message.warning(t('lib.importExport.emptyFile'))
+        return false
+      }
       setHeaders(hs)
-      // 自动匹配：列名 === 字段 label 或 key
+      // 自动匹配：列名 === 字段 label 或 key（忽略首尾空格，Excel 表头经常带不可见空格）
       const auto: Record<string, string> = {}
       hs.forEach((h) => {
-        const matched = fields.find((f) => f.label === h || f.key === h)
+        const clean = h.trim()
+        const matched = fields.find((f) => f.label.trim() === clean || f.key.trim() === clean)
         auto[h] = matched ? matched.key : ''
       })
       setMapping(auto)
@@ -402,8 +407,15 @@ function coerceValue(type: FieldDef['type'], raw: unknown): FieldValue {
       const n = typeof raw === 'number' ? raw : parseLooseNumber(raw)
       return Number.isFinite(n) ? n : null
     }
-    case 'checkbox':
-      return raw === true || raw === '是' || raw === 'true' || raw === 1 || raw === '1'
+    case 'checkbox': {
+      if (raw === true || raw === 1) return true
+      if (raw === false || raw === 0) return false
+      // 兼容各种表格来源：Excel 布尔单元格（raw:false 时是 "TRUE"/"FALSE"）、
+      // 中文/英文的是否、勾选符号。之前只认小写 'true'，导致 Excel 的 TRUE 全被当 false。
+      const s = String(raw).trim().toLowerCase()
+      if (['true', '1', '是', 'yes', 'y', '√', '✓', 'checked', '已勾选'].includes(s)) return true
+      return false
+    }
     case 'date':
       return coerceDate(raw)
     default:

@@ -50,6 +50,7 @@ import { useLibraryStore } from '@/store/libraryStore'
 import { getProvider } from '@/db/providerFactory'
 import { chat } from '@/ai/client'
 import { buildContext, SYSTEM_PROMPT, SYSTEM_PROMPT_EN, type LibraryContext } from '@/ai/contextBuilder'
+import { trimHistory } from '@/ai/history'
 import {
   ALL_TOOLS,
   parseItemAction,
@@ -143,24 +144,45 @@ export default function AIPanel() {
 
   // 当前会话消息（从会话存储加载；撤回器为闭包不序列化，恢复后撤回按钮自然失效）
   const [messages, setMessages] = useState<UIMessage[]>(() => (sessionId ? loadMessages(sessionId) as UIMessage[] : []))
+  const [loading, setLoading] = useState(false)
 
-  // 消息变化 → 持久化到当前会话
-  useEffect(() => {
+  // 消息变化 → 持久化到当前会话（防抖）。
+  // 原实现每个流式增量都把整段会话 JSON.stringify 后同步写 localStorage：一条 1000 token
+  // 的回答会产生上千次整数组序列化 + 写盘，主线程被拖住，表现为「AI 输出卡、整体很慢」。
+  // 现在：流式期间最多每 1.5s 写一次，结束后 400ms 内落盘；卸载时强制 flush 保底。
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const persistNowRef = useRef<() => void>(() => {})
+  const persistNow = () => {
     if (!account || !sessionId) return
     try {
-      // 这里必须重新从存储里读 meta，不能用 sessions state：
-      // touchSessionTitle 只写 localStorage、不更新 sessions state，所以 state 里的
-      // title 永远是 ''，saveSession 又把空标题兜底成「新会话」——每个流式增量都触发
-      // 一次本 effect，于是刚命名好的标题被一秒内打回「新会话」。
+      // 必须重新从存储里读 meta，不能用 sessions state（touchSessionTitle 只写 localStorage）。
       const stored = listSessions(account.id).find((s) => s.id === sessionId)
       const meta = stored ?? sessions.find((s) => s.id === sessionId) ?? { id: sessionId, title: '', updatedAt: Date.now() }
       saveSession(account.id, meta, messages.map((m) => ({ role: m.role, content: m.content, thinking: m.thinking, steps: m.steps, chart: m.chart })))
     } catch {
       /* 存储异常时静默，不影响对话 */
     }
-    // sessions 只作兜底，不再作为依赖：它一变就整段重存，没有必要
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, sessionId, account?.id])
+  }
+  persistNowRef.current = persistNow
+  useEffect(() => {
+    if (!account || !sessionId) return
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = setTimeout(() => {
+      persistTimerRef.current = null
+      persistNowRef.current()
+    }, loading ? 1500 : 400)
+    return () => {
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current)
+        persistTimerRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只按消息/加载态触发，persistNow 用 ref 取最新
+  }, [messages, sessionId, account?.id, loading])
+  useEffect(() => () => {
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    persistNowRef.current()
+  }, [])
 
   // 首条用户消息懒取名：更新会话标题
   useEffect(() => {
@@ -173,6 +195,8 @@ export default function AIPanel() {
   /** 切换会话：保存当前 → 加载目标 */
   const switchSession = (targetId: string) => {
     if (targetId === sessionId || loading) return
+    // 防抖保存可能还在等：切走前先把当前会话立即落盘，避免最后几条消息丢失
+    persistNowRef.current()
     setSessionId(targetId)
     setMessages(loadMessages(targetId) as UIMessage[])
     setSessionSwitcherOpen(false)
@@ -181,6 +205,7 @@ export default function AIPanel() {
   /** 新建会话并切换过去 */
   const startNewSession = () => {
     if (!account || loading) return // 与 switchSession 对称：传输中不切，否则在途写作流会撒到新会话上
+    persistNowRef.current()
 
     const s = newSession()
     saveSession(account.id, s, [])
@@ -194,6 +219,7 @@ export default function AIPanel() {
   const removeSession = (delId: string) => {
     if (!account) return
     if (delId === sessionId && loading) return // 传输中不允许删当前
+    persistNowRef.current()
     const rest = deleteSession(account.id, delId)
     if (rest.length === 0) {
       const s = newSession()
@@ -210,7 +236,6 @@ export default function AIPanel() {
     }
   }
   const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState<{
     action: ItemAction
     library: Library | undefined
@@ -245,6 +270,34 @@ export default function AIPanel() {
   // 从那版列表取 firstUser 会全程找不到 → 自动命名永远不触发
   const messagesRef = useRef<UIMessage[]>(messages)
   messagesRef.current = messages
+  // 流式文本合帧：token 到达速度可能远高于屏幕刷新率，每个 token setState + Markdown 重排
+  // 会让主线程过载。这里按 50ms 合并，一次性更新消息。
+  const pendingStreamRef = useRef('')
+  const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const flushStreamText = useCallback(() => {
+    if (streamTimerRef.current) {
+      clearTimeout(streamTimerRef.current)
+      streamTimerRef.current = null
+    }
+    const delta = pendingStreamRef.current
+    if (!delta) return
+    pendingStreamRef.current = ''
+    setMessages((m) =>
+      m.map((msg, i) => (i === m.length - 1 ? { ...msg, content: msg.content + delta, pending: false } : msg)),
+    )
+  }, [])
+  const queueStreamText = useCallback(
+    (delta: string) => {
+      pendingStreamRef.current += delta
+      if (streamTimerRef.current == null) {
+        streamTimerRef.current = setTimeout(() => {
+          streamTimerRef.current = null
+          flushStreamText()
+        }, 50)
+      }
+    },
+    [flushStreamText],
+  )
   const scrollRef = useRef<HTMLDivElement>(null)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [parsingFile, setParsingFile] = useState(false)
@@ -295,7 +348,15 @@ export default function AIPanel() {
     usingPlatform || !!(settings.ai.baseUrl && settings.ai.apiKey && settings.ai.model)
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+    const el = scrollRef.current
+    if (!el) return
+    // 只在用户本来就在底部时跟随输出；用 rAF 合并增量，避免每个 token 触发一次 smooth 滚动动画
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160
+    if (!nearBottom) return
+    const id = requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight
+    })
+    return () => cancelAnimationFrame(id)
   }, [messages])
 
   // 旧版纯文本记忆自动迁移为结构化记忆（幂等）
@@ -354,13 +415,13 @@ export default function AIPanel() {
     try {
       const contexts = await getContexts()
       lastContextsRef.current = contexts
-      const contextText = buildContext('all', contexts, currentLibraryId)
+      const contextText = buildContext(settings.ai.scope ?? 'current', contexts, currentLibraryId)
 
       // 组装对话消息：system + 上下文预览 + 记忆 + 历史 + 当前
-      const history: ChatMessage[] = messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }))
+      // 只发送最近一段历史：完整会话仍保存在本地，但不再把全部历史塞进每次请求
+      const history: ChatMessage[] = trimHistory(
+        messages.map((m) => ({ role: m.role, content: m.content })),
+      ).map((m) => ({ role: m.role, content: m.content }))
       const systemPrompt = settings.ai.customPrompt || (settings.language === 'en' ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT)
       const memoryText = account ? memoryPrompt(account.id) : null
       const chatMessages: ChatMessage[] = [
@@ -445,6 +506,7 @@ export default function AIPanel() {
         )
       }
     } finally {
+      flushStreamText()
       setLoading(false)
       abortRef.current = null
       retryDoneRef.current = false
@@ -552,28 +614,23 @@ export default function AIPanel() {
         messages: currentMessages,
         tools: ALL_TOOLS,
         signal: abortRef.current!.signal,
-        onText: (delta) => {
-          setMessages((m) =>
-            m.map((msg, i) =>
-              i === m.length - 1 ? { ...msg, content: msg.content + delta, pending: false } : msg,
-            ),
-          )
-        },
+        onText: (delta) => queueStreamText(delta),
+        // 推理内容当前不在 UI 展示：只在本地累积，等本轮结束一次性写入 thinking，
+        // 避免每个 reasoning token 都触发整棵消息树重渲染 + 持久化。
         onReasoning: (delta) => {
-          if (import.meta.env.DEV) reasoningLog += delta
-          setMessages((m) =>
-            m.map((msg, i) =>
-              i === m.length - 1
-                ? { ...msg, thinking: (msg.thinking ?? '') + delta }
-                : msg,
-            ),
-          )
+          reasoningLog += delta
         },
       })
 
-      if (import.meta.env.DEV && reasoningLog) {
-        console.debug('[clerk] reasoning:', reasoningLog)
+      // 每轮结束把缓冲的流式文本与推理一次性落进消息
+      flushStreamText()
+      if (reasoningLog) {
+        const chunk = reasoningLog
         reasoningLog = ''
+        if (import.meta.env.DEV) console.debug('[clerk] reasoning:', chunk)
+        setMessages((m) =>
+          m.map((msg, i) => (i === m.length - 1 ? { ...msg, thinking: (msg.thinking ?? '') + chunk } : msg)),
+        )
       }
 
       currentMessages.push(reply)

@@ -61,30 +61,45 @@ export async function chat({
   }
 
   let res: Response
+  // 拿到响应头的等待上限：上游网络慢/挂起时不能无限转圈（长回答的正文流不设总时长）。
+  const HEADER_TIMEOUT_MS = 45_000
+  const fetchOnce = async (): Promise<Response> => {
+    const ctrl = new AbortController()
+    const onUserAbort = () => ctrl.abort()
+    if (signal) {
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
+      signal.addEventListener('abort', onUserAbort, { once: true })
+    }
+    const timer = setTimeout(() => ctrl.abort(), HEADER_TIMEOUT_MS)
+    try {
+      return await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal: ctrl.signal,
+      })
+    } finally {
+      clearTimeout(timer)
+      // 不移除 user abort 监听：响应头之后用户点「停止」仍要能中断正文流
+    }
+  }
   // CF 边缘偶发瞬时 502/503（平台抖动，与上游无关）：静默重试一次可消除大部分体验问题。
   // 仅对 502/503/504 重试；429（真限流）与其余 4xx 重试无意义。
   try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-      signal,
-    })
+    res = await fetchOnce()
     if ([502, 503, 504].includes(res.status)) {
       const first = await res.text().catch(() => '')
       // 只有 CF 网关错误页（无 JSON 结构）才重试；我们自己的 JSON 错误（已含上游降级结果）不重试
       if (!first.trim().startsWith('{')) {
         await new Promise((r) => setTimeout(r, 500))
-        res = await fetch(url, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload),
-          signal,
-        })
+        res = await fetchOnce()
       }
     }
   } catch (e) {
-    if ((e as Error).name === 'AbortError') throw e
+    if ((e as Error).name === 'AbortError') {
+      if (signal?.aborted) throw e
+      throw new Error('AI 响应超时（45 秒内未建立连接），请重试')
+    }
     throw new Error('网络连接失败，请检查网络后重试')
   }
 

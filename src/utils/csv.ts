@@ -17,7 +17,16 @@ export function parseCSV(file: File): Promise<Record<string, string>[]> {
     Papa.parse<Record<string, string>>(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (res) => resolve(res.data),
+      // 我们导出的 CSV 带 UTF-8 BOM（Excel 中文不乱码），Papa 不一定会剥掉它；
+      // 不处理时第一列表头会变成 "\uFEFF姓名"，自动匹配失败。同时去掉表头首尾空格。
+      transformHeader: (h) => h.replace(/^\uFEFF/, '').trim(),
+      complete: (res) => {
+        if (res.data.length === 0 && res.errors.length > 0) {
+          reject(new Error(res.errors[0].message))
+          return
+        }
+        resolve(res.data)
+      },
       error: (err) => reject(err),
     })
   })
