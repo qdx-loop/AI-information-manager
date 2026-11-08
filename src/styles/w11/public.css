@@ -117,6 +117,15 @@
   flex-wrap: wrap;
   min-width: 0;
 }
+.pub-footer-static-link {
+  font-size: 12px;
+  color: var(--w-text-2);
+  text-decoration: none;
+}
+.pub-footer-static-link:hover {
+  color: var(--w-accent);
+  text-decoration: underline;
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    一、落地页 = Fluent 应用介绍页

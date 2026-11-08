@@ -410,6 +410,10 @@ export default function Landing() {
               <Link href="/help" onClick={(e) => { e.preventDefault(); navigate('/help') }}>
                 {t('landing.nav.help')}
               </Link>
+              {/* 静态产品介绍页：给搜索引擎和分享链接一个可索引的长文落地页 */}
+              <a href="/intro.html" className="pub-footer-static-link">
+                {lang === 'en' ? 'About & use cases' : '产品介绍'}
+              </a>
               <SupportLink />
               <Text size={200} className="w-faint">
                 {t('landing.footer.isolation')}

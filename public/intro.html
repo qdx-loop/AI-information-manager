@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>信息管理是什么？免费 AI 表格工具｜客户/库存/房源/账本都能管</title>
+<meta name="description" content="信息管理是一款免费的 AI 表格与信息管理工具：用自然语言建库、录入、查询、统计、生成图表。客户、库存、房源、账本都能自定义字段，数据默认存在自己的设备里，支持 Excel 导入，手机电脑都能用。">
+<link rel="canonical" href="https://aiim.de5.net/intro.html">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="信息管理">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:url" content="https://aiim.de5.net/intro.html">
+<meta property="og:title" content="信息管理是什么？免费 AI 表格工具">
+<meta property="og:description" content="客户、库存、房源、账本——用一句话就能建库、录入、查数、画图。免费、数据默认在本地。">
+<meta property="og:image" content="https://aiim.de5.net/og-image.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#202020">
+<link rel="icon" href="/favicon-v10.svg" type="image/svg+xml">
+<style>
+:root{--bg:#202020;--surface:#2b2b2b;--surface2:#262626;--stroke:#464646;--text:#fff;--text2:#d6d6d6;--text3:#a0a0a0;--accent:#4cc2ff;--accent2:#0067c0;--radius:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI Variable Text','Segoe UI','Microsoft YaHei','Noto Sans CJK SC','PingFang SC',sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.nav{position:sticky;top:0;z-index:10;background:rgba(32,32,32,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--stroke)}
+.nav-in{height:56px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;text-decoration:none}
+.logo{width:26px;height:26px;border-radius:7px;background:#0067c0;position:relative;flex:0 0 auto}
+.logo:before,.logo:after{content:'';position:absolute;left:6px;height:2.6px;border-radius:2px;background:#fff}
+.logo:before{top:7px;width:14px;box-shadow:0 5.5px 0 rgba(255,255,255,.82)}
+.logo:after{top:18px;width:8px;background:rgba(255,255,255,.64)}
+.logo i{position:absolute;right:4px;bottom:4px;width:5px;height:5px;border-radius:50%;background:#4cc2ff}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#000;border:none;border-radius:6px;padding:10px 18px;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none}
+.btn:hover{background:#6dd0ff}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--stroke)}
+.btn-ghost:hover{background:#333}
+.hero{padding:72px 0 56px;display:grid;grid-template-columns:1.02fr .98fr;gap:40px;align-items:center}
+.kicker{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent);border:1px solid rgba(76,194,255,.32);background:rgba(76,194,255,.08);border-radius:999px;padding:5px 11px;margin-bottom:18px}
+h1{font-size:clamp(38px,5vw,64px);line-height:1.06;letter-spacing:-.03em;font-weight:700;margin-bottom:16px}
+h1 em{font-style:normal;color:var(--accent)}
+.lead{font-size:clamp(16px,1.6vw,20px);color:var(--text2);max-width:38em;margin-bottom:22px}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.note{font-size:13px;color:var(--text3)}
+.shot{border:1px solid var(--stroke);border-radius:12px;overflow:hidden;background:var(--surface);box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.shot img{display:block;width:100%;height:auto}
+.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 0 56px}
+.trust div{background:var(--surface);border:1px solid var(--stroke);border-radius:var(--radius);padding:14px 16px;font-size:14px;color:var(--text2)}
+.trust b{display:block;color:var(--text);font-size:15px;margin-bottom:2px}
+section{padding:56px 0;border-top:1px solid var(--stroke)}
+h2{font-size:clamp(26px,3vw,34px);line-height:1.2;letter-spacing:-.02em;margin-bottom:10px}
+.sub{color:var(--text2);font-size:16px;max-width:42em;margin-bottom:26px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.card{background:var(--surface);border:1px solid var(--stroke);border-radius:var(--radius);padding:20px}
+.card h3{font-size:17px;margin-bottom:6px}
+.card p{font-size:14px;color:var(--text2)}
+.icon{width:34px;height:34px;border-radius:8px;background:rgba(76,194,255,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:12px;font-weight:700}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;counter-reset:s}
+.step{background:var(--surface);border:1px solid var(--stroke);border-radius:var(--radius);padding:20px;counter-increment:s}
+.step:before{content:'0' counter(s);display:block;color:var(--accent);font-weight:700;font-size:13px;margin-bottom:8px}
+.step h3{font-size:16px;margin-bottom:4px}
+.step p{font-size:14px;color:var(--text2)}
+.cta-band{background:linear-gradient(135deg,rgba(76,194,255,.12),rgba(0,103,192,.12));border:1px solid rgba(76,194,255,.28);border-radius:14px;padding:34px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.cta-band h2{margin-bottom:6px}
+.cta-band p{color:var(--text2);font-size:15px}
+.qr{display:flex;align-items:center;gap:12px;background:#fff;color:#202020;border-radius:12px;padding:10px}
+.qr img{width:92px;height:92px;display:block}
+.qr b{display:block;font-size:14px}.qr span{display:block;color:#5c5c5c;font-size:12px}
+details{background:var(--surface);border:1px solid var(--stroke);border-radius:8px;padding:14px 18px;margin-bottom:10px}
+summary{cursor:pointer;font-weight:600;font-size:15px}
+details p{margin-top:8px;color:var(--text2);font-size:14px}
+footer{border-top:1px solid var(--stroke);padding:28px 0 40px;font-size:13px;color:var(--text3);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+footer a{color:var(--text2);text-decoration:none;margin-right:16px}
+footer a:hover{color:var(--accent)}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:40px}.trust,.grid3,.grid4,.steps{grid-template-columns:1fr 1fr}.grid4{gap:10px}}
+@media(max-width:600px){.trust,.grid3,.grid4,.steps{grid-template-columns:1fr}.cta-band{padding:24px}.nav-in{height:52px}}
+</style>
+</head>
+<body>
+<header class="nav"><div class="wrap nav-in">
+  <a class="brand" href="/"><span class="logo"><i></i></span>信息管理 <span style="color:var(--text3);font-weight:400;font-size:12px">InfoDesk</span></a>
+  <div style="display:flex;gap:10px;align-items:center">
+    <a class="btn btn-ghost" href="/help" style="padding:8px 13px;font-size:13px">使用说明</a>
+    <a class="btn" href="/login" style="padding:8px 14px;font-size:13px">免费开始使用</a>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <section class="hero" style="border-top:0">
+    <div>
+      <div class="kicker">✦ 不用学 Excel，说人话就能管数据</div>
+      <h1>说一句话，<br><em>把表格管明白。</em></h1>
+      <p class="lead">客户、库存、房源、账本——不用先想好表格长什么样，也不用一行行敲。建库、录入、查数、统计、画图，全部对 AI 说一句话就行。</p>
+      <div class="actions">
+        <a class="btn" href="/login">免费注册，立即使用 →</a>
+        <a class="btn btn-ghost" href="#how">看看怎么用</a>
+      </div>
+      <p class="note">永久免费 · 无需安装 · 数据默认存在你自己的设备里 · 手机电脑都能用</p>
+    </div>
+    <div class="shot"><img src="/hero-table.png" alt="信息管理应用界面：客户跟进表格与 AI 助手" /></div>
+  </section>
+
+  <div class="trust">
+    <div><b>永久免费</b>不充值、不限条数、不过期</div>
+    <div><b>本地优先</b>数据默认只在你的浏览器里</div>
+    <div><b>零门槛</b>会打字就会用，不用学公式</div>
+    <div><b>能进能出</b>Excel/CSV 导入导出都支持</div>
+  </div>
+
+  <section id="who">
+    <h2>它是给谁用的？</h2>
+    <p class="sub">只要你的工作需要「记住很多条信息、查得到、能统计」，它就能替你省事。不需要懂数据库，也不需要买软件。</p>
+    <div class="grid4">
+      <div class="card"><div class="icon">客</div><h3>客户管理</h3><p>客户名单、跟进状态、成交金额、下次联系时间，一键筛选和统计。</p></div>
+      <div class="card"><div class="icon">库</div><h3>库存 / 商品</h3><p>型号、数量、进价售价、库存预警，随时查随时改，手机上也能盘点。</p></div>
+      <div class="card"><div class="icon">房</div><h3>房源 / 项目</h3><p>房源信息、带看记录、报价进度，图片和备注都能一起管。</p></div>
+      <div class="card"><div class="icon">账</div><h3>账本 / 收支</h3><p>每笔收支、分类、经手人，月底让 AI 直接算给你看，还能出图。</p></div>
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>和 Excel 比，省事在哪？</h2>
+    <p class="sub">不是再做一个表格，而是把「建表、录入、查数、做图」这几件最费时间的事交给 AI。</p>
+    <div class="grid3">
+      <div class="card"><div class="icon">说</div><h3>说人话就能操作</h3><p>「帮我记一条客户：张三，华为，金额 5 万」「统计各城市成交额」——听懂就执行，写入前会弹确认，避免误操作。</p></div>
+      <div class="card"><div class="icon">改</div><h3>字段完全自定义</h3><p>文本、数字、日期、下拉、勾选、评分，想加什么列就加什么列；已有数据再改结构也不用重建表。</p></div>
+      <div class="card"><div class="icon">导</div><h3>Excel 一键导入</h3><p>把原来的表格直接拖进来，列名自动对应字段，几千行也能批量导入；导出 CSV/Excel 同样一键。</p></div>
+      <div class="card"><div class="icon">图</div><h3>一句话出图表</h3><p>柱状、折线、饼图自动生成，颜色跟随深浅色模式，可下载成图片直接发给老板。</p></div>
+      <div class="card"><div class="icon">安</div><h3>数据是你的</h3><p>默认只存在你自己的浏览器里，不经过我们的服务器；也可以导出备份，或自愿接自己的云数据库多设备同步。</p></div>
+      <div class="card"><div class="icon">快</div><h3>打开就能用</h3><p>网页版，不用下载安装；Windows 11 风格界面，电脑手机浏览器都顺手，还支持添加到主屏幕当 App 用。</p></div>
+    </div>
+  </section>
+
+  <section id="how">
+    <h2>三步上手，30 秒开始第一条记录</h2>
+    <p class="sub">不需要配置，不需要教程；注册后第一个库建好，就可以直接开始用了。</p>
+    <div class="steps">
+      <div class="step"><h3>注册一个账号</h3><p>打开 aiim.de5.net，点「免费注册」，填用户名和密码即可，不用手机号，不用付费。</p></div>
+      <div class="step"><h3>建一个管理库</h3><p>起个名字，比如「客户」「库存」；也可以让 AI 帮你建，字段之后随时能改。</p></div>
+      <div class="step"><h3>开始说话</h3><p>录入、查询、统计、画图都可以直接说；有 Excel 就导入，没有就从第一条开始。</p></div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <h2>常见问题</h2>
+    <p class="sub">如果你关心数据安全、AI 费用、和 Excel 的区别，先看这里。</p>
+    <details><summary>真的免费吗？会不会用一段时间收费？</summary><p>永久免费，不充值、不限条数、不过期。平台提供的基础 AI 额度有频率限制；用量大可以填自己的 API Key，费用直接付给模型平台。</p></details>
+    <details><summary>我的数据存在哪？别人能看到吗？</summary><p>默认存在你自己浏览器的本地数据库里，运营方不存储你的业务数据。只有你主动使用 AI 提问时，相关结构和部分内容才会发给模型服务商。换设备可以用导出备份或局域网直传。</p></details>
+    <details><summary>和 Excel / 在线表格有什么区别？</summary><p>Excel 需要你先设计表格、自己敲公式；这里你说要记什么，AI 帮你把表建好，之后用自然语言录入、查询、统计、画图，字段也能随时改。</p></details>
+    <details><summary>手机能用吗？需要下载 App 吗？</summary><p>手机浏览器打开 aiim.de5.net 就能用，界面会自动适配；也可以「添加到主屏幕」，像 App 一样打开。安卓还有安装包可下载。</p></details>
+    <details><summary>AI 会不会乱改我的数据？</summary><p>所有写操作都会先弹出确认，由你点确认后才执行；删字段、删库这类危险操作还有二次确认，并可在回收站恢复。</p></details>
+    <details><summary>怎么把原来的 Excel 导进来？</summary><p>在库页点「导入」，选择 .xlsx / .xls / .csv，按提示把列对应到字段，确认后批量写入；单文件 10MB 以内。</p></details>
+  </section>
+
+  <section>
+    <div class="cta-band">
+      <div><h2>把客户、库存、账本，交给 AI 管。</h2><p>免费注册，30 秒开始第一条记录；数据默认只在你的设备里。</p></div>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        <a class="btn" href="/login">免费开始使用 →</a>
+        <div class="qr"><img src="/promo-qr.png" alt="信息管理网址二维码"><div><b>微信扫码</b><span>直接打开网页版<br>无需下载 App</span></div></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <div>© 2026 信息管理 · aiim.de5.net · 本地优先 · 永久免费</div>
+  <div><a href="/">返回首页</a><a href="/help">使用说明</a><a href="https://github.com/qdx-loop/AI-information-manager" rel="noopener">GitHub</a></div>
+</footer>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"真的免费吗？","acceptedAnswer":{"@type":"Answer","text":"永久免费，不充值、不限条数、不过期；平台基础 AI 额度有频率限制，用量大可填自己的 API Key。"}},
+    {"@type":"Question","name":"数据存在哪？","acceptedAnswer":{"@type":"Answer","text":"默认存在用户自己浏览器的本地数据库里，运营方不存储业务数据；使用 AI 提问时相关内容会发给模型服务商。"}},
+    {"@type":"Question","name":"和 Excel 有什么区别？","acceptedAnswer":{"@type":"Answer","text":"不用先设计表格和写公式，用自然语言建库、录入、查询、统计和画图，字段可随时修改。"}}
+  ]
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /settings
+Disallow: /trash
+Disallow: /library/
+
+# AI 抓取（可选）：允许生成式搜索收录产品介绍
+User-agent: GPTBot
+Allow: /
+
+Sitemap: https://aiim.de5.net/sitemap.xml

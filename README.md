@@ -1,8 +1,27 @@
 # AI 智能信息管理助手
 
-一个基于 React + AI 的现代化信息管理 Web 应用，支持自定义管理库、字段配置、数据增删改查，以及深度 AI 对话集成——用自然语言就能操作数据。
+**不用学 Excel，说一句话就能管数据。** 客户、库存、房源、账本——AI 帮你建库、录入、查数、画图。数据默认存在你自己的设备里，永久免费。
 
-**打开网址 → 点「注册」→ 立刻开始用。完全免费，没有卡种，没有到期时间，不需要联系任何人。**
+<p align="center">
+  <a href="https://aiim.de5.net"><img src="https://img.shields.io/badge/🚀%20在线免费使用-aiim.de5.net-4CC2FF?style=for-the-badge" alt="在线免费使用"></a>
+  <a href="https://aiim.de5.net/intro.html"><img src="https://img.shields.io/badge/📖%20产品介绍与使用场景-查看-0067C0?style=for-the-badge" alt="产品介绍"></a>
+</p>
+
+<p align="center">
+  <a href="https://aiim.de5.net"><img src="docs/screenshot.png" alt="信息管理：Windows 11 风格 AI 信息管理界面" width="920"></a>
+</p>
+
+> **打开网址 → 点「注册」→ 立刻开始用。** 网页版无需安装，手机电脑都能用；支持 Excel 一键导入；不需要手机号、不付费、不过期。
+
+| 场景 | 能管什么 |
+| --- | --- |
+| 客户管理 | 名单、跟进状态、成交金额、下次联系时间 |
+| 库存 / 商品 | 型号、数量、进价售价、库存预警 |
+| 房源 / 项目 | 房源信息、带看记录、报价进度 |
+| 账本 / 收支 | 每笔收支、分类、经手人、月度统计 |
+| 任何表格 | 自定义字段 + 自然语言查询 / 统计 / 图表 |
+
+一个基于 React + AI 的现代化信息管理 Web 应用，支持自定义管理库、字段配置、数据增删改查，以及深度 AI 对话集成——用自然语言就能操作数据。
 
 ## ✨ 功能特性
 
@@ -151,3 +170,13 @@ src/
 ## 📄 License
 
 MIT
+
+
+## 📣 分享 / 宣传素材
+
+- 在线体验：<https://aiim.de5.net>
+- 产品介绍长页：<https://aiim.de5.net/intro.html>
+- 方版海报（扫码直达）：`docs/poster.png`
+- 产品截图：`docs/screenshot.png`
+
+如果这个工具帮你省了时间，欢迎把上面任意链接分享给需要管客户、库存、房源或账本的朋友。
