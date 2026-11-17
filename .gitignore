@@ -25,3 +25,6 @@ apk-build/app-release-*.aab
 apk-build/.gradle
 apk-build/node_modules
 apk-build/answers.txt
+
+# 本地密钥（AUTH_SECRET / ADMIN_PASSWORD），永不提交
+.dev.vars

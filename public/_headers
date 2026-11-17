@@ -6,7 +6,8 @@
 #     （内容里带每次请求都不同的 ray id，无法用 hash/nonce 锁定）；不透传会让
 #     Console 每页报 CSP 错误、并削弱 CF 的机器人检测。应用本身不用 innerHTML，
 #     XSS 面主要来自 markdown 链接（react-markdown 已转义），因此接受这一项放宽。
-#   - style-src 必须 'unsafe-inline'：antd/echarts 大量写内联样式，main.tsx 的兜底错误页也用 style 属性；
+#   - style-src 必须 'unsafe-inline'：Fluent 的 Griffel 运行时注入 <style>，echarts 大量写内联样式，
+#     main.tsx 的兜底错误页也用 style 属性；
 #   - img-src 放 data:/blob:：图表导出、PWA 图标、粘贴的图片都是 data URL；
 #   - connect-src 放 'self' + https:：应用允许用户自填 AI baseUrl 与 Supabase URL，直接按任意
 #     https 地址出站；收紧成白名单会直接让「自定义 AI / 云端同步」不可用（宁可先保证可用，

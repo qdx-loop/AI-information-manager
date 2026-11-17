@@ -24,7 +24,6 @@
  * 提交失败把焦点送到第一个错误字段；服务端错误在最靠近表单的位置用 MessageBar 展示。
  */
 import { useCallback, useEffect, useRef, useState, type FormEvent, type RefObject } from 'react'
-import { App as AntdApp } from 'antd'
 import {
   Button,
   Card,
@@ -49,6 +48,7 @@ import {
   WeatherMoonRegular,
   WeatherSunnyRegular,
 } from '@fluentui/react-icons'
+import { message } from '@/components/common/feedback'
 import AppIcon from '@/components/common/AppIcon'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
@@ -111,7 +111,6 @@ function focusFirstError<T extends object>(
 }
 
 export default function AuthPage() {
-  const { message } = AntdApp.useApp()
   const navigate = useNavigate()
   const [search] = useSearchParams()
   const { login, register, account } = useAuthStore()

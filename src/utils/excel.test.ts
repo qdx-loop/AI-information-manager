@@ -41,7 +41,7 @@ describe('Excel 导出/解析往返（xlsx 0.20.3）', () => {
       item({ name: '张三', age: 30, city: '北京' }),
       item({ name: '李四', age: 25, city: '上海' }),
     ]
-    const blob = itemsToExcel(items, fields)
+    const blob = await itemsToExcel(items, fields)
     expect(blob.size).toBeGreaterThan(0)
 
     const file = new File([blob], 'data.xlsx', { type: 'application/octet-stream' })
@@ -56,7 +56,7 @@ describe('Excel 导出/解析往返（xlsx 0.20.3）', () => {
   it('不可见字段不导出', async () => {
     const fields = [field('name', '姓名'), { ...field('secret', '隐藏'), visible: false }]
     const items = [item({ name: '王五', secret: '不应出现' })]
-    const blob = itemsToExcel(items, fields)
+    const blob = await itemsToExcel(items, fields)
     const file = new File([blob], 'data.xlsx', { type: 'application/octet-stream' })
     const rows = await parseExcel(file)
     expect(rows[0]['姓名']).toBe('王五')

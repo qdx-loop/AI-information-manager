@@ -6,7 +6,6 @@
 
      tokens     设计变量（色板/字体/尺寸/材质/阴影）
      base       全局 reset + 桌面壁纸舞台 + 焦点/滚动条/动效
-     antd       antd v5 → Win11 原生控件二次主题
      primitives 共享组件类（按钮/卡片/设置行/表格/标签/浮层/空态…）
      shell      桌面窗口外壳（任务栏/标题栏/窗口按钮/68px 导航/状态栏/移动端）
      home       首页
@@ -20,7 +19,6 @@
 
 @import './w11/tokens.css';
 @import './w11/base.css';
-@import './w11/antd.css';
 @import './w11/primitives.css';
 @import './w11/shell.css';
 @import './w11/home.css';

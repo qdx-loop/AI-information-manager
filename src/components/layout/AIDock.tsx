@@ -90,7 +90,8 @@ export default function AIDock({ variant }: { variant: 'dock' | 'sheet' }) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (!useAiUiStore.getState().open) return
-      if (document.querySelector('.ant-modal-wrap, .ant-drawer-open')) return
+      // 有更上层的模态（Fluent Dialog / OverlayDrawer）时先让它们吃掉 Esc
+      if (document.querySelector('[role="dialog"], [role="alertdialog"], .w-modal-backdrop')) return
       setOpen(false)
     }
     window.addEventListener('keydown', onKey)

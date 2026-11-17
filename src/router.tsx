@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { App as AntdApp } from 'antd'
 import { Spinner, Text } from '@fluentui/react-components'
+import { message } from '@/components/common/feedback'
 import { useAuthStore } from '@/store/authStore'
 import AppShell from '@/components/layout/AppShell'
 import AuthPage from '@/components/auth/AuthPage'
@@ -62,14 +62,13 @@ function HomeGate() {
 
 // 展示一次强制登出原因（到期/停用）
 function LogoutReasonBanner() {
-  const { message } = AntdApp.useApp()
   const { logoutReason, clearLogoutReason } = useAuthStore()
   useEffect(() => {
     if (logoutReason) {
       message.warning({ content: logoutReason, duration: 6 })
       clearLogoutReason()
     }
-  }, [logoutReason, message, clearLogoutReason])
+  }, [logoutReason, clearLogoutReason])
   return null
 }
 

@@ -8,13 +8,14 @@ import {
   Option,
   Text,
 } from '@fluentui/react-components'
-import { App, DatePicker } from 'antd'
 import { ClockRegular, DeleteRegular, InfoRegular } from '@fluentui/react-icons'
 import dayjs from 'dayjs'
+import { message } from '@/components/common/feedback'
 import type { FieldDef, Item, FieldValue } from '@/types'
+import DateField from '@/components/common/DateField'
 import FieldRenderer from '@/components/fields/FieldRenderer'
 import { useI18n } from '@/i18n'
-import { REMINDER_FIELD_KEY, REMINDER_REPEAT_KEY, getReminderAt, getReminderRepeat, isoToLocalTs } from '@/utils/reminder'
+import { REMINDER_FIELD_KEY, REMINDER_REPEAT_KEY, getReminderAt, getReminderRepeat } from '@/utils/reminder'
 import { getProvider } from '@/db/providerFactory'
 import { notificationSupported } from '@/utils/reminderNotify'
 import { isBlankFieldValue } from '@/utils/fieldValue'
@@ -40,13 +41,12 @@ interface Props {
  * Fluent 确认框二次询问）、必填校验、提醒日历日字符串、Notification 不可用提示。
  */
 export default function ItemEditor({ open, fields, item, onCancel, onSave, onDelete }: Props) {
-  const { message } = App.useApp()
   const t = useI18n()
   const lt = useLibText()
 
   const [values, setValues] = useState<Record<string, FieldValue>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [reminder, setReminder] = useState<dayjs.Dayjs | null>(null)
+  const [reminderDate, setReminderDate] = useState<string | null>(null)
   const [repeat, setRepeat] = useState('none')
   const [saving, setSaving] = useState(false)
   const [conflictAt, setConflictAt] = useState<number | null>(null)
@@ -80,9 +80,8 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
     })
     setValues(init)
     setErrors({})
-    // 提醒存的是日历日字符串 'YYYY-MM-DD'，DatePicker 需要 dayjs
-    const r = item ? getReminderAt(item) : null
-    setReminder(r != null ? dayjs(isoToLocalTs(r)) : null)
+    // 提醒存的是日历日字符串 'YYYY-MM-DD'，DateField 直接用这个字符串，不过时间戳
+    setReminderDate(item ? getReminderAt(item) : null)
     setRepeat(item ? getReminderRepeat(item) : 'none')
     baseUpdatedAt.current = item?.updatedAt ?? null
     // 只在「打开」或「切换条目」时重置：fields 每次 refresh 都是新数组，
@@ -127,8 +126,8 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
     try {
       const out: Record<string, FieldValue> = { ...values }
       // 提醒落库前转成 **日历日字符串**（不是本地零点时间戳，避免跨时区显示成前一天）
-      if (reminder) {
-        out[REMINDER_FIELD_KEY] = reminder.format('YYYY-MM-DD')
+      if (reminderDate) {
+        out[REMINDER_FIELD_KEY] = reminderDate
         out[REMINDER_REPEAT_KEY] = repeat
       } else {
         delete out[REMINDER_FIELD_KEY]
@@ -228,15 +227,9 @@ export default function ItemEditor({ open, fields, item, onCancel, onSave, onDel
           </Text>
           <div className="lib-dialog-content--grid">
             <Field label={t('reminder.label')}>
-              <DatePicker
-                style={{ width: '100%', fontVariantNumeric: 'tabular-nums' }}
-                placeholder={t('reminder.placeholder')}
-                value={reminder}
-                onChange={(d) => setReminder(d ?? null)}
-                allowClear
-              />
+              <DateField value={reminderDate} onChange={setReminderDate} clearable ariaLabel={t('reminder.label')} />
             </Field>
-            {reminder ? (
+            {reminderDate ? (
               <Field label={t('reminder.repeat')}>
                 <Dropdown
                   value={repeatLabel}

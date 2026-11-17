@@ -1,7 +1,15 @@
-import * as XLSX from 'xlsx'
 import type { FieldDef, Item } from '@/types'
 
-export function itemsToExcel(items: Item[], fields: FieldDef[]): Blob {
+/**
+ * xlsx 是 ~490 kB 的重包，只在用户真的点「导出 Excel / 导入 Excel」时才下载。
+ * 静态 import 会让库页首屏白付这份体积（AIPanel 附件解析那条路径已是懒加载）。
+ */
+function loadXLSX() {
+  return import('xlsx')
+}
+
+export async function itemsToExcel(items: Item[], fields: FieldDef[]): Promise<Blob> {
+  const XLSX = await loadXLSX()
   const visibleFields = fields.filter((f) => f.visible)
   const header = visibleFields.map((f) => f.label)
   const rows = items.map((it) =>
@@ -14,7 +22,8 @@ export function itemsToExcel(items: Item[], fields: FieldDef[]): Blob {
   return new Blob([buf], { type: 'application/octet-stream' })
 }
 
-export function parseExcel(file: File): Promise<Record<string, unknown>[]> {
+export async function parseExcel(file: File): Promise<Record<string, unknown>[]> {
+  const XLSX = await loadXLSX()
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => {

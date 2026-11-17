@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
-import { App, Upload } from 'antd'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   Accordion,
   AccordionHeader,
@@ -48,6 +47,7 @@ import {
 } from '@fluentui/react-icons'
 import dayjs from 'dayjs'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { message, modal } from '@/components/common/feedback'
 import { useAuthStore } from '@/store/authStore'
 import { resetSession } from '@/store/session'
 import { useAppStore } from '@/store/appStore'
@@ -369,7 +369,6 @@ export default function SettingsPage() {
 }
 
 function AccountTab() {
-  const { message } = App.useApp()
   const t = useI18n()
   const navigate = useNavigate()
   const { account } = useAuthStore()
@@ -517,7 +516,6 @@ function AccountTab() {
 }
 
 function StorageTab() {
-  const { message, modal } = App.useApp()
   const t = useI18n()
   const { settings, setStorageMode, setCloud } = useAppStore()
   const { account } = useAuthStore()
@@ -857,7 +855,6 @@ function ConfigSyncTab() {
 }
 
 function AITab() {
-  const { message } = App.useApp()
   const t = useI18n()
   const { settings, setAI } = useAppStore()
   const account = useAuthStore((s) => s.account)
@@ -1132,7 +1129,6 @@ function AITab() {
 }
 
 function BackupTab() {
-  const { message, modal } = App.useApp()
   const t = useI18n()
   const { account } = useAuthStore()
   const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([])
@@ -1213,6 +1209,10 @@ function BackupTab() {
     })
   }
 
+  // 备份导入不依赖 UI 库的上传封装：自持隐藏 input，按钮点击时代为打开文件框
+  // （与 ImportExport 同一范式）。
+  const importInputRef = useRef<HTMLInputElement>(null)
+
   const handleExport = async () => {
     if (!account) return
     const blob = await exportBackup(account.id)
@@ -1264,7 +1264,6 @@ function BackupTab() {
         }
       },
     })
-    return false
   }
 
   return (
@@ -1287,11 +1286,27 @@ function BackupTab() {
             title={t('settings.backup.import')}
             desc={t('settings.backup.cloudNote')}
             control={
-              <Upload beforeUpload={handleImport} showUploadList={false} accept=".json">
-                <Button appearance="secondary" icon={<ArrowUploadRegular />}>
+              <>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".json"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    // 立刻清空：同一个文件要能再次触发 change
+                    e.target.value = ''
+                    if (f) handleImport(f)
+                  }}
+                />
+                <Button
+                  appearance="secondary"
+                  icon={<ArrowUploadRegular />}
+                  onClick={() => importInputRef.current?.click()}
+                >
                   {t('settings.backup.import')}
                 </Button>
-              </Upload>
+              </>
             }
           />
         </div>

@@ -1,4 +1,4 @@
-import { Skeleton, Button, Space } from 'antd'
+import { Skeleton, SkeletonItem } from '@fluentui/react-components'
 import type { ReactNode } from 'react'
 
 /**
@@ -25,7 +25,18 @@ export default function PageSkeleton({
 }) {
   return (
     <div aria-busy="true" aria-live="polite" data-testid="page-skeleton">
-      <Skeleton active avatar={avatar} title={title} paragraph={{ rows }} />
+      <Skeleton>
+        <div className="w-skeleton-block">
+          {avatar ? <SkeletonItem shape="circle" size={40} /> : null}
+          <div className="w-skeleton-lines">
+            {title ? <SkeletonItem size={20} style={{ width: '38%' }} /> : null}
+            {Array.from({ length: rows }).map((_, i) => (
+              // 宽度递减一点，避免每行等长像「数据已到但全空」
+              <SkeletonItem key={i} size={14} style={{ width: `${100 - (i % 4) * 11}%` }} />
+            ))}
+          </div>
+        </div>
+      </Skeleton>
     </div>
   )
 }
@@ -34,7 +45,11 @@ export default function PageSkeleton({
 export function InlineSkeleton({ rows = 3, tip }: { rows?: number; tip?: ReactNode }) {
   return (
     <div style={{ padding: 8 }} aria-busy="true">
-      <Skeleton active title={false} paragraph={{ rows }} />
+      <Skeleton>
+        {Array.from({ length: rows }).map((_, i) => (
+          <SkeletonItem key={i} size={14} style={{ width: `${100 - (i % 4) * 11}%` }} />
+        ))}
+      </Skeleton>
       {tip ? (
         <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 12, marginTop: 8 }}>
           {tip}
@@ -72,39 +87,5 @@ export function EmptyState({
       {body ? <div className="w-empty-desc">{body}</div> : null}
       {action ? <div className="w-empty-actions">{action}</div> : null}
     </div>
-  )
-}
-
-/** 确认按钮的默认组合：取消在左、危险操作在右且文案说清后果 */
-export function ConfirmActions({
-  cancelText,
-  okText,
-  danger,
-  okButtonProps,
-  onCancel,
-  onOk,
-  loading,
-}: {
-  cancelText: ReactNode
-  okText: ReactNode
-  danger?: boolean
-  okButtonProps?: Record<string, unknown>
-  onCancel: () => void
-  onOk: () => void
-  loading?: boolean
-}) {
-  return (
-    <Space>
-      <Button onClick={onCancel}>{cancelText}</Button>
-      <Button
-        type="primary"
-        danger={danger}
-        loading={loading}
-        onClick={onOk}
-        {...(okButtonProps as object)}
-      >
-        {okText}
-      </Button>
-    </Space>
   )
 }

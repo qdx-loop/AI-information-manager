@@ -7,7 +7,6 @@
 // 捕获它的边界是全局 ErrorBoundary —— 于是「AI 提议任意一个操作」就把整个应用打成错误页。
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
-import { App as AntdApp } from 'antd'
 import ConfirmActionModal from './ConfirmActionModal'
 import type { ItemAction } from '@/ai/tools'
 import type { FieldDef, Item } from '@/types'
@@ -28,17 +27,15 @@ const action: ItemAction = { libraryId: 'L1', action: 'update', fields: { name: 
 
 function modal(p: { open: boolean; action: ItemAction | null }) {
   return (
-    <AntdApp>
-      <ConfirmActionModal
-        open={p.open}
-        action={p.action}
-        library={undefined}
-        fields={fields}
-        existingItem={existing}
-        onConfirm={async () => {}}
-        onCancel={() => {}}
-      />
-    </AntdApp>
+    <ConfirmActionModal
+      open={p.open}
+      action={p.action}
+      library={undefined}
+      fields={fields}
+      existingItem={existing}
+      onConfirm={async () => {}}
+      onCancel={() => {}}
+    />
   )
 }
 
@@ -63,7 +60,7 @@ describe('ConfirmActionModal Hooks 顺序', () => {
     const hookErrors = errSpy.mock.calls.filter((c) => /rendered (more|fewer) hooks/i.test(String(c[0])))
     expect(hookErrors).toHaveLength(0)
     errSpy.mockRestore()
-    // jsdom + antd Modal 的挂载/卸载 motion 是异步计时器，单跑约 3s；全量并行时
+    // jsdom 里弹层的挂载/卸载动画是异步计时器，单跑约 3s；全量并行时
     // 会超过 vitest 默认 5s 上限（断言本身是同步的，不是用例逻辑变慢）。
     // 显式放大超时，避免用「删断言」或「mock 掉 backButton」的方式换假绿。
   }, 20_000)

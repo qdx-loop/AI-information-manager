@@ -56,9 +56,11 @@ web
   （OFL，度量兼容，自托管）；中文回退 Microsoft YaHei UI / PingFang SC / Noto Sans CJK SC；mono 只用于 ID/时间/快捷键；禁止网络字体 CDN。
 - 形状（v10）：Fluent `borderRadiusMedium` 控件 4px、`borderRadiusXLarge` 卡片/浮层/对话框 8px；
   阴影只用 Fluent shadow4/8/16/64；禁止渐变/霓虹/厚投影/自定义 blur/网页大圆角卡片墙/emoji 图标。
-- UI 栈（v10）：React 18 + Vite + **Fluent UI React v9（@fluentui/react-components 9.75 + @fluentui/react-icons）** +
-  antd v5（仅保留 DatePicker/Form 校验/Upload 等 Fluent 覆盖不到的复杂输入件，token 由同一 Fluent theme 派生）+
+- UI 栈（v10）：React 18 + Vite + **Fluent UI React v9（@fluentui/react-components 9.75 + @fluentui/react-icons）唯一 UI 库** +
   Motion + react-resizable-panels + @dnd-kit；图标只用 `@fluentui/react-icons`。
+  antd 已于 2026-11 整体移除（含 ConfigProvider/二次主题层 `antd.css`/`theme/index.ts`）：
+  Fluent 缺的三样用原生控件补齐——日期输入 `components/common/DateField.tsx`（`<input type="date">`）、
+  文件选择（隐藏 `<input type="file">`）、表格（`LibTable`/`AdminTable` 语义化 `<table>` + Fluent token）。
 
 ## Evidence on Hand
 

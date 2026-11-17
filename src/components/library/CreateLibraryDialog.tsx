@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Field, Input } from '@fluentui/react-components'
-import { App } from 'antd'
 import { useNavigate } from 'react-router-dom'
+import { message } from '@/components/common/feedback'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useI18n } from '@/i18n'
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
@@ -30,7 +30,6 @@ export default function CreateLibraryDialog({
   defaultParentId?: string | null
   onCreated?: (id: string) => void
 }) {
-  const { message } = App.useApp()
   const t = useI18n()
   const navigate = useNavigate()
   const { createLibrary, selectLibrary, loadLibraries } = useLibraryStore()

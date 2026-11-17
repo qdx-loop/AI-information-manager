@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import {
   Avatar,
   Button,
+  DrawerBody,
   Menu,
   MenuDivider,
   MenuItem,
@@ -11,6 +12,7 @@ import {
   MenuTrigger,
   MessageBar,
   MessageBarBody,
+  OverlayDrawer,
   Tooltip,
 } from '@fluentui/react-components'
 import {
@@ -29,6 +31,7 @@ import dayjs from 'dayjs'
 import Sidebar, { SidebarContent } from './Sidebar'
 import AIDock from './AIDock'
 import MobileTabBar from './MobileTabBar'
+import { notification } from '@/components/common/feedback'
 import LibraryPickerSheet from '@/components/library/LibraryPickerSheet'
 import PageTransition from '@/components/common/PageTransition'
 import AppIcon from '@/components/common/AppIcon'
@@ -45,7 +48,6 @@ import WelcomeModal, { FIRST_RUN_SUPPORT_ENABLED } from '@/components/reward/Wel
 import { consumeWelcomePending, isWelcomeSeen, markWelcomeSeen } from '@/utils/welcome'
 import { startReminderWatcher } from '@/utils/reminderNotify'
 import { consumeTopOverlay, useBackButtonLayer } from '@/utils/backButton'
-import { App as AntdApp, Drawer } from 'antd'
 
 /**
  * v10 · FLUENT UI 2 应用外壳（Windows 11 风格，不是操作系统）
@@ -138,8 +140,7 @@ export default function AppShell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // —— 后台任务完成提示（antd notification，主题由同一 Fluent token 派生）——
-  const { notification } = AntdApp.useApp()
+  // —— 后台任务完成提示（Fluent toast，主题由同一份 Fluent theme 提供）——
   const lastDoneAt = useAiUiStore((s) => s.lastDone?.at ?? 0)
   const setDockOpen = useAiUiStore((s) => s.setOpen)
   useEffect(() => {
@@ -153,18 +154,17 @@ export default function AppShell() {
       message: t('ai.doneTitle'),
       description: done.text,
       duration: 8,
-      placement: 'bottomRight',
       actions: (
-        <button
-          type="button"
-          className="w-btn w-btn--subtle w-btn--sm"
+        <Button
+          appearance="subtle"
+          size="small"
           onClick={() => {
             setDockOpen(true)
-            void notification.destroy(`ai-done-${done.at}`)
+            notification.destroy(`ai-done-${done.at}`)
           }}
         >
           {t('ai.viewResult')}
-        </button>
+        </Button>
       ),
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -330,19 +330,21 @@ export default function AppShell() {
       {appbar}
       <div className="w-app-body">
         {isMobile ? (
-          <Drawer
-            placement="left"
+          <OverlayDrawer
+            position="start"
             open={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-            width={300}
-            closable={false}
-            styles={{ body: { padding: 0, background: 'transparent' } }}
+            onOpenChange={(_, data) => {
+              if (!data.open) setSidebarOpen(false)
+            }}
+            size="small"
           >
-            <SidebarContent
-              onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }}
-              onNavigate={() => setSidebarOpen(false)}
-            />
-          </Drawer>
+            <DrawerBody style={{ padding: 0 }}>
+              <SidebarContent
+                onOpenPanel={() => { setAiOpen(true); setSidebarOpen(false) }}
+                onNavigate={() => setSidebarOpen(false)}
+              />
+            </DrawerBody>
+          </OverlayDrawer>
         ) : (
           <Sidebar onOpenPanel={() => setAiOpen(true)} siderRef={siderRef} />
         )}

@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom'
 
-// jsdom 没有 matchMedia，antd 的响应式 Grid / Modal 在渲染时会调它。
-// 缺这个桩会抛 "window.matchMedia is not a function"，
+// jsdom 没有 matchMedia，Fluent 的响应式/降级动效判断与我们自己的 useMediaQuery
+// 在渲染时会调它。缺这个桩会抛 "window.matchMedia is not a function"，
 // 让「组件渲染」类测试因为无关原因失败。
 // 注意要先判 typeof window：个别测试文件用 @vitest-environment node，
 // 那里根本没有 window，直接访问会报 ReferenceError。

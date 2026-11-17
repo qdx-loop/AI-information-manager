@@ -1,5 +1,4 @@
-import { App as AntdApp, Input } from 'antd'
-import { Button, Menu, MenuDivider, MenuItem, MenuList, MenuPopover, MenuTrigger, Tooltip, Avatar } from '@fluentui/react-components'
+import { Avatar, Button, Input, Menu, MenuDivider, MenuItem, MenuList, MenuPopover, MenuTrigger, Tooltip } from '@fluentui/react-components'
 import {
   DeleteRegular,
   SettingsRegular,
@@ -43,6 +42,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { message, modal } from '@/components/common/feedback'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { useLibraryStore } from '@/store/libraryStore'
@@ -77,7 +77,6 @@ function iconForLibrary(lib: Library) {
 }
 
 function useSidebarState(onNavigate?: () => void) {
-  const { message, modal } = AntdApp.useApp()
   const navigate = useNavigate()
   const location = useLocation()
   const { account } = useAuthStore()
@@ -125,7 +124,7 @@ function useSidebarState(onNavigate?: () => void) {
     let name = lib.name
     modal.confirm({
       title: t('app.lib.renameTitle'),
-      content: <Input defaultValue={lib.name} onChange={(e) => (name = e.target.value)} />,
+      content: <Input defaultValue={lib.name} onChange={(_, data) => (name = data.value)} />,
       onOk: async () => {
         if (!name.trim()) {
           message.warning(t('app.lib.nameEmpty'))
@@ -157,24 +156,7 @@ function useSidebarState(onNavigate?: () => void) {
     const existing = Array.from(new Set(libraries.map((l) => l.category).filter(Boolean)))
     modal.confirm({
       title: t('app.lib.categoryTitle'),
-      content: (
-        <div>
-          <Input
-            defaultValue={lib.category ?? ''}
-            placeholder={t('app.lib.categoryPlaceholder')}
-            onChange={(e) => (value = e.target.value)}
-          />
-          {existing.length > 0 && (
-            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {existing.map((c) => (
-                <Button key={c} size="small" appearance="secondary" onClick={() => { value = c }}>
-                  {c}
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
-      ),
+      content: <CategoryField initial={lib.category ?? ''} existing={existing} onValue={(v) => (value = v)} />,
       okText: t('common.save'),
       cancelText: t('common.cancel'),
       onOk: async () => {
@@ -583,6 +565,52 @@ function SidebarBody({
 
       <CreateLibraryDialog open={state.creatingLib} onClose={() => state.setCreatingLib(false)} />
     </>
+  )
+}
+
+/**
+ * 分类编辑：受控输入框 + 已有分类快捷芯片。
+ * 旧实现里点芯片只改闭包变量、输入框不跟着变，用户看不出点没点上。
+ */
+function CategoryField({
+  initial,
+  existing,
+  onValue,
+}: {
+  initial: string
+  existing: string[]
+  onValue: (value: string) => void
+}) {
+  const t = useI18n()
+  const [value, setValue] = useState(initial)
+  return (
+    <div>
+      <Input
+        value={value}
+        placeholder={t('app.lib.categoryPlaceholder')}
+        onChange={(_, data) => {
+          setValue(data.value)
+          onValue(data.value)
+        }}
+      />
+      {existing.length > 0 && (
+        <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {existing.map((c) => (
+            <Button
+              key={c}
+              size="small"
+              appearance="secondary"
+              onClick={() => {
+                setValue(c)
+                onValue(c)
+              }}
+            >
+              {c}
+            </Button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

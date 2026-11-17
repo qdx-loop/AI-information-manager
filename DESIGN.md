@@ -55,6 +55,7 @@ layout:
 | 落地页 | 含桌面截图/窗口感 | Fluent 应用介绍页 |
 | 控件 | 自绘 CSS 模仿 Fluent | 直接使用 `@fluentui/react-components` v9 |
 | 主题来源 | 自定义 CSS 色板 + antd token | **唯一来源**：`src/theme/win11.ts` 的 Fluent Theme；CSS 只做 token 别名 |
+| UI 库 | antd v5 + 自绘 Fluent 皮肤 | **只有** `@fluentui/react-components` v9（antd 与 `styles/w11/antd.css` 已于 v10.4 删除） |
 
 v9 的 OS 模拟组件/样式/资源已删除（`w-window*` / `w-taskbar*` / `w-caption*` / `w-desktop*`、壁纸 JPG、WinLogo、锁屏时钟）。
 
@@ -67,8 +68,11 @@ v9 的 OS 模拟组件/样式/资源已删除（`w-window*` / `w-taskbar*` / `w-
   `Button`、`Input`/`Textarea`/`SearchBox`、`Dropdown`/`Option`、`Dialog*`、`Menu*`、`Tooltip`、`Switch`、
   `Checkbox`、`RadioGroup`、`TabList`/`Tab`、`Card`/`CardHeader`、`Badge`/`Tag`、`Text`、`MessageBar`、
   `Divider`、`Spinner`/`Skeleton`、`Accordion`、`Field`/`Label`、`ProgressBar`、`Avatar`/`Persona`、`Link`。
-- antd v5 只保留 Fluent 覆盖不到的复杂输入件（DatePicker / Form 校验内核 / Upload）与部分表格内核；
-  其 token 由**同一份 Fluent theme** 派生（`src/theme/index.ts`），不允许出现第二套色板。
+- Fluent 不提供的三件事用原生控件 + Fluent token 自持，不引入第二套 UI 库：
+  日期 = `components/common/DateField.tsx`（原生 `<input type="date">`，值就是存储格式 `YYYY-MM-DD`，天然跨时区正确）；
+  文件 = 隐藏 `<input type="file">` + Fluent `Button`；表格 = 语义化 `<table>` + `--color*` token（行高 40 / 表头 34）。
+- 全局轻提示与确认框 = `components/common/feedback.tsx`（模块级 `message` / `notification` / `modal.confirm` +
+  一个 `<FeedbackHost/>` 宿主）。确认框是「AI 写操作必须二次确认」的唯一入口；onOk 返回 `false` 时弹窗保持打开。
 - 图标：`@fluentui/react-icons` 统一 16/20px regular；图标按钮必须有 `aria-label`/`Tooltip`。
 
 ## 颜色 / 排版 / 形状
@@ -114,7 +118,7 @@ v9 的 OS 模拟组件/样式/资源已删除（`w-window*` / `w-taskbar*` / `w-
 | Dialog | 统一 `DialogSurface` + `DialogBody`，标题左对齐、危险动作红色；关闭/Esc 由 Fluent 焦点陷阱处理，关闭后焦点回到触发元素。宽度遵循 `min(px, calc(100vw - 32px))`。 | Fluent `Dialog*` |
 | Toolbar + Table | 库页用 `Toolbar`；表格使用原生 `<table role="grid">` + Fluent token 渲染，行高 40、表头 34，仅横向分割线；行选中态用 `colorSubtleBackgroundSelected` + 左侧 3px 品牌色条（Win11 资源管理器惯例），键盘焦点用 2px `colorStrokeFocus2` 焦点环（两者可区分）。 | Fluent `Toolbar` + 自定义表格 |
 | NavigationView（rail） | 默认 232px 展开：库名 13px + 分类 11px，子库按层级缩进；收起后为 68px 图标栏（Fluent Button + Tooltip）。当前项 `aria-current="page"` + 选中底色；移动端改为 48px app bar + 底部标签栏 + Drawer。 | Fluent `Button`/`Tooltip`/`Menu` |
-| MessageBar / Toast | 离线、错误、提示用 `MessageBar`（页面内）或 antd `message`（瞬时反馈，token 与 Fluent 同源）；危险/错误消息必须说明恢复动作。 | Fluent `MessageBar` + antd message |
+| MessageBar / Toast | 离线、错误、提示用 `MessageBar`（页面内）或 `message.*`（瞬时反馈：`components/common/feedback.tsx` 的 Fluent `Toaster`，桌面右下 / ≤768px 顶部）；危险/错误消息必须说明恢复动作。 | Fluent `MessageBar` + Fluent Toast |
 
 状态约定：每个可交互组件必须有 hover / pressed / focus-visible / disabled 四态；异步操作必须有加载态与失败文案；
 空列表用 `EmptyPanel`，错误用 `MessageBar intent="error"`，不能只 toast 后留空屏。

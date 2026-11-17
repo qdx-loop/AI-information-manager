@@ -10,7 +10,6 @@ import {
   Tooltip,
 } from '@fluentui/react-components'
 import { AddRegular, DeleteRegular, ReOrderDotsVerticalRegular } from '@fluentui/react-icons'
-import { App } from 'antd'
 import {
   DndContext,
   closestCenter,
@@ -28,6 +27,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { message } from '@/components/common/feedback'
 import type { FieldDef, FieldType } from '@/types'
 import { newId } from '@/utils/id'
 import { useI18n } from '@/i18n'
@@ -49,7 +49,6 @@ interface Props {
  * 逻辑（校验 label 唯一、key 唯一、sortOrder 重排、保存）与原来完全一致。
  */
 export default function TemplateEditor({ open, libraryId, fields, onCancel, onSave }: Props) {
-  const { message } = App.useApp()
   const t = useI18n()
   const lt = useLibText()
   const [list, setList] = useState<FieldDef[]>(fields)

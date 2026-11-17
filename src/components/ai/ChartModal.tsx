@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { App } from 'antd'
 import {
   Button,
   Dialog,
@@ -11,6 +10,7 @@ import {
   Text,
 } from '@fluentui/react-components'
 import { ArrowDownloadRegular } from '@fluentui/react-icons'
+import { message } from '@/components/common/feedback'
 import { useI18n } from '@/i18n'
 import { styleChart } from '@/ai/chartStyle'
 import { useAppStore } from '@/store/appStore'
@@ -132,7 +132,6 @@ export default function ChartModal({
   payload: ChartPayload | null
   onClose: () => void
 }) {
-  const { message } = App.useApp()
   const t = useI18n()
   const chartDivRef = useRef<HTMLDivElement | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -216,7 +215,6 @@ export default function ChartModal({
       chartRef.current?.dispose()
       chartRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payload, ready])
 
   const handleDownload = () => {

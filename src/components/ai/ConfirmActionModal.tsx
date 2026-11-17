@@ -1,4 +1,3 @@
-import { App } from 'antd'
 import {
   Button,
   Checkbox,
@@ -11,6 +10,7 @@ import {
   Text,
 } from '@fluentui/react-components'
 import { useEffect, useState } from 'react'
+import { message } from '@/components/common/feedback'
 import type { ItemAction } from '@/ai/tools'
 import type { Library, FieldDef, Item } from '@/types'
 import { useI18n } from '@/i18n'
@@ -45,7 +45,6 @@ export default function ConfirmActionModal({
   onConfirm,
   onCancel,
 }: Props) {
-  const { message } = App.useApp()
   const t = useI18n()
   const [loading, setLoading] = useState(false)
   const { alwaysAllowFor, setAlwaysAllowFor } = useAutoConfirm()

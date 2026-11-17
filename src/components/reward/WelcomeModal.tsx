@@ -12,7 +12,7 @@
 //
 // v10 视觉：真实 Fluent UI React v9 Dialog（DialogSurface / DialogBody / DialogTitle / DialogContent /
 // DialogActions + Button/Card/Text），QR 白底 Card；文案逐字不变。
-// 兼容说明：既有组件契约测试 `WelcomeModal.test.tsx` 以 `.ant-modal-wrap` 定位遮罩，
+// 兼容说明：组件契约测试 `WelcomeModal.test.tsx` 以 `.w-modal-backdrop` 定位遮罩，
 //   这里把该 class 挂到 Fluent dialog 的 backdrop slot 上作为**测试钩子**（不影响视觉），
 //   点击/按键仍走同一条 close 路径；close 做了幂等保护，避免 Fluent 内部 close 与
 //   backdrop 回调叠加导致 onClose 被调用两次。
@@ -104,8 +104,8 @@ export default function WelcomeModal({ open, accountId, onClose }: WelcomeModalP
       <DialogSurface
         className="pub-dialog"
         backdrop={{
-          // 测试钩子：既有契约测试用 .ant-modal-wrap 定位遮罩层（视觉由 Fluent 提供）
-          className: 'ant-modal-wrap',
+          // 测试钩子：契约测试用 .w-modal-backdrop 定位遮罩层（视觉由 Fluent 提供）
+          className: 'w-modal-backdrop',
           'aria-hidden': true,
           onClick: close,
           onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {

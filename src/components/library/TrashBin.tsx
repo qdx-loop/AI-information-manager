@@ -21,9 +21,9 @@ import {
   HomeRegular,
   InfoRegular,
 } from '@fluentui/react-icons'
-import { App } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
+import { message } from '@/components/common/feedback'
 import { useLibraryStore } from '@/store/libraryStore'
 import type { TrashEntry } from '@/types'
 import { useI18n, tNow } from '@/i18n'
@@ -38,7 +38,6 @@ import { LibConfirm, LibPager, useLibText } from './labels'
  * 底部状态栏；恢复 / 永久删除逻辑与原来完全一致。移动端退化为 Fluent Card 列表。
  */
 export default function TrashBin() {
-  const { message } = App.useApp()
   const navigate = useNavigate()
   const { trash, loadTrash, restoreLibrary, purgeLibrary, restoreItem, purgeItem } =
     useLibraryStore()
@@ -57,7 +56,7 @@ export default function TrashBin() {
 
   useEffect(() => {
     loadTrash().catch((e) => message.error(tNow('lib.trash.loadFailed', { msg: (e as Error).message })))
-  }, [loadTrash, message])
+  }, [loadTrash])
 
   const PAGE_SIZE = 20
   const pageCount = Math.max(1, Math.ceil(trash.length / PAGE_SIZE))

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { App } from 'antd'
 import {
   Dialog,
   DialogBody,
@@ -24,6 +23,7 @@ import {
   WeatherSunnyRegular,
 } from '@fluentui/react-icons'
 import { useNavigate } from 'react-router-dom'
+import { message } from '@/components/common/feedback'
 import { useLibraryStore } from '@/store/libraryStore'
 import { useAppStore } from '@/store/appStore'
 import { useAiUiStore } from '@/store/aiUiStore'
@@ -68,7 +68,6 @@ type Row = Cmd | Hit
 const MAX_ITEM_HITS = 20
 
 export default function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { message } = App.useApp()
   const t = useI18n()
   const navigate = useNavigate()
   const libraries = useLibraryStore((s) => s.libraries)
@@ -220,7 +219,7 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
       { kind: 'cmd', id: 'backup', group: t('palette.group.act'), label: t('palette.backup'), icon: <SaveRegular />, run: () => go('/settings') },
       { kind: 'cmd', id: 'sync', group: t('palette.group.act'), label: t('palette.sync'), icon: <CloudSyncRegular />, run: () => go('/settings') },
     ]
-  }, [t, go, createLibrary, onClose, setAiOpen, settings.theme, settings.language, setTheme, setLanguage, message])
+  }, [t, go, createLibrary, onClose, setAiOpen, settings.theme, settings.language, setTheme, setLanguage])
 
   const libRows = useMemo<Cmd[]>(() => {
     const kw = q.trim().toLowerCase()
@@ -240,7 +239,7 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
             .catch((e) => message.error(t('app.loadLibFailed', { msg: (e as Error).message })))
         },
       }))
-  }, [libraries, q, t, onClose, selectLibrary, navigate, message])
+  }, [libraries, q, t, onClose, selectLibrary, navigate])
 
   const rows = useMemo<Row[]>(() => [...commands, ...libRows, ...hits], [commands, libRows, hits])
   const clamped = Math.min(active, Math.max(0, rows.length - 1))
@@ -260,7 +259,7 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
         })
         .catch((e) => message.error(t('app.loadLibFailed', { msg: (e as Error).message })))
     },
-    [onClose, selectLibrary, focusItem, navigate, message, t],
+    [onClose, selectLibrary, focusItem, navigate, t],
   )
 
   const onKeyDown = (e: React.KeyboardEvent) => {

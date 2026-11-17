@@ -8,8 +8,8 @@ import {
   Textarea,
 } from '@fluentui/react-components'
 import { StarFilled, StarRegular } from '@fluentui/react-icons'
-import { DatePicker } from 'antd'
 import dayjs from 'dayjs'
+import DateField from '@/components/common/DateField'
 import { useI18n, tNow } from '@/i18n'
 import type { FieldDef, FieldValue } from '@/types'
 
@@ -74,7 +74,7 @@ function NumberInput({
 /**
  * 字段输入渲染器（v10 Fluent）：
  * 文本 / 多行 / 数字 / 下拉 / 复选 / 评分全部使用 @fluentui/react-components；
- * 仅日期保留 antd DatePicker（Fluent UI React 没有日期选择器）。
+ * 日期用原生 <input type="date"> 封成的 DateField（Fluent UI React 没有日期选择器）。
  */
 export default function FieldRenderer({ field, value, onChange, autoFocus, compact }: Props) {
   const t = useI18n()
@@ -116,14 +116,7 @@ export default function FieldRenderer({ field, value, onChange, autoFocus, compa
         />
       )
     case 'date':
-      return (
-        <DatePicker
-          size={compact ? 'small' : 'middle'}
-          value={value ? dayjs(value as string) : null}
-          onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : null)}
-          style={{ width: '100%', fontVariantNumeric: 'tabular-nums' }}
-        />
-      )
+      return <DateField value={(value as string) ?? null} onChange={onChange} className={cls} />
     case 'select': {
       const current = value == null ? '' : String(value)
       return (

@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { App, Upload } from 'antd'
 import {
   Button,
   Menu,
@@ -31,6 +30,7 @@ import {
   StopRegular,
 } from '@fluentui/react-icons'
 import { useNavigate } from 'react-router-dom'
+import { message, modal } from '@/components/common/feedback'
 import { track } from '@/utils/track'
 import { useAppStore } from '@/store/appStore'
 import { useAiUiStore } from '@/store/aiUiStore'
@@ -108,7 +108,6 @@ const MAX_ROUNDS = 50
 
 export default function AIPanel() {
   const navigate = useNavigate()
-  const { message, modal } = App.useApp()
   const t = useI18n()
   const { settings } = useAppStore()
   const { account } = useAuthStore()
@@ -299,6 +298,9 @@ export default function AIPanel() {
     [flushStreamText],
   )
   const scrollRef = useRef<HTMLDivElement>(null)
+  // 附件选择不依赖任何 UI 库的上传封装：自持一个隐藏 input，按钮点击时代为打开文件框
+  // （与 ImportExport 同一范式，antd 的 imperative handle 会抛 "click is not a function"）。
+  const attachInputRef = useRef<HTMLInputElement>(null)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [parsingFile, setParsingFile] = useState(false)
   const [chartPayload, setChartPayload] = useState<ChartPayload | null>(null)
@@ -1411,7 +1413,7 @@ export default function AIPanel() {
     } finally {
       setUndoBusy(false)
     }
-  }, [undoStack, undoBusy, message])
+  }, [undoStack, undoBusy])
 
   // 渲染消息内容：把 (id=xxx) 转成可点击的行内条目引用；assistant 消息按 markdown 渲染。
   // 条目引用用 mono + 2px lime 下划线（v4 只用 lime 做信号，不用彩色文字）。
@@ -1755,35 +1757,45 @@ export default function AIPanel() {
           )}
 
           <div className="ai-p-inputrow">
-            <Upload
+            <input
+              ref={attachInputRef}
+              type="file"
               accept="*/*"
-              showUploadList={false}
               multiple
-              beforeUpload={(file) => {
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? [])
+                // 立刻清空：同一个文件（或同名文件）也要能再次触发 change
+                e.target.value = ''
+                if (files.length === 0) return
                 void (async () => {
+                  setParsingFile(true)
                   try {
-                    setParsingFile(true)
-                    const att = await processAttachment(file as File)
-                    setAttachments((prev) => [...prev, att])
-                  } catch (e) {
-                    message.error((e as Error).message)
+                    // 逐个解析：单个文件失败不影响其余文件，失败仍走 message.error
+                    for (const file of files) {
+                      try {
+                        const att = await processAttachment(file)
+                        setAttachments((prev) => [...prev, att])
+                      } catch (err) {
+                        message.error((err as Error).message)
+                      }
+                    }
                   } finally {
                     setParsingFile(false)
                   }
                 })()
-                return false
               }}
-            >
-              <Button
-                appearance="subtle"
-                className="ai-p-attach-btn"
-                icon={<AttachRegular />}
-                aria-label={t('ai.upload.tooltip')}
-                title={t('ai.upload.tooltip')}
-                aria-busy={parsingFile || undefined}
-                disabled={parsingFile}
-              />
-            </Upload>
+            />
+            <Button
+              appearance="subtle"
+              className="ai-p-attach-btn"
+              icon={<AttachRegular />}
+              aria-label={t('ai.upload.tooltip')}
+              title={t('ai.upload.tooltip')}
+              aria-busy={parsingFile || undefined}
+              disabled={parsingFile}
+              onClick={() => attachInputRef.current?.click()}
+            />
 
             <Textarea
               className="ai-p-textarea"

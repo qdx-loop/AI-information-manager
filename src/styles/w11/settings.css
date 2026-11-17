@@ -507,15 +507,73 @@
   overflow: hidden;
   min-width: 0;
 }
-.w-admin-table .ant-table {
-  border-radius: 0;
+/* 表格内部横滚：窄屏只滚表体，不把整页撑宽 */
+.w-admin-table-scroll {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
-.w-admin-table .ant-table-thead > tr > th {
+/* lib-table 是 table-layout:fixed；min-width 由列宽求和（内联），窄屏才出滚动条 */
+.w-admin-table-el thead th {
   height: 36px;
+  padding: 4px 12px;
+  color: var(--w-text-2);
+  background: var(--w-surface);
+  border-bottom: 1px solid var(--w-divider);
 }
-.w-admin-table .ant-table-tbody > tr > td {
-  height: 48px;
-  padding: 6px 12px;
+.w-admin-table-el .lib-row > .lib-td {
+  height: 40px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--w-divider);
+}
+.w-admin-table-el .lib-row:last-child > .lib-td {
+  border-bottom: 0;
+}
+.w-admin-table-el .lib-row:hover > .lib-td {
+  background: var(--w-surface-hover);
+}
+.w-admin-table-empty-row > .lib-td {
+  height: 96px;
+  border-bottom: 0;
+}
+.w-admin-table-empty {
+  text-align: center;
+  color: var(--w-text-3);
+  font-size: var(--w-fs-caption);
+}
+.w-admin-table-empty > * {
+  margin: 0 auto;
+  justify-content: center;
+}
+.w-admin-table-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 不用 color-mix（会额外抬高浏览器基线）：整层半透明即可 */
+  background: var(--w-surface);
+  opacity: 0.9;
+}
+.w-admin-table-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 36px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--w-divider);
+  background: var(--w-surface);
+}
+.w-admin-table-foot-text {
+  font-size: var(--w-fs-caption);
+  color: var(--w-text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .w-admin-user {
   display: inline-flex;

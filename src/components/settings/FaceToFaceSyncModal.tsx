@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { App as AntdApp } from 'antd'
 import {
   Button,
   Dialog,
@@ -19,6 +18,7 @@ import {
   CheckmarkCircleRegular,
   WarningRegular,
 } from '@fluentui/react-icons'
+import { modal } from '@/components/common/feedback'
 import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
@@ -71,7 +71,6 @@ function getDeviceId(): string {
  * 数据经 WebRTC 数据通道在局域网内直连互传并合并，不经过任何服务器。
  */
 export default function FaceToFaceSyncModal({ open, onClose }: Props) {
-  const { modal } = AntdApp.useApp()
   const t = useI18n()
   const account = useAuthStore((s) => s.account)
 
@@ -260,7 +259,7 @@ export default function FaceToFaceSyncModal({ open, onClose }: Props) {
         failWith('BAD_PAYLOAD')
       }
     },
-    [account, maybeFinish, teardownSession, failWith, modal, t],
+    [account, maybeFinish, teardownSession, failWith, t],
   )
 
   const buildSession = useCallback(() => {

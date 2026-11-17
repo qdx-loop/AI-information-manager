@@ -46,8 +46,10 @@
 - 全局 CSS：token bridge 把 Fluent theme 的 CSS 变量（`--colorNeutralBackground1`、`--colorNeutralForeground1`、
   `--colorBrandBackground`、`--borderRadiusMedium`、`--shadow16`、`--fontFamilyBase` …）写到 `<html>`；
   `styles/w11/tokens.css` 中的 `--w-*` 只能是 Fluent 变量的别名，不允许再出现独立色板。
-- antd：仅作为 Fluent 覆盖不到的复杂输入件（DatePicker / Form 校验 / Upload）与表格内核保留，
-  其主题 token 必须从同一份 Fluent theme 派生（`src/theme/index.ts`），视觉上不得与 Fluent 控件冲突。
+- ~~antd：仅作为 Fluent 覆盖不到的复杂输入件（DatePicker / Form 校验 / Upload）与表格内核保留。~~
+  **2026-11 更新（v10.4）**：antd 已整体移除（依赖、`ConfigProvider`、`styles/w11/antd.css`、`theme/index.ts` 全删）。
+  三处缺口改用原生控件 + Fluent token：`components/common/DateField.tsx`（日期）、隐藏 `<input type="file">`（导入/附件）、
+  语义化 `<table>`（库页 / 管理后台）。瞬时反馈与确认框收敛到 `components/common/feedback.tsx`。
 - 组件优先：可见控件一律优先使用 `@fluentui/react-components`：
   `Button`（primary/secondary/subtle/transparent）、`Input`、`Textarea`、`SearchBox`、`Dropdown`/`Option`、
   `Dialog`/`DialogSurface`/`DialogBody`/`DialogTitle`/`DialogContent`/`DialogActions`、

@@ -167,7 +167,8 @@ npx wrangler pages deploy dist
 ### 安全响应头与 CSP（`public/_headers`）
 
 部署产物包含 `_headers`，会下发 CSP（已放行 Turnstile 的 script/frame、`data:`/`blob:` 图片、
-antd 需要的 `style-src 'unsafe-inline'`、以及自定义 AI/Supabase 需要的 `connect-src https:`）、
+Griffel（Fluent 的运行时 CSS-in-JS）注入 `<style>` 需要的 `style-src 'unsafe-inline'`、
+以及自定义 AI/Supabase 需要的 `connect-src https:`）、
 `X-Frame-Options: DENY`、`Referrer-Policy`、`X-Content-Type-Options: nosniff`、`Permissions-Policy`
 （摄像头/麦克风关闭，保留剪贴板）。改 CSP 后务必浏览器走一遍登录/注册/AI 对话/导出，
 确认 Console 没有 CSP 报错——**CSP 配错会直接白屏**，这是本项目最容易“部署即挂”的地方。

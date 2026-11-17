@@ -108,7 +108,7 @@ describe('四种关闭方式都走同一条 close 路径（写 seen + onClose）
 
   it('点遮罩：同样写 seen 且 onClose 被调用一次', () => {
     const { onClose } = renderOpen()
-    const wrap = document.querySelector('.ant-modal-wrap') as HTMLElement
+    const wrap = document.querySelector('.w-modal-backdrop') as HTMLElement
     expect(wrap).toBeTruthy()
     fireEvent.mouseDown(wrap)
     fireEvent.mouseUp(wrap)
@@ -119,7 +119,7 @@ describe('四种关闭方式都走同一条 close 路径（写 seen + onClose）
 
   it('按 Esc：同样写 seen 且 onClose 被调用一次', () => {
     const { onClose } = renderOpen()
-    const wrap = document.querySelector('.ant-modal-wrap') as HTMLElement
+    const wrap = document.querySelector('.w-modal-backdrop') as HTMLElement
     fireEvent.keyDown(wrap, { key: 'Escape', keyCode: 27, which: 27 })
     expect(local.getItem('info-mgmt-ob-welcome-acc-A')).toBe('1')
     expect(onClose).toHaveBeenCalledTimes(1)

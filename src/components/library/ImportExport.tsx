@@ -1,7 +1,7 @@
 import { Fragment, useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import { Button, Dropdown, Option, Text, Tooltip } from '@fluentui/react-components'
-import { App } from 'antd'
 import { ArrowImportRegular, ArrowLeftRegular, CheckmarkCircleRegular, MailInboxRegular } from '@fluentui/react-icons'
+import { message } from '@/components/common/feedback'
 import type { FieldDef, Item, FieldValue } from '@/types'
 import { itemsToCSV, parseCSV, downloadCSV } from '@/utils/csv'
 import { itemsToExcel, parseExcel } from '@/utils/excel'
@@ -61,7 +61,6 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
   // upload/nativeElement 等，没有 click / openFileDialog，命令式打开文件框会抛
   // "click is not a function"。这里自持一个隐藏 input，桌面按钮和「更多」菜单共用。
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { message } = App.useApp()
   const t = useI18n()
   const lt = useLibText()
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -73,7 +72,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
   const [importing, setImporting] = useState(false)
   const [dragging, setDragging] = useState(false)
 
-  const handleExport = (kind: 'csv' | 'excel') => {
+  const handleExport = async (kind: 'csv' | 'excel') => {
     if (items.length === 0) {
       message.warning(t('lib.importExport.nothing'))
       return
@@ -82,7 +81,8 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
       const csv = itemsToCSV(items, fields)
       downloadCSV(`导出_${Date.now()}.csv`, csv)
     } else {
-      const blob = itemsToExcel(items, fields)
+      // xlsx 是懒加载的大包：首次导出 Excel 会等一次下载
+      const blob = await itemsToExcel(items, fields)
       downloadBlob(`导出_${Date.now()}.xlsx`, blob)
     }
     message.success(t('lib.importExport.exported'))
@@ -107,7 +107,7 @@ const ImportExport = forwardRef<ImportExportHandle, Props>(function ImportExport
 
   useImperativeHandle(ref, () => ({
     openImport: openModal,
-    exportAs: (kind) => handleExport(kind),
+    exportAs: (kind) => { void handleExport(kind) },
   }))
 
   const handleFile = async (file: File) => {

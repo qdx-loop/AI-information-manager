@@ -54,7 +54,7 @@ import {
   TableRegular,
   WarningRegular,
 } from '@fluentui/react-icons'
-import { App } from 'antd'
+import { message } from '@/components/common/feedback'
 import { useLibraryStore } from '@/store/libraryStore'
 import LibraryTable from './LibraryTable'
 import ItemEditor from './ItemEditor'
@@ -84,7 +84,6 @@ import { LibConfirm, LibDialog, useLibText } from './labels'
  */
 export default function LibraryView() {
   const { id } = useParams()
-  const { message } = App.useApp()
   const ioRef = useRef<ImportExportHandle>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const lt = useLibText()
@@ -111,7 +110,7 @@ export default function LibraryView() {
     if (id && id !== currentLibraryId) {
       selectLibrary(id).catch((e) => message.error(tNow('app.loadLibFailed', { msg: (e as Error).message })))
     }
-  }, [id, currentLibraryId, selectLibrary, message])
+  }, [id, currentLibraryId, selectLibrary])
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<Item | null>(null)

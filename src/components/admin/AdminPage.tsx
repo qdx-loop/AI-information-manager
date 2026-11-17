@@ -7,8 +7,6 @@
  * 停用/恢复/删除、近 7 天行为、说明——一个都没删。
  */
 import { useEffect, useState, useCallback } from 'react'
-import { App, Table } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
 import {
   Avatar,
   Badge,
@@ -46,8 +44,11 @@ import {
   WarningRegular,
 } from '@fluentui/react-icons'
 import dayjs from 'dayjs'
+import { message } from '@/components/common/feedback'
 import AppIcon from '@/components/common/AppIcon'
 import { useI18n } from '@/i18n'
+import { LibPager } from '@/components/library/labels'
+import { useAppStore } from '@/store/appStore'
 import {
   adminLogin,
   adminListAccounts,
@@ -76,9 +77,104 @@ function StatusBadge({ tone, children }: { tone: StatusTone; children: React.Rea
   )
 }
 
+const PAGE_SIZE = 20
+
+/** 列定义：保留旧表格列的 title / width / render 语义，渲染交给自有 <table> */
+interface AdminColumn<T> {
+  key: string
+  title: string
+  width: number
+  render: (row: T) => React.ReactNode
+}
+
+/**
+ * 管理后台明细表：复用库页 `.lib-table` 标记 + `LibPager` 分页。
+ * 表头 / 行分隔 / hover 全部走 `--w-*` token，深浅主题自动跟随；
+ * 窄屏只在表格容器内横向滚动（`min-width` 由列宽求和得出），不撑宽整页。
+ */
+function AdminTable<T>({
+  ariaLabel,
+  columns,
+  rows,
+  rowKey,
+  loading = false,
+  page,
+  onPageChange,
+  emptyText,
+  loadingText,
+  footer,
+}: {
+  ariaLabel: string
+  columns: AdminColumn<T>[]
+  rows: T[]
+  rowKey: (row: T) => string
+  loading?: boolean
+  page: number
+  onPageChange: (page: number) => void
+  emptyText: string
+  loadingText: string
+  footer: React.ReactNode
+}) {
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+  // 筛选后行数变少时把越界页码夹回最后一页
+  const current = Math.min(Math.max(1, page), pageCount)
+  const paged = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
+  const minWidth = columns.reduce((sum, c) => sum + c.width, 0)
+
+  return (
+    <div className="w-admin-table">
+      <div className="w-admin-table-scroll">
+        <table className="lib-table w-admin-table-el" role="grid" aria-label={ariaLabel} style={{ minWidth }}>
+          <colgroup>
+            {columns.map((c) => (
+              <col key={c.key} style={{ width: c.width }} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr>
+              {columns.map((c) => (
+                <th key={c.key} scope="col" className="lib-th">
+                  {c.title}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {paged.map((row) => (
+              <tr key={rowKey(row)} className="lib-row">
+                {columns.map((c) => (
+                  <td key={c.key} className="lib-td">
+                    {c.render(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+            {paged.length === 0 && (
+              <tr className="w-admin-table-empty-row">
+                <td className="lib-td w-admin-table-empty" colSpan={columns.length}>
+                  {loading ? <Spinner size="tiny" label={loadingText} labelPosition="after" /> : emptyText}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        {loading && paged.length > 0 && (
+          <div className="w-admin-table-loading">
+            <Spinner size="tiny" label={loadingText} labelPosition="after" />
+          </div>
+        )}
+      </div>
+      <div className="w-admin-table-foot">
+        <span className="w-admin-table-foot-text">{footer}</span>
+        <LibPager page={current} pageCount={pageCount} onChange={onPageChange} />
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPage() {
-  const { message } = App.useApp()
   const t = useI18n()
+  const lang = useAppStore((s) => s.settings.language)
   const [logged, setLogged] = useState(!!getAdminToken())
   const [password, setPassword] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
@@ -90,6 +186,9 @@ export default function AdminPage() {
   const [filterKey, setFilterKey] = useState<FilterKey>('all')
   const [keyword, setKeyword] = useState('')
   const [tab, setTab] = useState<'accounts' | 'audit'>('accounts')
+  // 两个视图各自维护页码（切换 Tab 不互相干扰）
+  const [accountPage, setAccountPage] = useState(1)
+  const [auditPage, setAuditPage] = useState(1)
 
   // 重置密码
   const [resetFor, setResetFor] = useState<AdminAccountRow | null>(null)
@@ -116,7 +215,7 @@ export default function AdminPage() {
     } finally {
       setLoadingList(false)
     }
-  }, [message])
+  }, [])
 
   useEffect(() => {
     if (logged) load()
@@ -277,6 +376,9 @@ export default function AdminPage() {
       )
     : filtered
 
+  // 空表文案：本页独有，跟随全局语言（不写入共享 i18n 字典）
+  const emptyText = lang === 'en' ? 'No data yet' : '暂无数据'
+
   function lastSeen(row: AdminAccountRow) {
     if (row.disabled) return <StatusBadge tone="subtle">{t('admin.status.disabled')}</StatusBadge>
     const at = row.lastLogin ?? row.createdAt ?? 0
@@ -310,26 +412,32 @@ export default function AdminPage() {
     downloadBlob(`accounts-${dayjs().format('YYYYMMDD')}.csv`, blob)
   }
 
-  const accountColumns: ColumnsType<AdminAccountRow> = [
+  const accountColumns: AdminColumn<AdminAccountRow>[] = [
     {
-      title: t('admin.col.username'),
-      dataIndex: 'username',
       key: 'username',
-      render: (v: string) => (
+      title: t('admin.col.username'),
+      width: 220,
+      render: (r) => (
         <span className="w-admin-user">
-          <Avatar size={28} name={v} initials={(v || '?').slice(0, 1).toUpperCase()} color="colorful" aria-hidden />
-          <span className="w-admin-user-name">{v}</span>
+          <Avatar
+            size={28}
+            name={r.username}
+            initials={(r.username || '?').slice(0, 1).toUpperCase()}
+            color="colorful"
+            aria-hidden
+          />
+          <span className="w-admin-user-name">{r.username}</span>
         </span>
       ),
     },
     {
-      title: t('admin.col.contact'),
-      dataIndex: 'contact',
       key: 'contact',
-      render: (v: string | null) =>
-        v ? (
+      title: t('admin.col.contact'),
+      width: 200,
+      render: (r) =>
+        r.contact ? (
           <Text size={200} className="w-admin-cell-soft">
-            {v}
+            {r.contact}
           </Text>
         ) : (
           <Text size={200} className="w-admin-cell-faint">
@@ -338,30 +446,29 @@ export default function AdminPage() {
         ),
     },
     {
-      title: t('admin.col.status'),
       key: 'status',
+      title: t('admin.col.status'),
       width: 132,
-      render: (_, r) => lastSeen(r),
+      render: (r) => lastSeen(r),
     },
     {
-      title: t('admin.col.registered'),
-      dataIndex: 'createdAt',
       key: 'createdAt',
+      title: t('admin.col.registered'),
       width: 120,
-      render: (v?: number) =>
-        v ? (
+      render: (r) =>
+        r.createdAt ? (
           <Text size={200} className="w-admin-cell-date">
-            {dayjs(v).format('YYYY-MM-DD')}
+            {dayjs(r.createdAt).format('YYYY-MM-DD')}
           </Text>
         ) : (
           '—'
         ),
     },
     {
-      title: t('admin.col.actions'),
       key: 'ops',
+      title: t('admin.col.actions'),
       width: 300,
-      render: (_, r) => (
+      render: (r) => (
         <div className="w-admin-ops">
           <Button size="small" appearance="subtle" icon={<ShieldCheckmarkRegular />} onClick={() => openReset(r)}>
             {t('admin.op.resetPwd')}
@@ -399,48 +506,50 @@ export default function AdminPage() {
     },
   ]
 
-  const auditColumns: ColumnsType<AuditEntry> = [
+  const auditColumns: AdminColumn<AuditEntry>[] = [
     {
-      title: t('admin.col.time'),
-      dataIndex: 'created_at',
       key: 't',
+      title: t('admin.col.time'),
       width: 140,
-      render: (v: number) => (
+      render: (r) => (
         <Text size={200} className="w-admin-cell-date">
-          {dayjs(v).format('YYYY-MM-DD HH:mm')}
+          {dayjs(r.created_at).format('YYYY-MM-DD HH:mm')}
         </Text>
       ),
     },
     {
-      title: t('admin.col.action'),
-      dataIndex: 'action',
       key: 'a',
+      title: t('admin.col.action'),
       width: 140,
-      render: (v: string) => (
+      render: (r) => (
         <Text size={200} className="w-admin-cell-date">
-          {v}
+          {r.action}
         </Text>
       ),
     },
-    { title: t('admin.col.target'), dataIndex: 'target', key: 'target', width: 160 },
     {
-      title: t('admin.col.detail'),
-      dataIndex: 'detail',
+      key: 'target',
+      title: t('admin.col.target'),
+      width: 160,
+      render: (r) => r.target || '—',
+    },
+    {
       key: 'd',
-      render: (v: string) => (
+      title: t('admin.col.detail'),
+      width: 260,
+      render: (r) => (
         <Text size={200} className="w-admin-cell-soft">
-          {v || '—'}
+          {r.detail || '—'}
         </Text>
       ),
     },
     {
-      title: 'IP',
-      dataIndex: 'ip',
       key: 'ip',
+      title: 'IP',
       width: 130,
-      render: (v: string) => (
+      render: (r) => (
         <Text size={200} className="w-admin-cell-date">
-          {v}
+          {r.ip}
         </Text>
       ),
     },
@@ -579,28 +688,30 @@ export default function AdminPage() {
           </div>
 
           {tab === 'accounts' ? (
-            <div className="w-admin-table">
-              <Table
-                rowKey="id"
-                size="small"
-                columns={accountColumns}
-                dataSource={shown}
-                loading={loadingList}
-                pagination={{ pageSize: 20, showSizeChanger: false }}
-                scroll={{ x: 'max-content' }}
-              />
-            </div>
+            <AdminTable
+              ariaLabel={t('admin.tab.accounts')}
+              columns={accountColumns}
+              rows={shown}
+              rowKey={(r) => r.id}
+              loading={loadingList}
+              page={accountPage}
+              onPageChange={setAccountPage}
+              emptyText={emptyText}
+              loadingText={t('common.loading')}
+              footer={t('common.totalItems', { n: shown.length })}
+            />
           ) : (
-            <div className="w-admin-table">
-              <Table
-                rowKey={(r) => `${r.created_at}-${r.action}-${r.target}`}
-                size="small"
-                columns={auditColumns}
-                dataSource={logs}
-                pagination={{ pageSize: 20, showSizeChanger: false }}
-                scroll={{ x: 'max-content' }}
-              />
-            </div>
+            <AdminTable
+              ariaLabel={t('admin.tab.audit')}
+              columns={auditColumns}
+              rows={logs}
+              rowKey={(r) => `${r.created_at}-${r.action}-${r.target}`}
+              page={auditPage}
+              onPageChange={setAuditPage}
+              emptyText={emptyText}
+              loadingText={t('common.loading')}
+              footer={t('common.totalItems', { n: logs.length })}
+            />
           )}
 
           {/* 近 7 天行为：一行事实文字，不做卡片 */}

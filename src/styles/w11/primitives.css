@@ -754,6 +754,66 @@
 .w-input::placeholder {
   color: var(--w-text-3);
 }
+
+/* 原生日期输入（Fluent v9 无 DatePicker，见 components/common/DateField.tsx） */
+.w-date-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.w-date-input {
+  font-variant-numeric: tabular-nums;
+}
+.w-date-input--clearable {
+  padding-inline-end: 32px;
+}
+.w-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.72;
+}
+.w-date-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+.w-date-clear {
+  position: absolute;
+  inset-inline-end: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--w-radius-control);
+  background: transparent;
+  color: var(--w-text-2);
+  cursor: pointer;
+}
+.w-date-clear:hover {
+  background: var(--w-card);
+  color: var(--w-text);
+}
+.w-date-clear:focus-visible {
+  outline: 2px solid var(--w-accent);
+  outline-offset: -2px;
+}
+
+/* 页面骨架屏（Fluent Skeleton + 递减行宽，避免每行等长） */
+.w-skeleton-block {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 4px 0;
+}
+.w-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
 .w-textarea {
   min-height: 88px;
   padding: 8px 10px;

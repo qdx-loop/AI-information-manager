@@ -1,18 +1,15 @@
 import React, { useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { ConfigProvider, App as AntdApp } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
-import enUS from 'antd/locale/en_US'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import App from './App'
 import { initFromSettings } from '@/db/providerFactory'
 import { useAppStore } from '@/store/appStore'
 import { autoSyncManager } from '@/utils/autoSync'
-import { buildTheme } from '@/theme'
 import { applyFluentThemeVars, fluentThemeOf } from '@/theme/win11'
 import { FluentProvider } from '@fluentui/react-components'
+import { FeedbackHost } from '@/components/common/feedback'
 import './styles/index.css'
 
 /**
@@ -83,11 +80,10 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [fluentTheme, mode])
 
   return (
-    <ConfigProvider locale={lang === 'en' ? enUS : zhCN} theme={buildTheme(mode)}>
-      <FluentProvider theme={fluentTheme} style={{ height: '100%', background: 'transparent' }}>
-        <AntdApp>{children}</AntdApp>
-      </FluentProvider>
-    </ConfigProvider>
+    <FluentProvider theme={fluentTheme} style={{ height: '100%', background: 'transparent' }}>
+      <FeedbackHost />
+      {children}
+    </FluentProvider>
   )
 }
 
