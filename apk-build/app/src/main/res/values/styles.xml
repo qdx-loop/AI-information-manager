@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    壳主题。只负责「第一帧」的底色与系统栏颜色：冷启动时 MainActivity 还没跑到 applyTheme()，
+    用主题里的 windowBackground 避免白闪；之后由 applyTheme() 按网页主题动态覆盖。
+
+    底色取 v10 Fluent token colorNeutralBackground2 的深色值（#202020），
+    与网页默认主题（bootMode 默认 dark）一致。改色请同步：
+      MainActivity.java 的 DARK_CANVAS/LIGHT_CANVAS、src/theme/win11.ts
+-->
+<resources>
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/shell_window_background</item>
+        <item name="android:statusBarColor">@color/shell_window_background</item>
+        <item name="android:navigationBarColor">@color/shell_window_background</item>
+    </style>
+</resources>

@@ -1,5 +1,6 @@
 import Papa from 'papaparse'
 import type { FieldDef, Item } from '@/types'
+import { hasAndroidDownloadBridge, saveViaAndroidShell } from './androidShell'
 
 // 导出条目为 CSV 字符串
 export function itemsToCSV(items: Item[], fields: FieldDef[]): string {
@@ -38,7 +39,27 @@ export function downloadCSV(filename: string, csv: string) {
   downloadBlob(filename, blob)
 }
 
+/**
+ * 保存一个 Blob 为文件。
+ *
+ * 两条路径：
+ *  - 安卓 App 壳内（WebView）：走原生桥落盘，因为 WebView 根本不处理 blob:/data: 下载
+ *    （历史实现在壳里点「导出」没反应，见 apk-build/README.md）；
+ *  - 浏览器：`a[download]` + objectURL。
+ * 判断是同步的，浏览器路径不会插入 await，用户手势（download 需要）不受影响。
+ */
 export function downloadBlob(filename: string, blob: Blob) {
+  if (hasAndroidDownloadBridge()) {
+    void saveViaAndroidShell(filename, blob).then((saved) => {
+      // 桥没接住（文件过大）：退回网页路径，壳的原生下载监听会给出明确提示
+      if (!saved) anchorDownload(filename, blob)
+    })
+    return
+  }
+  anchorDownload(filename, blob)
+}
+
+function anchorDownload(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

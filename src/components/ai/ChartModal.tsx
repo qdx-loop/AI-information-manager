@@ -16,6 +16,7 @@ import { styleChart } from '@/ai/chartStyle'
 import { useAppStore } from '@/store/appStore'
 
 import { useBackButtonLayer } from '@/utils/backButton'
+import { downloadBlob } from '@/utils/csv'
 
 // 按需加载图表库。
 //
@@ -223,12 +224,17 @@ export default function ChartModal({
       message.warning(t('ai.chart.notReady'))
       return
     }
-    const url = canvas.toDataURL('image/png')
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${payload?.title || t('ai.chart.defaultName')}.png`
-    a.click()
-    message.success(t('ai.chart.downloaded'))
+    // data: URL 走 a[download] 在安卓 App 壳（WebView）里同样会静默失败，
+    // 统一转成 Blob 交给 downloadBlob（它会按环境选择原生桥或 a[download]）。
+    const name = `${payload?.title || t('ai.chart.defaultName')}.png`
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        message.error(t('ai.chart.notReady'))
+        return
+      }
+      downloadBlob(name, blob)
+      message.success(t('ai.chart.downloaded'))
+    }, 'image/png')
   }
 
   useBackButtonLayer(!!payload, onClose)

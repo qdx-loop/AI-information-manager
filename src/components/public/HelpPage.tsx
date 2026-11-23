@@ -63,6 +63,7 @@ import { manualEn } from '@/content/manualEn'
 import { useI18n } from '@/i18n'
 import { useAppStore } from '@/store/appStore'
 import AppIcon from '@/components/common/AppIcon'
+import { isAndroidApp } from '@/utils/platform'
 import SupportLink from '@/components/reward/SupportLink'
 
 /** 内容块的纯文本（搜索用；不改变渲染） */
@@ -199,6 +200,50 @@ interface SearchHit {
   section: Section
 }
 
+/**
+ * 安卓 App 壳内的说明书适配。
+ *
+ * 「5.2 手机上怎么用」那一节教的是「怎么把网页装成 App」：下载安装包 / Safari 添加到主屏。
+ * 已经在 App 壳里（UA 带 InfoDeskApp/）的用户看到这些指引只会困惑——他已经在 App 里了。
+ * 因此只替换这一节的安装指引，其余内容（为什么窄屏用卡片）保持原样。
+ */
+function adaptManualForShell(manual: Manual, lang: string): Manual {
+  if (!isAndroidApp()) return manual
+  return {
+    ...manual,
+    chapters: manual.chapters.map((chapter) => ({
+      ...chapter,
+      sections: chapter.sections.map((section) => {
+        if (section.id !== 'phone') return section
+        const zh = lang !== 'en'
+        let replaced = false
+        const blocks = section.blocks.map((block): Block => {
+          if (replaced) return block
+          if (block.t === 'p') {
+            replaced = true
+            return {
+              t: 'p',
+              text: zh
+                ? '你正在用安卓 App，手机上直接用即可。'
+                : 'You are already using the Android app — just use it on your phone.',
+            }
+          }
+          return block
+        }).map((block): Block => {
+          if (block.t !== 'ul') return block
+          return {
+            t: 'ul',
+            items: zh
+              ? ['换设备：用「设置 → 多设备同步」面对面传一次，或开启云端同步。']
+              : ['Moving to another device? Use Settings → Multi-device sync (face-to-face transfer), or turn on cloud sync.'],
+          }
+        })
+        return { ...section, blocks }
+      }),
+    })),
+  }
+}
+
 export default function HelpPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -207,7 +252,8 @@ export default function HelpPage() {
   const setLanguage = useAppStore((s) => s.setLanguage)
   const theme = useAppStore((s) => s.settings.theme)
   const setTheme = useAppStore((s) => s.setTheme)
-  const manual: Manual = lang === 'en' ? manualEn : manualZh
+  const baseManual: Manual = lang === 'en' ? manualEn : manualZh
+  const manual = useMemo(() => adaptManualForShell(baseManual, lang), [baseManual, lang])
   const [active, setActive] = useState(manual.chapters[0]?.id ?? '')
   const [query, setQuery] = useState('')
   const contentRef = useRef<HTMLDivElement>(null)

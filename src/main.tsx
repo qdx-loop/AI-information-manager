@@ -10,6 +10,7 @@ import { autoSyncManager } from '@/utils/autoSync'
 import { applyFluentThemeVars, fluentThemeOf } from '@/theme/win11'
 import { FluentProvider } from '@fluentui/react-components'
 import { FeedbackHost } from '@/components/common/feedback'
+import { syncAndroidShellTheme } from '@/utils/androidShell'
 import './styles/index.css'
 
 /**
@@ -17,8 +18,8 @@ import './styles/index.css'
  *
  * 设计系统 = Fluent UI React v9（microsoft/fluentui）：
  *   - <FluentProvider theme={win11FluentLight|Dark}> 注入官方 Fluent theme；
- *   - 同一份 theme 的全部 token 映射到 <html> 的 CSS 变量，供布局 CSS 与 antd portal 使用；
- *   - antd ConfigProvider 的 token 由同一份 Fluent theme 派生（无第二套色板）；
+ *   - 同一份 theme 的全部 token 映射到 <html> 的 CSS 变量，供布局 CSS 使用；
+ *   - 安卓 App 壳（WebView）的状态栏/导航栏颜色由 syncAndroidShellTheme 回传；
  *   - 页面不再有壁纸/任务栏/窗口模拟。
  */
 
@@ -31,6 +32,8 @@ if (typeof document !== 'undefined') {
   el.style.colorScheme = bootMode
   // 首帧之前就把 Fluent token 写到 html，避免闪烁；应用内切换主题时也走同一函数
   applyFluentThemeVars(fluentThemeOf(bootMode), el)
+  // 安卓 App 壳的系统栏底色与图标明暗（无壳时是空操作）
+  syncAndroidShellTheme(bootMode)
 }
 
 dayjs.locale(useAppStore.getState().settings.language === 'en' ? 'en' : 'zh-cn')
@@ -77,6 +80,7 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     el.setAttribute('data-theme', mode)
     el.style.colorScheme = mode
     applyFluentThemeVars(fluentTheme, el)
+    syncAndroidShellTheme(mode)
   }, [fluentTheme, mode])
 
   return (

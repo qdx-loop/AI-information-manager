@@ -20,6 +20,7 @@ vite.config.js
 apk-build/infodesk.keystore
 # 只排除构建输出；app/src 是壳的源码，必须入库
 apk-build/app/build/
+apk-build/build/
 apk-build/app-release-*.apk
 apk-build/app-release-*.aab
 apk-build/.gradle
