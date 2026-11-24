@@ -59,6 +59,7 @@ KEYSTORE_PASS='<keystore 密码>' ./build-release.sh
 | 返回键＝关掉最上面那层 | Android 16 起 `onBackPressed` 不再被调用，必须走 `OnBackPressedDispatcher` | 壳只把返回键翻译成 WebView 的 `goBack()`，真正的层级栈在 `src/utils/backButton.ts` |
 | `<input type="file">` | 不实现 `onShowFileChooser` 时点开文件框没反应 | `ImportExport` / `SettingsPage` / `AIPanel` 的隐藏 input |
 | 写「下载」目录 | Android 10+ 走 MediaStore，6–9 需要运行时写权限 | 无（壳内部处理，拒绝授权时退回应用私有目录） |
+| 麦克风权限（面对面传输） | 浏览器在没有录音权限时会把内网地址换成 `.local`（mDNS）名字，同 Wi-Fi 直连经常失败；只有拿到权限才暴露真实内网地址 | `src/utils/p2pTransfer.ts` 的 `primeMediaPermission()` → 壳在 `onPermissionRequest` 里申请 `RECORD_AUDIO` 后再放行网页请求 |
 | 边到边 inset | Android 15+ 强制 edge-to-edge，不处理 inset 状态栏会压住网页 app bar | 无（壳把系统栏高度垫在 WebView 外面） |
 
 ## 已知边界
@@ -66,7 +67,10 @@ KEYSTORE_PASS='<keystore 密码>' ./build-release.sh
 - **壳内没有系统通知**：纯 WebView 不实现 Web Notification API，所以 `__reminder` 的到点提醒在 App 里
   只在应用打开期间生效（网页侧 `notificationSupported()` 会如实显示「此环境不支持」，不会假装成功）。
   要做真提醒得接 FCM + 一个原生 Service，属于独立立项。
-- **壳内面对面传输（WebRTC）退化为可能连不上**：浏览器靠「麦克风授权」避免把内网 IP 换成 mDNS 名字，
-  而壳没有声明 `RECORD_AUDIO`；网页侧的 `primeMediaPermission()` 会静默降级，跨设备传输建议走云端同步。
-  要修就得加麦克风权限（要面向应用商店说明用途），是个产品决定。
+- **面对面传输在壳内已支持**（1.2.1 起）：网页在「多设备同步」里先解释「下一步会请求一次麦克风权限」，
+  用户点开始传输时壳才申请系统权限（`onPermissionRequest` → `RECORD_AUDIO`），拿到后立即放行网页的
+  `getUserMedia`，且只放行**主站的麦克风**（摄像头与其它资源一律拒绝）。网页拿到流立刻停掉，不录音。
+  - 用户拒绝时：壳给一句 toast 说明影响，网页按原有逻辑降级（可能走 mDNS，失败页会告诉他重新授权）。
+  - ⚠️ 若以后要上架 Google Play，`RECORD_AUDIO` 属于敏感权限，商店里要填写用途说明
+    （实际用途：不录音，只为让浏览器交出真实内网地址以完成局域网直连）。
 - **单次导出超过 24 MB 不走原生桥**（base64 过桥的内存放大太狠），会退回网页路径并提示改用浏览器。

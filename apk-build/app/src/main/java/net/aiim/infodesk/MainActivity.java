@@ -18,6 +18,7 @@ import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.SslErrorHandler;
 import android.webkit.ValueCallback;
@@ -74,9 +75,10 @@ public class MainActivity extends ComponentActivity {
      * 追加到 User-Agent 末尾，让网页能认出「我在 App 壳里」。
      * 网页侧对应 src/utils/platform.ts 的 APP_UA_TOKEN，两边必须一致（网页只比对前缀）。
      */
-    private static final String APP_UA_TOKEN = "InfoDeskApp/1.2.0";
+    private static final String APP_UA_TOKEN = "InfoDeskApp/1.2.1";
     private static final int REQ_FILE = 1001;
     private static final int REQ_WRITE = 1002;
+    private static final int REQ_MIC = 1003;
 
     private static final String PREFS = "shell";
     private static final String KEY_THEME = "theme";
@@ -100,6 +102,8 @@ public class MainActivity extends ComponentActivity {
     private ValueCallback<Uri[]> filePathCallback;
     /** 渲染进程被系统回收后 webView 已不可用，重试要走重建 */
     private boolean rendererGone = false;
+    /** 网页（面对面传输预热麦克风）发来的授权请求，等系统权限结果回来再放行 */
+    private PermissionRequest pendingWebMic;
     /** 等到写权限授予后再落盘的导出内容（Android 6–9 需要运行时申请写权限） */
     private String pendingName;
     private byte[] pendingBytes;
@@ -358,9 +362,34 @@ public class MainActivity extends ComponentActivity {
                     return false;
                 }
             }
-            // 不覆写 onPermissionRequest：壳里没有声明 CAMERA / RECORD_AUDIO，
-            // 「无条件 grant」等于给任意页面开摄像头麦克风。网页侧的
-            // primeMediaPermission() 本来就会静默降级（面对面传输走云端兜底）。
+            /**
+             * 麦克风授权（面对面传输依赖）。
+             *
+             * 为什么必须由壳放行：浏览器在「没有录音权限」时会把本机地址换成 .local（mDNS）名字，
+             * 同一 Wi-Fi 的两台设备因此经常连不上；拿到录音权限后 WebRTC 才会暴露真实内网地址。
+             * 网页侧 primeMediaPermission() 就是为此调用 getUserMedia 的，而且会先弹一段
+             * 「下一步会请求一次麦克风权限」的说明，所以这里的系统弹窗出现在解释之后，不突兀。
+             *
+             * 只放行麦克风、只放行主站：摄像头/其它资源一律拒绝，
+             * 避免「无条件 grant」给任意页面开摄像头。
+             */
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                if (request == null) return;
+                if (!isMicOnlyFromHost(request)) {
+                    request.deny();
+                    return;
+                }
+                if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                        == PackageManager.PERMISSION_GRANTED) {
+                    request.grant(request.getResources());
+                    return;
+                }
+                // 先把上一次没结果的请求作废，再申请系统权限
+                if (pendingWebMic != null) pendingWebMic.deny();
+                pendingWebMic = request;
+                requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
+            }
         });
 
         // 导出（CSV/Excel）是 blob: URL，http(s) 的下载交给 DownloadManager
@@ -393,6 +422,18 @@ public class MainActivity extends ComponentActivity {
 
         webView.addJavascriptInterface(new DownloadBridge(), "AndroidDownload");
         webView.addJavascriptInterface(new ShellBridge(), "AndroidShell");
+    }
+
+    /** 只接受「主站页面 + 只要麦克风」的权限请求 */
+    private boolean isMicOnlyFromHost(PermissionRequest request) {
+        Uri origin = request.getOrigin();
+        if (origin == null || !host.equals(origin.getHost())) return false;
+        String[] resources = request.getResources();
+        if (resources == null || resources.length == 0) return false;
+        for (String r : resources) {
+            if (!PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) return false;
+        }
+        return true;
     }
 
     /**
@@ -612,13 +653,29 @@ public class MainActivity extends ComponentActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        if (requestCode == REQ_MIC) {
+            PermissionRequest pending = pendingWebMic;
+            pendingWebMic = null;
+            if (pending == null) return;
+            if (granted) {
+                pending.grant(pending.getResources());
+            } else {
+                pending.deny();
+                toast("未授权录音权限，同一 Wi-Fi 直连可能连不上");
+            }
+            return;
+        }
         if (requestCode != REQ_WRITE) return;
         String name = pendingName;
         byte[] bytes = pendingBytes;
         pendingName = null;
         pendingBytes = null;
+        if (pendingWebMic != null) {
+            pendingWebMic.deny();
+            pendingWebMic = null;
+        }
         if (name == null || bytes == null) return;
-        boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
         if (!granted) toast("没有存储权限，改为保存到应用私有目录");
         writeAsync(name, bytes, !granted);
     }
@@ -703,6 +760,10 @@ public class MainActivity extends ComponentActivity {
         }
         pendingName = null;
         pendingBytes = null;
+        if (pendingWebMic != null) {
+            pendingWebMic.deny();
+            pendingWebMic = null;
+        }
         if (webView != null) {
             webView.removeJavascriptInterface("AndroidDownload");
             webView.removeJavascriptInterface("AndroidShell");

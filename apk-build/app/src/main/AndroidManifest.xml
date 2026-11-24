@@ -12,6 +12,12 @@
          缺失时全部网络请求返回 net::ERR_ACCESS_DENIED，表现为永久白屏。 -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- 面对面传输（WebRTC）用：没有录音权限时浏览器会把内网地址换成 .local 名字，
+         同一 Wi-Fi 的两台设备就经常连不上。只在网页调用 getUserMedia 时申请，
+         而且不录音：网页拿到权限立刻停掉音轨（见 src/utils/p2pTransfer.ts 的 primeMediaPermission）。
+         若以后要上架 Google Play，这个权限需要在商店里说明用途。 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- 导出文件写入公共「下载」目录：Android 10 起改用 MediaStore，不再需要此权限 -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"

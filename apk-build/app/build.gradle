@@ -30,8 +30,8 @@ android {
         // Android 5/6 的存量 WebView 版本无法保证，装上也只会白屏。
         minSdkVersion 24
         targetSdkVersion 36
-        versionCode 6
-        versionName "1.2.0"
+        versionCode 7
+        versionName "1.2.1"
         resValue "string", "appName", "信息管理 · AI 助手"
         resValue "string", "launchUrl", shellLaunchUrl
         manifestPlaceholders = [usesCleartextTraffic: shellCleartext]
