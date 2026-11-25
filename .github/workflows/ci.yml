@@ -15,7 +15,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 20 自带 npm 10，它对 package-lock 里「可选 peer 依赖」的校验有 bug：
+          # vitest 4 内嵌的 vite 8 把 esbuild 声明成 optional peer，npm 10 却报 27 条
+          # "Missing: @esbuild/xxx from lock file" 让 npm ci 直接失败（lock 本身没问题，
+          # 同一份在本机 npm 11 下 npm ci 通过）。Node 24 自带 npm 11：CI 与开发机一致。
+          node-version: 24
           cache: npm
 
       - run: npm ci
